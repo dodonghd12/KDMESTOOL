@@ -45,9 +45,7 @@ body {
     flex: 1;
 }
 
-
 /* === removing default styling ===*/
-
 .logo-animated {
     margin: 0;
     height: auto;
@@ -61,7 +59,7 @@ body {
 .logo-animated {
     --border-right: 4px;
     --text-stroke-color: rgba(255, 255, 255, 0.6);
-    --animation-color: #149174;
+    --animation-color: #3dd5c0;;
     --fs-size: 1.3em;
     letter-spacing: 2px;
     text-decoration: none;
@@ -113,11 +111,11 @@ body {
 #sidebar ul li.active>a,
 #sidebar ul li.active>.dropdown-btn {
     background-color: var(--hover-clr);
-    color: #149174;
+    color: #3dd5c0;;
 }
 
 #sidebar ul li.active .material-symbols-outlined {
-    color: #149174;
+    color: #3dd5c0;;
 }
 
 #sidebar a,
@@ -438,13 +436,10 @@ main p {
     transform: rotate(180deg);
 }
 
-
 /* ===== TRUCK ANIMATION ===== */
-
 .truck-animation-wrapper {
     width: 100%;
     margin-top: auto;
-    /* Push to bottom */
     padding: 0;
     overflow: hidden;
     margin-bottom: 0;
@@ -457,7 +452,6 @@ main p {
     display: block;
     width: 100%;
     height: 80px;
-    /* Giảm từ 250px cho phù hợp sidebar */
     overflow: hidden;
     border-bottom: 2px solid var(--line-clr);
     background: transparent;
@@ -469,7 +463,7 @@ main p {
     bottom: -20px;
     width: 2px;
     height: 2px;
-    box-shadow: 0 0 0 30px #149174, 40px 30px 0 40px #149174, 60px 60px 0 30px #149174, 150px 150px 0 30px #149174, 180px 180px 0 30px #149174, 200px 220px 0 30px #149174;
+    box-shadow: 0 0 0 30px #3dd5c0, 40px 30px 0 40px #3dd5c0, 60px 60px 0 30px #3dd5c0, 150px 150px 0 30px #3dd5c0, 180px 180px 0 30px #3dd5c0, 200px 220px 0 30px #3dd5c0;
     transform: rotate(130deg);
     animation: mtn 20s linear infinite;
 }
@@ -485,12 +479,9 @@ main p {
     animation: hill 4s 2s linear infinite;
 }
 
-.tree,
-.tree:nth-child(2),
-.tree:nth-child(3) {
+.tree, .tree:nth-child(2), .tree:nth-child(3) {
     position: absolute;
     height: 50px;
-    /* Giảm kích thước */
     width: 20px;
     bottom: 0;
     background: url(https://s3-us-west-2.amazonaws.com/s.cdpn.io/130015/tree.svg) no-repeat;
@@ -504,14 +495,12 @@ main p {
     bottom: -2px;
     border-radius: 20px;
     position: absolute;
-    background: white;
+    background: #3dd5c0;
 }
 
-.truck,
-.wheels {
+.truck, .wheels {
     transition: all ease;
     width: 50px;
-    /* Giảm kích thước */
     margin-right: -30px;
     bottom: 0px;
     right: 50%;
@@ -537,9 +526,6 @@ main p {
     height: 10px;
     margin-bottom: 0;
 }
-
-
-/* Animations */
 
 .tree {
     animation: tree 3s 0.000s linear infinite;
@@ -645,16 +631,12 @@ main p {
     }
 }
 
-
 /* Sidebar closed state - hide animation */
-
 #sidebar.close .truck-animation-wrapper {
     display: none;
 }
 
-
 /* Mobile responsive */
-
 @media(max-width: 800px) {
     .truck-animation-wrapper {
         display: none;

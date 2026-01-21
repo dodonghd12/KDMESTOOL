@@ -122,14 +122,14 @@ function showCountdownConfirm(type, title, message, seconds) {
     }, 0);
 }
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     checkAuth();
     initializeMainEventListeners();
     initClientSearch();
     initDetailsModal();
 
     // ===== BLOCK ESC KEY WHEN MODAL IS OPEN =====
-    document.addEventListener('keydown', function(e) {
+    document.addEventListener('keydown', function (e) {
         const modal = document.getElementById('customModal');
         if (modal && modal.classList.contains('show')) {
             if (e.key === 'Escape' || e.keyCode === 27) {
@@ -139,6 +139,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     }, true);
+
+    // Initialize blackhole effect
+    blackhole('#blackhole');
 });
 
 document.querySelectorAll('.label[data-text]').forEach(label => {
@@ -214,7 +217,7 @@ function initializeMainEventListeners() {
 
     // ===== MODAL CLOSE BUTTONS =====
     document.querySelectorAll('.close').forEach(btn => {
-        btn.addEventListener('click', function() {
+        btn.addEventListener('click', function () {
             const modal = this.closest('.modal');
             if (modal) modal.style.display = 'none';
         });
@@ -280,7 +283,7 @@ function initializeMainEventListeners() {
 }
 
 function debounceSearch(func, delay) {
-    return function(...args) {
+    return function (...args) {
         clearTimeout(searchTimeout);
         searchTimeout = setTimeout(() => func.apply(this, args), delay);
     };
@@ -514,7 +517,7 @@ function handleContextMenuAction(e) {
             checkBarcodeExtendDateTime();
             break;
 
-            // currentTableType === 'recipe'    
+        // currentTableType === 'recipe'    
         case 'collectRecords':
             showCollectRecords();
             break;
@@ -525,12 +528,12 @@ function handleContextMenuAction(e) {
             showRecipeDetail();
             break;
 
-            // currentTableType === 'outputBarcode'
+        // currentTableType === 'outputBarcode'
         case 'outputBarcode':
             openBarcodeDetailWindow('outputBarcode', selectedRowData);
             break;
 
-            // currentTableType === 'workOrderDetails'
+        // currentTableType === 'workOrderDetails'
         case 'workOrderDetails':
             getWorkOrderDetails();
             break;
@@ -601,7 +604,8 @@ async function checkWorkOrderByBarcode() {
 
     const station = prod_info.station;
     const production_time = prod_info.production_time;
-    if (!station || !production_time) {;
+    if (!station || !production_time) {
+        ;
         clearTable();
         return;
     }
@@ -683,10 +687,10 @@ async function checkBarcodeTransfer() {
     }
 
     fetch('/api/checkBarcodeTransfer', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ resource_id })
-        })
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resource_id })
+    })
         .then(res => res.json())
         .then(async data => {
             if (data.success) {
@@ -695,7 +699,7 @@ async function checkBarcodeTransfer() {
                 await showAlert(data.message || 'Không tìm thấy dữ liệu vận chuyển', 'info');
             }
         })
-        .catch(async() => {
+        .catch(async () => {
             await showAlert('Lỗi khi kiểm tra vận chuyển tem', 'error');
         });
 }
@@ -709,10 +713,10 @@ async function checkBarcodeExtendDateTime() {
     }
 
     fetch('/api/checkBarcodeExtendDateTime', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ resource_id })
-        })
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resource_id })
+    })
         .then(res => res.json())
         .then(async data => {
             if (data.success) {
@@ -721,7 +725,7 @@ async function checkBarcodeExtendDateTime() {
                 await showAlert(data.message || 'Lỗi API', 'info');
             }
         })
-        .catch(async() => {
+        .catch(async () => {
             await showAlert('Lỗi khi kiểm tra số lần gia hạn của tem', 'error');
         });
 }
@@ -770,10 +774,10 @@ async function updateWorkOrderStatus() {
     if (!confirmed) return;
 
     fetch('/api/work_order/update_status', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ work_order_id, status })
-        })
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ work_order_id, status })
+    })
         .then(res => res.json())
         .then(async data => {
             await showAlert(data.message, data.success ? 'success' : 'error');
@@ -791,10 +795,10 @@ async function showRecipeDetail() {
     }
 
     fetch('/api/recipeDetails', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ recipe_id })
-        })
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recipe_id })
+    })
         .then(res => res.json())
         .then(async data => {
             if (data.success) {
@@ -899,7 +903,7 @@ function formatJSON(json) {
     // Apply syntax highlighting
     return json.replace(
         /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
-        function(match) {
+        function (match) {
             let cls = 'json-number';
 
             if (/^"/.test(match)) {
@@ -974,10 +978,10 @@ function handleDepartmentChange() {
     if (!departmentId) return;
 
     fetch('/api/material/add/product_types', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ department_id: departmentId })
-        })
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ department_id: departmentId })
+    })
         .then(res => res.json())
         .then(data => {
             productTypeSelect.innerHTML = '<option value="">-- Chọn --</option>';
@@ -1001,10 +1005,10 @@ function handleProductTypeChange() {
     if (!productType) return;
 
     fetch('/api/material/add/product_ids', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ product_type: productType })
-        })
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product_type: productType })
+    })
         .then(res => res.json())
         .then(data => {
             productIdSelect.innerHTML = '<option value="">-- Chọn --</option>';
@@ -1193,10 +1197,10 @@ function initClientSearch() {
         // Click icon để toggle: nếu đang focus thì đóng + clear, nếu chưa thì mở
         searchIconBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            
+
             // Không cho click nếu disabled
             if (searchInput.disabled) return;
-            
+
             if (document.activeElement === searchInput) {
                 // Đang focus → đóng và clear
                 searchInput.value = '';
@@ -1220,7 +1224,7 @@ function initClientSearch() {
     if (!searchInput) return;
 
     // Filter khi người dùng nhập
-    searchInput.addEventListener('input', function() {
+    searchInput.addEventListener('input', function () {
         const keyword = this.value.trim().toLowerCase();
         filterClientResult(keyword);
     });
@@ -1249,7 +1253,7 @@ function initClientSearch() {
 function updateClientSearchState(hasData = false) {
     const searchInput = document.getElementById('clientSearch');
     const searchIconBtn = document.querySelector('.search-icon-btn');
-    
+
     if (!searchInput || !searchIconBtn) return;
 
     if (hasData) {
@@ -1331,7 +1335,7 @@ function updateVisibleRowCount() {
     tableFooter.classList.toggle('hidden', count === 0);
 }
 
-document.addEventListener('click', function(e) {
+document.addEventListener('click', function (e) {
     const button = e.target.closest('.btn-export-excel');
     if (!button) return;
 
@@ -1579,8 +1583,8 @@ const speechBubble = {
 
         const {
             duration = 3000,
-                animation = 'bounce',
-                pixelStyle = false
+            animation = 'bounce',
+            pixelStyle = false
         } = options;
 
         // Clear previous timeout
@@ -1720,22 +1724,24 @@ function initDateRangePicker(type) {
         }
     });
 
+    
+
     // Event click để clear calendar
-    dateInput.addEventListener('click', function(e) {
+    dateInput.addEventListener('click', function (e) {
         // Chỉ clear khi input đã có giá trị
         if (dateInput.value) {
             e.preventDefault(); // Ngăn mở calendar
-            
+
             // Clear flatpickr instance
             flatpickrInstance.clear();
-            
+
             // Clear visible value
             dateInput.value = '';
-            
+
             // Clear hidden inputs
             fromDateEl.value = '';
             toDateEl.value = '';
-            
+
             // Clear table
             clearTable();
         }
@@ -1826,7 +1832,7 @@ async function searchScanBarcodeHistoryByBarcode() {
     const data = await apiFetch('/api/barcode/searchScanBarcodeHistory', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({resource_id})
+        body: JSON.stringify({ resource_id })
     });
 
     if (Array.isArray(data.result) && data.result.length === 0) {
@@ -1840,3 +1846,78 @@ async function searchScanBarcodeHistoryByBarcode() {
         await showAlert(data.message, 'error');
     }
 }
+
+const canvas = document.getElementById("starfield");
+const ctx = canvas.getContext("2d");
+let w, h;
+let speed = 2;
+const stars = [];
+
+function resize() {
+    const container = document.querySelector('.container');
+    w = canvas.width = container.offsetWidth;
+    h = canvas.height = container.offsetHeight;
+}
+
+window.addEventListener("resize", resize);
+resize();
+
+// Initialize stars
+for (let i = 0; i < 400; i++) {
+    stars.push({
+        x: Math.random() * w - w / 2,
+        y: Math.random() * h - h / 2,
+        z: Math.random() * w
+    });
+}
+
+// Mouse move effect
+document.addEventListener("mousemove", e => {
+    const container = document.querySelector('.container');
+    const rect = container.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    speed = (mouseX / w) * 10 + 1;
+});
+
+function animate() {
+    // Semi-transparent black for trail effect
+    ctx.fillStyle = "rgba(2, 1, 17, 0.4)";
+    ctx.fillRect(0, 0, w, h);
+
+    // Draw stars
+    ctx.fillStyle = "#fff";
+    stars.forEach(s => {
+        s.z -= speed;
+        if (s.z <= 0) {
+            s.z = w;
+            s.x = Math.random() * w - w / 2;
+            s.y = Math.random() * h - h / 2;
+        }
+
+        const x = (s.x / s.z) * w + w / 2;
+        const y = (s.y / s.z) * h + h / 2;
+        const size = (1 - s.z / w) * 3;
+
+        // Draw star
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Draw trail
+        const px = (s.x / (s.z + speed * 2)) * w + w / 2;
+        const py = (s.y / (s.z + speed * 2)) * h + h / 2;
+        ctx.strokeStyle = `rgba(255, 255, 255, ${0.5 * (1 - s.z / w)})`;
+        ctx.lineWidth = size;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(px, py);
+        ctx.stroke();
+    });
+
+    requestAnimationFrame(animate);
+}
+
+animate();
+
+// Redraw on window resize
+window.addEventListener('resize', () => { resize(); });

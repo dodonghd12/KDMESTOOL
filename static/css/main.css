@@ -6,7 +6,7 @@
 }
 
 body {
-    background: #f5f5f5;
+    background: #0a0e27;
 }
 
 .btn {
@@ -32,14 +32,35 @@ body {
     top: 100%;
     left: 0;
     right: 0;
-    background: white;
-    border: 1px solid #ddd;
+    background: rgba(15, 23, 42, 0.85);
+    color: #e2e8f0;
+    border: 1.5px solid #3dd5c0;
     border-top: none;
     border-radius: 0 0 4px 4px;
     max-height: 200px;
     overflow-y: auto;
     z-index: 1000;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.dropdown-list::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+.dropdown-list::-webkit-scrollbar-track {
+    background: rgba(61, 213, 192, 0.3);
+    border-radius: 10px;
+}
+
+.dropdown-list::-webkit-scrollbar-thumb {
+    background-color: #149174;
+    border-radius: 10px;
+    border: 3px solid rgba(61, 213, 192, 0.3);
+}
+
+.dropdown-list::-webkit-scrollbar-thumb:hover {
+    background-color: #0f6f5a;
 }
 
 .dropdown-list.show {
@@ -49,12 +70,12 @@ body {
 .dropdown-item {
     padding: 10px 12px;
     cursor: pointer;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1.5px solid rgba(61, 213, 192, 0.3);
     transition: background 0.2s;
 }
 
 .dropdown-item:hover {
-    background: #f0f0f0;
+    background: rgba(22, 160, 133, 0.15);
 }
 
 .dropdown-item:last-child {
@@ -62,16 +83,172 @@ body {
 }
 
 .dropdown-item.highlight {
-    background: #e3e8ff;
+    background: rgba(22, 160, 133, 0.15);
+}
+
+/* ===== FLATPICKR DARK THEME CUSTOMIZED ===== */
+
+/* Container */
+.flatpickr-calendar {
+  background: rgba(15, 23, 42, 0.95) !important;
+  border: 2px solid #3dd5c0 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5) !important;
+  color: #e2e8f0 !important;
+  font-family: Poppins, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+  z-index: 9999 !important;
+}
+
+/* Header tháng + năm */
+.flatpickr-months {
+  background: rgba(15, 23, 42, 0.95) !important;
+  border-bottom: 2px solid rgba(61, 213, 192, 0.3) !important;
+  color: #3dd5c0 !important;
+}
+
+.flatpickr-current-month {
+  color: #3dd5c0 !important;
+  font-weight: bold !important;
+}
+
+/* Nếu Flatpickr render bằng select */
+.flatpickr-current-month select {
+  background-color: rgba(15, 23, 42, 0.95) !important;
+  color: #3dd5c0 !important;
+  border: 1px solid #3dd5c0 !important;
+}
+
+/* Hover và focus */
+.flatpickr-monthDropdown-months:focus,
+.flatpickr-current-month select:focus {
+  outline: none !important;
+  box-shadow: 0 0 8px rgba(61, 213, 192, 0.4) !important;
+}
+
+/* Nút điều hướng */
+.flatpickr-prev-month,
+.flatpickr-next-month {
+  color: #3dd5c0 !important;
+}
+
+.flatpickr-prev-month svg,
+.flatpickr-next-month svg {
+  fill: #3dd5c0 !important;
+  transition: fill 0.2s ease;
+}
+
+.flatpickr-prev-month:hover svg,
+.flatpickr-next-month:hover svg {
+  fill: #16a085 !important;
+}
+
+.flatpickr-prev-month:hover,
+.flatpickr-next-month:hover {
+  color: #16a085 !important;
+}
+
+.flatpickr-current-month .numInputWrapper .arrowUp,
+.flatpickr-current-month .numInputWrapper .arrowDown {
+  background: none !important;
+  width: 14px;
+  height: 14px;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  background-color: #3dd5c0 !important; /* màu xanh ngọc */
+}
+
+/* Tên ngày trong tuần */
+.flatpickr-weekdays {
+  background: rgba(15, 23, 42, 0.95) !important;
+}
+.flatpickr-weekday {
+  color: #3dd5c0 !important;
+  font-weight: bold !important;
+}
+
+/* Ngày bình thường */
+.flatpickr-day {
+  color: #cbd5e1 !important;
+  border-radius: 6px !important;
+  border: none !important;
+  transition: background 0.2s ease, color 0.2s ease !important;
+}
+
+/* Hover ngày */
+.flatpickr-day:hover {
+  background: rgba(22, 160, 133, 0.3) !important;
+  color: #fff !important;
+}
+
+/* Ngày hôm nay */
+.flatpickr-day.today {
+  border: 1px solid #16a085 !important;
+  background: rgba(22, 160, 133, 0.2) !important;
+  color: #fff !important;
+}
+
+/* Ngày được chọn */
+.flatpickr-day.selected,
+.flatpickr-day.startRange,
+.flatpickr-day.endRange {
+  background: #16a085 !important;
+  color: #fff !important;
+  border: none !important;
+}
+
+/* Ngày trong khoảng range */
+.flatpickr-day.inRange {
+  background-color: rgba(22, 160, 133, 0.15) !important;
+  color: #e2e8f0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  z-index: 1 !important;
+}
+
+.flatpickr-day.inRange::before {
+  content: none !important;
+}
+
+.flatpickr-day.disabled,
+.flatpickr-day.notAllowed,
+.flatpickr-disabled {
+  color: #2f3e3c !important;   /* xanh xám rất tối, dễ phân biệt */
+  background: rgba(15, 23, 42, 0.6) !important;
+  cursor: not-allowed !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Arrow vị trí */
+.flatpickr-calendar.arrowTop::before,
+.flatpickr-calendar.arrowTop::after {
+  border-bottom-color: rgba(15, 23, 42, 0.95) !important;
+}
+.flatpickr-calendar.arrowLeft::before,
+.flatpickr-calendar.arrowLeft::after {
+  border-right-color: rgba(15, 23, 42, 0.95) !important;
 }
 
 .container {
     max-width: 1400px;
-    margin: 20px auto;
-    padding: 0 20px;
-    padding-right: 20px;
+    margin: 0 auto;
+    padding: 20px;
     box-sizing: border-box;
     overflow: hidden;
+}
+
+#starfield {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: -1;
+    pointer-events: none;
 }
 
 .search-section {
@@ -94,13 +271,14 @@ body {
 
 .input-box .input {
     width: 100%;
-    border: 1.5px solid #999;
+    border: 1.5px solid #3dd5c0;
     border-radius: 1rem;
-    background: transparent;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(10px);
     padding: 1rem;
     font-size: 16px;
-    color: #1f2933;
-    transition: border 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    color: #e2e8f0;
+    transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
     outline: none;
 }
 
@@ -108,7 +286,7 @@ body {
     position: absolute;
     left: 15px;
     top: 1rem;
-    color: #999;
+    color: #94a3b8;
     font-size: 16px;
     font-weight: normal;
     pointer-events: none;
@@ -119,20 +297,23 @@ body {
 .input-box .input:focus,
 .input-box .input:valid {
     outline: none;
-    border: 2px solid #149174;
+    border: 2px solid #16a085;
+    background: rgba(15, 23, 42, 0.95);
+    box-shadow: 0 0 20px rgba(22, 160, 133, 0.3);
 }
 
-.input-box .input:focus ~ .user-label,
-.input-box .input:valid ~ .user-label {
+.input-box .input:focus~.user-label,
+.input-box .input:valid~.user-label {
     transform: translateY(-24px);
     font-size: 14px;
-    background-color: white;
+    background-color: rgba(15, 23, 42, 0.85);
     padding: 0 0.2em;
-    color: #149174;
+    color: #16a085;
 }
 
 .table-container {
-    background: white;
+    background: rgba(15, 23, 42, 0.90);
+    backdrop-filter: blur(15px);
     border-radius: 12px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     max-height: calc(120vh - 260px);
@@ -145,19 +326,19 @@ body {
 }
 
 .table-scroll::-webkit-scrollbar {
-    width: 12px;
-    height: 12px;
+    width: 10px;
+    height: 10px;
 }
 
 .table-scroll::-webkit-scrollbar-track {
-    background-color: #f1f1f1;
+    background: rgba(61, 213, 192, 0.3);
     border-radius: 10px;
 }
 
 .table-scroll::-webkit-scrollbar-thumb {
     background-color: #149174;
     border-radius: 10px;
-    border: 3px solid #f1f1f1;
+    border: 3px solid rgba(61, 213, 192, 0.3);
 }
 
 .table-scroll::-webkit-scrollbar-thumb:hover {
@@ -183,28 +364,41 @@ table {
 thead {
     position: sticky;
     top: 0;
-    background: #1f2933;
-    color: white;
+    background: rgba(15, 23, 42, 0.95);
+    backdrop-filter: blur(10px);
+    color: #3dd5c0;
     z-index: 10;
+    border-bottom: 2px solid rgba(61, 213, 192, 0.3);
 }
 
 th {
     padding: 12px;
     text-align: left;
     font-weight: bold;
+    font-size: 16px;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 td {
     padding: 10px 12px;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid rgba(61, 213, 192, 0.1);
+    color: #cbd5e1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 tbody tr:hover {
-    background: #f9f9f9;
+    background: rgba(22, 160, 133, 0.15);
+    transition: background 0.2s ease;
 }
 
 tbody tr.selected {
-    background: #e3e8ff;
+    background: rgba(22, 160, 133, 0.15);
+    transition: background 0.2s ease;
 }
 
 .truncated-cell {
@@ -213,8 +407,10 @@ tbody tr.selected {
 
 .table-footer {
     padding: 10px 15px;
-    background: #f9f9f9;
-    border-top: 1px solid #eee;
+    background: rgba(15, 23, 42, 0.95);
+    backdrop-filter: blur(10px);
+    color: #3dd5c0;
+    border-bottom: 2px solid rgba(61, 213, 192, 0.3);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -225,17 +421,23 @@ tbody tr.selected {
 }
 
 .row-count {
+    text-align: left;
     font-weight: bold;
-    color: #666;
+    font-size: 16px;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #3dd5c0;
 }
 
 .btn-export-excel {
     padding: 6px 12px;
     font-weight: bold;
-    font-size: 13px;
+    font-size: 16px;
     border-radius: 4px;
     border: none;
-    background-color: #149174;
+    background-color: #3dd5c0;
     color: #fff;
     cursor: pointer;
 }
@@ -392,33 +594,28 @@ tbody tr.selected {
     background: #4b5563;
 }
 
-
 /* Disabled button state */
-
 .custom-modal-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
     pointer-events: none;
 }
 
-
 /* Lock body scroll when modal is open */
-
 body.modal-locked {
     overflow: hidden;
     height: 100vh;
 }
 
-
 /* Context Menu */
-
 .context-menu {
     display: none;
     position: absolute;
-    background: white;
-    border: 1px solid #ccc;
+    background: rgba(15, 23, 42, 0.95);
+    border: 1.5px solid #3dd5c0;
+    border-bottom: 2px solid rgba(61, 213, 192, 0.3);
     border-radius: 4px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     z-index: 1500;
     min-width: 200px;
 }
@@ -426,11 +623,13 @@ body.modal-locked {
 .context-menu-item {
     padding: 10px 15px;
     cursor: pointer;
-    border-bottom: 1px solid #eee;
+    color: #e2e8f0;
+    background: rgba(15, 23, 42, 0.95);
+    border-bottom: 2px solid rgba(61, 213, 192, 0.3);
 }
 
 .context-menu-item:hover {
-    background: #f0f0f0;
+    background: rgba(22, 160, 133, 0.5);
 }
 
 .context-menu-item:last-child {
@@ -447,12 +646,13 @@ body.modal-locked {
 
 .output-header {
     flex: 0 0 auto;
-    background: #1f2933;
-    color: #fff;
+    background: rgba(15, 23, 42, 0.95);
+    color: #3dd5c0;
     padding: 10px 15px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    font-size: bold;
 }
 
 .output-header .close-btn {
@@ -483,14 +683,34 @@ body.modal-locked {
 #outputBarcodeTable {
     border-collapse: collapse;
     border-spacing: 0;
-    width: 100%;
+    width: 100%
+}
+
+#outputBarcodeTableBody::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+#outputBarcodeTableBody::-webkit-scrollbar-track {
+    background: rgba(61, 213, 192, 0.3);
+    border-radius: 10px;
+}
+
+#outputBarcodeTableBody::-webkit-scrollbar-thumb {
+    background-color: #149174;
+    border-radius: 10px;
+    border: 3px solid rgba(61, 213, 192, 0.3);
+}
+
+#outputBarcodeTableBody::-webkit-scrollbar-thumb:hover {
+    background-color: #0f6f5a;
 }
 
 #outputBarcodeTable thead th {
     position: sticky;
     top: 0;
-    background: #1f2933;
-    color: #fff;
+    background: rgba(15, 23, 42, 0.95);
+    color: #3dd5c0;
     z-index: 10;
 }
 
@@ -514,11 +734,12 @@ body.modal-locked {
 }
 
 .output-footer {
-    padding: 8px 12px;
-    background: #f9f9f9;
-    border-top: 1px solid #eee;
+    padding: 10px 15px;
+    background: rgba(15, 23, 42, 0.95);
+    backdrop-filter: blur(10px);
+    border-bottom: 2px solid rgba(61, 213, 192, 0.3);
     font-weight: bold;
-    color: #666;
+    color: #3dd5c0;
     flex: 0 0 auto;
     display: flex;
     justify-content: space-between;
@@ -701,16 +922,19 @@ body.modal-locked {
 /* Animations */
 
 @keyframes hamster {
+
     from,
     to {
         transform: rotate(4deg) translate(-0.8em, 1.85em);
     }
+
     50% {
         transform: rotate(0) translate(-0.8em, 1.85em);
     }
 }
 
 @keyframes hamsterHead {
+
     from,
     25%,
     50%,
@@ -718,6 +942,7 @@ body.modal-locked {
     to {
         transform: rotate(0);
     }
+
     12.5%,
     37.5%,
     62.5%,
@@ -727,17 +952,20 @@ body.modal-locked {
 }
 
 @keyframes hamsterEye {
+
     from,
     90%,
     to {
         transform: scaleY(1);
     }
+
     95% {
         transform: scaleY(0);
     }
 }
 
 @keyframes hamsterEar {
+
     from,
     25%,
     50%,
@@ -745,6 +973,7 @@ body.modal-locked {
     to {
         transform: rotate(0);
     }
+
     12.5%,
     37.5%,
     62.5%,
@@ -754,6 +983,7 @@ body.modal-locked {
 }
 
 @keyframes hamsterBody {
+
     from,
     25%,
     50%,
@@ -761,6 +991,7 @@ body.modal-locked {
     to {
         transform: rotate(0);
     }
+
     12.5%,
     37.5%,
     62.5%,
@@ -770,6 +1001,7 @@ body.modal-locked {
 }
 
 @keyframes hamsterFRLimb {
+
     from,
     25%,
     50%,
@@ -777,6 +1009,7 @@ body.modal-locked {
     to {
         transform: rotate(50deg) translateZ(-1px);
     }
+
     12.5%,
     37.5%,
     62.5%,
@@ -786,6 +1019,7 @@ body.modal-locked {
 }
 
 @keyframes hamsterFLLimb {
+
     from,
     25%,
     50%,
@@ -793,6 +1027,7 @@ body.modal-locked {
     to {
         transform: rotate(-30deg);
     }
+
     12.5%,
     37.5%,
     62.5%,
@@ -802,6 +1037,7 @@ body.modal-locked {
 }
 
 @keyframes hamsterBRLimb {
+
     from,
     25%,
     50%,
@@ -809,6 +1045,7 @@ body.modal-locked {
     to {
         transform: rotate(-60deg) translateZ(-1px);
     }
+
     12.5%,
     37.5%,
     62.5%,
@@ -818,6 +1055,7 @@ body.modal-locked {
 }
 
 @keyframes hamsterBLLimb {
+
     from,
     25%,
     50%,
@@ -825,6 +1063,7 @@ body.modal-locked {
     to {
         transform: rotate(20deg);
     }
+
     12.5%,
     37.5%,
     62.5%,
@@ -834,6 +1073,7 @@ body.modal-locked {
 }
 
 @keyframes hamsterTail {
+
     from,
     25%,
     50%,
@@ -841,6 +1081,7 @@ body.modal-locked {
     to {
         transform: rotate(30deg) translateZ(-1px);
     }
+
     12.5%,
     37.5%,
     62.5%,
@@ -853,6 +1094,7 @@ body.modal-locked {
     from {
         transform: rotate(0);
     }
+
     to {
         transform: rotate(-1turn);
     }
@@ -860,7 +1102,7 @@ body.modal-locked {
 
 #loader-float-btn {
     position: fixed;
-    top: 24px;
+    top: 14px;
     right: 12px;
     z-index: 3000;
     text-decoration: none;
@@ -918,16 +1160,19 @@ body.modal-locked {
     0% {
         transform: translateX(-60%);
     }
+
     100% {
         transform: translateX(-30%);
     }
 }
 
 @keyframes mouthTalk {
+
     0%,
     100% {
         background-size: 16px 16px, 16px 16px, 10px 10px, 42px 42px, 12px 3px, 50px 25px, 70px 70px, 70px 70px;
     }
+
     50% {
         background-size: 16px 16px, 16px 16px, 10px 10px, 42px 42px, 12px 8px, 50px 35px, 70px 70px, 70px 70px;
     }
@@ -941,6 +1186,7 @@ body.modal-locked {
     0% {
         transform: translateX(10px);
     }
+
     100% {
         transform: translateX(0px);
     }
@@ -985,6 +1231,7 @@ body.modal-locked {
     position: absolute;
     right: 0;
     top: 0;
+    color: white;
 }
 
 .search-icon-btn:hover {
@@ -992,17 +1239,23 @@ body.modal-locked {
 }
 
 .input-wrapper .input:focus {
-    box-shadow: 0px 0px 5px rgba(22, 160, 133, 0.3);
+    box-shadow: 0px 0px 15px rgba(22, 160, 133, 0.5);
     width: 300px;
     border-radius: 25px;
-    background-color: #fff;
+    background-color: rgba(15, 23, 42, 0.95);
+    backdrop-filter: blur(10px);
     border: 2px solid #16a085;
     transition: all 500ms cubic-bezier(0, 0.110, 0.35, 2);
     padding: 10px 60px 10px 20px;
+    color: #e2e8f0;
+}
+
+.input-wrapper .input::placeholder {
+    color: #64748b;
 }
 
 .input-wrapper .input:focus::placeholder {
-    color: rgba(0, 0, 0, 0.5);
+    color: #94a3b8;
 }
 
 /* .search-form {
@@ -1144,19 +1397,18 @@ body.modal-locked {
         opacity: 0;
         transform: scale(0.95);
     }
+
     to {
         opacity: 1;
         transform: scale(1);
     }
 }
 
-
 /* ===== DETAILS MODAL ===== */
-
 .details-modal {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.45);
+    background: rgba(15, 23, 42, 0.95);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1168,7 +1420,7 @@ body.modal-locked {
 }
 
 .details-modal-content {
-    background: #ffffff;
+    background: rgba(15, 23, 42, 0.95);
     width: 80%;
     max-width: 900px;
     max-height: 85vh;
@@ -1186,8 +1438,8 @@ body.modal-locked {
     justify-content: space-between;
     align-items: center;
     padding: 12px 16px;
-    background: #1f2933;
-    color: #ffffff;
+    background: rgba(15, 23, 42, 0.95);
+    color: #3dd5c0;
     /* Match global font */
     font-family: inherit;
 }
@@ -1201,7 +1453,7 @@ body.modal-locked {
     background: none;
     border: none;
     font-size: 28px;
-    color: #ffffff;
+    color: red;
     cursor: pointer;
     /* Prevent font override */
     font-family: inherit;
@@ -1210,7 +1462,7 @@ body.modal-locked {
 .details-modal-body {
     padding: 20px;
     border-radius: 0;
-    background: #1f2933;
+    background: rgba(15, 23, 42, 0.95);
     color: #e6e6ef;
     white-space: pre-wrap;
     word-break: break-word;
@@ -1222,7 +1474,7 @@ body.modal-locked {
     font-family: Poppins, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     /* Custom scrollbar to match table-scroll */
     scrollbar-width: thin;
-    scrollbar-color: #149174 #f1f1f1;
+    scrollbar-color: #149174 rgba(61, 213, 192, 0.3);
 }
 
 
@@ -1285,9 +1537,11 @@ body.modal-locked {
         width: 95%;
         max-height: 90vh;
     }
+
     .details-modal-title {
         font-size: 16px;
     }
+
     .details-modal-body {
         font-size: 13px;
         padding: 15px;
@@ -1306,7 +1560,7 @@ body.modal-open {
 
 .speech-bubble {
     position: fixed;
-    top: 20px;
+    top: 10px;
     right: 130px;
     /* Cách nes-float-btn 76px (100 - 24) */
     z-index: 3000;
@@ -1395,9 +1649,11 @@ body.modal-open {
         opacity: 0;
         transform: scale(0.5) translateY(-20px);
     }
+
     50% {
         transform: scale(1.05) translateY(0);
     }
+
     100% {
         opacity: 1;
         transform: scale(1) translateY(0);
@@ -1405,13 +1661,16 @@ body.modal-open {
 }
 
 @keyframes shake {
+
     0%,
     100% {
         transform: translateX(0);
     }
+
     25% {
         transform: translateX(-5px);
     }
+
     75% {
         transform: translateX(5px);
     }
@@ -1435,6 +1694,7 @@ body.modal-open {
         right: 10px;
         max-width: 200px;
     }
+
     .speech-bubble::after,
     .speech-bubble::before {
         top: auto;
@@ -1444,20 +1704,17 @@ body.modal-open {
     }
 }
 
-
 /* btn-export-excel styles */
-
 .btn-export-excel {
     --width: 120px;
     --height: 38px;
-    --button-color: #16a085;
+    --button-color: #3dd5c0;;
     width: var(--width);
     height: var(--height);
     background: var(--button-color);
     position: relative;
     text-align: center;
     border-radius: 0.45em;
-    font-family: "Arial";
     transition: background 0.3s;
     border: none;
     cursor: pointer;
@@ -1470,9 +1727,7 @@ body.modal-open {
     justify-content: center;
 }
 
-.btn-export-excel-wrapper,
-.text,
-.icon {
+.btn-export-excel-wrapper, .text, .icon {
     overflow: hidden;
     position: absolute;
     width: 100%;
@@ -1482,8 +1737,7 @@ body.modal-open {
     color: #fff;
 }
 
-.text,
-.icon {
+.text, .icon {
     transition: top 0.5s;
 }
 
@@ -1521,7 +1775,7 @@ body.modal-open {
     top: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0,0,0,0.5);
+    background: rgba(0, 0, 0, 0.5);
     overflow: auto;
 }
 
@@ -1536,7 +1790,7 @@ body.modal-open {
     border-radius: 10px;
     max-width: 1200px;
     width: 95%;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
     position: relative;
 }
 
@@ -1586,7 +1840,7 @@ body.modal-open {
 .comparison-table th {
     background-color: #11121a;
     border-right: 1px solid #42434a;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 
     font-weight: 600;
     font-size: 14px;
