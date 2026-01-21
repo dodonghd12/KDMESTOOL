@@ -90,147 +90,151 @@ body {
 
 /* Container */
 .flatpickr-calendar {
-  background: rgba(15, 23, 42, 0.95) !important;
-  border: 2px solid #3dd5c0 !important;
-  border-radius: 12px !important;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5) !important;
-  color: #e2e8f0 !important;
-  font-family: Poppins, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
-  z-index: 9999 !important;
+    background: rgba(15, 23, 42, 0.95) !important;
+    border: 2px solid #3dd5c0 !important;
+    border-radius: 12px !important;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5) !important;
+    color: #e2e8f0 !important;
+    font-family: Poppins, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+    z-index: 9999 !important;
 }
 
 /* Header tháng + năm */
 .flatpickr-months {
-  background: rgba(15, 23, 42, 0.95) !important;
-  border-bottom: 2px solid rgba(61, 213, 192, 0.3) !important;
-  color: #3dd5c0 !important;
+    background: rgba(15, 23, 42, 0.95) !important;
+    border-bottom: 2px solid rgba(61, 213, 192, 0.3) !important;
+    color: #3dd5c0 !important;
 }
 
 .flatpickr-current-month {
-  color: #3dd5c0 !important;
-  font-weight: bold !important;
+    color: #3dd5c0 !important;
+    font-weight: bold !important;
 }
 
 /* Nếu Flatpickr render bằng select */
 .flatpickr-current-month select {
-  background-color: rgba(15, 23, 42, 0.95) !important;
-  color: #3dd5c0 !important;
-  border: 1px solid #3dd5c0 !important;
+    background-color: rgba(15, 23, 42, 0.95) !important;
+    color: #3dd5c0 !important;
+    border: 1px solid #3dd5c0 !important;
 }
 
 /* Hover và focus */
 .flatpickr-monthDropdown-months:focus,
 .flatpickr-current-month select:focus {
-  outline: none !important;
-  box-shadow: 0 0 8px rgba(61, 213, 192, 0.4) !important;
+    outline: none !important;
+    box-shadow: 0 0 8px rgba(61, 213, 192, 0.4) !important;
 }
 
 /* Nút điều hướng */
 .flatpickr-prev-month,
 .flatpickr-next-month {
-  color: #3dd5c0 !important;
+    color: #3dd5c0 !important;
 }
 
 .flatpickr-prev-month svg,
 .flatpickr-next-month svg {
-  fill: #3dd5c0 !important;
-  transition: fill 0.2s ease;
+    fill: #3dd5c0 !important;
+    transition: fill 0.2s ease;
 }
 
 .flatpickr-prev-month:hover svg,
 .flatpickr-next-month:hover svg {
-  fill: #16a085 !important;
+    fill: #16a085 !important;
 }
 
 .flatpickr-prev-month:hover,
 .flatpickr-next-month:hover {
-  color: #16a085 !important;
+    color: #16a085 !important;
 }
 
 .flatpickr-current-month .numInputWrapper .arrowUp,
 .flatpickr-current-month .numInputWrapper .arrowDown {
-  background: none !important;
-  width: 14px;
-  height: 14px;
-  mask-size: contain;
-  mask-repeat: no-repeat;
-  mask-position: center;
-  -webkit-mask-size: contain;
-  -webkit-mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  background-color: #3dd5c0 !important; /* màu xanh ngọc */
+    background: none !important;
+    width: 14px;
+    height: 14px;
+    mask-size: contain;
+    mask-repeat: no-repeat;
+    mask-position: center;
+    -webkit-mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    background-color: #3dd5c0 !important;
+    /* màu xanh ngọc */
 }
 
 /* Tên ngày trong tuần */
 .flatpickr-weekdays {
-  background: rgba(15, 23, 42, 0.95) !important;
+    background: rgba(15, 23, 42, 0.95) !important;
 }
+
 .flatpickr-weekday {
-  color: #3dd5c0 !important;
-  font-weight: bold !important;
+    color: #3dd5c0 !important;
+    font-weight: bold !important;
 }
 
 /* Ngày bình thường */
 .flatpickr-day {
-  color: #cbd5e1 !important;
-  border-radius: 6px !important;
-  border: none !important;
-  transition: background 0.2s ease, color 0.2s ease !important;
+    color: #cbd5e1 !important;
+    border-radius: 6px !important;
+    border: none !important;
+    transition: background 0.2s ease, color 0.2s ease !important;
 }
 
 /* Hover ngày */
 .flatpickr-day:hover {
-  background: rgba(22, 160, 133, 0.3) !important;
-  color: #fff !important;
+    background: rgba(22, 160, 133, 0.3) !important;
+    color: #fff !important;
 }
 
 /* Ngày hôm nay */
 .flatpickr-day.today {
-  border: 1px solid #16a085 !important;
-  background: rgba(22, 160, 133, 0.2) !important;
-  color: #fff !important;
+    border: 1px solid #16a085 !important;
+    background: rgba(22, 160, 133, 0.2) !important;
+    color: #fff !important;
 }
 
 /* Ngày được chọn */
 .flatpickr-day.selected,
 .flatpickr-day.startRange,
 .flatpickr-day.endRange {
-  background: #16a085 !important;
-  color: #fff !important;
-  border: none !important;
+    background: #16a085 !important;
+    color: #fff !important;
+    border: none !important;
 }
 
 /* Ngày trong khoảng range */
 .flatpickr-day.inRange {
-  background-color: rgba(22, 160, 133, 0.15) !important;
-  color: #e2e8f0 !important;
-  border: none !important;
-  box-shadow: none !important;
-  z-index: 1 !important;
+    background-color: rgba(22, 160, 133, 0.15) !important;
+    color: #e2e8f0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    z-index: 1 !important;
 }
 
 .flatpickr-day.inRange::before {
-  content: none !important;
+    content: none !important;
 }
 
 .flatpickr-day.disabled,
 .flatpickr-day.notAllowed,
 .flatpickr-disabled {
-  color: #2f3e3c !important;   /* xanh xám rất tối, dễ phân biệt */
-  background: rgba(15, 23, 42, 0.6) !important;
-  cursor: not-allowed !important;
-  border: none !important;
-  box-shadow: none !important;
+    color: #2f3e3c !important;
+    /* xanh xám rất tối, dễ phân biệt */
+    background: rgba(15, 23, 42, 0.6) !important;
+    cursor: not-allowed !important;
+    border: none !important;
+    box-shadow: none !important;
 }
 
 /* Arrow vị trí */
 .flatpickr-calendar.arrowTop::before,
 .flatpickr-calendar.arrowTop::after {
-  border-bottom-color: rgba(15, 23, 42, 0.95) !important;
+    border-bottom-color: rgba(15, 23, 42, 0.95) !important;
 }
+
 .flatpickr-calendar.arrowLeft::before,
 .flatpickr-calendar.arrowLeft::after {
-  border-right-color: rgba(15, 23, 42, 0.95) !important;
+    border-right-color: rgba(15, 23, 42, 0.95) !important;
 }
 
 .container {
@@ -273,7 +277,7 @@ body {
     width: 100%;
     border: 1.5px solid #3dd5c0;
     border-radius: 1rem;
-    background: rgba(15, 23, 42, 0.85);
+    background: rgba(22, 160, 133, 0.15);
     backdrop-filter: blur(10px);
     padding: 1rem;
     font-size: 16px;
@@ -312,7 +316,7 @@ body {
 }
 
 .table-container {
-    background: rgba(15, 23, 42, 0.90);
+    background: rgba(22, 160, 133, 0.15);
     backdrop-filter: blur(15px);
     border-radius: 12px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -1204,7 +1208,7 @@ body.modal-locked {
 
 .input-wrapper .input {
     border-style: none;
-    height: 50px;
+    height: 57px;
     width: 50px;
     padding: 10px;
     outline: none;
@@ -1221,8 +1225,8 @@ body.modal-locked {
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    width: 50px;
-    height: 50px;
+    width: 57px;
+    height: 57px;
     outline: none;
     border-style: none;
     border-radius: 50%;
@@ -1462,7 +1466,7 @@ body.modal-locked {
 .details-modal-body {
     padding: 20px;
     border-radius: 0;
-    background: rgba(15, 23, 42, 0.95);
+    background: rgba(22, 160, 133, 0.15);
     color: #e6e6ef;
     white-space: pre-wrap;
     word-break: break-word;
@@ -1477,9 +1481,7 @@ body.modal-locked {
     scrollbar-color: #149174 rgba(61, 213, 192, 0.3);
 }
 
-
 /* JSON Syntax Highlighting */
-
 .json-key {
     color: #9cdcfe;
     /* Light blue for keys */
@@ -1507,9 +1509,7 @@ body.modal-locked {
     /* Blue for null */
 }
 
-
 /* Custom scrollbar for webkit browsers */
-
 .details-modal-body::-webkit-scrollbar {
     width: 12px;
 }
@@ -1564,13 +1564,13 @@ body.modal-open {
     right: 130px;
     /* Cách nes-float-btn 76px (100 - 24) */
     z-index: 3000;
-    background: #fff;
+    background: rgba(22, 160, 133, 0.15);
     border: 3px solid #000;
     border-radius: 12px;
     padding: 12px 16px;
     max-width: 350px;
     min-width: 150px;
-    box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.2);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     /* Animation */
     opacity: 1;
     transform: scale(1);
@@ -1596,7 +1596,7 @@ body.modal-open {
     height: 0;
     border-style: solid;
     border-width: 12px 0 12px 20px;
-    border-color: transparent transparent transparent #000;
+    border-color: transparent transparent transparent rgba(22, 160, 133, 0.15);
 }
 
 .speech-bubble::before {
@@ -1609,7 +1609,7 @@ body.modal-open {
     height: 0;
     border-style: solid;
     border-width: 9px 0 9px 15px;
-    border-color: transparent transparent transparent #fff;
+    border-color: transparent transparent transparent rgba(22, 160, 133, 0.15);
     z-index: 1;
 }
 
@@ -1621,14 +1621,12 @@ body.modal-open {
 #speech-bubble-text {
     font-size: 14px;
     font-weight: 500;
-    color: #1f2933;
+    color: #e2e8f0;
     line-height: 1.4;
     display: block;
 }
 
-
 /* Pixel art style variant (optional) */
-
 .speech-bubble.pixel-style {
     border-radius: 0;
     image-rendering: pixelated;
@@ -1708,7 +1706,8 @@ body.modal-open {
 .btn-export-excel {
     --width: 120px;
     --height: 38px;
-    --button-color: #3dd5c0;;
+    --button-color: #3dd5c0;
+    ;
     width: var(--width);
     height: var(--height);
     background: var(--button-color);
@@ -1727,7 +1726,9 @@ body.modal-open {
     justify-content: center;
 }
 
-.btn-export-excel-wrapper, .text, .icon {
+.btn-export-excel-wrapper,
+.text,
+.icon {
     overflow: hidden;
     position: absolute;
     width: 100%;
@@ -1737,7 +1738,8 @@ body.modal-open {
     color: #fff;
 }
 
-.text, .icon {
+.text,
+.icon {
     transition: top 0.5s;
 }
 
@@ -1784,7 +1786,7 @@ body.modal-open {
 }
 
 .comparison-modal-content {
-    background: white;
+    background: rgba(15, 23, 42, 1);
     margin: 30px auto;
     padding: 30px;
     border-radius: 10px;
@@ -1829,6 +1831,7 @@ body.modal-open {
     font-weight: bold;
     margin-bottom: 20px;
     text-align: center;
+    color: #e2e8f0;
 }
 
 .comparison-table {
@@ -1838,13 +1841,13 @@ body.modal-open {
 }
 
 .comparison-table th {
-    background-color: #11121a;
+    background-color: black;
     border-right: 1px solid #42434a;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 
     font-weight: 600;
-    font-size: 14px;
-    letter-spacing: 0.3px;
+    font-size: 16px;
+    letter-spacing: 0.5px;
 }
 
 .comparison-table thead th:first-child {
@@ -1857,16 +1860,16 @@ body.modal-open {
 
 .comparison-table td {
     padding: 12px;
-    border: 1px solid #ddd;
     vertical-align: top;
+    color: #e2e8f0;
 }
 
 .comparison-table tr.match {
-    background: #d4edda;
+    background: rgba(22, 160, 133, 0.15);
 }
 
 .comparison-table tr.mismatch {
-    background: #f8d7da;
+    background: #ca2f3c;
 }
 
 .comparison-table tr.mismatch td {

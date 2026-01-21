@@ -1852,14 +1852,42 @@ const ctx = canvas.getContext("2d");
 let w, h;
 let speed = 2;
 const stars = [];
+let mouseX = 0;
+let isMouseInWindow = true;
+let animationId = null;
 
 function resize() {
-    const container = document.querySelector('.container');
-    w = canvas.width = container.offsetWidth;
-    h = canvas.height = container.offsetHeight;
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = window.innerHeight;
+    
+    // Redraw background immediately after resize
+    ctx.fillStyle = "rgba(2, 1, 17, 1)";
+    ctx.fillRect(0, 0, w, h);
+    
+    // Reinitialize stars proportionally to new size
+    stars.forEach(star => {
+        // Keep stars within new bounds
+        if (Math.abs(star.x) > w / 2) {
+            star.x = (Math.random() - 0.5) * w;
+        }
+        if (Math.abs(star.y) > h / 2) {
+            star.y = (Math.random() - 0.5) * h;
+        }
+        if (star.z > w) {
+            star.z = Math.random() * w;
+        }
+    });
 }
 
-window.addEventListener("resize", resize);
+// Debounce resize để tránh quá nhiều redraws
+let resizeTimeout;
+window.addEventListener("resize", () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+        resize();
+    }, 100);
+});
+
 resize();
 
 // Initialize stars
@@ -1871,18 +1899,64 @@ for (let i = 0; i < 400; i++) {
     });
 }
 
-// Mouse move effect
+// Mouse move effect - chỉ cập nhật mouseX
 document.addEventListener("mousemove", e => {
-    const container = document.querySelector('.container');
-    const rect = container.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    speed = (mouseX / w) * 10 + 1;
+    mouseX = e.clientX;
+    isMouseInWindow = true;
+});
+
+// Detect khi chuột rời khỏi window
+document.addEventListener("mouseleave", () => {
+    isMouseInWindow = false;
+    // Reset speed về giá trị mặc định khi chuột rời window
+    speed = 2;
+});
+
+// Detect khi chuột quay lại window
+document.addEventListener("mouseenter", () => {
+    isMouseInWindow = true;
+});
+
+// Detect khi tab/window bị blur (chuyển sang app khác)
+window.addEventListener("blur", () => {
+    isMouseInWindow = false;
+    speed = 2;
+});
+
+// Detect khi tab/window được focus lại
+window.addEventListener("focus", () => {
+    isMouseInWindow = true;
+});
+
+// Visibility API - detect khi tab bị ẩn/hiện
+document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+        // Tab bị ẩn - tạm dừng animation
+        if (animationId) {
+            cancelAnimationFrame(animationId);
+            animationId = null;
+        }
+        speed = 2;
+    } else {
+        // Tab được hiện lại - tiếp tục animation
+        if (!animationId) {
+            animate();
+        }
+    }
 });
 
 function animate() {
     // Semi-transparent black for trail effect
     ctx.fillStyle = "rgba(2, 1, 17, 0.4)";
     ctx.fillRect(0, 0, w, h);
+
+    // Chỉ update speed khi chuột trong window
+    if (isMouseInWindow) {
+        speed = (mouseX / window.innerWidth) * 8 + 1;
+    } else {
+        // Smooth transition về speed mặc định
+        speed += (2 - speed) * 0.1;
+    }
 
     // Draw stars
     ctx.fillStyle = "#fff";
@@ -1896,7 +1970,7 @@ function animate() {
 
         const x = (s.x / s.z) * w + w / 2;
         const y = (s.y / s.z) * h + h / 2;
-        const size = (1 - s.z / w) * 3;
+        const size = (1 - s.z / w) * 2.5;
 
         // Draw star
         ctx.beginPath();
@@ -1914,10 +1988,7 @@ function animate() {
         ctx.stroke();
     });
 
-    requestAnimationFrame(animate);
+    animationId = requestAnimationFrame(animate);
 }
 
 animate();
-
-// Redraw on window resize
-window.addEventListener('resize', () => { resize(); });
