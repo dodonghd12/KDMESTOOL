@@ -1,0 +1,144 @@
+<nav id="sidebar" class="sidebar">
+    <ul>
+        <li>
+            <span class="logo-animated">
+                <span class="actual-text">&nbsp;KDMES TOOL&nbsp;</span>
+            <span aria-hidden="true" class="hover-text">&nbsp;KDMES TOOL&nbsp;</span>
+            </span>
+
+            <button id="toggle-btn">
+                <span class="material-symbols-outlined">arrow_menu_close</span>
+            </button>
+        </li>
+
+        <li>
+            <a href="{{ url_for('main') }}">
+                <span class="material-symbols-outlined">home</span>
+                <span>Home</span>
+            </a>
+        </li>
+
+        <li>
+            <button class="dropdown-btn">
+                <span class="material-symbols-outlined">history</span>
+                <span>Lịch sử quét in</span>
+                <span class="material-symbols-outlined">keyboard_arrow_down</span>
+            </button>
+
+            <ul class="sub-menu">
+                <div>
+                    <li>
+                        <a href="{{ url_for('scan_barcode_history') }}">
+                            <span class="material-symbols-outlined">barcode_scanner</span>
+                            <span>Lịch sử quét tem</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('print_barcode_history') }}">
+                            <span class="material-symbols-outlined">print</span>
+                            <span>Lịch sử in tem</span>
+                        </a>
+                    </li>
+                </div>
+            </ul>
+        </li>
+        <li>
+            <a href="{{ url_for('check_input_barcode_in_station') }}">
+                <span class="material-symbols-outlined">category_search</span>
+                <span>Kiểm tra NVL mã MES</span>
+            </a>
+        </li>
+        <li>
+            <a href="{{ url_for('reprint') }}">
+                <span class="material-symbols-outlined">feature_search</span>
+                <span>Truy vấn in bù</span>
+            </a>
+        </li>
+        <li>
+            <a href="{{ url_for('substitutions') }}">
+                <span class="material-symbols-outlined">find_replace</span>
+                <span>NVL thay thế</span>
+            </a>
+        </li>
+    </ul>
+
+    <!-- Truck Animation -->
+    <div class="truck-animation-wrapper">
+        <div class="loop-wrapper">
+            <div class="mountain"></div>
+            <div class="hill"></div>
+            <div class="tree"></div>
+            <div class="tree"></div>
+            <div class="tree"></div>
+            <div class="rock"></div>
+            <div class="truck"></div>
+            <div class="wheels"></div>
+        </div>
+    </div>
+
+    <div class="sidebar-footer">
+        <button id="aboutBtn" class="dropdown-btn no-arrow">
+            <span class="material-symbols-outlined">info</span>
+            <span>About</span>
+        </button>
+
+        <button class="dropdown-btn">
+            <span class="material-symbols-outlined">account_circle</span>
+            <span>{{ user_ip }}</span>
+            <span class="material-symbols-outlined">keyboard_arrow_down</span>
+        </button>
+
+        <ul class="sub-menu">
+            <div>
+                <li>
+                    <a id="logoutMenuItem">
+                        <span class="material-symbols-outlined">logout</span>
+                        <span>Đăng xuất</span>
+                    </a>
+                </li>
+            </div>
+        </ul>
+    </div>
+</nav>
+
+<!-- Custom Modal -->
+<div id="customModal" class="custom-modal">
+    <div class="custom-modal-content">
+        <div id="modalIcon" class="custom-modal-icon"></div>
+        <div id="modalTitle" class="custom-modal-title"></div>
+        <div id="modalMessage" class="custom-modal-message"></div>
+        <div id="modalFooter" class="custom-modal-footer"></div>
+    </div>
+</div>
+
+<!-- Details Modal -->
+<div id="detailsModal" class="details-modal hidden">
+    <div class="details-modal-content">
+        <div class="details-modal-header">
+            <span class="details-modal-title">Chi tiết dữ liệu</span>
+            <button class="details-modal-close">&times;</button>
+        </div>
+        <pre class="details-modal-body"></pre>
+    </div>
+</div>
+
+<div class="api-loading" id="apiLoading" style="display:none;">
+    <div aria-label="Orange and tan hamster running in a metal wheel" role="img" class="wheel-and-hamster">
+        <div class="wheel"></div>
+        <div class="hamster">
+            <div class="hamster__body">
+                <div class="hamster__head">
+                    <div class="hamster__ear"></div>
+                    <div class="hamster__eye"></div>
+                    <div class="hamster__nose"></div>
+                </div>
+                <div class="hamster__limb hamster__limb--fr"></div>
+                <div class="hamster__limb hamster__limb--fl"></div>
+                <div class="hamster__limb hamster__limb--br"></div>
+                <div class="hamster__limb hamster__limb--bl"></div>
+                <div class="hamster__tail"></div>
+            </div>
+        </div>
+        <div class="spoke"></div>
+    </div>
+</div>

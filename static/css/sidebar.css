@@ -1,0 +1,663 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+:root {
+    --base-clr: #1f2933;
+    --line-clr: #42434a;
+    --hover-clr: #222533;
+    --text-clr: #e6e6ef;
+    --accent-clr: #5e63ff;
+    --secondary-text-clr: #b0b3c1;
+}
+
+body {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: start;
+    overflow: hidden;
+}
+
+#sidebar {
+    box-sizing: border-box;
+    height: 100vh;
+    width: 250px;
+    padding: 5px 1em;
+    background-color: var(--base-clr);
+    border-right: 1px solid var(--line-clr);
+    position: sticky;
+    top: 0;
+    align-self: start;
+    transition: 300ms ease-in-out;
+    overflow: hidden;
+    text-wrap: nowrap;
+    display: flex;
+    flex-direction: column;
+}
+
+#sidebar.close {
+    padding: 5px;
+    width: 68px;
+}
+
+#sidebar ul {
+    list-style: none;
+}
+
+#sidebar>ul {
+    flex: 1;
+}
+
+
+/* === removing default styling ===*/
+
+.logo-animated {
+    margin: 0;
+    height: auto;
+    background: transparent;
+    padding: 0;
+    border: none;
+    cursor: pointer;
+    display: inline-block;
+}
+
+.logo-animated {
+    --border-right: 4px;
+    --text-stroke-color: rgba(255, 255, 255, 0.6);
+    --animation-color: #149174;
+    --fs-size: 1.3em;
+    letter-spacing: 2px;
+    text-decoration: none;
+    font-size: var(--fs-size);
+    font-family: "Poppins", Arial, sans-serif;
+    position: relative;
+    text-transform: uppercase;
+    color: transparent;
+    -webkit-text-stroke: 1px var(--text-stroke-color);
+    font-weight: 600;
+    margin-left: 12px;
+}
+
+.logo-animated .hover-text {
+    position: absolute;
+    box-sizing: border-box;
+    content: attr(data-text);
+    color: var(--animation-color);
+    width: 0%;
+    inset: 0;
+    border-right: var(--border-right) solid var(--animation-color);
+    overflow: hidden;
+    -webkit-text-stroke: 1px var(--animation-color);
+    animation: logoScan 3s ease-in-out infinite;
+}
+
+@keyframes logoScan {
+    0% {
+        width: 0%;
+        filter: drop-shadow(0 0 0px var(--animation-color));
+    }
+    50% {
+        width: 100%;
+        filter: drop-shadow(0 0 23px var(--animation-color));
+    }
+    100% {
+        width: 0%;
+        filter: drop-shadow(0 0 0px var(--animation-color));
+    }
+}
+
+#sidebar>ul>li:first-child {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+#sidebar ul li.active>a,
+#sidebar ul li.active>.dropdown-btn {
+    background-color: var(--hover-clr);
+    color: #149174;
+}
+
+#sidebar ul li.active .material-symbols-outlined {
+    color: #149174;
+}
+
+#sidebar a,
+#sidebar .dropdown-btn {
+    border-radius: .5em;
+    padding: 12px;
+    text-decoration: none;
+    color: var(--text-clr);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.dropdown-btn {
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    font: inherit;
+    cursor: pointer;
+}
+
+#sidebar a span,
+#sidebar .dropdown-btn span {
+    flex-grow: 1;
+}
+
+#sidebar a:hover,
+#sidebar .dropdown-btn:hover {
+    background-color: var(--hover-clr);
+}
+
+#sidebar a:hover .material-symbols-outlined,
+#sidebar .dropdown-btn:hover .material-symbols-outlined {
+    font-size: 24px;
+}
+
+#sidebar .sub-menu {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: 300ms ease-in-out;
+    >div {
+        overflow: hidden;
+    }
+}
+
+#sidebar .sub-menu.show {
+    grid-template-rows: 1fr;
+}
+
+#sidebar .sub-menu a {
+    padding-left: 2em;
+}
+
+#toggle-btn {
+    margin-left: auto;
+    padding: 1em;
+    border: none;
+    border-radius: .5em;
+    background: none;
+    cursor: pointer;
+    width: 56px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+#toggle-btn:hover {
+    background-color: var(--hover-clr);
+}
+
+main {
+    padding: 24px;
+    align-self: flex-start;
+    width: 100%;
+    height: 100vh;
+    padding: 24px;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+main p {
+    color: var(--secondary-text-clr);
+    margin-top: 5px;
+    margin-bottom: 15px;
+}
+
+.container {
+    border: none;
+    margin-bottom: 20px;
+    padding: 16px 20px;
+    width: 100%;
+    max-width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    h2,
+    p {
+        margin-top: 1em
+    }
+}
+
+@media(max-width: 800px) {
+    body {
+        grid-template-columns: 1fr;
+    }
+    main {
+        padding: 2em 1em 60px 1em;
+    }
+    .container {
+        border: none;
+        padding: 0;
+    }
+    #sidebar {
+        height: 60px;
+        width: 100%;
+        border-right: none;
+        border-top: 1px solid var(--line-clr);
+        padding: 0;
+        position: fixed;
+        top: unset;
+        bottom: 0;
+        >ul {
+            padding: 0;
+            display: grid;
+            grid-auto-columns: 60px;
+            grid-auto-flow: column;
+            align-items: center;
+            overflow-x: scroll;
+        }
+        ul li {
+            height: 100%;
+        }
+        ul a,
+        ul .dropdown-btn {
+            width: 60px;
+            height: 60px;
+            padding: 0;
+            border-radius: 0;
+            justify-content: center;
+        }
+        ul li .sub-menu.show {
+            position: fixed;
+            bottom: 60px;
+            left: 0;
+            box-sizing: border-box;
+            height: 60px;
+            width: 100%;
+            background-color: var(--hover-clr);
+            border-top: 1px solid var(--line-clr);
+            display: flex;
+            justify-content: center;
+            >div {
+                overflow-x: auto;
+            }
+            li {
+                display: inline-flex;
+            }
+            a {
+                box-sizing: border-box;
+                padding: 1em;
+                width: auto;
+                justify-content: center;
+            }
+        }
+    }
+}
+
+.sidebar-footer {
+    border-top: 1px solid var(--line-clr);
+    padding-top: 8px;
+    flex-shrink: 0;
+}
+
+.sidebar-footer button {
+    width: 100%;
+    background: none;
+    border: none;
+    color: var(--text-clr);
+    display: flex;
+    align-items: center;
+    gap: 1em;
+    padding: .85em;
+    border-radius: .5em;
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+}
+
+.sidebar-footer button:hover {
+    background-color: var(--hover-clr);
+}
+
+.sidebar-footer .sub-menu a {
+    padding-left: 2em;
+    gap: 1em;
+}
+
+.sidebar.close a>span:not(.material-symbols-outlined),
+.sidebar.close .dropdown-btn>span:not(.material-symbols-outlined),
+.sidebar.close .logo-animated {
+    display: none;
+}
+
+.sidebar.close a {
+    height: 44px;
+    width: 44px;
+    margin: 6px auto;
+    border-radius: 12px;
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.sidebar.close .dropdown-btn .material-symbols-outlined:last-child {
+    display: none;
+}
+
+.sidebar.close .sub-menu {
+    display: none;
+}
+
+.custom-modal {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.custom-modal.show {
+    display: flex;
+}
+
+
+/* lớp phủ tối + blur */
+
+.custom-modal::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(4px);
+    z-index: 0;
+}
+
+
+/* modal content nổi lên trên */
+
+.custom-modal-content {
+    position: relative;
+    z-index: 1;
+    background: #1f2933;
+    border-radius: 12px;
+    padding: 24px;
+    min-width: 360px;
+    /* nền ảnh */
+    background-image: url("/static/img/chuataydau.png");
+    /* đường dẫn ảnh */
+    background-size: cover;
+    background-position: center;
+}
+
+.custom-modal-content::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    /* chỉnh độ tối */
+    z-index: 0;
+}
+
+
+/* đảm bảo nội dung nằm trên overlay */
+
+.custom-modal-content>* {
+    position: relative;
+    z-index: 1;
+}
+
+.material-symbols-outlined {
+    font-size: 24px;
+    width: 24px;
+    min-width: 24px;
+    max-width: 24px;
+    height: 24px;
+    line-height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    white-space: nowrap;
+    color: #e8eaed;
+    flex-shrink: 0;
+    transform: none;
+}
+
+.dropdown-btn .material-symbols-outlined:last-child {
+    transition: transform 0.3s ease;
+}
+
+.dropdown-btn.rotate .material-symbols-outlined:last-child {
+    transform: rotate(180deg);
+}
+
+#toggle-btn .material-symbols-outlined {
+    transition: transform 0.25s ease;
+}
+
+#toggle-btn.rotate .material-symbols-outlined {
+    transform: rotate(180deg);
+}
+
+
+/* ===== TRUCK ANIMATION ===== */
+
+.truck-animation-wrapper {
+    width: 100%;
+    margin-top: auto;
+    /* Push to bottom */
+    padding: 0;
+    overflow: hidden;
+    margin-bottom: 0;
+    flex-shrink: 0;
+}
+
+.loop-wrapper {
+    margin: 0 auto;
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 80px;
+    /* Giảm từ 250px cho phù hợp sidebar */
+    overflow: hidden;
+    border-bottom: 2px solid var(--line-clr);
+    background: transparent;
+}
+
+.mountain {
+    position: absolute;
+    right: -900px;
+    bottom: -20px;
+    width: 2px;
+    height: 2px;
+    box-shadow: 0 0 0 30px #149174, 40px 30px 0 40px #149174, 60px 60px 0 30px #149174, 150px 150px 0 30px #149174, 180px 180px 0 30px #149174, 200px 220px 0 30px #149174;
+    transform: rotate(130deg);
+    animation: mtn 20s linear infinite;
+}
+
+.hill {
+    position: absolute;
+    right: -900px;
+    bottom: -30px;
+    width: 300px;
+    border-radius: 50%;
+    height: 15px;
+    box-shadow: 0 0 0 30px #16a085, -15px 0 0 15px #16a085, -60px 0 0 30px #16a085, 180px 0 0 30px #16a085, 220px 0 0 30px #16a085, 450px 0 0 30px #16a085;
+    animation: hill 4s 2s linear infinite;
+}
+
+.tree,
+.tree:nth-child(2),
+.tree:nth-child(3) {
+    position: absolute;
+    height: 50px;
+    /* Giảm kích thước */
+    width: 20px;
+    bottom: 0;
+    background: url(https://s3-us-west-2.amazonaws.com/s.cdpn.io/130015/tree.svg) no-repeat;
+    background-size: contain;
+}
+
+.rock {
+    margin-top: -17%;
+    height: 2%;
+    width: 2%;
+    bottom: -2px;
+    border-radius: 20px;
+    position: absolute;
+    background: white;
+}
+
+.truck,
+.wheels {
+    transition: all ease;
+    width: 50px;
+    /* Giảm kích thước */
+    margin-right: -30px;
+    bottom: 0px;
+    right: 50%;
+    position: absolute;
+}
+
+.truck {
+    background: url(https://s3-us-west-2.amazonaws.com/s.cdpn.io/130015/truck.svg) no-repeat;
+    background-size: contain;
+    height: 35px;
+}
+
+.truck:before {
+    content: " ";
+    position: absolute;
+    width: 15px;
+    box-shadow: -18px 16px 0 1px rgba(255, 255, 255, 0.3), -20px 10px 0 1px rgba(255, 255, 255, 0.3);
+}
+
+.wheels {
+    background: url(https://s3-us-west-2.amazonaws.com/s.cdpn.io/130015/wheels.svg) no-repeat;
+    background-size: contain;
+    height: 10px;
+    margin-bottom: 0;
+}
+
+
+/* Animations */
+
+.tree {
+    animation: tree 3s 0.000s linear infinite;
+}
+
+.tree:nth-child(2) {
+    animation: tree2 2s 0.150s linear infinite;
+}
+
+.tree:nth-child(3) {
+    animation: tree3 8s 0.050s linear infinite;
+}
+
+.rock {
+    animation: rock 4s -0.530s linear infinite;
+}
+
+.truck {
+    animation: truck 4s 0.080s ease infinite;
+}
+
+.wheels {
+    animation: truck 4s 0.001s ease infinite;
+}
+
+.truck:before {
+    animation: wind 1.5s 0.000s ease infinite;
+}
+
+@keyframes tree {
+    0% {
+        transform: translate(1350px);
+    }
+    100% {
+        transform: translate(-50px);
+    }
+}
+
+@keyframes tree2 {
+    0% {
+        transform: translate(650px);
+    }
+    100% {
+        transform: translate(-50px);
+    }
+}
+
+@keyframes tree3 {
+    0% {
+        transform: translate(2750px);
+    }
+    100% {
+        transform: translate(-50px);
+    }
+}
+
+@keyframes rock {
+    0% {
+        right: -200px;
+    }
+    100% {
+        right: 2000px;
+    }
+}
+
+@keyframes truck {
+    0% {}
+    6% {
+        transform: translateY(0px);
+    }
+    7% {
+        transform: translateY(-4px);
+    }
+    9% {
+        transform: translateY(0px);
+    }
+    10% {
+        transform: translateY(-1px);
+    }
+    11% {
+        transform: translateY(0px);
+    }
+    100% {}
+}
+
+@keyframes wind {
+    0% {}
+    50% {
+        transform: translateY(2px)
+    }
+    100% {}
+}
+
+@keyframes mtn {
+    100% {
+        transform: translateX(-2000px) rotate(130deg);
+    }
+}
+
+@keyframes hill {
+    100% {
+        transform: translateX(-2000px);
+    }
+}
+
+
+/* Sidebar closed state - hide animation */
+
+#sidebar.close .truck-animation-wrapper {
+    display: none;
+}
+
+
+/* Mobile responsive */
+
+@media(max-width: 800px) {
+    .truck-animation-wrapper {
+        display: none;
+        /* Hide on mobile to save space */
+    }
+}

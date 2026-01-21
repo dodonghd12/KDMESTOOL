@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>NES Emulator</title>
+
+    <!-- Nostalgist -->
+    <script src="https://unpkg.com/nostalgist"></script>
+
+    <style>
+        body {
+            background: #111;
+            color: #fff;
+            font-family: system-ui;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        #btn {
+            padding: 14px 28px;
+            font-size: 16px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            background: #16a085;
+            color: white;
+        }
+
+        #btn:hover {
+            background: #149174;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h2>NES Emulator</h2>
+    <button id="btn">Browse NES ROM…</button>
+
+    <script>
+        document.getElementById('btn').addEventListener('click', async () => {
+            const [fileHandle] = await showOpenFilePicker({
+                types: [{
+                    description: 'NES ROM',
+                    accept: { 'application/octet-stream': ['.nes'] }
+                }]
+            })
+
+            Nostalgist.launch({
+                core: 'fceumm',
+                rom: fileHandle
+            })
+        })
+    </script>
+</body>
+</html>

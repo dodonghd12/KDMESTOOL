@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 
+  HƯỚNG DẪN CẤU HÌNH NHANH:
+  
+  1. Cài đặt wfastcgi:
+     pip install wfastcgi
+     wfastcgi-enable
+  
+  2. Lấy scriptProcessor từ output của wfastcgi-enable
+     (Sẽ có dạng: C:\Python\python.exe|C:\Python\Lib\site-packages\wfastcgi.py)
+  
+  3. Thay thế "THAY_BANG_SCRIPT_PROCESSOR" bên dưới bằng giá trị từ bước 2
+  
+  4. Sửa PYTHONPATH cho đúng đường dẫn project trên server
+     (Từ lỗi: E:\KV2_Services\KDMES\KDMESTOOL)
+-->
+<configuration>
+  <system.webServer>
+    <handlers>
+      <add name="PythonHandler" path="*" verb="*" modules="FastCgiModule" 
+           scriptProcessor="THAY_BANG_SCRIPT_PROCESSOR" 
+           resourceType="Unspecified" requireAccess="Script" />
+    </handlers>
+    <staticContent>
+      <mimeMap fileExtension=".json" mimeType="application/json" />
+      <mimeMap fileExtension=".js" mimeType="application/javascript" />
+      <mimeMap fileExtension=".css" mimeType="text/css" />
+    </staticContent>
+  </system.webServer>
+  <appSettings>
+    <add key="PYTHONPATH" value="E:\KV2_Services\KDMES\KDMESTOOL" />
+    <add key="WSGI_HANDLER" value="app.app" />
+  </appSettings>
+</configuration>
+

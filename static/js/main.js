@@ -1,0 +1,1780 @@
+let searchTimeout = null;
+let selectedRow = null;
+let selectedRowData = null;
+let originalTableHTML = null;
+let currentTableType = null;
+let rawTableData = [];
+let rawTableColumns = [];
+let filteredTableData = [];
+let feed_records_material_id = null;
+let tableViewStack = [];
+let outputBarcodeRawData = [];
+let outputBarcodeColumns = [];
+let activeSearchContext = 'main';
+let apiLoadingCount = 0;
+let currentBarcodeDetailType = null;
+let countdownConfirm = null;
+let totalOutputBarcode = null;
+
+// Custom Modal Functions
+function showModal(type, title, message, buttons = []) {
+    const modal = document.getElementById('customModal');
+    const icon = document.getElementById('modalIcon');
+    const titleEl = document.getElementById('modalTitle');
+    const messageEl = document.getElementById('modalMessage');
+    const footer = document.getElementById('modalFooter');
+
+    // Set icon and color
+    icon.className = 'custom-modal-icon ' + type;
+    const icons = {
+        'info': 'ℹ️',
+        'success': '✓',
+        'error': '✕',
+        'warning': '⚠'
+    };
+    icon.textContent = icons[type] || 'ℹ️';
+
+    titleEl.textContent = title;
+    messageEl.textContent = message;
+    messageEl.style.whiteSpace = 'pre-line'; // Allow line breaks in message
+
+    // Clear and add buttons
+    footer.innerHTML = '';
+    buttons.forEach(btn => {
+        const button = document.createElement('button');
+        button.className = 'custom-modal-btn ' + btn.class;
+        button.textContent = btn.text;
+        footer.appendChild(button);
+    });
+
+    modal.classList.add('show');
+
+    // Lock body scroll
+    document.body.style.overflow = 'hidden';
+
+    // Return promise for confirm dialogs
+    return new Promise((resolve) => {
+        buttons.forEach((btn, index) => {
+            const button = footer.children[index];
+            if (button) {
+                button.onclick = () => {
+                    closeModal();
+                    resolve(btn.value !== false);
+                };
+            }
+        });
+    });
+}
+
+function closeModal() {
+    const modal = document.getElementById('customModal');
+    modal.classList.remove('show');
+
+    // Unlock body scroll
+    document.body.style.overflow = '';
+}
+
+// Replace alert/confirm functions
+function showAlert(message, type = 'info') {
+    const titles = {
+        'info': 'Thông tin',
+        'success': 'Thành công',
+        'error': 'Lỗi',
+        'warning': 'Cảnh báo'
+    };
+
+    return showModal(type, titles[type] || 'Thông tin', message, [
+        { text: 'OK', class: 'custom-modal-btn-primary', value: true }
+    ]);
+}
+
+function showConfirm(message, title = 'Xác nhận') {
+    return showModal('warning', title, message, [
+        { text: 'Hủy', class: 'custom-modal-btn-secondary', value: false },
+        { text: 'OK', class: 'custom-modal-btn-primary', value: true }
+    ]);
+}
+
+function showCountdownConfirm(type, title, message, seconds) {
+    countdownConfirm = seconds;
+    showModal(type, title, message, [{
+        text: `Xác nhận (${countdownConfirm})`,
+        class: 'custom-modal-btn-primary',
+        value: true
+    }]);
+
+    setTimeout(() => {
+        const btn = document.querySelector('#modalFooter button');
+        if (!btn) return;
+
+        btn.disabled = true;
+
+        const timer = setInterval(() => {
+            countdownConfirm--;
+            btn.textContent = `Xác nhận (${countdownConfirm})`;
+
+            if (countdownConfirm <= 0) {
+                clearInterval(timer);
+                btn.textContent = 'Xác nhận';
+                btn.disabled = false;
+            }
+        }, 1000);
+    }, 0);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    checkAuth();
+    initializeMainEventListeners();
+    initClientSearch();
+    initDetailsModal();
+
+    // ===== BLOCK ESC KEY WHEN MODAL IS OPEN =====
+    document.addEventListener('keydown', function(e) {
+        const modal = document.getElementById('customModal');
+        if (modal && modal.classList.contains('show')) {
+            if (e.key === 'Escape' || e.keyCode === 27) {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            }
+        }
+    }, true);
+});
+
+document.querySelectorAll('.label[data-text]').forEach(label => {
+    const text = label.dataset.text;
+    label.innerHTML = '';
+
+    [...text].forEach((char, index) => {
+        const span = document.createElement('span');
+        span.className = 'char';
+        span.style.setProperty('--index', index);
+        span.textContent = char === ' ' ? '\u00A0' : char;
+        label.appendChild(span);
+    });
+});
+
+async function checkAuth() {
+    try {
+        const response = await fetch('/api/getDepartmentList');
+        const result = await response.json();
+        if (result.error) {
+            await showAlert(
+                'Phiên đăng nhập hết hạn, Vui lòng đăng nhập lại',
+                'error'
+            );
+            window.location.href = '/login';
+            return;
+        }
+
+        const items = result.data || [];
+        departments = items.map(item => ({
+            id: item.departmentID || ''
+        }));
+
+    } catch (error) {
+        console.error('Error loading departments:', error);
+    }
+}
+
+function initializeMainEventListeners() {
+
+    // ===== MAIN PAGE INPUTS =====
+    const barcodeInput = document.getElementById('barcode');
+    const productInput = document.getElementById('product_id');
+
+    if (barcodeInput) {
+        barcodeInput.addEventListener(
+            'input',
+            debounceSearch(searchBarcode, 500)
+        );
+
+        barcodeInput.addEventListener('input', e => {
+            e.target.value = e.target.value.toUpperCase();
+            if (productInput) productInput.value = '';
+        });
+
+    }
+
+    if (productInput) {
+        productInput.addEventListener(
+            'input',
+            debounceSearch(searchWorkOrder, 500)
+        );
+
+        productInput.addEventListener('input', e => {
+            e.target.value = e.target.value.toUpperCase();
+            if (barcodeInput) barcodeInput.value = '';
+        });
+    }
+
+    // ===== SIDEBAR EVENTS =====
+    document.addEventListener('sidebar:about', showAbout);
+    document.addEventListener('sidebar:logout', handleLogout);
+
+    // ===== MODAL CLOSE BUTTONS =====
+    document.querySelectorAll('.close').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const modal = this.closest('.modal');
+            if (modal) modal.style.display = 'none';
+        });
+    });
+
+    // ===== TABLE EVENTS =====
+    const tableBody = document.getElementById('tableBody');
+    if (tableBody) {
+        tableBody.addEventListener('click', handleRowClick);
+        tableBody.addEventListener('dblclick', handleRowDoubleClick);
+        tableBody.addEventListener('contextmenu', handleContextMenu);
+    }
+
+    // ===== CONTEXT MENU =====
+    const contextMenu = document.getElementById('contextMenu');
+    if (contextMenu) {
+        document.addEventListener('click', () => {
+            contextMenu.style.display = 'none';
+        });
+    }
+
+    document.querySelectorAll('.context-menu-item').forEach(item => {
+        item.addEventListener('click', handleContextMenuAction);
+    });
+
+    // ===== SPEECH BUBBLE =====
+    speechBubble.init();
+
+    setTimeout(() => {
+        speechBubble.show(`Xin Chào! 👋`, {
+            duration: 10000,
+            animation: 'bounce'
+        });
+    }, 1000);
+
+    document.querySelector('thead')?.addEventListener('mouseenter', () => {
+        speechBubble.show('💡Tip: Click đúp chuột trái để xem chi tiết và click chuột phải vào dòng dữ liệu để xem thêm chức năng!', {
+            duration: 10000,
+            animation: 'bounce'
+        })
+    })
+
+    document.querySelector('.input-box')?.addEventListener('mouseenter', () => {
+        speechBubble.show('💡Tip: Search barcode, Search đơn điều động theo quy cách!', {
+            duration: 10000,
+            animation: 'bounce'
+        })
+    })
+
+    document.querySelector('.output-header')?.addEventListener('mouseenter', () => {
+        speechBubble.show('💡Tip: Nhớ tắt Bảng Chi Tiết Barcode để trở về ban đầu!', {
+            duration: 10000,
+            animation: 'bounce'
+        })
+    })
+
+    document.querySelector('.btn-export-excel')?.addEventListener('mouseenter', () => {
+        speechBubble.show('💡Tip: Xuất file Excel gồm toàn bộ dữ liệu của bảng phía trên!', {
+            duration: 10000,
+            animation: 'bounce'
+        })
+    })
+}
+
+function debounceSearch(func, delay) {
+    return function(...args) {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => func.apply(this, args), delay);
+    };
+}
+
+async function searchBarcode() {
+    closeShowBarcodeWindow();
+    const keyword = document.getElementById('barcode').value.trim();
+    if (!keyword) {
+        clearTable();
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/searchBarcode', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ keyword })
+        });
+
+        const data = await response.json();
+        if (data.result) {
+            setTableData(data.result, data.columns, 'barcode');
+        }
+    } catch (error) {
+        console.error('Error searching barcode:', error);
+    }
+}
+
+async function searchWorkOrder() {
+    closeShowBarcodeWindow();
+    const keyword = document.getElementById('product_id').value.trim();
+    if (!keyword) {
+        clearTable();
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/searchWorkOrder', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ keyword })
+        });
+
+        const data = await response.json();
+        if (data.result) {
+            setTableData(data.result, data.columns, 'recipe');
+        }
+    } catch (error) {
+        console.error('Error searching work order:', error);
+    }
+}
+
+function displayTable(result, columns) {
+    const thead = document.getElementById('tableHead');
+    const tbody = document.getElementById('tableBody');
+    const rowCount = document.getElementById('rowCount');
+
+    // Clear existing content
+    thead.innerHTML = '';
+    tbody.innerHTML = '';
+
+    if (!result || result.length === 0) {
+        rowCount.textContent = '0';
+        return;
+    }
+
+    // Table header
+    const headerRow = document.createElement('tr');
+    columns.forEach(col => {
+        const th = document.createElement('th');
+        th.textContent = col;
+        headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+
+    // Table body
+    const truncateThreshold = 100; // chỉ truncate nếu dài hơn ngưỡng này
+    const displayLength = 100; // số ký tự hiển thị
+
+    result.forEach((row, index) => {
+        const tr = document.createElement('tr');
+        tr.dataset.index = index;
+        row.forEach((cell, cellIndex) => {
+            const td = document.createElement('td');
+
+            // Format cell value - if it's an object, convert to JSON
+            let cellValue = '';
+            let fullValue = '';
+
+            if (cell !== null && cell !== undefined) {
+                if (typeof cell === 'object') {
+                    try {
+                        fullValue = JSON.stringify(cell, null, 2);
+                        cellValue = fullValue;
+                    } catch (e) {
+                        fullValue = String(cell);
+                        cellValue = fullValue;
+                    }
+                } else {
+                    fullValue = String(cell);
+                    cellValue = fullValue;
+                }
+            }
+
+            if (cellValue.length > truncateThreshold) {
+                // Only truncate long strings
+                td.textContent = cellValue.substring(0, displayLength) + '...';
+                td.title = fullValue; // Show full value on hover
+                td.classList.add('truncated-cell');
+            } else {
+                // Display short strings fully
+                td.textContent = cellValue;
+            }
+
+            // Always store full value for double-click and operations
+            td.dataset.fullValue = fullValue;
+
+            tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+    });
+
+    rowCount.textContent = result.length;
+    updateVisibleRowCount()
+}
+
+function clearTable() {
+    document.getElementById('tableHead').innerHTML = '';
+    document.getElementById('tableBody').innerHTML = '';
+    document.getElementById('rowCount').textContent = '0';
+
+    selectedRow = null;
+    selectedRowData = null;
+
+    updateVisibleRowCount()
+}
+
+function handleRowClick(e) {
+    const row = e.target.closest('tr');
+    if (!row) return;
+
+    // Remove previous selection
+    document.querySelectorAll('#tableBody tr').forEach(r => r.classList.remove('selected'));
+
+    // Add selection to current row
+    row.classList.add('selected');
+    selectedRow = row;
+
+    // Get row data - use fullValue from data attribute if available
+    const cells = row.querySelectorAll('td');
+    const columns = Array.from(document.querySelectorAll('#tableHead th')).map(th => th.textContent);
+    selectedRowData = {};
+    columns.forEach((col, index) => {
+        const cell = cells[index];
+        // Get full value from data attribute if available (for truncated cells)
+        const fullValue = cell?.dataset.fullValue;
+        selectedRowData[col] = fullValue !== undefined ? fullValue : (cell?.textContent || '');
+    });
+}
+
+function handleRowDoubleClick(e) {
+    const row = e.target.closest('tr');
+    if (!row) return;
+
+    handleRowClick(e);
+    showDetails();
+}
+
+function handleContextMenu(e) {
+    e.preventDefault();
+    const row = e.target.closest('tr');
+    if (!row) return;
+
+    handleRowClick(e);
+
+    const contextMenu = document.getElementById('contextMenu');
+    contextMenu.style.display = 'block';
+    contextMenu.style.left = e.pageX + 'px';
+    contextMenu.style.top = e.pageY + 'px';
+
+    // Show/hide context menu items based on table type
+    updateContextMenu();
+}
+
+function updateContextMenu() {
+    const items = document.querySelectorAll('.context-menu-item');
+    items.forEach(item => item.style.display = 'none');
+
+    if (currentTableType === 'barcode') {
+        document.querySelector('[data-action="inputBarcode"]').style.display = 'block';
+        document.querySelector('[data-action="feedRecords"]').style.display = 'block';
+        document.querySelector('[data-action="checkScanBarcodeHistory"]').style.display = 'block';
+        document.querySelector('[data-action="checkBarcodeWorkOrder"]').style.display = 'block';
+        document.querySelector('[data-action="checkBarcodeTransfer"]').style.display = 'block';
+        document.querySelector('[data-action="checkBarcodeExtendDateTime"]').style.display = 'block';
+    } else if (currentTableType === 'recipe') {
+        document.querySelector('[data-action="collectRecords"]').style.display = 'block';
+        document.querySelector('[data-action="updateWorkOrderStatus"]').style.display = 'block';
+        document.querySelector('[data-action="recipeDetail"]').style.display = 'block';
+    } else if (currentTableType === 'outputBarcode') {
+        document.querySelector('[data-action="outputBarcode"]').style.display = 'block';
+    } else if (currentTableType === 'workOrderDetails') {
+        document.querySelector('[data-action="workOrderDetails"]').style.display = 'block';
+    }
+}
+
+function handleContextMenuAction(e) {
+    const action = e.target.dataset.action;
+    if (!selectedRowData) return;
+
+    switch (action) {
+        // currentTableType === 'barcode'
+        case 'inputBarcode':
+            openBarcodeDetailWindow('inputBarcode', selectedRowData);
+            break;
+        case 'feedRecords':
+            showFeedRecords();
+            break;
+        case 'checkScanBarcodeHistory':
+            searchScanBarcodeHistoryByBarcode();
+            break;
+        case 'checkBarcodeWorkOrder':
+            checkWorkOrderByBarcode();
+            break;
+        case 'checkBarcodeTransfer':
+            checkBarcodeTransfer();
+            break;
+        case 'checkBarcodeExtendDateTime':
+            checkBarcodeExtendDateTime();
+            break;
+
+            // currentTableType === 'recipe'    
+        case 'collectRecords':
+            showCollectRecords();
+            break;
+        case 'updateWorkOrderStatus':
+            updateWorkOrderStatus();
+            break;
+        case 'recipeDetail':
+            showRecipeDetail();
+            break;
+
+            // currentTableType === 'outputBarcode'
+        case 'outputBarcode':
+            openBarcodeDetailWindow('outputBarcode', selectedRowData);
+            break;
+
+            // currentTableType === 'workOrderDetails'
+        case 'workOrderDetails':
+            getWorkOrderDetails();
+            break;
+    }
+
+    document.getElementById('contextMenu').style.display = 'none';
+}
+
+async function showFeedRecords() {
+    closeShowBarcodeWindow();
+    const material_oid = selectedRowData['id'];
+    if (!material_oid) {
+        await showAlert('Thiếu OID', 'error');
+        return;
+    }
+
+    const material_type = selectedRowData['product_type'];
+    if (!material_type) {
+        await showAlert('Thiếu product_type', 'error');
+        return;
+    }
+
+    if (material_type == "TIRE") {
+        await showAlert('Không quản lý quét tem từ Ép Vỏ qua QC', 'error');
+        return;
+    }
+
+    feed_records_material_id = material_oid
+
+    const data = await apiFetch('/api/barcode/UsedHistory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ material_oid, material_type })
+    });
+
+    if (Array.isArray(data.result) && data.result.length === 0) {
+        await showAlert("Barcode chưa quét tem lần nào", 'error');
+        return;
+    }
+
+    if (data.success) {
+        setTableData(data.result, data.columns, 'outputBarcode');
+    } else {
+        await showAlert(data.message, 'error');
+    }
+}
+
+async function checkWorkOrderByBarcode() {
+    const resource_id = selectedRowData['id'];
+    if (!resource_id) {
+        await showAlert('Chưa chọn hàng dữ liệu.', 'warning');
+        return;
+    }
+
+    const payload = { resource_id };
+
+    let info_obj = selectedRowData['info'];
+    if (typeof info_obj === 'string') {
+        try {
+            info_obj = JSON.parse(info_obj);
+        } catch {
+            return null;
+        }
+    }
+
+    const prod_info = info_obj.production_info;
+    if (!prod_info) return null;
+
+    const station = prod_info.station;
+    const production_time = prod_info.production_time;
+    if (!station || !production_time) {;
+        clearTable();
+        return;
+    }
+
+    const vietNameDate = convertISOToVietNamDate(production_time)
+
+    payload.station = station;
+    payload.fromDate = vietNameDate;
+    payload.toDate = vietNameDate;
+
+    const data = await apiFetch('/api/station/searchPrintBarcodeHistory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+
+    if (Array.isArray(data.result) && data.result.length === 0) {
+        await showAlert(`Barcode không được in ra từ bất kỳ đơn điều động nào`, 'error');
+        return;
+    }
+
+    setTableData(data.result, data.columns, 'workOrderDetails');
+}
+
+async function fetchInputBarcode(id, product_type) {
+    try {
+        const res = await apiFetch('/api/barcode/inputBarcode', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, product_type })
+        });
+
+        if (res.success) {
+            renderOutputBarcodeTable(res.result, res.columns);
+        } else {
+            showAlert('error', 'Lỗi', res.message);
+        }
+
+    } catch (err) {
+        showAlert('error', 'Lỗi', err.message || 'Không tải được tem đầu vào');
+    }
+}
+
+async function fetchOutputBarcode() {
+    const resource_id = feed_records_material_id;
+    if (!resource_id) {
+        await showAlert('Thiếu Resource ID', 'error');
+        return;
+    }
+
+    const work_order = selectedRowData['work_order'];
+    totalOutputBarcode = selectedRowData['total_barcode'];
+
+    const data = await apiFetch('/api/barcode/outputBarcode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resource_id, work_order })
+    });
+
+    if (data.success) {
+        if (data.result && data.result.length > 0) {
+            outputBarcodeRawData = data.result;
+            outputBarcodeColumns = data.columns;
+            renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
+        } else {
+            await showAlert(data.message || 'Không tìm thấy tem đầu ra', 'info');
+        }
+    } else {
+        await showAlert(data.message, 'error');
+    }
+}
+
+async function checkBarcodeTransfer() {
+    closeShowBarcodeWindow();
+    const resource_id = selectedRowData['id'];
+    if (!resource_id) {
+        await showAlert('Thiếu Resource ID', 'error');
+        return;
+    }
+
+    fetch('/api/checkBarcodeTransfer', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ resource_id })
+        })
+        .then(res => res.json())
+        .then(async data => {
+            if (data.success) {
+                await showAlert(data.message, 'info');
+            } else {
+                await showAlert(data.message || 'Không tìm thấy dữ liệu vận chuyển', 'info');
+            }
+        })
+        .catch(async() => {
+            await showAlert('Lỗi khi kiểm tra vận chuyển tem', 'error');
+        });
+}
+
+async function checkBarcodeExtendDateTime() {
+    closeShowBarcodeWindow();
+    const resource_id = selectedRowData['id'];
+    if (!resource_id) {
+        await showAlert('Thiếu Resource ID', 'error');
+        return;
+    }
+
+    fetch('/api/checkBarcodeExtendDateTime', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ resource_id })
+        })
+        .then(res => res.json())
+        .then(async data => {
+            if (data.success) {
+                await showAlert(data.message, 'info');
+            } else {
+                await showAlert(data.message || 'Lỗi API', 'info');
+            }
+        })
+        .catch(async() => {
+            await showAlert('Lỗi khi kiểm tra số lần gia hạn của tem', 'error');
+        });
+}
+
+async function showCollectRecords() {
+    const work_order_id = selectedRowData['id'];
+    if (!work_order_id) {
+        await showAlert('Chưa chọn hàng dữ liệu.', 'warning');
+        return;
+    }
+
+    const work_order_status = selectedRowData['status'];
+    if (!work_order_status) {
+        await showAlert('Chưa chọn hàng dữ liệu.', 'warning');
+        return;
+    }
+
+    const data = await apiFetch('/api/workorder/outputBarcode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ work_order_id, work_order_status })
+    });
+
+    if (data.success) {
+        setTableData(data.result, data.columns, null);
+    } else {
+        await showAlert(data.message, 'error');
+    }
+}
+
+async function updateWorkOrderStatus() {
+    const work_order_id = selectedRowData['id'];
+    const status = selectedRowData['status'];
+
+    if (!work_order_id) {
+        await showAlert('Chưa chọn hàng dữ liệu.', 'warning');
+        return;
+    }
+
+    if (status !== '3') {
+        await showAlert('Mã mes chưa hoàn thành, không thể mở lại mã mes', 'error');
+        return;
+    }
+
+    const confirmed = await showConfirm('Bạn có chắc chắn muốn cập nhật không?');
+    if (!confirmed) return;
+
+    fetch('/api/work_order/update_status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ work_order_id, status })
+        })
+        .then(res => res.json())
+        .then(async data => {
+            await showAlert(data.message, data.success ? 'success' : 'error');
+            if (data.success) {
+                clearTable();
+            }
+        });
+}
+
+async function showRecipeDetail() {
+    const recipe_id = selectedRowData['recipe_id'];
+    if (!recipe_id) {
+        await showAlert('Chưa chọn hàng dữ liệu.', 'warning');
+        return;
+    }
+
+    fetch('/api/recipeDetails', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ recipe_id })
+        })
+        .then(res => res.json())
+        .then(async data => {
+            if (data.success) {
+                setTableData(data.result, data.columns, null);
+            } else {
+                await showAlert(data.message, 'error');
+            }
+        });
+}
+
+function initDetailsModal() {
+    const modal = document.getElementById('detailsModal');
+    if (!modal) return;
+
+    const closeBtn = modal.querySelector('.details-modal-close');
+    const content = modal.querySelector('.details-modal-content');
+
+    // click nút X
+    closeBtn?.addEventListener('click', closeDetailsModal);
+
+    // click ra ngoài modal-content => đóng
+    modal.addEventListener('click', e => {
+        if (!content.contains(e.target)) {
+            closeDetailsModal();
+        }
+    });
+
+    // ESC để đóng
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+            closeDetailsModal();
+        }
+    });
+}
+
+function showDetails() {
+    if (!selectedRow) return;
+
+    const cells = selectedRow.querySelectorAll('td');
+    const columns = Array.from(
+        document.querySelectorAll('#tableHead th')
+    ).map(th => th.textContent);
+
+    const fullRowData = {};
+    columns.forEach((col, index) => {
+        const cell = cells[index];
+        fullRowData[col] =
+            cell?.dataset.fullValue || cell?.textContent || '';
+    });
+
+    showDetailsModal(fullRowData);
+}
+
+function showDetailsModal(data) {
+    const modal = document.getElementById('detailsModal');
+    if (!modal) return;
+
+    const body = modal.querySelector('.details-modal-body');
+    if (!body) return;
+
+    const processedData = {};
+    for (const [key, value] of Object.entries(data)) {
+        if (typeof value === 'string') {
+            const trimmed = value.trim();
+            if (
+                (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+                (trimmed.startsWith('[') && trimmed.endsWith(']'))
+            ) {
+                try {
+                    processedData[key] = JSON.parse(trimmed);
+                } catch {
+                    processedData[key] = value;
+                }
+            } else {
+                processedData[key] = value;
+            }
+        } else {
+            processedData[key] = value;
+        }
+    }
+
+    // Format JSON with syntax highlighting
+    const jsonString = JSON.stringify(processedData, null, 2);
+    body.innerHTML = formatJSON(jsonString);
+
+    modal.classList.remove('hidden');
+    document.body.classList.add('modal-open');
+}
+
+/**
+ * Format JSON string with syntax highlighting
+ * @param {string} json - JSON string
+ * @returns {string} HTML formatted JSON
+ */
+function formatJSON(json) {
+    // Escape HTML
+    json = json
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+    // Apply syntax highlighting
+    return json.replace(
+        /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+        function(match) {
+            let cls = 'json-number';
+
+            if (/^"/.test(match)) {
+                if (/:$/.test(match)) {
+                    // Key
+                    cls = 'json-key';
+                } else {
+                    // String value
+                    cls = 'json-string';
+                }
+            } else if (/true|false/.test(match)) {
+                cls = 'json-boolean';
+            } else if (/null/.test(match)) {
+                cls = 'json-null';
+            }
+
+            return '<span class="' + cls + '">' + match + '</span>';
+        }
+    );
+}
+
+function closeDetailsModal() {
+    const modal = document.getElementById('detailsModal');
+    modal.classList.add('hidden');
+    document.body.classList.remove('modal-open');
+}
+
+async function handleLogout() {
+    const confirmed = await showConfirm('Bạn có chắc chắn muốn đăng xuất?');
+    if (!confirmed) return;
+
+    try {
+        const response = await fetch('/logout', { method: 'POST' });
+        const data = await response.json();
+        if (data.success) {
+            window.location.href = '/login';
+        }
+    } catch (error) {
+        console.error('Logout error:', error);
+    }
+}
+
+function showAbout() {
+    // Use global version variable if available, otherwise fallback
+    const appVersion = typeof version !== 'undefined' ? version : '0.11.01';
+    showAlert('Tool Version: ' + appVersion, 'info');
+}
+
+function showAddMaterialModal() {
+    document.getElementById('addMaterialModal').style.display = 'block';
+}
+
+function showTransferModal() {
+    document.getElementById('transferModal').style.display = 'block';
+    document.getElementById('transferDate').valueAsDate = new Date();
+}
+
+function showDeleteRecipeModal() {
+    document.getElementById('deleteRecipeModal').style.display = 'block';
+}
+
+function handleDepartmentChange() {
+    const departmentId = document.getElementById('department_id').value;
+    const productTypeSelect = document.getElementById('product_type');
+    const productIdSelect = document.getElementById('material_product_id');
+
+    productTypeSelect.disabled = true;
+    productTypeSelect.innerHTML = '<option value="">-- Chọn bộ phận trước --</option>';
+    productIdSelect.disabled = true;
+    productIdSelect.innerHTML = '<option value="">-- Chọn loại sản phẩm trước --</option>';
+
+    if (!departmentId) return;
+
+    fetch('/api/material/add/product_types', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ department_id: departmentId })
+        })
+        .then(res => res.json())
+        .then(data => {
+            productTypeSelect.innerHTML = '<option value="">-- Chọn --</option>';
+            data.product_types.forEach(type => {
+                const option = document.createElement('option');
+                option.value = type;
+                option.textContent = type;
+                productTypeSelect.appendChild(option);
+            });
+            productTypeSelect.disabled = false;
+        });
+}
+
+function handleProductTypeChange() {
+    const productType = document.getElementById('product_type').value;
+    const productIdSelect = document.getElementById('material_product_id');
+
+    productIdSelect.disabled = true;
+    productIdSelect.innerHTML = '<option value="">-- Chọn loại sản phẩm trước --</option>';
+
+    if (!productType) return;
+
+    fetch('/api/material/add/product_ids', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ product_type: productType })
+        })
+        .then(res => res.json())
+        .then(data => {
+            productIdSelect.innerHTML = '<option value="">-- Chọn --</option>';
+            data.product_ids.forEach(id => {
+                const option = document.createElement('option');
+                option.value = id;
+                option.textContent = id;
+                productIdSelect.appendChild(option);
+            });
+            productIdSelect.disabled = false;
+        });
+}
+
+function handleFileSelect(e) {
+    const file = e.target.files[0];
+    if (file) {
+        document.getElementById('recipeFilePath').value = file.name;
+    }
+}
+
+async function handleDeleteRecipe() {
+    const fileInput = document.getElementById('recipeFile');
+    if (!fileInput.files || !fileInput.files[0]) {
+        await showAlert('Chưa upload file', 'warning');
+        return;
+    }
+
+    const confirmed = await showConfirm('Bạn có chắc chắn muốn xóa không?');
+    if (!confirmed) return;
+
+    await showAlert('Tính năng xóa recipe từ Excel cần được triển khai trên server với xử lý file upload.', 'info');
+    // This would need file upload handling on the server side
+}
+
+function filterClientResult(keyword) {
+    if (activeSearchContext === 'outputBarcode') {
+        filterOutputBarcode(keyword);
+        return;
+    }
+
+    if (!keyword) {
+        displayTable(rawTableData, rawTableColumns);
+        return;
+    }
+
+    const filtered = rawTableData.filter(row =>
+        Object.values(row).some(val =>
+            val !== null &&
+            val !== undefined &&
+            String(val).toLowerCase().includes(keyword)
+        )
+    );
+
+    displayTable(filtered, rawTableColumns);
+}
+
+function filterOutputBarcode(keyword) {
+    if (!keyword) {
+        renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
+        return;
+    }
+
+    const filtered = outputBarcodeRawData.filter(row =>
+        row.some(val =>
+            val !== null &&
+            val !== undefined &&
+            String(val).toLowerCase().includes(keyword)
+        )
+    );
+
+    renderOutputBarcodeTable(filtered, outputBarcodeColumns);
+}
+
+function openBarcodeDetailWindow(type, rowData) {
+    // Nếu đang mở 1 loại khác → đóng trước
+    if (activeSearchContext && activeSearchContext !== type) {
+        closeShowBarcodeWindow();
+    }
+
+    enterSingleRowMode();
+
+    const container = document.getElementById('barcodeDetailContainer');
+    container.style.display = 'flex';
+
+    activeSearchContext = type; // 'outputBarcode' | 'inputBarcode'
+
+    clearOutputBarcodeTable();
+
+    if (type === 'inputBarcode') {
+        fetchInputBarcode(rowData.id, rowData.product_type);
+    }
+
+    if (type === 'outputBarcode') {
+        fetchOutputBarcode(rowData.work_order);
+    }
+}
+
+function closeShowBarcodeWindow() {
+    const container = document.getElementById('barcodeDetailContainer');
+    if (!container) return;
+
+    clearOutputBarcodeTable();
+
+    container.style.display = 'none';
+    activeSearchContext = 'main';
+
+    exitSingleRowMode();
+}
+
+function clearOutputBarcodeTable() {
+    const table = document.getElementById('outputBarcodeTable');
+    table.querySelector('thead').innerHTML = '';
+    table.querySelector('tbody').innerHTML = '';
+
+    const count = document.getElementById('outputBarcodeCount');
+    if (count) count.innerHTML = '';
+}
+
+function renderOutputBarcodeTable(rows, columns) {
+    const thead = document.querySelector('#outputBarcodeTable thead');
+    const tbody = document.querySelector('#outputBarcodeTable tbody');
+    const rowCount = document.getElementById('outputRowCount');
+
+    thead.innerHTML = '';
+    tbody.innerHTML = '';
+
+    // ===== HEADER =====
+    const trHead = document.createElement('tr');
+    columns.forEach(col => {
+        const th = document.createElement('th');
+        th.textContent = col;
+        trHead.appendChild(th);
+    });
+    thead.appendChild(trHead);
+
+    // ===== BODY =====
+    rows.forEach(row => {
+        const tr = document.createElement('tr');
+        row.forEach(val => {
+            const td = document.createElement('td');
+            td.textContent = val;
+            tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+    });
+
+    const count = rows.length;
+    rowCount.textContent = count;
+
+    if (count === 36) {
+        speechBubble.show(`Tôi tìm thấy ${count}☘️ kết quả! ✅`, {
+            duration: 2000
+        });
+    } else {
+        speechBubble.show(`Tôi tìm thấy ${count} kết quả! ✅`, {
+            duration: 2000
+        });
+    }
+
+    if (count > totalOutputBarcode && totalOutputBarcode > 0) {
+        const dif = count - totalOutputBarcode;
+
+        document.querySelector('.output-table-scroll')?.addEventListener('mouseenter', () => {
+            speechBubble.show(`⚠️ Có ${dif} tem in bù!`, {
+                duration: 5000,
+                animation: 'shake'
+            })
+        })
+    }
+}
+
+function initClientSearch() {
+    const searchInput = document.getElementById('clientSearch');
+    const searchIconBtn = document.querySelector('.search-icon-btn');
+    const inputWrapper = document.querySelector('.input-wrapper');
+
+    if (searchInput && searchIconBtn) {
+        // Click icon để toggle: nếu đang focus thì đóng + clear, nếu chưa thì mở
+        searchIconBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            
+            if (document.activeElement === searchInput) {
+                // Đang focus → đóng và clear
+                searchInput.value = '';
+                searchInput.blur();
+                filterClientResult(''); // Reset filter
+            } else {
+                // Chưa focus → mở
+                searchInput.focus();
+            }
+        });
+
+        // Đóng search khi click bên ngoài và input rỗng
+        document.addEventListener('click', (e) => {
+            const clickedInside = inputWrapper.contains(e.target);
+            if (!clickedInside && searchInput.value.trim() === '') {
+                searchInput.blur();
+            }
+        });
+    }
+
+    if (!searchInput) return;
+
+    // Filter khi người dùng nhập
+    searchInput.addEventListener('input', function() {
+        const keyword = this.value.trim().toLowerCase();
+        filterClientResult(keyword);
+    });
+
+    // Ẩn button khi search mở
+    searchInput.addEventListener('focus', () => {
+        searchIconBtn.style.opacity = '0';
+        searchIconBtn.style.pointerEvents = 'none';
+        searchIconBtn.style.transform = 'scale(0.8)';
+    });
+
+    // Hiện button khi search đóng
+    searchInput.addEventListener('blur', () => {
+        searchIconBtn.style.opacity = '1';
+        searchIconBtn.style.pointerEvents = 'auto';
+        searchIconBtn.style.transform = 'scale(1)';
+    });
+}
+
+function setTableData(result, columns, tableType = null) {
+    rawTableData = result;
+    rawTableColumns = columns;
+    currentTableType = tableType;
+    displayTable(result, columns);
+}
+
+async function apiFetch(url, options = {}) {
+    showLoading();
+
+    try {
+        const res = await fetch(url, options);
+
+        if (!res.ok) {
+            throw new Error(`HTTP error ${res.status}`);
+        }
+
+        return await res.json();
+    } finally {
+        hideLoading();
+    }
+}
+
+function showLoading() {
+    const loader = document.getElementById('apiLoading');
+    if (!loader) return;
+
+    apiLoadingCount++;
+    loader.style.display = 'flex';
+}
+
+function hideLoading() {
+    const loader = document.getElementById('apiLoading');
+    if (!loader) return;
+
+    apiLoadingCount--;
+
+    if (apiLoadingCount <= 0) {
+        apiLoadingCount = 0;
+        loader.style.display = 'none';
+    }
+}
+
+function updateVisibleRowCount() {
+    const tbody = document.getElementById('tableBody');
+    const tableFooter = document.querySelector('.table-footer');
+    const rowCount = document.getElementById('rowCount');
+
+    if (!tbody || !tableFooter || !rowCount) return;
+
+    const count = tbody.querySelectorAll('tr').length;
+
+    if (count === 36) {
+        speechBubble.show(`Tôi tìm thấy ${count}☘️ kết quả! ✅`, {
+            duration: 2000
+        });
+    } else {
+        speechBubble.show(`Tôi tìm thấy ${count} kết quả! ✅`, {
+            duration: 2000
+        });
+    }
+
+    // Ẩn toàn bộ table-footer nếu không có dòng
+    tableFooter.classList.toggle('hidden', count === 0);
+}
+
+document.addEventListener('click', function(e) {
+    const button = e.target.closest('.btn-export-excel');
+    if (!button) return;
+
+    const buttonId = button.id;
+    if (buttonId === 'exportExcelBtn') {
+        handleExportExcel();
+    }
+
+    if (buttonId === 'exportOutputExcelBtn') {
+        handleExportOutputBarcodeExcel();
+    }
+});
+
+async function handleExportExcel() {
+    const tbody = document.getElementById('tableBody');
+    if (!tbody) return;
+
+    const rows = tbody.querySelectorAll('tr');
+    if (rows.length === 0) return;
+
+    const confirmed = await showConfirm('Bạn có chắc chắn muốn xuất file Excel của dữ liệu trên?');
+    if (!confirmed) return;
+
+    exportTableToExcel();
+}
+
+function exportTableToExcel() {
+    const table = document.querySelector('.table-container table');
+    if (!table) return;
+
+    const cloneTable = table.cloneNode(true);
+
+    cloneTable.querySelectorAll('td[data-full-value]').forEach(td => {
+        td.textContent = td.dataset.fullValue;
+    });
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.table_to_sheet(cloneTable, { raw: true });
+    XLSX.utils.book_append_sheet(wb, ws, 'Data');
+
+    const fileName =
+        'KDMES_TOOL_' +
+        getVietnamTimestamp() +
+        '.xlsx';
+
+    XLSX.writeFile(wb, fileName);
+}
+
+async function handleExportOutputBarcodeExcel() {
+    const tbody = document.getElementById('outputBarcodeTableBody');
+    if (!tbody) return;
+
+    const rows = tbody.querySelectorAll('tr');
+    if (rows.length === 0) return;
+
+    const confirmed = await showConfirm(
+        'Bạn có chắc chắn muốn xuất file Excel của dữ liệu trên?'
+    );
+    if (!confirmed) return;
+
+    exportOutputBarcodeToExcel();
+}
+
+function exportOutputBarcodeToExcel() {
+    const table = document.getElementById('outputBarcodeTable');
+    if (!table) return;
+
+    const cloneTable = table.cloneNode(true);
+
+    cloneTable.querySelectorAll('td[data-full-value]').forEach(td => {
+        td.textContent = td.dataset.fullValue;
+    });
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.table_to_sheet(cloneTable, { raw: true });
+    XLSX.utils.book_append_sheet(wb, ws, 'Barcode_Detail');
+
+    const fileName =
+        'KDMES_TOOL_' +
+        getVietnamTimestamp() +
+        '.xlsx';
+
+    XLSX.writeFile(wb, fileName);
+}
+
+function getVietnamTimestamp() {
+    const now = new Date();
+
+    const parts = new Intl.DateTimeFormat('vi-VN', {
+        timeZone: 'Asia/Ho_Chi_Minh',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+    }).formatToParts(now);
+
+    const get = (type) => parts.find(p => p.type === type)?.value;
+
+    return (
+        get('year') +
+        get('month') +
+        get('day') +
+        '_' +
+        get('hour') +
+        get('minute') +
+        get('second')
+    );
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const autoClearInputs = [
+        '#clientSearch',
+        '#department',
+        '#station'
+    ];
+
+    autoClearInputs.forEach(selector => {
+        const input = document.querySelector(selector);
+        if (!input) return;
+
+        input.addEventListener('mousedown', e => {
+            if (e.button !== 0) return;
+
+            if (input.value.trim() !== '') {
+                e.preventDefault();
+                input.value = '';
+
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        });
+    });
+});
+
+async function showInputBarcode() {
+    if (!selectedRowData) {
+        showAlert('warning', 'Cảnh báo', 'Chưa chọn dòng dữ liệu');
+        return;
+    }
+
+    const { id, product_type } = selectedRowData;
+
+    if (!id || !product_type) {
+        showAlert('error', 'Lỗi', 'Thiếu id hoặc product_type');
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/barcode/inputBarcode', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, product_type })
+        });
+
+        const result = await res.json();
+
+        if (!res.ok) {
+            throw new Error(result.error || 'Query failed');
+        }
+
+        console.log('Input barcode data:', result.data);
+        showAlert('success', 'Thành công', 'Lấy dữ liệu tem đầu vào thành công');
+
+    } catch (err) {
+        console.error(err);
+        showAlert('error', 'Lỗi', err.message);
+    }
+}
+
+function enterSingleRowMode() {
+    const tbody = document.getElementById('tableBody');
+    if (!tbody || !selectedRow) return;
+
+    // backup table lần đầu
+    if (!originalTableHTML) {
+        originalTableHTML = tbody.innerHTML;
+    }
+
+    // giữ lại đúng dòng đã chọn
+    tbody.innerHTML = '';
+    tbody.appendChild(selectedRow);
+
+    updateVisibleRowCount();
+}
+
+function exitSingleRowMode() {
+    const tbody = document.getElementById('tableBody');
+    if (!tbody || !originalTableHTML) return;
+
+    tbody.innerHTML = originalTableHTML;
+
+    originalTableHTML = null;
+    selectedRow = null;
+    selectedRowData = null;
+
+    updateVisibleRowCount();
+}
+
+/**
+ * Speech Bubble Controller
+ * Sử dụng để hiển thị message từ NES button
+ */
+const speechBubble = {
+    element: null,
+    textElement: null,
+    hideTimeout: null,
+
+    init() {
+        this.element = document.getElementById('speech-bubble');
+        this.textElement = document.getElementById('speech-bubble-text');
+
+        if (!this.element || !this.textElement) {
+            console.warn('Speech bubble elements not found');
+            return false;
+        }
+
+        // Add click event to hide
+        this.element.addEventListener('click', () => {
+            this.hide();
+        });
+
+        // Add cursor pointer style
+        this.element.style.cursor = 'pointer';
+
+        return true;
+    },
+
+    /**
+     * Hiển thị speech bubble với message tùy chỉnh
+     * @param {string} message - Nội dung hiển thị
+     * @param {Object} options - Tùy chọn
+     * @param {number} options.duration - Thời gian hiển thị (ms), 0 = không tự động ẩn
+     * @param {string} options.animation - 'bounce' | 'shake' | 'none'
+     * @param {boolean} options.pixelStyle - Sử dụng pixel art style
+     */
+    show(message, options = {}) {
+        if (!this.element || !this.textElement) {
+            if (!this.init()) return;
+        }
+
+        // Bear Speak
+        document.querySelector('.loader')?.classList.add('talking');
+
+        const {
+            duration = 3000,
+                animation = 'bounce',
+                pixelStyle = false
+        } = options;
+
+        // Clear previous timeout
+        if (this.hideTimeout) {
+            clearTimeout(this.hideTimeout);
+            this.hideTimeout = null;
+        }
+
+        // Set message
+        this.textElement.innerHTML = message;
+
+        // Apply pixel style if needed
+        if (pixelStyle) {
+            this.element.classList.add('pixel-style');
+        } else {
+            this.element.classList.remove('pixel-style');
+        }
+
+        // Remove previous animation classes
+        this.element.classList.remove('animate-bounce', 'animate-shake');
+
+        // Show bubble
+        this.element.classList.remove('hidden');
+
+        // Add animation
+        if (animation === 'bounce') {
+            this.element.classList.add('animate-bounce');
+        } else if (animation === 'shake') {
+            this.element.classList.add('animate-shake');
+        }
+
+        // Auto hide after duration
+        if (duration > 0) {
+            this.hideTimeout = setTimeout(() => {
+                this.hide();
+            }, duration);
+        }
+    },
+
+    /**
+     * Ẩn speech bubble
+     * @param {boolean} immediate - Ẩn ngay lập tức không có animation
+     */
+    hide(immediate = false) {
+        if (!this.element) return;
+
+        if (this.hideTimeout) {
+            clearTimeout(this.hideTimeout);
+            this.hideTimeout = null;
+        }
+
+        if (immediate) {
+            this.element.style.transition = 'none';
+            this.element.classList.add('hidden');
+            // hide bear talking
+            document.querySelector('.loader')?.classList.remove('talking')
+
+            setTimeout(() => {
+                this.element.style.transition = '';
+            }, 10);
+        } else {
+            this.element.classList.add('hidden');
+            // hide bear talking
+            document.querySelector('.loader')?.classList.remove('talking')
+        }
+    },
+
+    /**
+     * Toggle speech bubble
+     */
+    toggle(message, options = {}) {
+        if (!this.element) {
+            if (!this.init()) return;
+        }
+
+        if (this.element.classList.contains('hidden')) {
+            this.show(message, options);
+        } else {
+            this.hide();
+        }
+    },
+
+    /**
+     * Update message without hiding/showing
+     */
+    updateMessage(message) {
+        if (!this.textElement) return;
+        this.textElement.innerHTML = message;
+    }
+};
+
+function initDateRangePicker(type) {
+    const dateInput = document.getElementById('dateRange');
+    const fromDateEl = document.getElementById('fromDate');
+    const toDateEl = document.getElementById('toDate');
+
+    if (!dateInput) return;
+
+    // explicit reset
+    fromDateEl.value = '';
+    toDateEl.value = '';
+    dateInput.value = '';
+
+    flatpickr(dateInput, {
+        mode: "range",
+        dateFormat: "Y-m-d",
+        maxDate: "today",
+        allowInput: false, // tránh user gõ tay
+        clickOpens: true,
+        defaultDate: null,
+        locale: {
+            rangeSeparator: " → "
+        },
+
+        onClose(selectedDates) {
+            // chưa chọn đủ range → reset
+            if (selectedDates.length !== 2) {
+                fromDateEl.value = '';
+                toDateEl.value = '';
+                return;
+            }
+
+            fromDateEl.value = formatDate(selectedDates[0]);
+            toDateEl.value = formatDate(selectedDates[1]);
+
+            if (type == 'scan_barcode_history') {
+                checkAndSearchHistoryScanByStation();
+            }
+
+            if (type == 'print_barcode_history') {
+                checkAndSearchHistoryPrintByStation();
+            }
+
+            if (type == 'reprint') {
+                checkQueryReprintBarcode();
+            }
+        }
+    });
+}
+
+/**
+ * Sort result theo tên cột
+ * @param {Array[]} result - data dạng [ [..], [..] ]
+ * @param {string[]} columns - danh sách tên cột
+ * @param {string} columnName - tên cột cần sort
+ * @param {'asc' | 'desc'} order - thứ tự sort
+ * @param {'date' | 'number' | 'string'} type - kiểu dữ liệu
+ */
+function sortResultByColumn(result, columns, columnName, order = 'desc', type = 'date') {
+    const colIndex = columns.indexOf(columnName);
+    if (colIndex === -1) return result;
+
+    return [...result].sort((a, b) => {
+        let valA = a[colIndex];
+        let valB = b[colIndex];
+
+        if (valA == null) return 1;
+        if (valB == null) return -1;
+
+        switch (type) {
+            case 'number':
+                valA = Number(valA);
+                valB = Number(valB);
+                break;
+
+            case 'string':
+                valA = String(valA).toLowerCase();
+                valB = String(valB).toLowerCase();
+                break;
+
+            case 'date':
+            default:
+                valA = new Date(valA).getTime();
+                valB = new Date(valB).getTime();
+                break;
+        }
+
+        return order === 'asc' ? valA - valB : valB - valA;
+    });
+}
+
+function convertISOToVietNamDate(isoString) {
+    return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Ho_Chi_Minh',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).format(new Date(isoString));
+}
+
+async function getWorkOrderDetails() {
+    const work_order_id = selectedRowData['work_order'];
+    if (!work_order_id) {
+        await showAlert('Chưa chọn hàng dữ liệu.', 'warning');
+        return;
+    }
+
+    const data = await apiFetch('/api/getWorkOrder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: work_order_id })
+    });
+
+    if (data.success) {
+        setTableData(data.result, data.columns, null);
+    } else {
+        await showAlert(data.message, 'error');
+    }
+}
+
+async function searchScanBarcodeHistoryByBarcode() {
+    const resource_id = selectedRowData['id'];
+    if (!resource_id) {
+        await showAlert('Chưa chọn hàng dữ liệu.', 'warning');
+        return;
+    }
+
+    const data = await apiFetch('/api/barcode/searchScanBarcodeHistory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({resource_id})
+    });
+
+    if (Array.isArray(data.result) && data.result.length === 0) {
+        await showAlert(`Barcode ${resource_id} đang không được quét vào bất kỳ máy nào`, 'info');
+        return;
+    }
+
+    if (data.success) {
+        setTableData(data.result, data.columns, null);;
+    } else {
+        await showAlert(data.message, 'error');
+    }
+}

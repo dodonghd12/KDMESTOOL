@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lịch sử quét tem theo Máy</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}">
+
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/logo.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='img/logo.png') }}">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='img/logo.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/logo.png') }}">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/nes.css/css/nes.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined">
+</head>
+<body class="scan-history-page">
+    {% include "components/sidebar.html" %}
+    
+    <div class="container">
+        <div class="search-section">
+            <div class="search-row">
+                <div class="input-box">
+                    <input required type="text" id="department" autocomplete="nope" class="input">
+                    <label class="user-label">Bộ phận</label>
+                    <div id="department-dropdown" class="dropdown-list"></div>
+                </div>
+            </div>
+            <div class="search-row">
+                <div class="input-box">
+                    <input required type="text" id="station" autocomplete="nope" class="input">
+                    <label class="user-label">Số máy</label>
+                    <div id="station-dropdown" class="dropdown-list"></div>
+                </div>
+            </div>
+            <div class="search-row">
+                <div class="input-box">
+                    <input required type="text" id="dateRange" autocomplete="nope" class="input" placeholder="Chọn ngày">
+
+                    <!-- hidden inputs để JS dùng -->
+                    <input type="hidden" id="fromDate">
+                    <input type="hidden" id="toDate">
+                </div>
+            </div>
+            <div class="search-row">
+                <div class="input-wrapper">
+                    <input placeholder="Tìm kiếm..." class="input" id="clientSearch" autocomplete="nope" type="text">
+                    <button class="search-icon-btn" type="button"> 
+                        <span class="material-symbols-outlined">search</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+                   
+        <div class="table-container">
+            <div class="table-scroll">
+                <table>
+                    <thead id="tableHead"></thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+
+            <div class="table-footer hidden">
+                <div class="row-count">Số dòng: <span id="rowCount">0</span></div>
+                <button class="btn-export-excel" id="exportExcelBtn">
+                    <div class="btn-export-excel-wrapper">
+                        <div class="text">Xuất Excel</div>
+                        <span class="icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" width="2em" height="2em" preserveAspectRatio="xMidYMid meet" viewBox="0 0 24 24">
+                                <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 0 0 4.561 21h14.878a2 2 0 0 0 1.94-1.515L22 17"></path>
+                            </svg>
+                        </span>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <a href="#" id="loader-float-btn" title="Bear give Tips">
+        <div class="loader"></div>
+    </a>
+    
+    <!-- <a href="" id="nes-float-btn" title="NES Emulator">
+        <i class="nes-octocat animate"></i>
+    </a> -->
+
+    <!-- Ghost Float Button -->
+    <!-- <a href="" id="ghost-float-btn" title="Ghost Animation">
+        <div id="ghost">
+            <div id="red">
+                <div id="pupil"></div>
+                <div id="pupil1"></div>
+                <div id="eye"></div>
+                <div id="eye1"></div>
+                <div id="top0"></div>
+                <div id="top1"></div>
+                <div id="top2"></div>
+                <div id="top3"></div>
+                <div id="top4"></div>
+                <div id="st0"></div>
+                <div id="st1"></div>
+                <div id="st2"></div>
+                <div id="st3"></div>
+                <div id="st4"></div>
+                <div id="st5"></div>
+                <div id="an1"></div>
+                <div id="an2"></div>
+                <div id="an3"></div>
+                <div id="an4"></div>
+                <div id="an5"></div>
+                <div id="an6"></div>
+                <div id="an7"></div>
+                <div id="an8"></div>
+                <div id="an9"></div>
+                <div id="an10"></div>
+                <div id="an11"></div>
+                <div id="an12"></div>
+                <div id="an13"></div>
+                <div id="an14"></div>
+                <div id="an15"></div>
+                <div id="an16"></div>
+                <div id="an17"></div>
+                <div id="an18"></div>
+            </div>
+            <div id="shadow"></div>
+        </div>
+    </a> -->
+
+    <!-- Speech Bubble for NES button -->
+    <div id="speech-bubble" class="speech-bubble hidden">
+        <div class="speech-bubble-content">
+            <span id="speech-bubble-text">&times;</span>
+        </div>
+    </div>
+
+    <script>
+        const userId = '{{ user_id }}';
+        const userIp = '{{ user_ip }}';
+        const version = '{{ version }}';
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    
+    <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/scan_barcode_history.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 
+  Phiên bản này sử dụng HttpPlatformHandler
+  Chỉ sử dụng nếu đã cài đặt HttpPlatformHandler từ IIS
+  Nếu chưa cài, hãy sử dụng web.config (phiên bản wfastcgi)
+-->
+<configuration>
+  <system.webServer>
+    <handlers>
+      <add name="httpPlatformHandler" path="*" verb="*" modules="httpPlatformHandler" resourceType="Unspecified" requireAccess="Script" />
+    </handlers>
+    <httpPlatform processPath="C:\Users\thsang\AppData\Local\Programs\Python\Python313\python.exe"
+                 arguments="-m wfastcgi"
+                 stdoutLogEnabled="true"
+                 stdoutLogFile=".\LogFiles\stdout"
+                 startupTimeLimit="20"
+                 startupRetryCount="10"
+                 requestTimeout="00:04:00">
+      <environmentVariables>
+        <environmentVariable name="PORT" value="%HTTP_PLATFORM_PORT%" />
+        <environmentVariable name="PYTHONUNBUFFERED" value="1" />
+        <environmentVariable name="FLASK_APP" value="app.py" />
+        <environmentVariable name="WSGI_HANDLER" value="app.app" />
+        <environmentVariable name="PYTHONPATH" value="." />
+      </environmentVariables>
+    </httpPlatform>
+    <staticContent>
+      <mimeMap fileExtension=".json" mimeType="application/json" />
+      <mimeMap fileExtension=".js" mimeType="application/javascript" />
+      <mimeMap fileExtension=".css" mimeType="text/css" />
+    </staticContent>
+  </system.webServer>
+</configuration>
+
