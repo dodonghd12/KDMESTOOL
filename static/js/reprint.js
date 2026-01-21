@@ -49,8 +49,8 @@ function initializeReprintEventListeners() {
         handleLogout();
     });
 
-    document.getElementById('dateRange')
-    ?.addEventListener('input', e => {
+    const dateRangeInput = document.getElementById('dateRange'); 
+    dateRangeInput.addEventListener('input', e => {
         if (!e.target.value) {
             document.getElementById('fromDate').value = '';
             document.getElementById('toDate').value = '';

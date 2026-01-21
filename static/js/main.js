@@ -416,7 +416,8 @@ function clearTable() {
     selectedRow = null;
     selectedRowData = null;
 
-    updateVisibleRowCount()
+    updateClientSearchState(false);
+    updateVisibleRowCount();
 }
 
 function handleRowClick(e) {
@@ -1180,10 +1181,21 @@ function initClientSearch() {
     const searchIconBtn = document.querySelector('.search-icon-btn');
     const inputWrapper = document.querySelector('.input-wrapper');
 
+    // Disable clientSearch khi vừa load page
+    if (searchInput) {
+        searchInput.disabled = true;
+    }
+    if (searchIconBtn) {
+        searchIconBtn.style.cursor = 'not-allowed';
+    }
+
     if (searchInput && searchIconBtn) {
         // Click icon để toggle: nếu đang focus thì đóng + clear, nếu chưa thì mở
         searchIconBtn.addEventListener('click', (e) => {
             e.stopPropagation();
+            
+            // Không cho click nếu disabled
+            if (searchInput.disabled) return;
             
             if (document.activeElement === searchInput) {
                 // Đang focus → đóng và clear
@@ -1215,23 +1227,48 @@ function initClientSearch() {
 
     // Ẩn button khi search mở
     searchInput.addEventListener('focus', () => {
-        searchIconBtn.style.opacity = '0';
+        if (searchInput.disabled) return;
         searchIconBtn.style.pointerEvents = 'none';
-        searchIconBtn.style.transform = 'scale(0.8)';
     });
 
     // Hiện button khi search đóng
     searchInput.addEventListener('blur', () => {
-        searchIconBtn.style.opacity = '1';
-        searchIconBtn.style.pointerEvents = 'auto';
-        searchIconBtn.style.transform = 'scale(1)';
+        if (searchInput.disabled) {
+            searchIconBtn.style.cursor = 'not-allowed';
+        } else {
+            searchIconBtn.style.pointerEvents = 'auto';
+            searchIconBtn.style.cursor = 'pointer';
+        }
     });
+}
+
+/**
+ * Enable hoặc disable clientSearch dựa trên số dòng trong table
+ * @param {boolean} hasData - true nếu table có dữ liệu gốc từ server
+ */
+function updateClientSearchState(hasData = false) {
+    const searchInput = document.getElementById('clientSearch');
+    const searchIconBtn = document.querySelector('.search-icon-btn');
+    
+    if (!searchInput || !searchIconBtn) return;
+
+    if (hasData) {
+        // Enable clientSearch khi có dữ liệu
+        searchInput.disabled = false;
+        searchIconBtn.style.cursor = 'pointer';
+    } else {
+        // Disable clientSearch khi không có dữ liệu
+        searchInput.disabled = true;
+        searchInput.value = ''; // Clear input
+        searchIconBtn.style.cursor = 'not-allowed';
+    }
 }
 
 function setTableData(result, columns, tableType = null) {
     rawTableData = result;
     rawTableColumns = columns;
     currentTableType = tableType;
+    updateClientSearchState(true);
     displayTable(result, columns);
 }
 
@@ -1647,7 +1684,7 @@ function initDateRangePicker(type) {
     toDateEl.value = '';
     dateInput.value = '';
 
-    flatpickr(dateInput, {
+    const flatpickrInstance = flatpickr(dateInput, {
         mode: "range",
         dateFormat: "Y-m-d",
         maxDate: "today",
@@ -1682,6 +1719,31 @@ function initDateRangePicker(type) {
             }
         }
     });
+
+    // Event click để clear calendar
+    dateInput.addEventListener('click', function(e) {
+        // Chỉ clear khi input đã có giá trị
+        if (dateInput.value) {
+            e.preventDefault(); // Ngăn mở calendar
+            
+            // Clear flatpickr instance
+            flatpickrInstance.clear();
+            
+            // Clear visible value
+            dateInput.value = '';
+            
+            // Clear hidden inputs
+            fromDateEl.value = '';
+            toDateEl.value = '';
+            
+            // Clear table
+            clearTable();
+        }
+        // Nếu input rỗng, để flatpickr mở calendar bình thường
+    });
+
+    // Return instance để có thể control từ bên ngoài nếu cần
+    return flatpickrInstance;
 }
 
 /**

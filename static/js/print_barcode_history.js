@@ -55,6 +55,14 @@ function initializeCheckPrintHistoryByStationEventListeners() {
     // Department search
     const departmentInput = document.getElementById('department'); 
     departmentInput.addEventListener('click', () => {
+        document.getElementById('station').disabled = true;
+        document.getElementById('station').value = '';
+        hideStationDropdown();
+        
+        document.getElementById('dateRange').disabled = true;
+        resetDateRange();
+
+        clearTable();
         showDepartmentDropdown(departments);
     })
 
