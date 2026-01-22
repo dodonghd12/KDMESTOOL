@@ -143,13 +143,8 @@ def login():
 
 @app.route('/api/checkAuth', methods=['GET'])
 def check_auth():
-    # return jsonify({'result': dict(session)})
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({
-            'error': True,
-            'code': 'UNAUTHORIZED',
-            'message': 'Session expired'
-        }), 401
+        return jsonify({'error': 'Unauthorized'}), 401
 
     return jsonify({'success': True})
 
@@ -174,10 +169,11 @@ def search_barcode():
         return jsonify({'result': [], 'columns': []})
     
     query = """
-        SELECT oid, id, product_id, product_type, 
-               quantity, status, expiry_time, created_at, feed_records_id, 
-               info, updated_at, updated_by, created_by, batch_count, 
-               reprint_reason, collected, erp_tire_barcode_synced, standing_time
+        SELECT id, product_id, product_type, 
+               quantity, status, expiry_time, 
+               created_at, updated_at, updated_by, created_by, 
+               standing_time, feed_records_id, info, oid,
+               reprint_reason, collected, erp_tire_barcode_synced
         FROM kvmes.material_resource
         WHERE id ILIKE %s
         LIMIT 100;
@@ -428,8 +424,8 @@ def search_scan_barcode_history_by_barcode():
             'columns': column_names
         })
     
-@app.route('/api/station/searchPrintBarcodeHistory', methods=['POST'])
-def search_print_barcode_history_by_station():
+@app.route('/api/barcode/fetchWorkOrder', methods=['POST'])
+def fetch_work_order_by_barcode():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
     
@@ -441,74 +437,61 @@ def search_print_barcode_history_by_station():
     if not station:
         return jsonify({'result': [], 'columns': []})
     
-    params = [f"%{station}%"]
+    params = [resource_id]
     
     query = """
-        WITH cr_ts AS (
-            SELECT
-                cr.work_order,
-                cr.lot_number,
-                to_char(cr.work_date, 'YYYY-MM-DD') AS work_date,
-                cr.resource_oid,
-                (cr.detail->>'quantity')::numeric AS quantity,
-                cr.detail->>'operator_id' AS created_by,
-
-                (
-                    timestamp with time zone 'epoch'
-                    + (cr.created_at / 1e9) * interval '1 second'
-                ) AT TIME ZONE 'Asia/Ho_Chi_Minh' AS created_at_ts
-            FROM kvmes.collect_record cr
-            WHERE cr.station LIKE %s
-        )
-
         SELECT
-            mr.id,
-            mr.product_id,
-            cr.quantity,
-            cr.work_order,
-            cr.work_date,
-            cr.lot_number,
-            to_char(MAX(cr.created_at_ts), 'YYYY-MM-DD HH24:MI:SS') AS created_at,
-            cr.created_by
-        FROM cr_ts cr
-        JOIN kvmes.material_resource mr
-            ON mr.oid = cr.resource_oid
+            wo.id              AS work_order,
+            wo.recipe_id,
+            wo.status,
+            wo.station,
+            wo.reserved_date,
+            wo.updated_at,
+            wo.updated_by,
+            wo.created_at,
+            wo.created_by,
+            wo.information,
+            wo.department_id,
+            wo.reserved_sequence,
+            wo.process_name,
+            wo.process_type
+        FROM kvmes.work_order wo
+        WHERE EXISTS (
+            SELECT 1
+            FROM kvmes.collect_record cr
+            JOIN kvmes.material_resource mr ON mr.oid = cr.resource_oid
+                AND mr.id = %s
+            WHERE cr.work_order = wo.id
         """
-    if resource_id:
+    if station:
         query += """
-            WHERE mr.id = %s
+                AND cr.station LIKE %s
             """
-           
-        params.extend([resource_id])
-    
-    query += """
-        GROUP BY
-            mr.id,
-            mr.product_id,
-            cr.quantity,
-            cr.work_order,
-            cr.work_date,
-            cr.lot_number,
-            cr.created_by
-        """
+        params.append(f"%{station}%")
 
     if fromDate and toDate:
         query += """
-            HAVING
-                MAX(cr.created_at_ts) >= %s::date
-            AND
-                MAX(cr.created_at_ts) <  %s::date + INTERVAL '1 day'
+            AND (
+                    timestamp with time zone 'epoch'
+                    + (cr.created_at / 1e9) * interval '1 second'
+                ) AT TIME ZONE 'Asia/Ho_Chi_Minh'
+                >= %s::date
+            AND (
+                    timestamp with time zone 'epoch'
+                    + (cr.created_at / 1e9) * interval '1 second'
+                ) AT TIME ZONE 'Asia/Ho_Chi_Minh'
+                < %s::date + INTERVAL '1 day'
             """
         
         params.extend([fromDate, toDate])
-
+    
     query += """
-       ORDER BY MAX(cr.created_at_ts) DESC;
-    """
+            )
+        """
     
     result, column_names = execute_pg_select_query(query, tuple(params))
     if result:
-        convert_columns = ["created_at"]
+        convert_columns = ["created_at", "updated_at"]
         result = convert_timestamp(result, column_names, convert_columns)
         serialized_result = [serialize_row(list(row)) for row in result]
         return jsonify({
@@ -533,18 +516,32 @@ def search_work_order():
         return jsonify({'result': [], 'columns': []})
     
     query = """
-        SELECT id, recipe_id, station, reserved_date::text AS reserved_date,
-               status, process_type, department_id,
-               process_name, reserved_sequence, information,
-               updated_at, updated_by, created_at, created_by
-        FROM kvmes.work_order
-        WHERE recipe_id like %s
-        ORDER BY reserved_date DESC
+        SELECT
+            r.id            AS recipe_id,
+            r.product_type  AS product_type,
+            r.product_id    AS product_id,
+            r.released_at,
+            cfg->'stations' AS stations,
+            
+            (
+                SELECT jsonb_agg(mat)
+                FROM jsonb_array_elements(cfg->'steps') step
+                CROSS JOIN jsonb_array_elements(step->'materials') mat
+            ) AS materials,
+
+            r.note,
+            rpd.limitary_hour
+            
+        FROM kvmes.recipe r
+        JOIN LATERAL jsonb_array_elements(r.processes::jsonb) proc ON TRUE
+        JOIN kvmes.recipe_process_definition rpd ON rpd.oid = (proc->>'reference_oid')::uuid
+        JOIN LATERAL jsonb_array_elements(rpd.configs::jsonb) cfg ON TRUE
+        WHERE r.id LIKE %s
         LIMIT 100;
     """
     result, column_names = execute_pg_select_query(query, (f"%{keyword}%",))
     if result:
-        convert_columns = ["updated_at", "created_at"]
+        convert_columns = ["released_at"]
         result = convert_timestamp(result, column_names, convert_columns)
         serialized_result = [serialize_row(list(row)) for row in result]
         return jsonify({
@@ -605,7 +602,7 @@ def get_input_barcode():
 
 @app.route('/api/barcode/UsedHistory', methods=['POST'])
 def get_used_history_by_barcode():
-    if 'user_id' not in session:
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
 
     material_oid = request.json.get('material_oid')
@@ -686,10 +683,10 @@ def get_used_history_by_barcode():
     except Exception as e:
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
 
-@app.route('/api/workorder/outputBarcode', methods=['POST'])
-def get_output_barcode_by_workorder():
-    if 'user_id' not in session:
-        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+@app.route('/api/workorder/fetchOutputBarcode', methods=['POST'])
+def fetch_output_barcode_by_work_order():
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
 
     data = request.get_json() or {}
 
@@ -739,36 +736,9 @@ def get_output_barcode_by_workorder():
             'message': f'Lỗi: {str(e)}'
         })
 
-@app.route('/api/recipeDetails', methods=['POST'])
-def get_recipe_details():
-    if 'user_id' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
-    
-    recipe_id = request.json.get('recipe_id')
-    if not recipe_id:
-        return jsonify({'success': False, 'message': 'Thiếu Recipe ID'})
-    
-    try:
-        query = """
-            SELECT recipe_id, product_id, 
-                name, type,
-                (configs::jsonb) AS configs
-            FROM kvmes.recipe_process_definition 
-            WHERE recipe_id = %s
-        """
-        
-        result, column_names = execute_pg_select_query(query, (recipe_id,))
-        if not result:
-            return jsonify({'success': False, 'message': 'Quy cách không tồn tại'})
-        
-        serialized_result = [serialize_row(list(row)) for row in result]
-        return jsonify({'success': True, 'result': serialized_result, 'columns': column_names})
-    except Exception as e:
-        return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
-
 @app.route('/api/barcode/outputBarcode', methods=['POST'])
 def get_output_barcode_by_barcode():
-    if 'user_id' not in session:
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
     
     resource_id = request.json.get('resource_id')
@@ -828,7 +798,7 @@ def get_output_barcode_by_barcode():
 
 @app.route('/api/checkBarcodeTransfer', methods=['POST'])
 def check_barcode_transfer():
-    if 'user_id' not in session:
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
 
     resource_id = request.json.get('resource_id')
@@ -871,7 +841,7 @@ def check_barcode_transfer():
 
 @app.route('/api/checkBarcodeExtendDateTime', methods=['POST'])
 def check_barcode_extend_time():
-    if 'user_id' not in session:
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
 
     resource_id = request.json.get('resource_id')
@@ -1016,7 +986,7 @@ def get_department_list():
 
 @app.route('/api/department/getStationList', methods=['POST'])
 def get_station_list_by_department():
-    if 'user_id' not in session:
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
     
     user_token = session.get('user_token')
@@ -1046,7 +1016,7 @@ def get_station_list_by_department():
 
 @app.route('/api/getActiveWorkorderList', methods=['POST'])
 def get_active_work_order_list():
-    if 'user_id' not in session:
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
     
     station = request.json.get('station', '').strip()
@@ -1074,7 +1044,7 @@ def get_active_work_order_list():
 
 @app.route('/api/checkRecipe', methods=['POST'])
 def check_recipe():
-    if 'user_id' not in session:
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
     
     recipe_id = request.json.get('recipe_id', '').strip()
@@ -1196,11 +1166,7 @@ def check_recipe():
 @app.route('/api/getReprintBarcodeList', methods=['POST'])
 def get_reprint_barcode_list():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({
-            'error': True,
-            'code': 'UNAUTHORIZED',
-            'message': 'User not logged in'
-        }), 401
+        return jsonify({'error': 'Unauthorized'}), 401
 
     from_date = request.json.get('from_date', '').strip()
     to_date = request.json.get('to_date', '').strip()
@@ -1306,6 +1272,48 @@ def search_substitutions():
             'columns': column_names
         })
     
+@app.route('/api/recipe/fetchWorkOrder', methods=['POST'])
+def fetch_work_order_by_recipe():
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    recipe_id = request.json.get('recipe_id')
+    if not recipe_id:
+        return jsonify({'success': False, 'message': 'Thiếu Recipe ID'})
+    
+    try:
+        query = """
+            SELECT  id AS work_order, recipe_id, status, station, 
+                    reserved_date::text AS reserved_date, 
+                    updated_at, updated_by, created_at, created_by,
+                    information, department_id, reserved_sequence,
+                    process_name, process_type
+            FROM kvmes.work_order
+            WHERE recipe_id LIKE %s
+            LIMIT 100;
+        """
+        
+        result, column_names = execute_pg_select_query(query, (recipe_id, ))
+        if result:       
+            convert_columns = ["updated_at", "created_at"]
+            result = convert_timestamp(result, column_names, convert_columns)
+            serialized_result = [serialize_row(list(row)) for row in result]
+            return jsonify({
+                'success': True,
+                'result': serialized_result,
+                'columns': column_names
+            })
+        else:
+            return jsonify({
+                'success': True,
+                'result': [],
+                'columns': column_names, 
+                'message': 'Không tìm thấy tem đầu ra'
+            })
+    
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
+     
 if __name__ == '__main__':
     import os
     port = int(os.environ.get('PORT', 5000))

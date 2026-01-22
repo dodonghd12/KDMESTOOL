@@ -836,7 +836,7 @@ main p {
     display: none;
 }
 
-/* CSS cho countdown box trong sidebar-footer */ 
+/* CSS cho countdown box trong sidebar-footer */
 .tet-countdown-box {
     background: linear-gradient(135deg, rgba(237, 28, 36, 0.2), rgba(255, 215, 0, 0.2));
     backdrop-filter: blur(10px);
@@ -957,10 +957,10 @@ main p {
 }
 
 .sidebar.close .monday-count {
-    font-size: 28px;
+    font-size: 36px;
 }
 
 .sidebar.close .monday-label,
 .sidebar.close .tet-date {
-    font-size: 9px;
+    display: none;
 }

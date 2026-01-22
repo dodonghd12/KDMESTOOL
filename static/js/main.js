@@ -2,7 +2,9 @@ let searchTimeout = null;
 let selectedRow = null;
 let selectedRowData = null;
 let originalTableHTML = null;
+let currentRowClickType = null;
 let currentTableType = null;
+let currentOutputTableType = null;
 let rawTableData = [];
 let rawTableColumns = [];
 let filteredTableData = [];
@@ -139,9 +141,6 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
     }, true);
-
-    // Initialize blackhole effect
-    blackhole('#blackhole');
 });
 
 document.querySelectorAll('.label[data-text]').forEach(label => {
@@ -229,6 +228,14 @@ function initializeMainEventListeners() {
         tableBody.addEventListener('click', handleRowClick);
         tableBody.addEventListener('dblclick', handleRowDoubleClick);
         tableBody.addEventListener('contextmenu', handleContextMenu);
+    }
+
+    // ===== TABLE EVENTS =====
+    const outputTableBody = document.getElementById('outputBarcodeTableBody');
+    if (outputTableBody) {
+        outputTableBody.addEventListener('click', handleRowClick);
+        outputTableBody.addEventListener('dblclick', handleRowDoubleClick);
+        outputTableBody.addEventListener('contextmenu', handleOutputContextMenu);
     }
 
     // ===== CONTEXT MENU =====
@@ -361,8 +368,8 @@ function displayTable(result, columns) {
     thead.appendChild(headerRow);
 
     // Table body
-    const truncateThreshold = 100; // chỉ truncate nếu dài hơn ngưỡng này
-    const displayLength = 100; // số ký tự hiển thị
+    const truncateThreshold = 50; // chỉ truncate nếu dài hơn ngưỡng này
+    const displayLength = 30; // số ký tự hiển thị
 
     result.forEach((row, index) => {
         const tr = document.createElement('tr');
@@ -482,13 +489,39 @@ function updateContextMenu() {
         document.querySelector('[data-action="checkBarcodeTransfer"]').style.display = 'block';
         document.querySelector('[data-action="checkBarcodeExtendDateTime"]').style.display = 'block';
     } else if (currentTableType === 'recipe') {
+        document.querySelector('[data-action="searchWorkOrderByRecipe"]').style.display = 'block';
         document.querySelector('[data-action="collectRecords"]').style.display = 'block';
-        document.querySelector('[data-action="updateWorkOrderStatus"]').style.display = 'block';
-        document.querySelector('[data-action="recipeDetail"]').style.display = 'block';
     } else if (currentTableType === 'outputBarcode') {
         document.querySelector('[data-action="outputBarcode"]').style.display = 'block';
-    } else if (currentTableType === 'workOrderDetails') {
+    } else if (currentTableType === 'workOrder') {
         document.querySelector('[data-action="workOrderDetails"]').style.display = 'block';
+    }
+}
+
+function handleOutputContextMenu(e) {
+    e.preventDefault();
+    const row = e.target.closest('tr');
+    if (!row) return;
+
+    handleRowClick(e);
+
+    const contextMenu = document.getElementById('contextMenu');
+    contextMenu.style.display = 'block';
+    contextMenu.style.left = e.pageX + 'px';
+    contextMenu.style.top = e.pageY + 'px';
+
+    // Show/hide context menu items based on table type
+    updateOutputContextMenu();
+}
+
+function updateOutputContextMenu() {
+    const items = document.querySelectorAll('.context-menu-item');
+    items.forEach(item => item.style.display = 'none');
+
+    if (currentOutputTableType === 'workOrderOutputByBarcode') {
+        document.querySelector('[data-action="outputByBarcode"]').style.display = 'block';
+    } else if (currentOutputTableType === 'workOrderOutputByRecipe') {
+        document.querySelector('[data-action="outputByRecipe"]').style.display = 'block';
     }
 }
 
@@ -508,7 +541,7 @@ function handleContextMenuAction(e) {
             searchScanBarcodeHistoryByBarcode();
             break;
         case 'checkBarcodeWorkOrder':
-            checkWorkOrderByBarcode();
+            openBarcodeDetailWindow('workOrderByBarcode', selectedRowData);
             break;
         case 'checkBarcodeTransfer':
             checkBarcodeTransfer();
@@ -517,15 +550,17 @@ function handleContextMenuAction(e) {
             checkBarcodeExtendDateTime();
             break;
 
-        // currentTableType === 'recipe'    
-        case 'collectRecords':
-            showCollectRecords();
+        // currentTableType === 'recipe'      
+        case 'searchWorkOrderByRecipe':
+            openBarcodeDetailWindow('workOrderByRecipe', selectedRowData);
             break;
-        case 'updateWorkOrderStatus':
-            updateWorkOrderStatus();
+            
+        // currentOutputTableType 
+        case 'outputByBarcode':
+            fetchOutputBarcodeByWorkOrder(selectedRowData);
             break;
-        case 'recipeDetail':
-            showRecipeDetail();
+        case 'outputByRecipe':
+            fetchOutputBarcodeByWorkOrder(selectedRowData);
             break;
 
         // currentTableType === 'outputBarcode'
@@ -581,7 +616,7 @@ async function showFeedRecords() {
     }
 }
 
-async function checkWorkOrderByBarcode() {
+async function fetchWorkOrderByBarcode() {
     const resource_id = selectedRowData['id'];
     if (!resource_id) {
         await showAlert('Chưa chọn hàng dữ liệu.', 'warning');
@@ -616,18 +651,25 @@ async function checkWorkOrderByBarcode() {
     payload.fromDate = vietNameDate;
     payload.toDate = vietNameDate;
 
-    const data = await apiFetch('/api/station/searchPrintBarcodeHistory', {
+    const data = await apiFetch('/api/barcode/fetchWorkOrder', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
     });
 
-    if (Array.isArray(data.result) && data.result.length === 0) {
-        await showAlert(`Barcode không được in ra từ bất kỳ đơn điều động nào`, 'error');
-        return;
-    }
+    if (data.success) {
+        if (data.result && data.result.length > 0) {
+            outputBarcodeRawData = data.result;
+            outputBarcodeColumns = data.columns;
 
-    setTableData(data.result, data.columns, 'workOrderDetails');
+            currentOutputTableType = 'workOrderOutputByBarcode'
+            renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
+        } else {
+            await showAlert(`Barcode không được in ra từ bất kỳ đơn điều động nào`, 'error');
+        }
+    } else {
+        await showAlert(data.message, 'error');
+    }
 }
 
 async function fetchInputBarcode(id, product_type) {
@@ -730,8 +772,8 @@ async function checkBarcodeExtendDateTime() {
         });
 }
 
-async function showCollectRecords() {
-    const work_order_id = selectedRowData['id'];
+async function fetchOutputBarcodeByWorkOrder() {
+    const work_order_id = selectedRowData['work_order'];
     if (!work_order_id) {
         await showAlert('Chưa chọn hàng dữ liệu.', 'warning');
         return;
@@ -743,70 +785,23 @@ async function showCollectRecords() {
         return;
     }
 
-    const data = await apiFetch('/api/workorder/outputBarcode', {
+    const data = await apiFetch('/api/workorder/fetchOutputBarcode', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ work_order_id, work_order_status })
     });
 
     if (data.success) {
-        setTableData(data.result, data.columns, null);
+        if (data.result && data.result.length > 0) {
+            outputBarcodeRawData = data.result;
+            outputBarcodeColumns = data.columns;
+            renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
+        } else {
+            await showAlert(data.message || 'Không tìm thấy tem đầu ra', 'info');
+        }
     } else {
         await showAlert(data.message, 'error');
     }
-}
-
-async function updateWorkOrderStatus() {
-    const work_order_id = selectedRowData['id'];
-    const status = selectedRowData['status'];
-
-    if (!work_order_id) {
-        await showAlert('Chưa chọn hàng dữ liệu.', 'warning');
-        return;
-    }
-
-    if (status !== '3') {
-        await showAlert('Mã mes chưa hoàn thành, không thể mở lại mã mes', 'error');
-        return;
-    }
-
-    const confirmed = await showConfirm('Bạn có chắc chắn muốn cập nhật không?');
-    if (!confirmed) return;
-
-    fetch('/api/work_order/update_status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ work_order_id, status })
-    })
-        .then(res => res.json())
-        .then(async data => {
-            await showAlert(data.message, data.success ? 'success' : 'error');
-            if (data.success) {
-                clearTable();
-            }
-        });
-}
-
-async function showRecipeDetail() {
-    const recipe_id = selectedRowData['recipe_id'];
-    if (!recipe_id) {
-        await showAlert('Chưa chọn hàng dữ liệu.', 'warning');
-        return;
-    }
-
-    fetch('/api/recipeDetails', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recipe_id })
-    })
-        .then(res => res.json())
-        .then(async data => {
-            if (data.success) {
-                setTableData(data.result, data.columns, null);
-            } else {
-                await showAlert(data.message, 'error');
-            }
-        });
 }
 
 function initDetailsModal() {
@@ -961,90 +956,32 @@ function showTransferModal() {
     document.getElementById('transferDate').valueAsDate = new Date();
 }
 
-function showDeleteRecipeModal() {
-    document.getElementById('deleteRecipeModal').style.display = 'block';
-}
+async function fetchWorkOrderByRecipe() {
+    const recipe_id = selectedRowData['recipe_id'];
 
-function handleDepartmentChange() {
-    const departmentId = document.getElementById('department_id').value;
-    const productTypeSelect = document.getElementById('product_type');
-    const productIdSelect = document.getElementById('material_product_id');
-
-    productTypeSelect.disabled = true;
-    productTypeSelect.innerHTML = '<option value="">-- Chọn bộ phận trước --</option>';
-    productIdSelect.disabled = true;
-    productIdSelect.innerHTML = '<option value="">-- Chọn loại sản phẩm trước --</option>';
-
-    if (!departmentId) return;
-
-    fetch('/api/material/add/product_types', {
+    const data = await apiFetch('/api/recipe/fetchWorkOrder', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ department_id: departmentId })
-    })
-        .then(res => res.json())
-        .then(data => {
-            productTypeSelect.innerHTML = '<option value="">-- Chọn --</option>';
-            data.product_types.forEach(type => {
-                const option = document.createElement('option');
-                option.value = type;
-                option.textContent = type;
-                productTypeSelect.appendChild(option);
-            });
-            productTypeSelect.disabled = false;
-        });
-}
+        body: JSON.stringify({ recipe_id })
+    });
 
-function handleProductTypeChange() {
-    const productType = document.getElementById('product_type').value;
-    const productIdSelect = document.getElementById('material_product_id');
+    if (data.success) {
+        if (data.result && data.result.length > 0) {
+            outputBarcodeRawData = data.result;
+            outputBarcodeColumns = data.columns;
 
-    productIdSelect.disabled = true;
-    productIdSelect.innerHTML = '<option value="">-- Chọn loại sản phẩm trước --</option>';
-
-    if (!productType) return;
-
-    fetch('/api/material/add/product_ids', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ product_type: productType })
-    })
-        .then(res => res.json())
-        .then(data => {
-            productIdSelect.innerHTML = '<option value="">-- Chọn --</option>';
-            data.product_ids.forEach(id => {
-                const option = document.createElement('option');
-                option.value = id;
-                option.textContent = id;
-                productIdSelect.appendChild(option);
-            });
-            productIdSelect.disabled = false;
-        });
-}
-
-function handleFileSelect(e) {
-    const file = e.target.files[0];
-    if (file) {
-        document.getElementById('recipeFilePath').value = file.name;
+            currentOutputTableType = 'workOrderOutputByRecipe';
+            renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
+        } else {
+            await showAlert(data.message || 'Không tìm thấy đơn điều động', 'info');
+        }
+    } else {
+        await showAlert(data.message, 'error');
     }
-}
-
-async function handleDeleteRecipe() {
-    const fileInput = document.getElementById('recipeFile');
-    if (!fileInput.files || !fileInput.files[0]) {
-        await showAlert('Chưa upload file', 'warning');
-        return;
-    }
-
-    const confirmed = await showConfirm('Bạn có chắc chắn muốn xóa không?');
-    if (!confirmed) return;
-
-    await showAlert('Tính năng xóa recipe từ Excel cần được triển khai trên server với xử lý file upload.', 'info');
-    // This would need file upload handling on the server side
 }
 
 function filterClientResult(keyword) {
-    if (activeSearchContext === 'outputBarcode') {
+    if (['inputBarcode', 'outputBarcode', 'workOrderByRecipe', 'workOrderByBarcode'].includes(activeSearchContext)) {
         filterOutputBarcode(keyword);
         return;
     }
@@ -1093,19 +1030,29 @@ function openBarcodeDetailWindow(type, rowData) {
     const container = document.getElementById('barcodeDetailContainer');
     container.style.display = 'flex';
 
-    activeSearchContext = type; // 'outputBarcode' | 'inputBarcode'
+    activeSearchContext = type;
 
     clearOutputBarcodeTable();
     const outputHeaderContentEl = document.getElementById('outputHeaderContent');
 
     if (type === 'inputBarcode') {
-        outputHeaderContentEl.textContent ='Tem đầu vào';
+        outputHeaderContentEl.textContent = 'Tem đầu vào';
         fetchInputBarcode(rowData.id, rowData.product_type);
     }
 
     if (type === 'outputBarcode') {
-        outputHeaderContentEl.textContent ='Tem đầu ra'
+        outputHeaderContentEl.textContent = 'Tem đầu ra'
         fetchOutputBarcode(rowData.work_order);
+    }
+
+    if (type === 'workOrderByRecipe') {
+        outputHeaderContentEl.textContent = 'Đơn điều động theo quy cách'
+        fetchWorkOrderByRecipe(rowData.recipe_id);
+    }
+
+    if (type === 'workOrderByBarcode') {
+        outputHeaderContentEl.textContent = 'Đơn điều động theo barcode'
+        fetchWorkOrderByBarcode(rowData.id, rowData.info);
     }
 }
 
@@ -1324,7 +1271,7 @@ function updateVisibleRowCount() {
 
     const count = tbody.querySelectorAll('tr').length;
     rowCount.textContent = count;
-    
+
     if (count === 36) {
         speechBubble.show(`Tôi tìm thấy ${count}☘️ kết quả! ✅`, {
             duration: 2000
@@ -1497,12 +1444,10 @@ async function showInputBarcode() {
         });
 
         const result = await res.json();
-
         if (!res.ok) {
             throw new Error(result.error || 'Query failed');
         }
 
-        console.log('Input barcode data:', result.data);
         showAlert('success', 'Thành công', 'Lấy dữ liệu tem đầu vào thành công');
 
     } catch (err) {
@@ -1549,7 +1494,7 @@ const speechBubble = {
     textElement: null,
     hideTimeout: null,
 
-    init() {
+    init () {
         this.element = document.getElementById('speech-bubble');
         this.textElement = document.getElementById('speech-bubble-text');
 
@@ -1577,7 +1522,7 @@ const speechBubble = {
      * @param {string} options.animation - 'bounce' | 'shake' | 'none'
      * @param {boolean} options.pixelStyle - Sử dụng pixel art style
      */
-    show(message, options = {}) {
+    show (message, options = {}) {
         if (!this.element || !this.textElement) {
             if (!this.init()) return;
         }
@@ -1632,7 +1577,7 @@ const speechBubble = {
      * Ẩn speech bubble
      * @param {boolean} immediate - Ẩn ngay lập tức không có animation
      */
-    hide(immediate = false) {
+    hide (immediate = false) {
         if (!this.element) return;
 
         if (this.hideTimeout) {
@@ -1659,7 +1604,7 @@ const speechBubble = {
     /**
      * Toggle speech bubble
      */
-    toggle(message, options = {}) {
+    toggle (message, options = {}) {
         if (!this.element) {
             if (!this.init()) return;
         }
@@ -1674,7 +1619,7 @@ const speechBubble = {
     /**
      * Update message without hiding/showing
      */
-    updateMessage(message) {
+    updateMessage (message) {
         if (!this.textElement) return;
         this.textElement.innerHTML = message;
     }

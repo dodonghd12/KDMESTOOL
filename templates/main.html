@@ -22,9 +22,6 @@
 <body>
     {% include "components/sidebar.html" %}
     <canvas id="starfield"></canvas>
-    <!-- <div id="blackhole">
-        <div class="centerHover"><span>ENTER</span></div>
-    </div> -->
     <div class="container" autocomplete="off">
         <div class="search-section">
             <div class="search-row">
@@ -110,9 +107,10 @@
         <div class="context-menu-item" data-action="checkBarcodeTransfer" style="display: none;">Kiểm tra vận chuyển tem</div>
         <div class="context-menu-item" data-action="checkBarcodeExtendDateTime" style="display: none;">Kiểm tra gia hạn</div>
 
-        <div class="context-menu-item" data-action="collectRecords" style="display: none;">Tem đầu ra của mã MES</div>
-        <div class="context-menu-item" data-action="updateWorkOrderStatus" style="display: none;">Mở lại Mã Mes</div>
-        <div class="context-menu-item" data-action="recipeDetail" style="display: none;">Xem Quy Cách</div>
+        <div class="context-menu-item" data-action="searchWorkOrderByRecipe" style="display: none;">Kiểm tra đơn điều động</div>
+
+        <div class="context-menu-item" data-action="outputByBarcode" style="display: none;">Tem đầu ra của mã MES</div>
+        <div class="context-menu-item" data-action="outputByRecipe" style="display: none;">Tem đầu ra của mã MES</div>
 
         <div class="context-menu-item" data-action="outputBarcode" style="display: none;">Xem tem đầu ra</div>
 
