@@ -320,9 +320,11 @@ body {
     backdrop-filter: blur(15px);
     border-radius: 12px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    max-height: calc(120vh - 260px);
+    max-height: calc(110vh - 230px);
     overflow: hidden;
     white-space: nowrap;
+    display: flex;
+    flex-direction: column;
 }
 
 .table-container.hidden {
@@ -350,14 +352,16 @@ body {
 }
 
 .table-scroll {
+    flex: 1;
     overflow-x: auto;
     overflow-y: auto;
-    max-height: 80vh;
+    min-height: 0;
 }
 
 .table-scroll table {
     min-width: 200px;
     border-collapse: collapse;
+    width: 100%;
 }
 
 table {
@@ -384,6 +388,11 @@ th {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    background: rgba(15, 23, 42, 0.95);
+}
+
+tbody {
+    display: table-row-group;
 }
 
 td {
@@ -414,10 +423,11 @@ tbody tr.selected {
     background: rgba(15, 23, 42, 0.95);
     backdrop-filter: blur(10px);
     color: #3dd5c0;
-    border-bottom: 2px solid rgba(61, 213, 192, 0.3);
+    border-top: 2px solid rgba(61, 213, 192, 0.3); /* Đổi từ border-bottom sang border-top */
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-shrink: 0; /* Không cho footer bị co lại */
 }
 
 .table-footer.hidden {
@@ -656,7 +666,9 @@ body.modal-locked {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: bold;
+    font-size: 18px;
+    font-weight: bold;
+    border-bottom: 2px solid rgba(61, 213, 192, 0.3);
 }
 
 .output-header .close-btn {
@@ -681,67 +693,76 @@ body.modal-locked {
 
 .output-table-scroll {
     flex: 1 1 auto;
-    overflow-y: hidden;
+    overflow-y: auto;
+    overflow-x: auto;
+    min-height: 0; /* Quan trọng: cho phép flex shrink */
 }
 
-#outputBarcodeTable {
-    border-collapse: collapse;
-    border-spacing: 0;
-    width: 100%
-}
-
-#outputBarcodeTableBody::-webkit-scrollbar {
+.output-table-scroll::-webkit-scrollbar {
     width: 10px;
     height: 10px;
 }
 
-#outputBarcodeTableBody::-webkit-scrollbar-track {
+.output-table-scroll::-webkit-scrollbar-track {
     background: rgba(61, 213, 192, 0.3);
     border-radius: 10px;
 }
 
-#outputBarcodeTableBody::-webkit-scrollbar-thumb {
+.output-table-scroll::-webkit-scrollbar-thumb {
     background-color: #149174;
     border-radius: 10px;
     border: 3px solid rgba(61, 213, 192, 0.3);
 }
 
-#outputBarcodeTableBody::-webkit-scrollbar-thumb:hover {
+.output-table-scroll::-webkit-scrollbar-thumb:hover {
     background-color: #0f6f5a;
 }
 
-#outputBarcodeTable thead th {
+#outputBarcodeTable {
+    border-collapse: collapse;
+    border-spacing: 0;
+    width: 100%;
+}
+
+#outputBarcodeTable thead {
     position: sticky;
     top: 0;
     background: rgba(15, 23, 42, 0.95);
     color: #3dd5c0;
     z-index: 10;
+    border-bottom: 2px solid rgba(61, 213, 192, 0.3);
 }
 
-#outputBarcodeTable thead,
-#outputBarcodeTable tbody tr {
-    display: table;
-    width: 100%;
-    table-layout: fixed;
+#outputBarcodeTable thead th {
+    background: rgba(15, 23, 42, 0.95);
+    padding: 12px;
+    text-align: left;
+    font-weight: bold;
+    font-size: 16px;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-#outputBarcodeTable tbody {
-    display: block;
-    max-height: calc(50vh - 150px);
-    /* tinh chỉnh */
-    overflow-y: auto;
+#outputBarcodeTable tbody td {
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(61, 213, 192, 0.1);
+    color: #cbd5e1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-#outputBarcodeTable thead {
-    display: table;
-    width: 100%;
+#outputBarcodeTable tbody tr:hover {
+    background: rgba(22, 160, 133, 0.15);
 }
 
 .output-footer {
     padding: 10px 15px;
     background: rgba(15, 23, 42, 0.95);
     backdrop-filter: blur(10px);
-    border-bottom: 2px solid rgba(61, 213, 192, 0.3);
+    border-top: 2px solid rgba(61, 213, 192, 0.3);
     font-weight: bold;
     color: #3dd5c0;
     flex: 0 0 auto;
@@ -1104,96 +1125,235 @@ body.modal-locked {
     }
 }
 
-#loader-float-btn {
+/* ===== ASTRONAUT LOADER CONTAINER ===== */
+#astronaut-float-btn {
     position: fixed;
     top: 14px;
     right: 12px;
     z-index: 3000;
-    text-decoration: none;
-    cursor: pointer;
     width: 85px;
     height: 85px;
+    overflow: visible;
+    cursor: pointer;
     transition: transform 0.3s ease;
 }
 
-#loader-float-btn:hover {
+#astronaut-float-btn:hover {
     transform: scale(1.05);
     filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
 }
 
-.loader {
-    width: 160px;
-    height: 185px;
-    position: relative;
-    background: #8B6F47;
-    border-radius: 100px 100px 0 0;
-    transform: scale(0.48);
-    transform-origin: top left;
+/* ===== ASTRONAUT ANIMATIONS ===== */
+@keyframes astronaut {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
-.loader:after {
-    content: "";
+.astronaut {
+    width: 85px;
+    height: 85px;
     position: absolute;
-    width: 100px;
-    height: 125px;
-    left: 50%;
-    top: 25px;
-    transform: translateX(-50%);
-    background-image: radial-gradient(circle, #3E2723 48%, transparent 55%), radial-gradient(circle, #3E2723 48%, transparent 55%), radial-gradient(circle, #D7CCC8 30%, transparent 45%), radial-gradient(circle, #3E2723 48%, transparent 51%), linear-gradient(#3E2723 20px, transparent 0), linear-gradient(#EFEBE9 60px, transparent 0), radial-gradient(circle, #EFEBE9 50%, transparent 51%), radial-gradient(circle, #EFEBE9 50%, transparent 51%);
-    background-repeat: no-repeat;
-    background-size: 16px 16px, 16px 16px, 10px 10px, 42px 42px, 12px 3px, 50px 25px, 70px 70px, 70px 70px;
-    background-position: 25px 10px, 55px 10px, 36px 44px, 50% 30px, 50% 85px, 50% 50px, 50% 22px, 50% 45px;
-    animation: faceLift 3s linear infinite alternate;
-}
-
-.loader:before {
-    content: "";
-    position: absolute;
-    width: 140%;
-    height: 125px;
-    left: -20%;
+    z-index: 11;
     top: 0;
-    background-image: radial-gradient(circle, #8B6F47 48%, transparent 50%), radial-gradient(circle, #8B6F47 48%, transparent 50%);
-    background-repeat: no-repeat;
-    background-size: 65px 65px;
-    background-position: 0px 12px, 145px 12px;
-    animation: earLift 3s linear infinite alternate;
+    left: 0;
+    animation: astronaut 8s linear infinite;
+    transform-origin: center center;
 }
 
-@keyframes faceLift {
-    0% {
-        transform: translateX(-60%);
-    }
-
-    100% {
-        transform: translateX(-30%);
-    }
+.schoolbag {
+    width: 34px;
+    height: 51px;
+    position: absolute;
+    z-index: 1;
+    top: 17px;
+    left: 25.5px;
+    background-color: #94b7ca;
+    border-radius: 17px 17px 0 0 / 10px 10px 0 0;
 }
 
-@keyframes mouthTalk {
-
-    0%,
-    100% {
-        background-size: 16px 16px, 16px 16px, 10px 10px, 42px 42px, 12px 3px, 50px 25px, 70px 70px, 70px 70px;
-    }
-
-    50% {
-        background-size: 16px 16px, 16px 16px, 10px 10px, 42px 42px, 12px 8px, 50px 35px, 70px 70px, 70px 70px;
-    }
+.head {
+    width: 33px;
+    height: 27px;
+    position: absolute;
+    z-index: 3;
+    background: linear-gradient(to right, #e3e8eb 0%, #e3e8eb 50%, #fbfdfa 50%, #fbfdfa 100%);
+    border-radius: 50%;
+    top: 11.5px;
+    left: 26px;
 }
 
-.loader.talking:after {
-    animation: faceLift 3s linear infinite alternate, mouthTalk 0.3s ease-in-out infinite;
+.head:after {
+    content: "";
+    width: 20px;
+    height: 17px;
+    position: absolute;
+    top: 5px;
+    left: 6.5px;
+    background: linear-gradient(to bottom, #3dd5c0 0%, #3dd5c0 50%, #3dd5c0 50%, #3dd5c0 100%);
+    border-radius: 5px;
 }
 
-@keyframes earLift {
-    0% {
-        transform: translateX(10px);
-    }
+.head:before {
+    content: "";
+    width: 4px;
+    height: 8.5px;
+    position: absolute;
+    top: 9.5px;
+    left: -1.4px;
+    background-color: #618095;
+    border-radius: 2px;
+    box-shadow: 31px 0px 0px #618095;
+}
 
-    100% {
-        transform: translateX(0px);
-    }
+.body {
+    width: 29px;
+    height: 34px;
+    position: absolute;
+    z-index: 2;
+    border-radius: 13.6px / 6.8px;
+    top: 35.7px;
+    left: 28px;
+    background: linear-gradient(to right, #e3e8eb 0%, #e3e8eb 50%, #fbfdfa 50%, #fbfdfa 100%);
+}
+
+.panel {
+    width: 20px;
+    height: 13.6px;
+    position: absolute;
+    top: 6.8px;
+    left: 4.5px;
+    background-color: #3dd5c0;
+}
+
+.panel:before {
+    content: "";
+    width: 10px;
+    height: 1.7px;
+    position: absolute;
+    top: 3px;
+    left: 2.4px;
+    background-color: #fbfdfa;
+    box-shadow: 0px 3px 0px #fbfdfa, 0px 6px 0px #fbfdfa;
+}
+
+.panel:after {
+    content: "";
+    width: 2.7px;
+    height: 2.7px;
+    position: absolute;
+    top: 3px;
+    right: 2.4px;
+    background-color: #fbfdfa;
+    border-radius: 50%;
+    box-shadow: 0px 4.8px 0px 0.7px #fbfdfa;
+}
+
+.arm {
+    width: 27px;
+    height: 10px;
+    position: absolute;
+    top: 41.1px;
+    z-index: 2;
+}
+
+.arm-left {
+    left: 10px;
+    background-color: #e3e8eb;
+    border-radius: 0 0 0 13px;
+}
+
+.arm-right {
+    right: 10px;
+    background-color: #fbfdfa;
+    border-radius: 0 0 13px 0;
+}
+
+.arm-left:before,
+.arm-right:before {
+    content: "";
+    width: 10px;
+    height: 24px;
+    position: absolute;
+    top: -13.6px;
+}
+
+.arm-left:before {
+    border-radius: 17px 17px 0px 41px / 17px 17px 0 37px;
+    left: 0;
+    background-color: #e3e8eb;
+}
+
+.arm-right:before {
+    border-radius: 17px 17px 41px 0 / 17px 17px 37px 0;
+    right: 0;
+    background-color: #fbfdfa;
+}
+
+.arm-left:after,
+.arm-right:after {
+    content: "";
+    width: 10px;
+    height: 3.4px;
+    position: absolute;
+    top: -8.2px;
+}
+
+.arm-left:after {
+    background-color: #6e91a4;
+    left: 0;
+}
+
+.arm-right:after {
+    right: 0;
+    background-color: #b6d2e0;
+}
+
+.leg {
+    width: 12px;
+    height: 16px;
+    position: absolute;
+    z-index: 2;
+    bottom: 12px;
+}
+
+.leg-left {
+    left: 25px;
+    background-color: #e3e8eb;
+    transform: rotate(20deg);
+}
+
+.leg-right {
+    right: 25px;
+    background-color: #fbfdfa;
+    transform: rotate(-20deg);
+}
+
+.leg-left:before,
+.leg-right:before {
+    content: "";
+    width: 20px;
+    height: 10px;
+    position: absolute;
+    bottom: -10.4px;
+}
+
+.leg-left:before {
+    left: -8px;
+    background-color: #e3e8eb;
+    border-radius: 12px 0 0 0;
+    border-bottom: 4px solid #6d96ac;
+}
+
+.leg-right:before {
+    right: -8px;
+    background-color: #fbfdfa;
+    border-radius: 0 12px 0 0;
+    border-bottom: 4px solid #b0cfe4;
 }
 
 .search-row {
@@ -1261,85 +1421,6 @@ body.modal-locked {
 .input-wrapper .input:focus::placeholder {
     color: #94a3b8;
 }
-
-/* .search-form {
-    position: relative;
-    width: 3rem;
-    height: 3rem;
-    border-radius: 999px;
-    background-color: white;
-    box-shadow: 0 0 1rem rgba(0, 0, 0, 0.2);
-    padding: 0.75rem;
-    margin: 0 0.5rem;
-    transition: width 0.5s;
-}
-
-.search-input {
-    background-color: white;
-    border: none;
-    outline: none;
-    width: 100%;
-    height: 100%;
-    border-radius: 999px;
-    padding-left: 1rem;
-    font-size: 16px;
-    pointer-events: none;
-}
-
-.search-button {
-    width: 2.25rem;
-    height: 2.25rem;
-    border-radius: 999px;
-    background-color: #16a085;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    cursor: pointer;
-    transition: all 0.5s;
-}
-
-.search-button:hover {
-    background: #149174;
-}
-
-.search-icon,
-.search-close {
-    position: absolute;
-    font-size: 1.25rem;
-    color: white;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-}
-
-.search-close {
-    opacity: 0;
-} */
-
-
-/* Active Search */
-
-/* .active-search {
-    max-width: 100%;
-    width: 300px;
-}
-
-.active-search .search-button {
-    left: calc(100% - 2rem);
-}
-
-.active-search .search-input {
-    pointer-events: initial;
-}
-
-.active-search .search-close {
-    opacity: 1;
-}
-
-.active-search .search-icon {
-    opacity: 0;
-} */
 
 .modal-overlay {
     position: fixed;

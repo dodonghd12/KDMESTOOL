@@ -8,7 +8,7 @@ import base64, os, json, socket, ast, re
 
 ############################################################################################################################################################
 
-APP_VERSION = "1.4.5"
+APP_VERSION = "1.4.6"
 default_language = "vi"
 VN_TZ = pytz.timezone('Asia/Ho_Chi_Minh')
 

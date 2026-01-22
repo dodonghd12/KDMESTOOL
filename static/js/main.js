@@ -1096,12 +1096,15 @@ function openBarcodeDetailWindow(type, rowData) {
     activeSearchContext = type; // 'outputBarcode' | 'inputBarcode'
 
     clearOutputBarcodeTable();
+    const outputHeaderContentEl = document.getElementById('outputHeaderContent');
 
     if (type === 'inputBarcode') {
+        outputHeaderContentEl.textContent ='Tem đầu vào';
         fetchInputBarcode(rowData.id, rowData.product_type);
     }
 
     if (type === 'outputBarcode') {
+        outputHeaderContentEl.textContent ='Tem đầu ra'
         fetchOutputBarcode(rowData.work_order);
     }
 }
@@ -1320,7 +1323,8 @@ function updateVisibleRowCount() {
     if (!tbody || !tableFooter || !rowCount) return;
 
     const count = tbody.querySelectorAll('tr').length;
-
+    rowCount.textContent = count;
+    
     if (count === 36) {
         speechBubble.show(`Tôi tìm thấy ${count}☘️ kết quả! ✅`, {
             duration: 2000
