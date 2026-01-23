@@ -59,7 +59,6 @@ function initializeCheckPrintHistoryByStationEventListeners() {
         document.getElementById('station').value = '';
         hideStationDropdown();
         
-        document.getElementById('dateRange').disabled = true;
         resetDateRange();
 
         clearTable();
@@ -71,15 +70,12 @@ function initializeCheckPrintHistoryByStationEventListeners() {
         clearTimeout(departmentSearchTimeout);
 
         if (!value) {
-            // Disable station and dateRange when department is empty
-            hideTableContainer();
             showDepartmentDropdown(departments);
 
             document.getElementById('station').disabled = true;
             document.getElementById('station').value = '';
             hideStationDropdown();
             
-            document.getElementById('dateRange').disabled = true;
             resetDateRange();
 
             stations = [];
@@ -136,11 +132,9 @@ function initializeCheckPrintHistoryByStationEventListeners() {
 
         // Always update dropdown immediately when typing
         if (!value) {
-            hideTableContainer();
             showStationDropdown(stations);
             
             // Disable dateRange when station is empty
-            document.getElementById('dateRange').disabled = true;
             resetDateRange();
             return;
         }
@@ -244,7 +238,7 @@ async function handleDepartmentChange() {
     if (!departmentValue) {
         document.getElementById('station').disabled = true;
         document.getElementById('station').value = '';
-        document.getElementById('dateRange').disabled = true;
+
         resetDateRange();
         stations = [];
         return;
@@ -298,7 +292,7 @@ async function checkAndLoadStations() {
 
 async function loadStations(departmentOid) {
     try {
-        const response = await fetch('/api/department/getStationList', {
+        const response = await fetch('/api/department/fetchStationList', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({department_oid: departmentOid})

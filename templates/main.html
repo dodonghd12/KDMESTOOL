@@ -70,7 +70,7 @@
         </div>
 
         <!-- ===== OUTPUT BARCODE CONTAINER ===== -->
-        <div id="barcodeDetailContainer" class="table-container output-barcode">
+        <div id="outputContainer" class="table-container output-barcode">
             <div class="output-header" id="outputHeader">
                 <div class="output-header-content" id="outputHeaderContent">Đang tải...</div>
                 <button class="close-btn" onclick="closeShowBarcodeWindow()">&times;</button>
@@ -107,14 +107,12 @@
         <div class="context-menu-item" data-action="checkBarcodeTransfer" style="display: none;">Kiểm tra vận chuyển tem</div>
         <div class="context-menu-item" data-action="checkBarcodeExtendDateTime" style="display: none;">Kiểm tra gia hạn</div>
 
+        <div class="context-menu-item" data-action="outputBarcodeByFeedRecords" style="display: none;">Xem tem đầu ra</div>
+
         <div class="context-menu-item" data-action="searchWorkOrderByRecipe" style="display: none;">Kiểm tra đơn điều động</div>
 
         <div class="context-menu-item" data-action="outputByBarcode" style="display: none;">Tem đầu ra của mã MES</div>
         <div class="context-menu-item" data-action="outputByRecipe" style="display: none;">Tem đầu ra của mã MES</div>
-
-        <div class="context-menu-item" data-action="outputBarcode" style="display: none;">Xem tem đầu ra</div>
-
-        <div class="context-menu-item" data-action="workOrderDetails" style="display: none;">Chi tiết đơn điều động</div>
     </div>
 
     <a href="#" id="astronaut-float-btn" title="Astronaut Tips">

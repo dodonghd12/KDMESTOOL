@@ -58,8 +58,6 @@ function initializeCheckMaterialEventListeners() {
         clearTimeout(departmentSearchTimeout);
 
         if (!value) {
-            // Disable station when department is empty
-            hideTableContainer();
             showDepartmentDropdown(departments);
             
             document.getElementById('station').disabled = true;
@@ -120,7 +118,6 @@ function initializeCheckMaterialEventListeners() {
 
         // Always update dropdown immediately when typing
         if (!value) {
-            hideTableContainer();
             showStationDropdown(stations);
             return;
         }
@@ -271,7 +268,7 @@ async function checkAndLoadStations() {
 
 async function loadStations(departmentOid) {
     try {
-        const response = await fetch('/api/department/getStationList', {
+        const response = await fetch('/api/department/fetchStationList', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({department_oid: departmentOid})

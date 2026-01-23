@@ -71,15 +71,12 @@ function initializeCheckScanHistoryByStationEventListeners() {
         clearTimeout(departmentSearchTimeout);
 
         if (!value) {
-            // Show all departments when input is cleared
-            hideTableContainer()
             showDepartmentDropdown(departments);
 
             document.getElementById('station').disabled = true;
             document.getElementById('station').value = '';
             hideStationDropdown();
             
-            document.getElementById('dateRange').disabled = true;
             resetDateRange();
 
             stations = [];
@@ -135,11 +132,9 @@ function initializeCheckScanHistoryByStationEventListeners() {
 
         // Always update dropdown immediately when typing
         if (!value) {
-            hideTableContainer()
             showStationDropdown(stations);
             
             // Disable dateRange when station is empty
-            document.getElementById('dateRange').disabled = true;
             resetDateRange();
             return;
         }
@@ -291,7 +286,7 @@ async function checkAndLoadStations() {
 
 async function loadStations(departmentOid) {
     try {
-        const response = await fetch('/api/department/getStationList', {
+        const response = await fetch('/api/department/fetchStationList', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({department_oid: departmentOid})

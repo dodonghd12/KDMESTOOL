@@ -1,6 +1,8 @@
 let searchTimeout = null;
 let selectedRow = null;
 let selectedRowData = null;
+let selectedOutputRow = null;
+let selectedOutputRowData = null;
 let originalTableHTML = null;
 let currentRowClickType = null;
 let currentTableType = null;
@@ -158,7 +160,7 @@ document.querySelectorAll('.label[data-text]').forEach(label => {
 
 async function checkAuth() {
     try {
-        const response = await fetch('/api/getDepartmentList');
+        const response = await fetch('/api/fetchDepartmentList');
         const result = await response.json();
         if (result.error) {
             await showAlert(
@@ -230,11 +232,11 @@ function initializeMainEventListeners() {
         tableBody.addEventListener('contextmenu', handleContextMenu);
     }
 
-    // ===== TABLE EVENTS =====
+    // ===== OUTPUT TABLE EVENTS =====
     const outputTableBody = document.getElementById('outputBarcodeTableBody');
     if (outputTableBody) {
-        outputTableBody.addEventListener('click', handleRowClick);
-        outputTableBody.addEventListener('dblclick', handleRowDoubleClick);
+        outputTableBody.addEventListener('click', handleOutputRowClick);
+        outputTableBody.addEventListener('dblclick', handleOutputRowDoubleClick);
         outputTableBody.addEventListener('contextmenu', handleOutputContextMenu);
     }
 
@@ -447,9 +449,30 @@ function handleRowClick(e) {
     selectedRowData = {};
     columns.forEach((col, index) => {
         const cell = cells[index];
-        // Get full value from data attribute if available (for truncated cells)
         const fullValue = cell?.dataset.fullValue;
         selectedRowData[col] = fullValue !== undefined ? fullValue : (cell?.textContent || '');
+    });
+}
+
+function handleOutputRowClick(e) {
+    const row = e.target.closest('tr');
+    if (!row) return;
+
+    // Remove previous selection
+    document.querySelectorAll('#outputBarcodeTableBody tr').forEach(r => r.classList.remove('selected'));
+
+    // Add selection to current row
+    row.classList.add('selected');
+    selectedOutputRow = row;
+
+    // Get row data
+    const cells = row.querySelectorAll('td');
+    const columns = Array.from(document.querySelectorAll('#outputBarcodeTable thead th')).map(th => th.textContent);
+    selectedOutputRowData = {};
+    columns.forEach((col, index) => {
+        const cell = cells[index];
+        const fullValue = cell?.dataset.fullValue;
+        selectedOutputRowData[col] = fullValue !== undefined ? fullValue : (cell?.textContent || '');
     });
 }
 
@@ -459,6 +482,14 @@ function handleRowDoubleClick(e) {
 
     handleRowClick(e);
     showDetails();
+}
+
+function handleOutputRowDoubleClick(e) {
+    const row = e.target.closest('tr');
+    if (!row) return;
+
+    handleOutputRowClick(e);
+    showOutputDetails();
 }
 
 function handleContextMenu(e) {
@@ -490,11 +521,8 @@ function updateContextMenu() {
         document.querySelector('[data-action="checkBarcodeExtendDateTime"]').style.display = 'block';
     } else if (currentTableType === 'recipe') {
         document.querySelector('[data-action="searchWorkOrderByRecipe"]').style.display = 'block';
-        document.querySelector('[data-action="collectRecords"]').style.display = 'block';
-    } else if (currentTableType === 'outputBarcode') {
-        document.querySelector('[data-action="outputBarcode"]').style.display = 'block';
-    } else if (currentTableType === 'workOrder') {
-        document.querySelector('[data-action="workOrderDetails"]').style.display = 'block';
+    } else if (currentTableType === 'outputBarcodeByFeedRecords') {
+        document.querySelector('[data-action="outputBarcodeByFeedRecords"]').style.display = 'block';
     }
 }
 
@@ -503,7 +531,7 @@ function handleOutputContextMenu(e) {
     const row = e.target.closest('tr');
     if (!row) return;
 
-    handleRowClick(e);
+    handleOutputRowClick(e);
 
     const contextMenu = document.getElementById('contextMenu');
     contextMenu.style.display = 'block';
@@ -527,21 +555,26 @@ function updateOutputContextMenu() {
 
 function handleContextMenuAction(e) {
     const action = e.target.dataset.action;
-    if (!selectedRowData) return;
+      
+    // Xác định sử dụng data từ table nào
+    const isOutputTable = ['outputByBarcode', 'outputByRecipe'].includes(action);
+    const rowData = isOutputTable ? selectedOutputRowData : selectedRowData;
+    
+    if (!rowData) return;
 
     switch (action) {
         // currentTableType === 'barcode'
         case 'inputBarcode':
-            openBarcodeDetailWindow('inputBarcode', selectedRowData);
+            openOutputTable('inputBarcode', rowData);
             break;
         case 'feedRecords':
             showFeedRecords();
             break;
         case 'checkScanBarcodeHistory':
-            searchScanBarcodeHistoryByBarcode();
+            fetchScanBarcodeHistoryByBarcode();
             break;
         case 'checkBarcodeWorkOrder':
-            openBarcodeDetailWindow('workOrderByBarcode', selectedRowData);
+            openOutputTable('workOrderByBarcode', rowData);
             break;
         case 'checkBarcodeTransfer':
             checkBarcodeTransfer();
@@ -550,27 +583,22 @@ function handleContextMenuAction(e) {
             checkBarcodeExtendDateTime();
             break;
 
+        // currentTableType === 'outputBarcode'
+        case 'outputBarcodeByFeedRecords':
+            openOutputTable('outputBarcodeByFeedRecords', rowData);
+            break;
+
         // currentTableType === 'recipe'      
         case 'searchWorkOrderByRecipe':
-            openBarcodeDetailWindow('workOrderByRecipe', selectedRowData);
+            openOutputTable('workOrderByRecipe', rowData);
             break;
             
         // currentOutputTableType 
         case 'outputByBarcode':
-            fetchOutputBarcodeByWorkOrder(selectedRowData);
+            fetchOutputBarcodeByWorkOrder('outputByBarcode', rowData);
             break;
         case 'outputByRecipe':
-            fetchOutputBarcodeByWorkOrder(selectedRowData);
-            break;
-
-        // currentTableType === 'outputBarcode'
-        case 'outputBarcode':
-            openBarcodeDetailWindow('outputBarcode', selectedRowData);
-            break;
-
-        // currentTableType === 'workOrderDetails'
-        case 'workOrderDetails':
-            getWorkOrderDetails();
+            fetchOutputBarcodeByWorkOrder('outputByRecipe', rowData);
             break;
     }
 
@@ -598,7 +626,7 @@ async function showFeedRecords() {
 
     feed_records_material_id = material_oid
 
-    const data = await apiFetch('/api/barcode/UsedHistory', {
+    const data = await apiFetch('/api/barcode/checkUsedHistory', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ material_oid, material_type })
@@ -610,7 +638,7 @@ async function showFeedRecords() {
     }
 
     if (data.success) {
-        setTableData(data.result, data.columns, 'outputBarcode');
+        setTableData(data.result, data.columns, 'outputBarcodeByFeedRecords');
     } else {
         await showAlert(data.message, 'error');
     }
@@ -674,20 +702,28 @@ async function fetchWorkOrderByBarcode() {
 
 async function fetchInputBarcode(id, product_type) {
     try {
-        const res = await apiFetch('/api/barcode/inputBarcode', {
+        const data = await apiFetch('/api/barcode/fetchInputBarcode', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id, product_type })
         });
 
-        if (res.success) {
-            renderOutputBarcodeTable(res.result, res.columns);
+        if (data.success) {
+        if (data.result && data.result.length > 0) {
+            outputBarcodeRawData = data.result;
+            outputBarcodeColumns = data.columns;
+
+            currentOutputTableType = null;
+            renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
         } else {
-            showAlert('error', 'Lỗi', res.message);
+            await showAlert(`Không tải được tem đầu vào`, 'error');
         }
+    } else {
+        await showAlert(data.message, 'error');
+    }
 
     } catch (err) {
-        showAlert('error', 'Lỗi', err.message || 'Không tải được tem đầu vào');
+        showAlert('error', 'Lỗi', err.message);
     }
 }
 
@@ -701,7 +737,7 @@ async function fetchOutputBarcode() {
     const work_order = selectedRowData['work_order'];
     totalOutputBarcode = selectedRowData['total_barcode'];
 
-    const data = await apiFetch('/api/barcode/outputBarcode', {
+    const data = await apiFetch('/api/barcode/fetchOutputBarcode', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ resource_id, work_order })
@@ -772,17 +808,26 @@ async function checkBarcodeExtendDateTime() {
         });
 }
 
-async function fetchOutputBarcodeByWorkOrder() {
-    const work_order_id = selectedRowData['work_order'];
+async function fetchOutputBarcodeByWorkOrder(type, rowData) {
+    const work_order_id = rowData['work_order'];
     if (!work_order_id) {
         await showAlert('Chưa chọn hàng dữ liệu.', 'warning');
         return;
     }
 
-    const work_order_status = selectedRowData['status'];
+    const work_order_status = rowData['status'];
     if (!work_order_status) {
         await showAlert('Chưa chọn hàng dữ liệu.', 'warning');
         return;
+    }
+
+    activeSearchContext = type;
+    let outputHeaderContentEl = document.getElementById('outputHeaderContent');
+
+    if (type && type === 'outputByBarcode') {
+        outputHeaderContentEl.textContent = 'Tem đầu ra theo Barcode';
+    } else if (type && type === 'outputByRecipe') { 
+        outputHeaderContentEl.textContent = 'Tem đầu ra theo quy cách';
     }
 
     const data = await apiFetch('/api/workorder/fetchOutputBarcode', {
@@ -795,6 +840,8 @@ async function fetchOutputBarcodeByWorkOrder() {
         if (data.result && data.result.length > 0) {
             outputBarcodeRawData = data.result;
             outputBarcodeColumns = data.columns;
+
+            currentOutputTableType = null
             renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
         } else {
             await showAlert(data.message || 'Không tìm thấy tem đầu ra', 'info');
@@ -842,6 +889,23 @@ function showDetails() {
         const cell = cells[index];
         fullRowData[col] =
             cell?.dataset.fullValue || cell?.textContent || '';
+    });
+
+    showDetailsModal(fullRowData);
+}
+
+function showOutputDetails() {
+    if (!selectedOutputRow) return;
+
+    const cells = selectedOutputRow.querySelectorAll('td');
+    const columns = Array.from(
+        document.querySelectorAll('#outputBarcodeTable thead th')
+    ).map(th => th.textContent);
+
+    const fullRowData = {};
+    columns.forEach((col, index) => {
+        const cell = cells[index];
+        fullRowData[col] = cell?.dataset.fullValue || cell?.textContent || '';
     });
 
     showDetailsModal(fullRowData);
@@ -981,7 +1045,7 @@ async function fetchWorkOrderByRecipe() {
 }
 
 function filterClientResult(keyword) {
-    if (['inputBarcode', 'outputBarcode', 'workOrderByRecipe', 'workOrderByBarcode'].includes(activeSearchContext)) {
+    if (['inputBarcode', 'outputBarcodeByFeedRecords', 'workOrderByRecipe', 'workOrderByBarcode', 'outputByBarcode', 'outputByRecipe'].includes(activeSearchContext)) {
         filterOutputBarcode(keyword);
         return;
     }
@@ -1019,7 +1083,7 @@ function filterOutputBarcode(keyword) {
     renderOutputBarcodeTable(filtered, outputBarcodeColumns);
 }
 
-function openBarcodeDetailWindow(type, rowData) {
+function openOutputTable(type, rowData) {
     // Nếu đang mở 1 loại khác → đóng trước
     if (activeSearchContext && activeSearchContext !== type) {
         closeShowBarcodeWindow();
@@ -1027,7 +1091,7 @@ function openBarcodeDetailWindow(type, rowData) {
 
     enterSingleRowMode();
 
-    const container = document.getElementById('barcodeDetailContainer');
+    const container = document.getElementById('outputContainer');
     container.style.display = 'flex';
 
     activeSearchContext = type;
@@ -1040,7 +1104,7 @@ function openBarcodeDetailWindow(type, rowData) {
         fetchInputBarcode(rowData.id, rowData.product_type);
     }
 
-    if (type === 'outputBarcode') {
+    if (type === 'outputBarcodeByFeedRecords') {
         outputHeaderContentEl.textContent = 'Tem đầu ra'
         fetchOutputBarcode(rowData.work_order);
     }
@@ -1057,7 +1121,7 @@ function openBarcodeDetailWindow(type, rowData) {
 }
 
 function closeShowBarcodeWindow() {
-    const container = document.getElementById('barcodeDetailContainer');
+    const container = document.getElementById('outputContainer');
     if (!container) return;
 
     clearOutputBarcodeTable();
@@ -1075,6 +1139,10 @@ function clearOutputBarcodeTable() {
 
     const count = document.getElementById('outputBarcodeCount');
     if (count) count.innerHTML = '';
+
+    // Clear output table selection
+    selectedOutputRow = null;
+    selectedOutputRowData = null;
 }
 
 function renderOutputBarcodeTable(rows, columns) {
@@ -1423,39 +1491,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-async function showInputBarcode() {
-    if (!selectedRowData) {
-        showAlert('warning', 'Cảnh báo', 'Chưa chọn dòng dữ liệu');
-        return;
-    }
-
-    const { id, product_type } = selectedRowData;
-
-    if (!id || !product_type) {
-        showAlert('error', 'Lỗi', 'Thiếu id hoặc product_type');
-        return;
-    }
-
-    try {
-        const res = await fetch('/api/barcode/inputBarcode', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id, product_type })
-        });
-
-        const result = await res.json();
-        if (!res.ok) {
-            throw new Error(result.error || 'Query failed');
-        }
-
-        showAlert('success', 'Thành công', 'Lấy dữ liệu tem đầu vào thành công');
-
-    } catch (err) {
-        console.error(err);
-        showAlert('error', 'Lỗi', err.message);
-    }
-}
-
 function enterSingleRowMode() {
     const tbody = document.getElementById('tableBody');
     if (!tbody || !selectedRow) return;
@@ -1771,7 +1806,7 @@ async function getWorkOrderDetails() {
     }
 }
 
-async function searchScanBarcodeHistoryByBarcode() {
+async function fetchScanBarcodeHistoryByBarcode() {
     const resource_id = selectedRowData['id'];
     if (!resource_id) {
         await showAlert('Chưa chọn hàng dữ liệu.', 'warning');

@@ -350,7 +350,95 @@ def search_scan_barcode_history_by_station():
             'result': [],
             'columns': column_names
         })
+
+@app.route('/api/station/searchPrintBarcodeHistory', methods=['POST'])
+def search_print_barcode_history_by_station():
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
     
+    fromDate = request.json.get('fromDate', '').strip()
+    toDate = request.json.get('toDate', '').strip()
+
+    station = request.json.get('station', '').strip()
+    if not station:
+        return jsonify({'result': [], 'columns': []})
+    
+    params = [f"%{station}%"]
+    
+    query = """
+        WITH cr_ts AS (
+            SELECT
+                cr.work_order,
+                cr.lot_number,
+                to_char(cr.work_date, 'YYYY-MM-DD') AS work_date,
+                cr.resource_oid,
+                (cr.detail->>'quantity')::numeric AS quantity,
+                cr.detail->>'operator_id' AS created_by,
+
+                (
+                    timestamp with time zone 'epoch'
+                    + (cr.created_at / 1e9) * interval '1 second'
+                ) AT TIME ZONE 'Asia/Ho_Chi_Minh' AS created_at_ts
+            FROM kvmes.collect_record cr
+            WHERE cr.station LIKE %s
+        )
+
+        SELECT
+            mr.id,
+            mr.product_id,
+            cr.quantity,
+            cr.work_order,
+            cr.work_date,
+            cr.lot_number,
+            to_char(MAX(cr.created_at_ts), 'YYYY-MM-DD HH24:MI:SS') AS created_at,
+            cr.created_by
+        FROM cr_ts cr
+        JOIN kvmes.material_resource mr
+            ON mr.oid = cr.resource_oid
+        """
+    
+    query += """
+        GROUP BY
+            mr.id,
+            mr.product_id,
+            cr.quantity,
+            cr.work_order,
+            cr.work_date,
+            cr.lot_number,
+            cr.created_by
+        """
+
+    if fromDate and toDate:
+        query += """
+            HAVING
+                MAX(cr.created_at_ts) >= %s::date
+            AND
+                MAX(cr.created_at_ts) <  %s::date + INTERVAL '1 day'
+            """
+        
+        params.extend([fromDate, toDate])
+
+    query += """
+       ORDER BY MAX(cr.created_at_ts) DESC;
+    """
+    
+    result, column_names = execute_pg_select_query(query, tuple(params))
+    if result:
+        convert_columns = ["created_at"]
+        result = convert_timestamp(result, column_names, convert_columns)
+        serialized_result = [serialize_row(list(row)) for row in result]
+        return jsonify({
+            'success': True,
+            'result': serialized_result,
+            'columns': column_names
+        })
+    else:
+        return jsonify({
+            'success': True,
+            'result': [],
+            'columns': column_names
+        })
+ 
 @app.route('/api/barcode/searchScanBarcodeHistory', methods=['POST'])
 def search_scan_barcode_history_by_barcode():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
@@ -556,7 +644,7 @@ def search_work_order():
             'columns': column_names
         })
           
-@app.route('/api/barcode/inputBarcode', methods=['POST'])
+@app.route('/api/barcode/fetchInputBarcode', methods=['POST'])
 def get_input_barcode():
     data = request.json
     material_id = data.get('id')
@@ -600,7 +688,7 @@ def get_input_barcode():
     except Exception as e:
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
 
-@app.route('/api/barcode/UsedHistory', methods=['POST'])
+@app.route('/api/barcode/checkUsedHistory', methods=['POST'])
 def get_used_history_by_barcode():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
@@ -736,7 +824,7 @@ def fetch_output_barcode_by_work_order():
             'message': f'Lỗi: {str(e)}'
         })
 
-@app.route('/api/barcode/outputBarcode', methods=['POST'])
+@app.route('/api/barcode/fetchOutputBarcode', methods=['POST'])
 def get_output_barcode_by_barcode():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
@@ -942,7 +1030,7 @@ def nes():
         return redirect(url_for('login'))
     return render_template('nes.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
 
-@app.route('/api/getDepartmentList', methods=['GET'])
+@app.route('/api/fetchDepartmentList', methods=['GET'])
 def get_department_list():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return jsonify({
@@ -984,7 +1072,7 @@ def get_department_list():
             'message': str(e)
         }), 500
 
-@app.route('/api/department/getStationList', methods=['POST'])
+@app.route('/api/department/fetchStationList', methods=['POST'])
 def get_station_list_by_department():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
