@@ -434,7 +434,7 @@ function displayComparison(result) {
         
         // NVL column - show recipe name (site) and barcode (resource_id)
         html += '<td>';
-        html += `<div>${item.recipe_name || '<span class="empty-cell">N/A</span>'}</div>`;
+        html += `<div>${item.site_id || '<span class="empty-cell">N/A</span>'}</div>`;
         if (item.site_barcode) {
             html += `<div class="barcode-highlight">${item.site_barcode}</div>`;
         } else {
@@ -444,7 +444,7 @@ function displayComparison(result) {
         
         // YAML column - only show site_id (name)
         html += '<td>';
-        html += `<div>${item.site_id || '<span class="empty-cell">N/A</span>'}</div>`;
+        html += `<div>${item.recipe_name || '<span class="empty-cell">N/A</span>'}</div>`;
         html += '</td>';
         
         html += '</tr>';
