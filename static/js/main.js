@@ -20,6 +20,161 @@ let currentBarcodeDetailType = null;
 let countdownConfirm = null;
 let totalOutputBarcode = null;
 
+// ===== PAGE TRANSITION - GLITCH EFFECT =====
+
+/**
+ * Create and initialize page transition overlay
+ */
+function initPageTransition() {
+    // Check if overlay already exists
+    if (document.getElementById('pageTransitionOverlay')) {
+        return;
+    }
+
+    // Create overlay structure
+    const overlay = document.createElement('div');
+    overlay.id = 'pageTransitionOverlay';
+    overlay.className = 'page-transition-overlay';
+    overlay.innerHTML = `
+        <div class="glitch-layer glitch-layer-3">
+            <div class="glitch-text" data-text="LOADING">LOADING</div>
+            <div class="scanlines"></div>
+            <div class="rgb-bars">
+                <div class="rgb-bar"></div>
+                <div class="rgb-bar"></div>
+                <div class="rgb-bar"></div>
+                <div class="rgb-bar"></div>
+                <div class="rgb-bar"></div>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+}
+
+/**
+ * Play page transition effect
+ * @param {Function} callback - Function to execute after transition
+ * @param {number} duration - Transition duration in milliseconds (default: 600)
+ */
+function playPageTransition(callback, duration = 600) {
+    const overlay = document.getElementById('pageTransitionOverlay');
+    
+    if (!overlay) {
+        console.warn('Page transition overlay not found. Initializing...');
+        initPageTransition();
+        // Retry after initialization
+        setTimeout(() => playPageTransition(callback, duration), 10);
+        return;
+    }
+
+    // Activate overlay
+    overlay.classList.add('active');
+    
+    // Lock body scroll
+    document.body.style.overflow = 'hidden';
+
+    // Execute callback and remove overlay after transition
+    setTimeout(() => {
+        if (callback && typeof callback === 'function') {
+            callback();
+        }
+        
+        // Remove overlay after a brief delay
+        setTimeout(() => {
+            overlay.classList.remove('active');
+            document.body.style.overflow = '';
+        }, 100);
+    }, duration);
+}
+
+/**
+ * Navigate to URL with transition effect
+ * @param {string} url - Target URL
+ * @param {number} duration - Transition duration (default: 600)
+ */
+function navigateWithTransition(url, duration = 600) {
+    playPageTransition(() => {
+        window.location.href = url;
+    }, duration);
+}
+
+/**
+ * Attach transition to all sidebar links
+ */
+function attachTransitionToSidebarLinks() {
+    // Wait for DOM to be ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', attachTransitionToSidebarLinks);
+        return;
+    }
+
+    const sidebar = document.getElementById('sidebar');
+    if (!sidebar) {
+        console.warn('Sidebar not found');
+        return;
+    }
+
+    // Get all links in sidebar
+    const links = sidebar.querySelectorAll('a[href]');
+    
+    links.forEach(link => {
+        // Skip logout and external links
+        const href = link.getAttribute('href');
+        if (!href || href === '#' || href.startsWith('javascript:') || href.includes('logout')) {
+            return;
+        }
+
+        // Add click event with transition
+        link.addEventListener('click', function(e) {
+            // Only apply to internal navigation
+            if (href.startsWith('/') || href.startsWith(window.location.origin)) {
+                e.preventDefault();
+                navigateWithTransition(href);
+            }
+        });
+    });
+}
+
+/**
+ * Play entrance transition on page load (DISABLED - removed glitch after page load)
+ */
+function playEntranceTransition() {
+    // DISABLED - No transition on page load to avoid double glitch effect
+    // Just ensure overlay is hidden
+    const overlay = document.getElementById('pageTransitionOverlay');
+    if (overlay) {
+        overlay.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+}
+
+// ===== AUTO INITIALIZATION =====
+
+// Type declaration for TypeScript
+/** @type {{init: Function, play: Function, navigate: Function}} */
+window.pageTransition = window.pageTransition || {};
+
+// Initialize on DOM ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        initPageTransition();
+        attachTransitionToSidebarLinks();
+        playEntranceTransition(); // Just cleanup, no animation
+    });
+} else {
+    initPageTransition();
+    attachTransitionToSidebarLinks();
+    playEntranceTransition(); // Just cleanup, no animation
+}
+
+// Export functions for manual use
+window.pageTransition = {
+    init: initPageTransition,
+    play: playPageTransition,
+    navigate: navigateWithTransition
+};
+
 // Custom Modal Functions
 function showModal(type, title, message, buttons = []) {
     const modal = document.getElementById('customModal');
