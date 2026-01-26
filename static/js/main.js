@@ -21,16 +21,11 @@ let countdownConfirm = null;
 let totalOutputBarcode = null;
 
 // ===== PAGE TRANSITION - GLITCH EFFECT =====
-
-/**
- * Create and initialize page transition overlay
- */
 function initPageTransition() {
     // Check if overlay already exists
     if (document.getElementById('pageTransitionOverlay')) {
         return;
     }
-
     // Create overlay structure
     const overlay = document.createElement('div');
     overlay.id = 'pageTransitionOverlay';
@@ -384,7 +379,9 @@ function initializeMainEventListeners() {
     if (tableBody) {
         tableBody.addEventListener('click', handleRowClick);
         tableBody.addEventListener('dblclick', handleRowDoubleClick);
-        tableBody.addEventListener('contextmenu', handleContextMenu);
+        tableBody.addEventListener('contextmenu', (e) => {
+            handleContextMenuUnified(e, 'main');
+        });
     }
 
     // ===== OUTPUT TABLE EVENTS =====
@@ -392,7 +389,9 @@ function initializeMainEventListeners() {
     if (outputTableBody) {
         outputTableBody.addEventListener('click', handleOutputRowClick);
         outputTableBody.addEventListener('dblclick', handleOutputRowDoubleClick);
-        outputTableBody.addEventListener('contextmenu', handleOutputContextMenu);
+        outputTableBody.addEventListener('contextmenu', (e) => {
+            handleContextMenuUnified(e, 'output');
+        });
     }
 
     // ===== CONTEXT MENU =====
@@ -406,6 +405,8 @@ function initializeMainEventListeners() {
     document.querySelectorAll('.context-menu-item').forEach(item => {
         item.addEventListener('click', handleContextMenuAction);
     });
+
+    enhanceContextMenu();
 
     // ===== SPEECH BUBBLE =====
     speechBubble.init();
@@ -647,6 +648,146 @@ function handleOutputRowDoubleClick(e) {
     showOutputDetails();
 }
 
+// ===== CONTEXT MENU =====
+
+/**
+ * Unified context menu handler
+ * @param {Event} e - Context menu event
+ * @param {string} tableType - 'main' | 'output'
+ */
+function handleContextMenuUnified(e, tableType = 'main') {
+    e.preventDefault();
+    
+    const row = e.target.closest('tr');
+    if (!row) return;
+
+    // Select row based on table type
+    if (tableType === 'main') {
+        handleRowClick(e);
+    } else {
+        handleOutputRowClick(e);
+    }
+
+    // Check if we have valid table type before showing menu
+    const hasValidType = tableType === 'main' 
+        ? currentTableType !== null 
+        : currentOutputTableType !== null;
+
+    if (!hasValidType) {
+        return;
+    }
+
+    // Show context menu
+    showContextMenu(e.pageX, e.pageY, tableType);
+}
+
+/**
+ * Show context menu at position
+ * @param {number} x - X coordinate
+ * @param {number} y - Y coordinate
+ * @param {string} tableType - 'main' | 'output'
+ */
+function showContextMenu(x, y, tableType) {
+    const contextMenu = document.getElementById('contextMenu');
+    if (!contextMenu) return;
+
+    // Update menu items visibility
+    let allowedActions = [];
+    if (tableType === 'main') {
+        allowedActions = updateContextMenu();
+    } else {
+        allowedActions = updateOutputContextMenu();
+    }
+
+    // Don't show menu if no items available
+    if (!allowedActions || allowedActions.length === 0) {
+        contextMenu.style.display = 'none';
+        return;
+    }
+
+    // Position menu
+    contextMenu.style.display = 'block';
+    
+    // Adjust position if menu would overflow viewport
+    const menuRect = contextMenu.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    let menuX = x;
+    let menuY = y;
+
+    // Prevent horizontal overflow
+    if (x + menuRect.width > viewportWidth) {
+        menuX = viewportWidth - menuRect.width - 10;
+    }
+
+    // Prevent vertical overflow
+    if (y + menuRect.height > viewportHeight) {
+        menuY = viewportHeight - menuRect.height - 10;
+    }
+
+    contextMenu.style.left = menuX + 'px';
+    contextMenu.style.top = menuY + 'px';
+}
+
+/**
+ * Update context menu items based on current table type
+ * @returns {string[]} Array of allowed actions
+ */
+function updateContextMenu() {
+    // Define menu configurations
+    const menuConfig = {
+        'barcode': [
+            'inputBarcode',
+            'feedRecords',
+            'checkScanBarcodeHistory',
+            'checkBarcodeWorkOrder',
+            'checkBarcodeTransfer',
+            'checkBarcodeExtendDateTime'
+        ],
+        'recipe': [
+            'searchWorkOrderByRecipe'
+        ],
+        'outputBarcodeByFeedRecords': [
+            'outputBarcodeByFeedRecords'
+        ]
+    };
+
+    const allowedActions = menuConfig[currentTableType] || [];     // Get allowed actions for current table type
+    setMenuItemsVisibility(allowedActions);    // Show/hide menu items
+    return allowedActions;    // Return allowed actions for validation
+}
+
+/**
+ * Update output context menu items based on output table type
+ * @returns {string[]} Array of allowed actions
+ */
+function updateOutputContextMenu() {
+    const menuConfig = {
+        'workOrderOutputByBarcode': ['outputByBarcode'],
+        'workOrderOutputByRecipe': ['outputByRecipe']
+    };
+
+    const allowedActions = menuConfig[currentOutputTableType] || [];
+    setMenuItemsVisibility(allowedActions);
+
+    // Return allowed actions for validation
+    return allowedActions;
+}
+
+/**
+ * Set visibility for context menu items
+ * @param {string[]} allowedActions - Array of allowed action names
+ */
+function setMenuItemsVisibility(allowedActions) {
+    const allItems = document.querySelectorAll('.context-menu-item');
+    
+    allItems.forEach(item => {
+        const action = item.dataset.action;
+        item.style.display = allowedActions.includes(action) ? 'block' : 'none';
+    });
+}
+
 function handleContextMenu(e) {
     e.preventDefault();
     const row = e.target.closest('tr');
@@ -659,26 +800,7 @@ function handleContextMenu(e) {
     contextMenu.style.left = e.pageX + 'px';
     contextMenu.style.top = e.pageY + 'px';
 
-    // Show/hide context menu items based on table type
     updateContextMenu();
-}
-
-function updateContextMenu() {
-    const items = document.querySelectorAll('.context-menu-item');
-    items.forEach(item => item.style.display = 'none');
-
-    if (currentTableType === 'barcode') {
-        document.querySelector('[data-action="inputBarcode"]').style.display = 'block';
-        document.querySelector('[data-action="feedRecords"]').style.display = 'block';
-        document.querySelector('[data-action="checkScanBarcodeHistory"]').style.display = 'block';
-        document.querySelector('[data-action="checkBarcodeWorkOrder"]').style.display = 'block';
-        document.querySelector('[data-action="checkBarcodeTransfer"]').style.display = 'block';
-        document.querySelector('[data-action="checkBarcodeExtendDateTime"]').style.display = 'block';
-    } else if (currentTableType === 'recipe') {
-        document.querySelector('[data-action="searchWorkOrderByRecipe"]').style.display = 'block';
-    } else if (currentTableType === 'outputBarcodeByFeedRecords') {
-        document.querySelector('[data-action="outputBarcodeByFeedRecords"]').style.display = 'block';
-    }
 }
 
 function handleOutputContextMenu(e) {
@@ -693,19 +815,7 @@ function handleOutputContextMenu(e) {
     contextMenu.style.left = e.pageX + 'px';
     contextMenu.style.top = e.pageY + 'px';
 
-    // Show/hide context menu items based on table type
     updateOutputContextMenu();
-}
-
-function updateOutputContextMenu() {
-    const items = document.querySelectorAll('.context-menu-item');
-    items.forEach(item => item.style.display = 'none');
-
-    if (currentOutputTableType === 'workOrderOutputByBarcode') {
-        document.querySelector('[data-action="outputByBarcode"]').style.display = 'block';
-    } else if (currentOutputTableType === 'workOrderOutputByRecipe') {
-        document.querySelector('[data-action="outputByRecipe"]').style.display = 'block';
-    }
 }
 
 function handleContextMenuAction(e) {
@@ -758,6 +868,134 @@ function handleContextMenuAction(e) {
     }
 
     document.getElementById('contextMenu').style.display = 'none';
+}
+
+/**
+ * Enhanced context menu với keyboard navigation và visual highlight
+ */
+function enhanceContextMenu() {
+    const contextMenu = document.getElementById('contextMenu');
+    if (!contextMenu) return;
+
+    let focusedItemIndex = -1;
+    const getVisibleItems = () => 
+        Array.from(contextMenu.querySelectorAll('.context-menu-item'))
+            .filter(item => item.style.display !== 'none');
+
+    /**
+     * Highlight item được chọn
+     */
+    function highlightItem(index) {
+        const visibleItems = getVisibleItems();
+        
+        // Remove highlight từ tất cả items
+        visibleItems.forEach(item => {
+            item.classList.remove('context-menu-focused');
+            item.style.backgroundColor = '';
+            item.style.color = '';
+        });
+
+        // Add highlight vào item hiện tại
+        if (index >= 0 && index < visibleItems.length) {
+            const item = visibleItems[index];
+            item.classList.add('context-menu-focused');
+            // Thêm màu nổi bật
+            item.style.backgroundColor = 'rgba(22, 160, 133, 0.5)';
+            
+            // Scroll item vào view nếu cần
+            item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
+    }
+
+    // Keyboard navigation
+    document.addEventListener('keydown', (e) => {
+        if (contextMenu.style.display !== 'block') return;
+
+        const visibleItems = getVisibleItems();
+        if (visibleItems.length === 0) return;
+
+        switch(e.key) {
+            case 'ArrowDown':
+                e.preventDefault();
+                focusedItemIndex = (focusedItemIndex + 1) % visibleItems.length;
+                highlightItem(focusedItemIndex);
+                break;
+
+            case 'ArrowUp':
+                e.preventDefault();
+                focusedItemIndex = focusedItemIndex <= 0 
+                    ? visibleItems.length - 1 
+                    : focusedItemIndex - 1;
+                highlightItem(focusedItemIndex);
+                break;
+
+            case 'Enter':
+                e.preventDefault();
+                if (focusedItemIndex >= 0 && focusedItemIndex < visibleItems.length) {
+                    visibleItems[focusedItemIndex].click();
+                }
+                break;
+
+            case 'Escape':
+                e.preventDefault();
+                closeContextMenu();
+                break;
+        }
+    });
+
+    // Mouse hover cũng update highlight
+    contextMenu.addEventListener('mousemove', (e) => {
+        const item = e.target.closest('.context-menu-item');
+        if (!item || item.style.display === 'none') return;
+
+        const visibleItems = getVisibleItems();
+        const index = visibleItems.indexOf(item);
+        
+        if (index !== -1 && index !== focusedItemIndex) {
+            focusedItemIndex = index;
+            highlightItem(focusedItemIndex);
+        }
+    });
+
+    // Reset khi đóng menu
+    function closeContextMenu() {
+        contextMenu.style.display = 'none';
+        focusedItemIndex = -1;
+        
+        // Remove tất cả highlight
+        getVisibleItems().forEach(item => {
+            item.classList.remove('context-menu-focused');
+            item.style.backgroundColor = '';
+            item.style.color = '';
+        });
+    }
+
+    // Click ra ngoài để đóng
+    document.addEventListener('click', (e) => {
+        if (!contextMenu.contains(e.target)) {
+            closeContextMenu();
+        }
+    });
+
+    // Khi mở menu, auto-highlight item đầu tiên
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.attributeName === 'style') {
+                if (contextMenu.style.display === 'block') {
+                    const visibleItems = getVisibleItems();
+                    if (visibleItems.length > 0) {
+                        focusedItemIndex = 0;
+                        highlightItem(0);
+                    }
+                }
+            }
+        });
+    });
+
+    observer.observe(contextMenu, { 
+        attributes: true, 
+        attributeFilter: ['style'] 
+    });
 }
 
 async function showFeedRecords() {
@@ -1849,45 +2087,25 @@ function initDateRangePicker(type) {
             fromDateEl.value = formatDate(selectedDates[0]);
             toDateEl.value = formatDate(selectedDates[1]);
 
-            if (type == 'scan_barcode_history') {
-                checkAndSearchHistoryScanByStation();
-            }
+            if (type == 'scan_barcode_history') { checkAndSearchHistoryScanByStation() }
 
-            if (type == 'print_barcode_history') {
-                checkAndSearchHistoryPrintByStation();
-            }
+            if (type == 'print_barcode_history') { checkAndSearchHistoryPrintByStation() }
 
-            if (type == 'reprint') {
-                checkQueryReprintBarcode();
-            }
+            if (type == 'reprint') { checkQueryReprintBarcode() }
         }
     });
-
-    
-
     // Event click để clear calendar
     dateInput.addEventListener('click', function (e) {
-        // Chỉ clear khi input đã có giá trị
         if (dateInput.value) {
-            e.preventDefault(); // Ngăn mở calendar
-
-            // Clear flatpickr instance
+            e.preventDefault();
             flatpickrInstance.clear();
-
-            // Clear visible value
             dateInput.value = '';
-
-            // Clear hidden inputs
             fromDateEl.value = '';
             toDateEl.value = '';
-
-            // Clear table
             clearTable();
         }
-        // Nếu input rỗng, để flatpickr mở calendar bình thường
     });
 
-    // Return instance để có thể control từ bên ngoài nếu cần
     return flatpickrInstance;
 }
 
@@ -1902,7 +2120,6 @@ function initDateRangePicker(type) {
 function sortResultByColumn(result, columns, columnName, order = 'desc', type = 'date') {
     const colIndex = columns.indexOf(columnName);
     if (colIndex === -1) return result;
-
     return [...result].sort((a, b) => {
         let valA = a[colIndex];
         let valB = b[colIndex];
@@ -1915,12 +2132,10 @@ function sortResultByColumn(result, columns, columnName, order = 'desc', type = 
                 valA = Number(valA);
                 valB = Number(valB);
                 break;
-
             case 'string':
                 valA = String(valA).toLowerCase();
                 valB = String(valB).toLowerCase();
                 break;
-
             case 'date':
             default:
                 valA = new Date(valA).getTime();
