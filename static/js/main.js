@@ -743,7 +743,8 @@ function updateContextMenu() {
             'checkScanBarcodeHistory',
             'checkBarcodeWorkOrder',
             'checkBarcodeTransfer',
-            'checkBarcodeExtendDateTime'
+            'checkBarcodeExtendDateTime',
+            'fetchOriginalInfo'
         ],
         'recipe': [
             'searchWorkOrderByRecipe'
@@ -846,6 +847,9 @@ function handleContextMenuAction(e) {
             break;
         case 'checkBarcodeExtendDateTime':
             checkBarcodeExtendDateTime();
+            break;
+        case 'fetchOriginalInfo':
+            openOutputTable('fetchOriginalInfoByBarcode', rowData);
             break;
 
         // currentTableType === 'outputBarcode'
@@ -1201,6 +1205,34 @@ async function checkBarcodeExtendDateTime() {
         });
 }
 
+async function fetchOriginalInfoByBarcode() {
+    const resource_id = selectedRowData['id'];
+    if (!resource_id) {
+        await showAlert('Chưa chọn hàng dữ liệu.', 'warning');
+        return;
+    }
+
+    try {
+        const data = await apiFetch('/api/barcode/fetchOriginalInfo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ resource_id })
+        });
+
+        if (data.success && data.result && data.result.length > 0) {
+            outputBarcodeRawData = data.result;
+            outputBarcodeColumns = data.columns;
+            currentOutputTableType = null;
+            renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
+        } else {
+            await showAlert(data.message || 'Không tìm thấy thông tin gốc', 'info');
+        }
+
+    } catch (err) {
+        await showAlert(err.message || 'Lỗi khi tải thông tin gốc', 'error');
+    }
+}
+
 async function fetchOutputBarcodeByWorkOrder(type, rowData) {
     const work_order_id = rowData['work_order'];
     if (!work_order_id) {
@@ -1510,6 +1542,11 @@ function openOutputTable(type, rowData) {
     if (type === 'workOrderByBarcode') {
         outputHeaderContentEl.textContent = 'Đơn điều động theo barcode'
         fetchWorkOrderByBarcode(rowData.id, rowData.info);
+    }
+
+    if (type === 'fetchOriginalInfoByBarcode') {
+        outputHeaderContentEl.textContent = 'Thông tin gốc của barcode'
+        fetchOriginalInfoByBarcode(rowData.id);
     }
 }
 

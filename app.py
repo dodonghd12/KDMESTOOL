@@ -717,12 +717,43 @@ def get_used_history_by_barcode():
             wo.station,
             to_char(wo.reserved_date, 'YYYY-MM-DD') AS reserved_date,
             MAX(mat_elem->'value'->>'mid') AS consumption,
-            COUNT(*) AS total_barcode,
-            COUNT(*) * MAX((mat_elem->'value'->>'mid')::numeric) AS total_consumption
+            
+            /* ===== TOTAL BARCODE = Tổng số phần tử trong records_id (status = 2) ===== */
+            SUM (
+                CASE 
+                    WHEN b.status = 2 THEN COALESCE(array_length(b.records_id, 1), 0)
+                    ELSE 0
+                END
+            ) AS total_barcode,
+            
+            /* ===== TOTAL FAIL BARCODE (status = 1) ===== */
+            SUM (
+                CASE 
+                    WHEN b.status = 1 THEN COALESCE(array_length(b.records_id, 1), 0)
+                    ELSE 0
+                END
+            ) AS total_fail_barcode,
+            
+            /* ===== TOTAL CONSUMPTION = (total_barcode + total_fail_barcode) * consumption ===== */
+            (
+                SUM (
+                    CASE 
+                        WHEN b.status = 2 THEN COALESCE(array_length(b.records_id, 1), 0)
+                        ELSE 0
+                    END
+                )
+                + SUM (
+                    CASE 
+                        WHEN b.status = 1 THEN COALESCE(array_length(b.records_id, 1), 0)
+                        ELSE 0
+                    END
+                )
+            ) * MAX((mat_elem->'value'->>'mid')::numeric) AS total_consumption
+                
         FROM params p
         JOIN kvmes.material_resource mr
             ON mr.id = p.resource_id
-        AND mr.product_type = p.product_type
+           AND mr.product_type = p.product_type
         JOIN kvmes.batch b ON TRUE
         JOIN kvmes.work_order wo ON wo.id = b.work_order
         JOIN kvmes.recipe_process_definition rpd
@@ -730,19 +761,19 @@ def get_used_history_by_barcode():
         LEFT JOIN LATERAL (
             SELECT material_elem AS mat_elem
             FROM jsonb_array_elements(rpd.configs::jsonb) cfg,
-                jsonb_array_elements(cfg->'steps') step,
-                jsonb_array_elements(step->'materials') material_elem
+                 jsonb_array_elements(cfg->'steps') step,
+                 jsonb_array_elements(step->'materials') material_elem
             WHERE material_elem->>'name' = mr.product_id
         ) m ON TRUE
         WHERE EXISTS (
             SELECT 1
             FROM kvmes.feed_record f
-            WHERE jsonb_path_exists(
-                f.materials,
-                '$.** ? (@.resource_id == $rid)',
-                jsonb_build_object('rid', p.resource_id)
-            )
-            AND f.id = ANY (b.records_id)
+            WHERE f.id = ANY (b.records_id)
+              AND jsonb_path_exists(
+                    f.materials,
+                    '$.** ? (@.resource_id == $rid)',
+                    jsonb_build_object('rid', p.resource_id)
+                )
         )
         GROUP BY
             b.work_order,
@@ -1378,6 +1409,7 @@ def fetch_work_order_by_recipe():
                     process_name, process_type
             FROM kvmes.work_order
             WHERE recipe_id LIKE %s
+            ORDER BY reserved_date DESC
             LIMIT 100;
         """
         
@@ -1401,7 +1433,87 @@ def fetch_work_order_by_recipe():
     
     except Exception as e:
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
-     
+
+@app.route('/api/barcode/fetchOriginalInfo', methods=['POST'])
+def fetch_original_info_by_barcode():
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    data = request.get_json() or {}
+
+    resource_id = data.get('resource_id')
+    if not resource_id:
+        return jsonify({'success': False, 'message': 'Thiếu Resource ID'})
+
+    try:
+        query = """
+            WITH params AS (
+                SELECT
+                    %s::text AS material_id
+            ),
+
+            target_work_orders AS (
+                SELECT DISTINCT
+                    wo.id AS work_order,
+                    wo.recipe_id
+                FROM params p
+                JOIN kvmes.work_order wo ON TRUE
+                WHERE EXISTS (
+                    SELECT 1
+                    FROM kvmes.collect_record cr
+                    JOIN kvmes.material_resource mr
+                        ON mr.oid = cr.resource_oid
+                    AND mr.id = p.material_id
+                    WHERE cr.work_order = wo.id
+                )
+            )
+
+            SELECT
+                mr.id              			AS barcode,
+                cr.detail->>'quantity' 		AS quantity,
+                cr.work_date::text       	AS work_date,
+                cr.detail->>'shift_group'	AS shift_group,
+                cr.lot_number,
+                cr.station         			AS station,
+                cr.created_at,
+                cr.detail->>'operator_id'	AS created_by
+
+            FROM params p
+            JOIN target_work_orders tw
+                ON TRUE
+            JOIN kvmes.work_order wo
+                ON wo.id = tw.work_order
+            JOIN kvmes.collect_record cr
+                ON cr.work_order = wo.id
+            JOIN kvmes.material_resource mr
+                ON mr.oid = cr.resource_oid
+            AND mr.id = p.material_id
+
+            ORDER BY
+                wo.reserved_date DESC,
+                cr.sequence ASC;
+        """
+
+        result, column_names = execute_pg_select_query(query, (resource_id,))
+        if not result:
+            return jsonify({'success': False, 'message': 'Lỗi API'})
+
+        convert_columns = ["created_at"]
+        result = convert_timestamp(result, column_names, convert_columns)
+        serialized_result = [serialize_row(row) for row in result]
+
+        return jsonify({
+            'success': True,
+            'result': serialized_result,
+            'columns': column_names
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Lỗi: {str(e)}'
+        })
+ 
 if __name__ == '__main__':
     import os
     port = int(os.environ.get('PORT', 5000))
