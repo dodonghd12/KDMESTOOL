@@ -268,7 +268,7 @@ async function checkAndLoadStations() {
 
 async function loadStations(departmentOid) {
     try {
-        const response = await fetch('/api/department/fetchStationList', {
+        const response = await fetch('/api/departments/stations', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({department_oid: departmentOid})
@@ -327,7 +327,7 @@ function checkAndSearchWorkOrders() {
 
 async function searchWorkOrders(station) {
     try {
-        const data = await apiFetch('/api/getActiveWorkorderList', {
+        const data = await apiFetch('/api/work-orders/get-active-list', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({station})
@@ -400,7 +400,7 @@ async function checkRecipe() {
     }
     
     try {
-        const response = await fetch('/api/checkRecipe', {
+        const response = await fetch('/api/stations/check-scan-barcode-with-recipe', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({recipe_id: recipeId, station: station})

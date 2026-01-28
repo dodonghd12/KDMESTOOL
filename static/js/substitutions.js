@@ -59,7 +59,7 @@ async function searchSubstitutions() {
     }
 
     try {
-        const response = await fetch('/api/searchSubstitutions', {
+        const response = await fetch('/api/barcodes/get-substitutions-list', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({keyword})

@@ -141,25 +141,65 @@ def login():
     
     return render_template('login.html', version=APP_VERSION)
 
-@app.route('/api/checkAuth', methods=['GET'])
+@app.route('/logout', methods=['POST'])
+def logout():
+    session.clear()
+    return jsonify({'success': True})
+
+@app.route('/api/check-auth', methods=['GET'])
 def check_auth():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
 
     return jsonify({'success': True})
 
+
+#========= PAGE ROUTES =========#
 @app.route('/main')
 def main():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return redirect(url_for('login'))
     return render_template('main.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
 
-@app.route('/logout', methods=['POST'])
-def logout():
-    session.clear()
-    return jsonify({'success': True})
+@app.route('/check_input_barcode_in_station')
+def check_input_barcode_in_station():
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+        return redirect(url_for('login'))
+    return render_template('check_input_barcode_in_station.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
 
-@app.route('/api/searchBarcode', methods=['POST'])
+@app.route('/scan-barcode-history')
+def scan_barcode_history():
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+        return redirect(url_for('login'))
+    return render_template('scan_barcode_history.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
+
+@app.route('/print-barcode-history')
+def print_barcode_history():
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+        return redirect(url_for('login'))
+    return render_template('print_barcode_history.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
+
+@app.route('/reprint')
+def reprint():
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+        return redirect(url_for('login'))
+    return render_template('reprint.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
+
+@app.route('/substitutions')
+def substitutions():
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+        return redirect(url_for('login'))
+    return render_template('substitutions.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
+
+@app.route('/nes')
+def nes():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    return render_template('nes.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
+
+
+#========= API =========#
+@app.route('/api/barcodes', methods=['POST'])
 def search_barcode():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
@@ -195,12 +235,62 @@ def search_barcode():
             'columns': column_names
         })
 
-@app.route('/api/getWorkOrder', methods=['POST'])
+@app.route('/api/work-orders', methods=['POST'])
+def search_work_order():
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    keyword = request.json.get('keyword', '').strip()
+    if not keyword:
+        return jsonify({'result': [], 'columns': []})
+    
+    query = """
+        SELECT
+            r.id            AS recipe_id,
+            r.product_type  AS product_type,
+            r.product_id    AS product_id,
+            r.released_at,
+            cfg->'stations' AS stations,
+            
+            (
+                SELECT jsonb_agg(mat)
+                FROM jsonb_array_elements(cfg->'steps') step
+                CROSS JOIN jsonb_array_elements(step->'materials') mat
+            ) AS materials,
+
+            r.note,
+            rpd.limitary_hour
+            
+        FROM kvmes.recipe r
+        JOIN LATERAL jsonb_array_elements(r.processes::jsonb) proc ON TRUE
+        JOIN kvmes.recipe_process_definition rpd ON rpd.oid = (proc->>'reference_oid')::uuid
+        JOIN LATERAL jsonb_array_elements(rpd.configs::jsonb) cfg ON TRUE
+        WHERE r.id LIKE %s
+        LIMIT 100;
+    """
+    result, column_names = execute_pg_select_query(query, (f"%{keyword}%",))
+    if result:
+        convert_columns = ["released_at"]
+        result = convert_timestamp(result, column_names, convert_columns)
+        serialized_result = [serialize_row(list(row)) for row in result]
+        return jsonify({
+            'success': True,
+            'result': serialized_result,
+            'columns': column_names
+        })
+    else:
+        return jsonify({
+            'success': True,
+            'result': [],
+            'columns': column_names
+        })
+    
+@app.route('/api/work-orders/get-details', methods=['POST'])
 def get_work_order_by_id():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
     
-    work_order_id = request.json.get('id', '').strip()
+    work_order_id = request.json.get('work_order_id', '').strip()
     if not work_order_id:
         return jsonify({'result': [], 'columns': []})
     
@@ -231,7 +321,7 @@ def get_work_order_by_id():
             'columns': column_names
         })
 
-@app.route('/api/station/searchScanBarcodeHistory', methods=['POST'])
+@app.route('/api/station/scan-barcode-history', methods=['POST'])
 def search_scan_barcode_history_by_station():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
@@ -351,7 +441,7 @@ def search_scan_barcode_history_by_station():
             'columns': column_names
         })
 
-@app.route('/api/station/searchPrintBarcodeHistory', methods=['POST'])
+@app.route('/api/station/print-barcode-history', methods=['POST'])
 def search_print_barcode_history_by_station():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
@@ -439,7 +529,7 @@ def search_print_barcode_history_by_station():
             'columns': column_names
         })
  
-@app.route('/api/barcode/searchScanBarcodeHistory', methods=['POST'])
+@app.route('/api/barcodes/scan-in-station', methods=['POST'])
 def search_scan_barcode_history_by_barcode():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
@@ -512,7 +602,7 @@ def search_scan_barcode_history_by_barcode():
             'columns': column_names
         })
     
-@app.route('/api/barcode/fetchWorkOrder', methods=['POST'])
+@app.route('/api/barcodes/fetch-work-orders', methods=['POST'])
 def fetch_work_order_by_barcode():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
@@ -593,58 +683,8 @@ def fetch_work_order_by_barcode():
             'result': [],
             'columns': column_names
         })
-
-@app.route('/api/searchWorkOrder', methods=['POST'])
-def search_work_order():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
-    
-    keyword = request.json.get('keyword', '').strip()
-    if not keyword:
-        return jsonify({'result': [], 'columns': []})
-    
-    query = """
-        SELECT
-            r.id            AS recipe_id,
-            r.product_type  AS product_type,
-            r.product_id    AS product_id,
-            r.released_at,
-            cfg->'stations' AS stations,
-            
-            (
-                SELECT jsonb_agg(mat)
-                FROM jsonb_array_elements(cfg->'steps') step
-                CROSS JOIN jsonb_array_elements(step->'materials') mat
-            ) AS materials,
-
-            r.note,
-            rpd.limitary_hour
-            
-        FROM kvmes.recipe r
-        JOIN LATERAL jsonb_array_elements(r.processes::jsonb) proc ON TRUE
-        JOIN kvmes.recipe_process_definition rpd ON rpd.oid = (proc->>'reference_oid')::uuid
-        JOIN LATERAL jsonb_array_elements(rpd.configs::jsonb) cfg ON TRUE
-        WHERE r.id LIKE %s
-        LIMIT 100;
-    """
-    result, column_names = execute_pg_select_query(query, (f"%{keyword}%",))
-    if result:
-        convert_columns = ["released_at"]
-        result = convert_timestamp(result, column_names, convert_columns)
-        serialized_result = [serialize_row(list(row)) for row in result]
-        return jsonify({
-            'success': True,
-            'result': serialized_result,
-            'columns': column_names
-        })
-    else:
-        return jsonify({
-            'success': True,
-            'result': [],
-            'columns': column_names
-        })
           
-@app.route('/api/barcode/fetchInputBarcode', methods=['POST'])
+@app.route('/api/barcodes/fetch-input-barcodes', methods=['POST'])
 def get_input_barcode():
     data = request.json
     material_id = data.get('id')
@@ -688,7 +728,7 @@ def get_input_barcode():
     except Exception as e:
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
 
-@app.route('/api/barcode/checkUsedHistory', methods=['POST'])
+@app.route('/api/barcodes/check-used-history', methods=['POST'])
 def get_used_history_by_barcode():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
@@ -802,7 +842,7 @@ def get_used_history_by_barcode():
     except Exception as e:
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
 
-@app.route('/api/workorder/fetchOutputBarcode', methods=['POST'])
+@app.route('/api/workorders/fetch-output-barcodes', methods=['POST'])
 def fetch_output_barcode_by_work_order():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
@@ -855,7 +895,7 @@ def fetch_output_barcode_by_work_order():
             'message': f'Lỗi: {str(e)}'
         })
 
-@app.route('/api/barcode/fetchOutputBarcode', methods=['POST'])
+@app.route('/api/barcodes/fetch-output-barcodes', methods=['POST'])
 def get_output_barcode_by_barcode():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
@@ -915,7 +955,7 @@ def get_output_barcode_by_barcode():
     except Exception as e:
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
 
-@app.route('/api/checkBarcodeTransfer', methods=['POST'])
+@app.route('/api/barcodes/check-transfer', methods=['POST'])
 def check_barcode_transfer():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
@@ -958,7 +998,7 @@ def check_barcode_transfer():
     except Exception as e:
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
 
-@app.route('/api/checkBarcodeExtendDateTime', methods=['POST'])
+@app.route('/api/barcodes/check-extend-date-count', methods=['POST'])
 def check_barcode_extend_time():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
@@ -1024,44 +1064,8 @@ def check_barcode_extend_time():
         
     except Exception as e:
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
-    
-@app.route('/check_input_barcode_in_station')
-def check_input_barcode_in_station():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return redirect(url_for('login'))
-    return render_template('check_input_barcode_in_station.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
 
-@app.route('/scan-barcode-history')
-def scan_barcode_history():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return redirect(url_for('login'))
-    return render_template('scan_barcode_history.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
-
-@app.route('/print-barcode-history')
-def print_barcode_history():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return redirect(url_for('login'))
-    return render_template('print_barcode_history.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
-
-@app.route('/reprint')
-def reprint():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return redirect(url_for('login'))
-    return render_template('reprint.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
-
-@app.route('/substitutions')
-def substitutions():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return redirect(url_for('login'))
-    return render_template('substitutions.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
-
-@app.route('/nes')
-def nes():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-    return render_template('nes.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
-
-@app.route('/api/fetchDepartmentList', methods=['GET'])
+@app.route('/api/departments', methods=['GET'])
 def get_department_list():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return jsonify({
@@ -1103,7 +1107,7 @@ def get_department_list():
             'message': str(e)
         }), 500
 
-@app.route('/api/department/fetchStationList', methods=['POST'])
+@app.route('/api/departments/stations', methods=['POST'])
 def get_station_list_by_department():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
@@ -1133,7 +1137,7 @@ def get_station_list_by_department():
     except requests.RequestException as e:
         return jsonify({'stations': [], 'error': str(e)})
 
-@app.route('/api/getActiveWorkorderList', methods=['POST'])
+@app.route('/api/work-orders/get-active-list', methods=['POST'])
 def get_active_work_order_list():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
@@ -1161,7 +1165,7 @@ def get_active_work_order_list():
     except Exception as e:
         return jsonify({'result': [], 'columns': [], 'error': str(e)})
 
-@app.route('/api/checkRecipe', methods=['POST'])
+@app.route('/api/stations/check-scan-barcode-with-recipe', methods=['POST'])
 def check_recipe():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
@@ -1282,7 +1286,7 @@ def check_recipe():
     except Exception as e:
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
     
-@app.route('/api/getReprintBarcodeList', methods=['POST'])
+@app.route('/api/barcodes/get-reprint-list', methods=['POST'])
 def get_reprint_barcode_list():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
@@ -1359,7 +1363,7 @@ def get_reprint_barcode_list():
             'message': str(e)
         }), 500
 
-@app.route('/api/searchSubstitutions', methods=['POST'])
+@app.route('/api/barcodes/get-substitutions-list', methods=['POST'])
 def search_substitutions():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
@@ -1391,7 +1395,7 @@ def search_substitutions():
             'columns': column_names
         })
     
-@app.route('/api/recipe/fetchWorkOrder', methods=['POST'])
+@app.route('/api/recipes/fetch-work-orders', methods=['POST'])
 def fetch_work_order_by_recipe():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
@@ -1434,7 +1438,7 @@ def fetch_work_order_by_recipe():
     except Exception as e:
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
 
-@app.route('/api/barcode/fetchOriginalInfo', methods=['POST'])
+@app.route('/api/barcodes/fetch-original-info', methods=['POST'])
 def fetch_original_info_by_barcode():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return jsonify({'error': 'Unauthorized'}), 401

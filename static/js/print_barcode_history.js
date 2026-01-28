@@ -292,7 +292,7 @@ async function checkAndLoadStations() {
 
 async function loadStations(departmentOid) {
     try {
-        const response = await fetch('/api/department/fetchStationList', {
+        const response = await fetch('/api/departments/stations', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({department_oid: departmentOid})
@@ -364,7 +364,7 @@ async function SearchHistoryPrintByStation(station, fromDate, toDate) {
         payload.toDate = toDate;
     }
 
-    const data = await apiFetch('/api/station/searchPrintBarcodeHistory', {
+    const data = await apiFetch('/api/station/print-barcode-history', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)

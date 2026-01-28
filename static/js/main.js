@@ -310,7 +310,7 @@ document.querySelectorAll('.label[data-text]').forEach(label => {
 
 async function checkAuth() {
     try {
-        const response = await fetch('/api/fetchDepartmentList');
+        const response = await fetch('/api/departments');
         const result = await response.json();
         if (result.error) {
             await showAlert(
@@ -463,7 +463,7 @@ async function searchBarcode() {
     }
 
     try {
-        const response = await fetch('/api/searchBarcode', {
+        const response = await fetch('/api/barcodes', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ keyword })
@@ -487,7 +487,7 @@ async function searchWorkOrder() {
     }
 
     try {
-        const response = await fetch('/api/searchWorkOrder', {
+        const response = await fetch('/api/work-orders', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ keyword })
@@ -1023,7 +1023,7 @@ async function showFeedRecords() {
 
     feed_records_material_id = material_oid
 
-    const data = await apiFetch('/api/barcode/checkUsedHistory', {
+    const data = await apiFetch('/api/barcodes/check-used-history', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ material_oid, material_type })
@@ -1076,7 +1076,7 @@ async function fetchWorkOrderByBarcode() {
     payload.fromDate = vietNameDate;
     payload.toDate = vietNameDate;
 
-    const data = await apiFetch('/api/barcode/fetchWorkOrder', {
+    const data = await apiFetch('/api/barcodes/fetch-work-orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -1099,7 +1099,7 @@ async function fetchWorkOrderByBarcode() {
 
 async function fetchInputBarcode(id, product_type) {
     try {
-        const data = await apiFetch('/api/barcode/fetchInputBarcode', {
+        const data = await apiFetch('/api/barcodes/fetch-input-barcodes', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id, product_type })
@@ -1134,7 +1134,7 @@ async function fetchOutputBarcode() {
     const work_order = selectedRowData['work_order'];
     totalOutputBarcode = selectedRowData['total_barcode'];
 
-    const data = await apiFetch('/api/barcode/fetchOutputBarcode', {
+    const data = await apiFetch('/api/barcodes/fetch-output-barcodes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ resource_id, work_order })
@@ -1161,7 +1161,7 @@ async function checkBarcodeTransfer() {
         return;
     }
 
-    fetch('/api/checkBarcodeTransfer', {
+    fetch('/api/barcodes/check-transfer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ resource_id })
@@ -1187,7 +1187,7 @@ async function checkBarcodeExtendDateTime() {
         return;
     }
 
-    fetch('/api/checkBarcodeExtendDateTime', {
+    fetch('/api/barcodes/check-extend-date-count', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ resource_id })
@@ -1213,7 +1213,7 @@ async function fetchOriginalInfoByBarcode() {
     }
 
     try {
-        const data = await apiFetch('/api/barcode/fetchOriginalInfo', {
+        const data = await apiFetch('/api/barcodes/fetch-original-info', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ resource_id })
@@ -1255,7 +1255,7 @@ async function fetchOutputBarcodeByWorkOrder(type, rowData) {
         outputHeaderContentEl.textContent = 'Tem đầu ra theo quy cách';
     }
 
-    const data = await apiFetch('/api/workorder/fetchOutputBarcode', {
+    const data = await apiFetch('/api/workorders/fetch-output-barcodes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ work_order_id, work_order_status })
@@ -1448,7 +1448,7 @@ function showTransferModal() {
 async function fetchWorkOrderByRecipe() {
     const recipe_id = selectedRowData['recipe_id'];
 
-    const data = await apiFetch('/api/recipe/fetchWorkOrder', {
+    const data = await apiFetch('/api/recipes/fetch-work-orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ recipe_id })
@@ -2200,10 +2200,10 @@ async function getWorkOrderDetails() {
         return;
     }
 
-    const data = await apiFetch('/api/getWorkOrder', {
+    const data = await apiFetch('/api/work-orders/get-details', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: work_order_id })
+        body: JSON.stringify({ work_order_id })
     });
 
     if (data.success) {
@@ -2220,7 +2220,7 @@ async function fetchScanBarcodeHistoryByBarcode() {
         return;
     }
 
-    const data = await apiFetch('/api/barcode/searchScanBarcodeHistory', {
+    const data = await apiFetch('/api/barcodes/scan-in-station', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ resource_id })
