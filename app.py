@@ -235,7 +235,7 @@ def search_barcode():
             'columns': column_names
         })
 
-@app.route('/api/work-orders', methods=['POST'])
+@app.route('/api/recipes', methods=['POST'])
 def search_work_order():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
@@ -257,6 +257,12 @@ def search_work_order():
                 FROM jsonb_array_elements(cfg->'steps') step
                 CROSS JOIN jsonb_array_elements(step->'materials') mat
             ) AS materials,
+
+            (
+                SELECT jsonb_agg(mat)
+                FROM jsonb_array_elements(cfg->'steps') step
+                CROSS JOIN jsonb_array_elements(step->'controls') mat
+            ) AS controls,
 
             r.note,
             rpd.limitary_hour
@@ -1306,6 +1312,15 @@ def get_reprint_barcode_list():
 
     headers = get_auth_headers(session)
 
+    # Thêm mapping
+    REPRINT_REASON_MAP = {
+        1: 'Quét lố',
+        2: 'Quét xót',
+        3: 'Tem hư',
+        4: 'TH làm mất',
+        5: 'CBK làm mất'
+    }
+
     try:
         response = requests.get(url, headers=headers, params=params, verify=False)
         response.raise_for_status()
@@ -1315,12 +1330,10 @@ def get_reprint_barcode_list():
         if not items:
             return jsonify({'result': [], 'columns': []})
 
-        # ===== BUILD COLUMNS =====
         DISPLAY_COLUMNS = [
             'ID',
             'resourceID',
             'quantity',
-            'expiredDate',
             'status',
             'reprintReason',
             'createdAt',
@@ -1329,22 +1342,23 @@ def get_reprint_barcode_list():
         ]
         
         DATE_COLUMNS = {
-            'createdAt',
-            'expiredDate'
+            'createdAt'
         }
 
         columns = DISPLAY_COLUMNS
 
-        # ===== BUILD RESULT =====
         result = []
         for item in items:
             row = []
             for col in columns:
                 value = item.get(col)
 
-                if col in DATE_COLUMNS and isinstance(value, str):
+                # Convert reprintReason từ số sang text
+                if col == 'reprintReason' and isinstance(value, int):
+                    value = REPRINT_REASON_MAP.get(value, f'Unknown ({value})')
+                elif col in DATE_COLUMNS and isinstance(value, str):
                     value = convert_iso_datetime(value)
-                # stringify object / array for frontend truncate + excel
+                
                 if isinstance(value, (dict, list)):
                     row.append(json.dumps(value, ensure_ascii=False))
                 else:

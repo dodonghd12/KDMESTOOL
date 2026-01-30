@@ -353,7 +353,7 @@ function initializeMainEventListeners() {
     if (productInput) {
         productInput.addEventListener(
             'input',
-            debounceSearch(searchWorkOrder, 500)
+            debounceSearch(searchRecipes, 500)
         );
 
         productInput.addEventListener('input', e => {
@@ -478,7 +478,7 @@ async function searchBarcode() {
     }
 }
 
-async function searchWorkOrder() {
+async function searchRecipes() {
     closeShowBarcodeWindow();
     const keyword = document.getElementById('product_id').value.trim();
     if (!keyword) {
@@ -487,7 +487,7 @@ async function searchWorkOrder() {
     }
 
     try {
-        const response = await fetch('/api/work-orders', {
+        const response = await fetch('/api/recipes', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ keyword })
