@@ -65,37 +65,9 @@
             </div>
         </div>
     </div>
-    
-    
-    <a href="#" id="astronaut-float-btn" title="Astronaut Tips">
-        <div data-js="astro" class="astronaut">
-            <div class="head"></div>
-            <div class="arm arm-left"></div>
-            <div class="arm arm-right"></div>
-            <div class="body">
-                <div class="panel"></div>
-            </div>
-            <div class="leg leg-left"></div>
-            <div class="leg leg-right"></div>
-            <div class="schoolbag"></div>
-        </div>
-    </a>
 
-    <!-- Speech Bubble for NES button -->
-    <div id="speech-bubble" class="speech-bubble hidden">
-        <div class="speech-bubble-content">
-            <span id="speech-bubble-text">&times;</span>
-        </div>
-    </div>
-
-    <script>
-        const userId = '{{ user_id }}';
-        const userIp = '{{ user_ip }}';
-        const version = '{{ version }}';
-    </script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-    
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>  
     <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     <script src="{{ url_for('static', filename='js/reprint.js') }}"></script>
