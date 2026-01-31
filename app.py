@@ -10,6 +10,7 @@ import pytz
 import ast
 import re
 import urllib3
+import socket
 from typing import Optional
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -75,6 +76,7 @@ def login():
 
         #get user ip
         user_ip = get_client_ip()
+        computer_name = socket.gethostbyaddr(user_ip)[0].split('.')[0].upper() if user_ip else 'Unknown'  
 
         # Get data from JSON (sent from JavaScript)
         if request.is_json:
@@ -113,6 +115,7 @@ def login():
                 session['user_id'] = user_id
                 session['user_token'] = response_data['data']['token']
                 session['user_ip'] = user_ip
+                session['computer_name'] = computer_name
                 
                 # Save cookies from response - build cookie string
                 cookie_parts = []
@@ -148,7 +151,7 @@ def logout():
 
 @app.route('/api/check-auth', methods=['GET'])
 def check_auth():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+    if 'user_id' not in session or 'user_token' not in session or 'computer_name' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
 
     return jsonify({'success': True})
@@ -157,51 +160,51 @@ def check_auth():
 #========= PAGE ROUTES =========#
 @app.route('/main')
 def main():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+    if 'user_id' not in session or 'user_token' not in session or 'computer_name' not in session:
         return redirect(url_for('login'))
-    return render_template('main.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
+    return render_template('main.html', user_id=session.get('user_id'), computer_name=session.get('computer_name'), version=APP_VERSION)
 
 @app.route('/check_input_barcode_in_station')
 def check_input_barcode_in_station():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+    if 'user_id' not in session or 'user_token' not in session or 'computer_name' not in session:
         return redirect(url_for('login'))
-    return render_template('check_input_barcode_in_station.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
+    return render_template('check_input_barcode_in_station.html', user_id=session.get('user_id'), computer_name=session.get('computer_name'), version=APP_VERSION)
 
 @app.route('/scan-barcode-history')
 def scan_barcode_history():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+    if 'user_id' not in session or 'user_token' not in session or 'computer_name' not in session:
         return redirect(url_for('login'))
-    return render_template('scan_barcode_history.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
+    return render_template('scan_barcode_history.html', user_id=session.get('user_id'), computer_name=session.get('computer_name'), version=APP_VERSION)
 
 @app.route('/print-barcode-history')
 def print_barcode_history():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+    if 'user_id' not in session or 'user_token' not in session or 'computer_name' not in session:
         return redirect(url_for('login'))
-    return render_template('print_barcode_history.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
+    return render_template('print_barcode_history.html', user_id=session.get('user_id'), computer_name=session.get('computer_name'), version=APP_VERSION)
 
 @app.route('/reprint')
 def reprint():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+    if 'user_id' not in session or 'user_token' not in session or 'computer_name' not in session:
         return redirect(url_for('login'))
-    return render_template('reprint.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
+    return render_template('reprint.html', user_id=session.get('user_id'), computer_name=session.get('computer_name'), version=APP_VERSION)
 
 @app.route('/substitutions')
 def substitutions():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+    if 'user_id' not in session or 'user_token' not in session or 'computer_name' not in session:
         return redirect(url_for('login'))
-    return render_template('substitutions.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
+    return render_template('substitutions.html', user_id=session.get('user_id'), computer_name=session.get('computer_name'), version=APP_VERSION)
 
 @app.route('/nes')
 def nes():
-    if 'user_id' not in session:
+    if 'user_id' not in session or 'user_token' not in session or 'computer_name' not in session:
         return redirect(url_for('login'))
-    return render_template('nes.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
+    return render_template('nes.html', user_id=session.get('user_id'), computer_name=session.get('computer_name'), version=APP_VERSION)
 
 
 #========= API =========#
 @app.route('/api/barcodes', methods=['POST'])
 def search_barcode():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+    if 'user_id' not in session or 'user_token' not in session or 'computer_name' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
     
     keyword = request.json.get('keyword', '').strip()
@@ -237,7 +240,7 @@ def search_barcode():
 
 @app.route('/api/recipes', methods=['POST'])
 def search_work_order():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+    if 'user_id' not in session or 'user_token' not in session or 'computer_name' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
     
     keyword = request.json.get('keyword', '').strip()
@@ -293,7 +296,7 @@ def search_work_order():
     
 @app.route('/api/work-orders/get-details', methods=['POST'])
 def get_work_order_by_id():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+    if 'user_id' not in session or 'user_token' not in session or 'computer_name' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
     
     work_order_id = request.json.get('work_order_id', '').strip()
@@ -329,7 +332,7 @@ def get_work_order_by_id():
 
 @app.route('/api/station/scan-barcode-history', methods=['POST'])
 def search_scan_barcode_history_by_station():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+    if 'user_id' not in session or 'user_token' not in session or 'computer_name' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
     
     fromDate = request.json.get('fromDate', '').strip()
@@ -449,7 +452,7 @@ def search_scan_barcode_history_by_station():
 
 @app.route('/api/station/print-barcode-history', methods=['POST'])
 def search_print_barcode_history_by_station():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+    if 'user_id' not in session or 'user_token' not in session or 'computer_name' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
     
     fromDate = request.json.get('fromDate', '').strip()
@@ -537,7 +540,7 @@ def search_print_barcode_history_by_station():
  
 @app.route('/api/barcodes/scan-in-station', methods=['POST'])
 def search_scan_barcode_history_by_barcode():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+    if 'user_id' not in session or 'user_token' not in session or 'computer_name' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
     
     resource_id = request.json.get('resource_id', '').strip()
@@ -610,7 +613,7 @@ def search_scan_barcode_history_by_barcode():
     
 @app.route('/api/barcodes/fetch-work-orders', methods=['POST'])
 def fetch_work_order_by_barcode():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+    if 'user_id' not in session or 'user_token' not in session or 'computer_name' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
     
     fromDate = request.json.get('fromDate', '').strip()
@@ -736,7 +739,7 @@ def get_input_barcode():
 
 @app.route('/api/barcodes/check-used-history', methods=['POST'])
 def get_used_history_by_barcode():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+    if 'user_id' not in session or 'user_token' not in session or 'computer_name' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
 
     material_oid = request.json.get('material_oid')
@@ -850,7 +853,7 @@ def get_used_history_by_barcode():
 
 @app.route('/api/workorders/fetch-output-barcodes', methods=['POST'])
 def fetch_output_barcode_by_work_order():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+    if 'user_id' not in session or 'user_token' not in session or 'computer_name' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
 
     data = request.get_json() or {}
@@ -903,7 +906,7 @@ def fetch_output_barcode_by_work_order():
 
 @app.route('/api/barcodes/fetch-output-barcodes', methods=['POST'])
 def get_output_barcode_by_barcode():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+    if 'user_id' not in session or 'user_token' not in session or 'computer_name' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
     
     resource_id = request.json.get('resource_id')
@@ -963,7 +966,7 @@ def get_output_barcode_by_barcode():
 
 @app.route('/api/barcodes/check-transfer', methods=['POST'])
 def check_barcode_transfer():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+    if 'user_id' not in session or 'user_token' not in session or 'computer_name' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
 
     resource_id = request.json.get('resource_id')
@@ -1006,7 +1009,7 @@ def check_barcode_transfer():
 
 @app.route('/api/barcodes/check-extend-date-count', methods=['POST'])
 def check_barcode_extend_time():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+    if 'user_id' not in session or 'user_token' not in session or 'computer_name' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
 
     resource_id = request.json.get('resource_id')
@@ -1073,7 +1076,7 @@ def check_barcode_extend_time():
 
 @app.route('/api/departments', methods=['GET'])
 def get_department_list():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+    if 'user_id' not in session or 'user_token' not in session or 'computer_name' not in session:
         return jsonify({
             'error': True,
             'code': 'UNAUTHORIZED',
@@ -1115,7 +1118,7 @@ def get_department_list():
 
 @app.route('/api/departments/stations', methods=['POST'])
 def get_station_list_by_department():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+    if 'user_id' not in session or 'user_token' not in session or 'computer_name' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
     
     user_token = session.get('user_token')
@@ -1145,7 +1148,7 @@ def get_station_list_by_department():
 
 @app.route('/api/work-orders/get-active-list', methods=['POST'])
 def get_active_work_order_list():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+    if 'user_id' not in session or 'user_token' not in session or 'computer_name' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
     
     station = request.json.get('station', '').strip()
@@ -1173,7 +1176,7 @@ def get_active_work_order_list():
 
 @app.route('/api/stations/check-scan-barcode-with-recipe', methods=['POST'])
 def check_recipe():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+    if 'user_id' not in session or 'user_token' not in session or 'computer_name' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
     
     recipe_id = request.json.get('recipe_id', '').strip()
@@ -1294,7 +1297,7 @@ def check_recipe():
     
 @app.route('/api/barcodes/get-reprint-list', methods=['POST'])
 def get_reprint_barcode_list():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+    if 'user_id' not in session or 'user_token' not in session or 'computer_name' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
 
     from_date = request.json.get('from_date', '').strip()
@@ -1379,7 +1382,7 @@ def get_reprint_barcode_list():
 
 @app.route('/api/barcodes/get-substitutions-list', methods=['POST'])
 def search_substitutions():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+    if 'user_id' not in session or 'user_token' not in session or 'computer_name' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
     
     keyword = request.json.get('keyword', '').strip()
@@ -1411,7 +1414,7 @@ def search_substitutions():
     
 @app.route('/api/recipes/fetch-work-orders', methods=['POST'])
 def fetch_work_order_by_recipe():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+    if 'user_id' not in session or 'user_token' not in session or 'computer_name' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
     
     recipe_id = request.json.get('recipe_id')
@@ -1454,7 +1457,7 @@ def fetch_work_order_by_recipe():
 
 @app.route('/api/barcodes/fetch-original-info', methods=['POST'])
 def fetch_original_info_by_barcode():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+    if 'user_id' not in session or 'user_token' not in session or 'computer_name' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
 
     data = request.get_json() or {}
