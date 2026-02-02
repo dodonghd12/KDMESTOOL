@@ -1281,10 +1281,18 @@ function initDetailsModal() {
     if (!modal) return;
 
     const closeBtn = modal.querySelector('.details-modal-close');
+    const copyBtn = document.getElementById('copyDetailsBtn');
     const content = modal.querySelector('.details-modal-content');
 
     // click nút X
     closeBtn?.addEventListener('click', closeDetailsModal);
+
+    // click nút Copy
+    copyBtn?.addEventListener('click', (event) => {
+        event.stopPropagation();
+        event.preventDefault();
+        copyDetailsData(event);
+    });
 
     // click ra ngoài modal-content => đóng
     modal.addEventListener('click', e => {
@@ -1297,7 +1305,14 @@ function initDetailsModal() {
     document.addEventListener('keydown', e => {
         if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
             closeDetailsModal();
-        }
+        } else if (e.ctrlKey && e.key === 'c') {
+                // Chỉ copy nếu không có text được select
+                const selection = window.getSelection().toString();
+                if (!selection) {
+                    e.preventDefault();
+                    copyDetailsData();
+                }
+            }
     });
 }
 
@@ -1370,6 +1385,65 @@ function showDetailsModal(data) {
 
     modal.classList.remove('hidden');
     document.body.classList.add('modal-open');
+}
+
+/**
+ * Copy dữ liệu từ Details Modal
+ */
+async function copyDetailsData() {
+    const copyBtn = document.getElementById('copyDetailsBtn');
+    const modalBody = document.querySelector('.details-modal-body');
+    
+    if (!modalBody) return;
+
+    try {
+        // Lấy text content (đã được format JSON)
+        const textToCopy = modalBody.textContent;
+        
+        // Copy vào clipboard
+        await navigator.clipboard.writeText(textToCopy);
+        
+        // Visual feedback
+        const originalHTML = copyBtn.innerHTML;
+        copyBtn.classList.add('copied');
+        copyBtn.innerHTML = '<span class="material-symbols-outlined">check</span>';
+        
+        // Reset button sau 2 giây
+        setTimeout(() => {
+            copyBtn.classList.remove('copied');
+            copyBtn.innerHTML = originalHTML;
+        }, 2000);
+        
+    } catch (err) {
+        console.error('Copy failed:', err);
+        
+        // Fallback: tạo textarea tạm để copy
+        const textarea = document.createElement('textarea');
+        textarea.value = modalBody.textContent;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        
+        try {
+            document.execCommand('copy');
+            
+            // Visual feedback
+            const originalHTML = copyBtn.innerHTML;
+            copyBtn.classList.add('copied');
+            copyBtn.innerHTML = '<span class="material-symbols-outlined">check</span>';
+            
+            setTimeout(() => {
+                copyBtn.classList.remove('copied');
+                copyBtn.innerHTML = originalHTML;
+            }, 2000);
+            
+        } catch (fallbackErr) {
+            showAlert('Không thể copy dữ liệu. Vui lòng thử lại.', 'error');
+        } finally {
+            document.body.removeChild(textarea);
+        }
+    }
 }
 
 /**
