@@ -161,11 +161,11 @@ def main():
         return redirect(url_for('login'))
     return render_template('main.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
 
-@app.route('/check_input_barcode_in_station')
-def check_input_barcode_in_station():
+@app.route('/validate_scan_barcode')
+def validate_scan_barcode():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return redirect(url_for('login'))
-    return render_template('check_input_barcode_in_station.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
+    return render_template('validate_scan_barcode.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
 
 @app.route('/scan-barcode-history')
 def scan_barcode_history():
@@ -1171,7 +1171,7 @@ def get_active_work_order_list():
         return jsonify({'result': [], 'columns': [], 'error': str(e)})
 
 @app.route('/api/stations/validate-scan-barcode', methods=['POST'])
-def validate_scan_barcode():
+def validate_scan_barcode_by_station():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
     
