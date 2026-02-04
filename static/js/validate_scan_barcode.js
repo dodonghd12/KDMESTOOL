@@ -6,7 +6,7 @@ let stationSearchTimeout = null;
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
-    initializeCheckMaterialEventListeners();
+    initializeValidateScanBarcodeEventListeners();
     
     // Initialize: disable station on load
     document.getElementById('station').disabled = true;
@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-function initializeCheckMaterialEventListeners() {
+function initializeValidateScanBarcodeEventListeners() {
     setTimeout(() => {
         speechBubble.show(`ℹ️ Chức năng này CHỈ sử dụng kiểm tra tem đầu vào của đơn điều động ĐANG HOẠT ĐỘNG trên máy (status = 1)!`, {
             duration: 100000,
@@ -383,14 +383,14 @@ function handleContextMenuAction(e) {
     const action = e.target.dataset.action;
     if (!selectedRowData) return;
     
-    if (action === 'check_recipe') {
-        checkRecipe();
+    if (action === 'validate_scan_barcode') {
+        validateScanBarcode();
     }
     
     document.getElementById('contextMenu').style.display = 'none';
 }
 
-async function checkRecipe() {
+async function validateScanBarcode() {
     const recipeId = selectedRowData['recipe_id'];
     const station = selectedRowData['station'];
     
@@ -400,7 +400,7 @@ async function checkRecipe() {
     }
     
     try {
-        const response = await fetch('/api/stations/check-scan-barcode-with-recipe', {
+        const response = await fetch('/api/stations/validate-scan-barcode', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({recipe_id: recipeId, station: station})
@@ -422,6 +422,12 @@ function displayComparison(result) {
     const modal = document.getElementById('comparisonModal');
     const content = document.getElementById('comparisonContent');
     
+    // Get current time in UTC+7 (Asia/Ho_Chi_Minh)
+    const now = new Date();
+    const utc7Offset = 7 * 60; // minutes
+    const localOffset = now.getTimezoneOffset(); // minutes
+    const currentTimeUTC7 = new Date(now.getTime() + (utc7Offset + localOffset) * 60 * 1000);
+    
     // Create comparison table
     let html = '<table class="comparison-table">';
     html += '<thead><tr><th style="width: 30%;">Site</th><th style="width: 35%;">Tem Đầu vào</th><th style="width: 35%;">YAML</th></tr></thead>';
@@ -429,6 +435,16 @@ function displayComparison(result) {
     
     result.forEach(item => {
         const rowClass = item.match ? 'match' : 'mismatch';
+        
+        // Check if expired
+        let isExpired = false;
+        if (item.expiry_time) {
+            const expiryTime = new Date(item.expiry_time);
+            if (expiryTime < currentTimeUTC7) {
+                isExpired = true;
+            }
+        }
+        
         html += `<tr class="${rowClass}">`;
         html += `<td>${item.site || ''}</td>`;
         
@@ -436,7 +452,9 @@ function displayComparison(result) {
         html += '<td>';
         html += `<div>${item.site_id || '<span class="empty-cell">N/A</span>'}</div>`;
         if (item.site_barcode) {
-            html += `<div class="barcode-highlight">${item.site_barcode}</div>`;
+            // Add 'expired' class if barcode is expired
+            const barcodeClass = isExpired ? 'barcode-highlight expired' : 'barcode-highlight';
+            html += `<div class="${barcodeClass}">${item.site_barcode}</div>`;
         } else {
             html += '<div class="empty-cell">N/A</div>';
         }
@@ -456,5 +474,14 @@ function displayComparison(result) {
 }
 
 function closeComparisonModal() {
-    document.getElementById('comparisonModal').classList.remove('show');
+    const modal = document.getElementById('comparisonModal');
+    modal.classList.remove('show');
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    const modal = document.getElementById('comparisonModal');
+    if (event.target === modal) {
+        closeComparisonModal();
+    }
 }

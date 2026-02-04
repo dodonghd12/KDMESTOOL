@@ -1543,9 +1543,9 @@ body.modal-locked {
     right: 12px;
     z-index: 100;
     
-    background: rgba(22, 160, 133, 0.9);
-    border: 1px solid rgba(22, 160, 133, 0.5);
-    color: #fff;
+    background: transparent;
+    border: none;
+    color: #3dd5c0;
     
     width: 40px;
     height: 40px;
@@ -1557,12 +1557,33 @@ body.modal-locked {
     justify-content: center;
     
     transition: all 0.3s ease;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    visibility: hidden;
+    
+    padding: 0;
+    margin: 0;
+    outline: none;
+}
+
+.details-modal-copy:focus {
+    outline: none;
+}
+
+.details-modal-copy:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(61, 213, 192, 0.3);
+}
+
+.details-modal-body-wrapper:hover .details-modal-copy {
+    opacity: 1;
+    visibility: visible;
 }
 
 .details-modal-copy:hover {
-    background: rgba(22, 160, 133, 0.3);
-    border-color: #16a085;
+    background: rgba(22, 160, 133, 0.9);
+    border: 1px solid rgba(22, 160, 133, 0.5);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .details-modal-copy:active {
@@ -1570,14 +1591,21 @@ body.modal-locked {
 }
 
 .details-modal-copy .material-symbols-outlined {
-    font-size: 18px;
+    font-size: 20px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 /* Copy success animation */
 .details-modal-copy.copied {
-    background: rgba(46, 204, 113, 0.3);
-    border-color: #2ecc71;
-    color: #2ecc71;
+    background: transparent;
+    border: none;
+    color: #fff;
+    opacity: 1;
+    visibility: visible;
+    outline: none;
 }
 
 .details-modal-title {
@@ -1951,27 +1979,20 @@ body.modal-open {
     position: absolute;
     top: 12px;
     right: 12px;
-
     width: 36px;
     height: 36px;
-
     border: none;
     border-radius: 50%;
-
     background: rgba(0, 0, 0, 0.6);
     color: #fff;
-
     font-size: 22px;
     font-weight: bold;
     line-height: 36px;
     text-align: center;
-
     cursor: pointer;
     z-index: 10;
-
     transition: background 0.2s ease, transform 0.15s ease;
 }
-
 
 .comparison-close:hover {
     background: rgba(202, 15, 15, 0.85);
@@ -2040,14 +2061,13 @@ body.modal-open {
     color: #721c24;
 }
 
+.barcode-highlight.expired {
+    color: #f39c12 !important;
+}
+
 .empty-cell {
     color: #999;
     font-style: italic;
-}
-
-#comparisonContent {
-    border-radius: 12px;
-    overflow: hidden;
 }
 
 #comparisonContent {

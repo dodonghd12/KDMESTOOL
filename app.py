@@ -401,11 +401,10 @@ def search_scan_barcode_history_by_station():
             m.barcode,
             m.product_id,
             mr.quantity,
-            mr.expiry_time,
-            m.recipe_id,
+            to_char(MAX(m.updated_at_ts), 'YYYY-MM-DD HH24:MI:SS') AS last_updated_time,
             m.name,
-            to_char(MAX(m.updated_at_ts), 'YYYY-MM-DD HH24:MI:SS') AS last_updated_time
-
+            m.recipe_id,
+            mr.expiry_time
         FROM materials m
         JOIN kvmes.recipe_process_definition rpd
             ON rpd.recipe_id = m.recipe_id
@@ -1171,8 +1170,8 @@ def get_active_work_order_list():
     except Exception as e:
         return jsonify({'result': [], 'columns': [], 'error': str(e)})
 
-@app.route('/api/stations/check-scan-barcode-with-recipe', methods=['POST'])
-def check_recipe():
+@app.route('/api/stations/validate-scan-barcode', methods=['POST'])
+def validate_scan_barcode():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
     
@@ -1266,27 +1265,63 @@ def check_recipe():
                 if site_mat['name'] == recipe_site:
                     matched = True
                     is_match = (recipe_name == site_mat['id'])
-                    comparison_result.append({
-                        'site': recipe_site,
-                        'recipe_name': recipe_name,
-                        'site_id': site_mat['id'],
-                        'site_barcode': site_mat['barcode'],
-                        'match': is_match
-                    })
+                    comparison_result.append([
+                        recipe_site,           # site
+                        recipe_name,           # recipe_name
+                        site_mat['id'],        # site_id
+                        site_mat['barcode'],   # site_barcode
+                        is_match,              # match
+                        None                   # expiry_time (will be filled below)
+                    ])
                     break
             
             if not matched:
-                comparison_result.append({
-                    'site': recipe_site,
-                    'recipe_name': recipe_name,
-                    'site_id': None,
-                    'site_barcode': None,
-                    'match': False
-                })
+                comparison_result.append([
+                    recipe_site,    # site
+                    recipe_name,    # recipe_name
+                    None,           # site_id
+                    None,           # site_barcode
+                    False,          # match
+                    None            # expiry_time
+                ])
+        
+        # Get expiry_time for each barcode
+        for item in comparison_result:
+            site_barcode = item[3]  # index 3 is site_barcode
+            if site_barcode:
+                expiry_query = """
+                    SELECT expiry_time
+                    FROM kvmes.material_resource
+                    WHERE id = %s
+                """
+                expiry_result, expiry_columns = execute_pg_select_query(expiry_query, (site_barcode,))
+                
+                if expiry_result and len(expiry_result) > 0:
+                    item[5] = expiry_result[0][0]  # index 5 is expiry_time
+        
+        # Convert timestamp columns (expiry_time is at index 5)
+        column_names = ['site', 'recipe_name', 'site_id', 'site_barcode', 'match', 'expiry_time']
+        convert_columns = ['expiry_time']
+        comparison_result = convert_timestamp(comparison_result, column_names, convert_columns)
+        
+        # Serialize the result
+        serialized_result = [serialize_row(list(row)) for row in comparison_result]
+        
+        # Rebuild as list of dictionaries
+        final_result = []
+        for row in serialized_result:
+            final_result.append({
+                'site': row[0],
+                'recipe_name': row[1],
+                'site_id': row[2],
+                'site_barcode': row[3],
+                'match': row[4],
+                'expiry_time': row[5]
+            })
         
         return jsonify({
             'success': True,
-            'result': comparison_result
+            'result': final_result
         })
         
     except Exception as e:
@@ -1446,7 +1481,7 @@ def fetch_work_order_by_recipe():
                 'success': True,
                 'result': [],
                 'columns': column_names, 
-                'message': 'Không tìm thấy tem đầu ra'
+                'message': 'Không tìm thấy mã MES'
             })
     
     except Exception as e:

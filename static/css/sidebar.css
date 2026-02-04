@@ -116,7 +116,7 @@ body {
 #sidebar ul li.active>.dropdown-btn {
     background-color: var(--hover-clr);
     color: #3dd5c0;
-    ;
+    outline: none;
 }
 
 #sidebar ul li.active .material-symbols-outlined {
@@ -133,6 +133,7 @@ body {
     display: flex;
     align-items: center;
     gap: 12px;
+    outline: none;
 }
 
 .dropdown-btn {
@@ -142,6 +143,7 @@ body {
     border: none;
     font: inherit;
     cursor: pointer;
+    outline: none;
 }
 
 #sidebar a span,
@@ -192,6 +194,7 @@ body {
     box-sizing: border-box;
     flex-shrink: 0;
     overflow: hidden;
+    outline: none;
 }
 
 #toggle-btn:hover {
