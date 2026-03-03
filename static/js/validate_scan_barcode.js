@@ -437,13 +437,14 @@ function displayComparison(result) {
         const rowClass = item.match ? 'match' : 'mismatch';
         
         // Check if expired
-        let isExpired = false;
-        if (item.expiry_time) {
-            const expiryTime = new Date(item.expiry_time);
-            if (expiryTime < currentTimeUTC7) {
-                isExpired = true;
-            }
-        }
+        const isExpired = item.expiry_time
+            ? new Date(item.expiry_time) < currentTimeUTC7
+            : false;
+
+        // Check if quantity <= 0
+        const isEmptyQuantity = item.quantity !== null 
+            && item.quantity !== undefined 
+            && Number(item.quantity) <= 0;
         
         html += `<tr class="${rowClass}">`;
         html += `<td>${item.site || ''}</td>`;
@@ -452,8 +453,13 @@ function displayComparison(result) {
         html += '<td>';
         html += `<div>${item.site_id || '<span class="empty-cell">N/A</span>'}</div>`;
         if (item.site_barcode) {
-            // Add 'expired' class if barcode is expired
-            const barcodeClass = isExpired ? 'barcode-highlight expired' : 'barcode-highlight';
+            let barcodeClass = 'barcode-highlight';
+            if (isEmptyQuantity) {
+                barcodeClass += ' empty-quantity';
+            } else if (isExpired) {
+                barcodeClass += ' expired';
+            }
+
             html += `<div class="${barcodeClass}">${item.site_barcode}</div>`;
         } else {
             html += '<div class="empty-cell">N/A</div>';
@@ -471,6 +477,11 @@ function displayComparison(result) {
     html += '</tbody></table>';
     content.innerHTML = html;
     modal.classList.add('show');
+
+    speechBubble.show('💡Tip: Barcode màu Xanh là khớp, màu đỏ là không khớp, màu vàng là hết hạn, màu tím là số lượng hết', {
+            duration: 20000,
+            animation: 'bounce'
+        })
 }
 
 function closeComparisonModal() {

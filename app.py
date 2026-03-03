@@ -1271,7 +1271,8 @@ def validate_scan_barcode_by_station():
                         site_mat['id'],        # site_id
                         site_mat['barcode'],   # site_barcode
                         is_match,              # match
-                        None                   # expiry_time (will be filled below)
+                        None,                   # expiry_time
+                        None                    # quantity
                     ])
                     break
             
@@ -1282,7 +1283,8 @@ def validate_scan_barcode_by_station():
                     None,           # site_id
                     None,           # site_barcode
                     False,          # match
-                    None            # expiry_time
+                    None,            # expiry_time
+                    None             # quantity
                 ])
         
         # Get expiry_time for each barcode
@@ -1290,17 +1292,18 @@ def validate_scan_barcode_by_station():
             site_barcode = item[3]  # index 3 is site_barcode
             if site_barcode:
                 expiry_query = """
-                    SELECT expiry_time
+                    SELECT expiry_time, quantity
                     FROM kvmes.material_resource
                     WHERE id = %s
                 """
                 expiry_result, expiry_columns = execute_pg_select_query(expiry_query, (site_barcode,))
                 
                 if expiry_result and len(expiry_result) > 0:
-                    item[5] = expiry_result[0][0]  # index 5 is expiry_time
+                    item[5] = expiry_result[0][0]  # expiry_time
+                    item[6] = expiry_result[0][1]  # quantity
         
         # Convert timestamp columns (expiry_time is at index 5)
-        column_names = ['site', 'recipe_name', 'site_id', 'site_barcode', 'match', 'expiry_time']
+        column_names = ['site', 'recipe_name', 'site_id', 'site_barcode', 'match', 'expiry_time', 'quantity']
         convert_columns = ['expiry_time']
         comparison_result = convert_timestamp(comparison_result, column_names, convert_columns)
         
@@ -1316,7 +1319,8 @@ def validate_scan_barcode_by_station():
                 'site_id': row[2],
                 'site_barcode': row[3],
                 'match': row[4],
-                'expiry_time': row[5]
+                'expiry_time': row[5],
+                'quantity': row[6]
             })
         
         return jsonify({
@@ -1386,7 +1390,7 @@ def get_reprint_barcode_list():
                     row.append(json.dumps(value, ensure_ascii=False))
                 else:
                     row.append(value)
-                    
+
             result.append(row)
 
         return jsonify({

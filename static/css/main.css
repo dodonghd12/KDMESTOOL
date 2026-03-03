@@ -2065,6 +2065,10 @@ body.modal-open {
     color: #f39c12 !important;
 }
 
+.barcode-highlight.empty-quantity {
+    color: #9b59b6 !important;
+}
+
 .empty-cell {
     color: #999;
     font-style: italic;
