@@ -12,6 +12,18 @@ const REPRINT_REASON_MAP = {
     5: 'CBK làm mất'
 };
 
+function mapReprintReason(rows, columns) {
+    const colIndex = columns.indexOf('reprintReason');
+    if (colIndex === -1) return rows;
+
+    return rows.map(row => {
+        const newRow = [...row];
+        const val = newRow[colIndex];
+        newRow[colIndex] = REPRINT_REASON_MAP[val] ?? `Unknown (${val})`;
+        return newRow;
+    });
+}
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
     initializeReprintEventListeners();
@@ -91,7 +103,8 @@ async function queryReprintBarcode(fromDate, toDate) {
         return;
     }
 
-    setTableData(data.result, data.columns, null);
+    const mappedResult = mapReprintReason(data.result, data.columns);
+    setTableData(mappedResult, data.columns, null);
 }
 
 function addOneDay(dateStr) {

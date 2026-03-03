@@ -220,6 +220,27 @@ function showModal(type, title, message, buttons = []) {
     });
 }
 
+// ===== WORK ORDER STATUS MAPPING =====
+const WORK_ORDER_STATUS_MAP = {
+    '0': 'Đã điều động',
+    '1': 'Đã chọn máy',
+    '3': 'Hoàn thành',
+    '4': 'Xoá điều động',
+    '5': 'Tạm ngưng'
+};
+
+function mapWorkOrderStatus(rows, columns) {
+    const statusIndex = columns.indexOf('status');
+    if (statusIndex === -1) return rows;
+
+    return rows.map(row => {
+        const newRow = [...row];
+        const statusVal = String(newRow[statusIndex]);
+        newRow[statusIndex] = WORK_ORDER_STATUS_MAP[statusVal] ?? `Unknown (${statusVal})`;
+        return newRow;
+    });
+}
+
 function closeModal() {
     const modal = document.getElementById('customModal');
     modal.classList.remove('show');
@@ -1084,7 +1105,7 @@ async function fetchWorkOrderByBarcode() {
 
     if (data.success) {
         if (data.result && data.result.length > 0) {
-            outputBarcodeRawData = data.result;
+            outputBarcodeRawData = mapWorkOrderStatus(data.result, data.columns);
             outputBarcodeColumns = data.columns;
 
             currentOutputTableType = 'workOrderOutputByBarcode'
@@ -1530,7 +1551,7 @@ async function fetchWorkOrderByRecipe() {
 
     if (data.success) {
         if (data.result && data.result.length > 0) {
-            outputBarcodeRawData = data.result;
+            outputBarcodeRawData = mapWorkOrderStatus(data.result, data.columns);
             outputBarcodeColumns = data.columns;
 
             currentOutputTableType = 'workOrderOutputByRecipe';

@@ -1347,15 +1347,6 @@ def get_reprint_barcode_list():
 
     headers = get_auth_headers(session)
 
-    # Thêm mapping
-    REPRINT_REASON_MAP = {
-        1: 'Quét lố',
-        2: 'Quét xót',
-        3: 'Tem hư',
-        4: 'TH làm mất',
-        5: 'CBK làm mất'
-    }
-
     try:
         response = requests.get(url, headers=headers, params=params, verify=False)
         response.raise_for_status()
@@ -1388,16 +1379,14 @@ def get_reprint_barcode_list():
             for col in columns:
                 value = item.get(col)
 
-                # Convert reprintReason từ số sang text
-                if col == 'reprintReason' and isinstance(value, int):
-                    value = REPRINT_REASON_MAP.get(value, f'Unknown ({value})')
-                elif col in DATE_COLUMNS and isinstance(value, str):
+                if col in DATE_COLUMNS and isinstance(value, str):
                     value = convert_iso_datetime(value)
                 
                 if isinstance(value, (dict, list)):
                     row.append(json.dumps(value, ensure_ascii=False))
                 else:
                     row.append(value)
+                    
             result.append(row)
 
         return jsonify({
