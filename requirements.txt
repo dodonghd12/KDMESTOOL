@@ -1,0 +1,10 @@
+flask
+flask-session
+requests
+urllib3
+pytz
+pg8000
+tkcalendar
+openpyxl
+python-dateutil
+pyodbc
