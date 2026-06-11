@@ -302,6 +302,45 @@ def search_work_order():
             'result': [],
             'columns': column_names
         })
+
+@app.route('/api/feed_records', methods=['POST'])
+def search_feed_record():
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    keyword = request.json.get('keyword', '').strip()
+    if not keyword:
+        return jsonify({'result': [], 'columns': []})
+    
+    query = """
+        SELECT id, product_id, product_type,
+               quantity, status, expiry_time,
+               created_at, updated_at, updated_by, created_by,
+               standing_time, feed_records_id, info, oid,
+               reprint_reason, collected, erp_tire_barcode_synced
+        FROM kvmes.material_resource
+        WHERE EXISTS (
+            SELECT 1 FROM unnest(feed_records_id) AS elem
+            WHERE elem ILIKE %s
+        )
+        LIMIT 100;
+    """
+    result, column_names = execute_pg_select_query(query, (f"%{keyword}%",))
+    if result:
+        convert_columns = ["expiry_time", "updated_at", "created_at", "standing_time"]
+        result = convert_timestamp(result, column_names, convert_columns)
+        serialized_result = [serialize_row(list(row)) for row in result]
+        return jsonify({
+            'success': True,
+            'result': serialized_result,
+            'columns': column_names
+        })
+    else:
+        return jsonify({
+            'success': True,
+            'result': [],
+            'columns': column_names
+        })
     
 @app.route('/api/work-orders/get-details', methods=['POST'])
 def get_work_order_by_id():
@@ -1502,12 +1541,15 @@ def fetch_original_info_by_barcode():
     resource_id = data.get('resource_id')
     if not resource_id:
         return jsonify({'success': False, 'message': 'Thiếu Resource ID'})
+    
+    product_type = data.get('product_type')
 
     try:
         query = """
             WITH params AS (
                 SELECT
-                    %s::text AS material_id
+                    %s::text AS material_id,
+                    %s::text AS product_type
             ),
 
             target_work_orders AS (
@@ -1522,6 +1564,7 @@ def fetch_original_info_by_barcode():
                     JOIN kvmes.material_resource mr
                         ON mr.oid = cr.resource_oid
                     AND mr.id = p.material_id
+                    AND (p.product_type IS NULL OR mr.product_type = p.product_type)
                     WHERE cr.work_order = wo.id
                 )
             )
@@ -1546,13 +1589,14 @@ def fetch_original_info_by_barcode():
             JOIN kvmes.material_resource mr
                 ON mr.oid = cr.resource_oid
             AND mr.id = p.material_id
+            AND (p.product_type IS NULL OR mr.product_type = p.product_type)
 
             ORDER BY
                 wo.reserved_date DESC,
                 cr.sequence ASC;
         """
 
-        result, column_names = execute_pg_select_query(query, (resource_id,))
+        result, column_names = execute_pg_select_query(query, (resource_id, product_type))
         if not result:
             return jsonify({'success': False, 'message': 'Lỗi API'})
 

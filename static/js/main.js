@@ -357,6 +357,7 @@ function initializeMainEventListeners() {
     // ===== MAIN PAGE INPUTS =====
     const barcodeInput = document.getElementById('barcode');
     const productInput = document.getElementById('product_id');
+    const feedRecordInput = document.getElementById('feed_record_id');
 
     if (barcodeInput) {
         barcodeInput.addEventListener(
@@ -367,6 +368,7 @@ function initializeMainEventListeners() {
         barcodeInput.addEventListener('input', e => {
             e.target.value = e.target.value.toUpperCase();
             if (productInput) productInput.value = '';
+            if (feedRecordInput) feedRecordInput.value = '';
         });
 
     }
@@ -380,7 +382,21 @@ function initializeMainEventListeners() {
         productInput.addEventListener('input', e => {
             e.target.value = e.target.value.toUpperCase();
             if (barcodeInput) barcodeInput.value = '';
+            if (feedRecordInput) feedRecordInput.value = '';
         });
+
+    if (feedRecordInput) {
+        feedRecordInput.addEventListener(
+            'input',
+            debounceSearch(searchByFeedRecord, 500)
+        );
+
+        feedRecordInput.addEventListener('input', e => {
+            e.target.value = e.target.value.toUpperCase();
+            if (barcodeInput) barcodeInput.value = '';
+            if (productInput) productInput.value = '';
+        });
+    }
     }
 
     // ===== SIDEBAR EVENTS =====
@@ -447,7 +463,7 @@ function initializeMainEventListeners() {
     })
 
     document.querySelector('.input-box')?.addEventListener('mouseenter', () => {
-        speechBubble.show('💡Tip: Search barcode, Search đơn điều động theo quy cách!', {
+        speechBubble.show('💡Tip: Search barcode, Search đơn điều động theo quy cách, Search feed records!', {
             duration: 10000,
             animation: 'bounce'
         })
@@ -520,6 +536,30 @@ async function searchRecipes() {
         }
     } catch (error) {
         console.error('Error searching work order:', error);
+    }
+}
+
+async function searchByFeedRecord() {
+    closeShowBarcodeWindow();
+    const keyword = document.getElementById('feed_record_id').value.trim();
+    if (!keyword) {
+        clearTable();
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/feed_records', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ keyword })
+        });
+
+        const data = await response.json();
+        if (data.result) {
+            setTableData(data.result, data.columns, 'barcode');
+        }
+    } catch (error) {
+        console.error('Error searching by feed record:', error);
     }
 }
 
@@ -1233,11 +1273,13 @@ async function fetchOriginalInfoByBarcode() {
         return;
     }
 
+    const product_type = selectedRowData['product_type'];
+
     try {
         const data = await apiFetch('/api/barcodes/fetch-original-info', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ resource_id })
+            body: JSON.stringify({ resource_id, product_type })
         });
 
         if (data.success && data.result && data.result.length > 0) {
@@ -1641,7 +1683,7 @@ function openOutputTable(type, rowData) {
 
     if (type === 'fetchOriginalInfoByBarcode') {
         outputHeaderContentEl.textContent = 'Thông tin gốc của barcode'
-        fetchOriginalInfoByBarcode(rowData.id);
+        fetchOriginalInfoByBarcode(rowData.id, rowData.product_type);
     }
 }
 
