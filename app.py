@@ -161,7 +161,7 @@ def main():
         return redirect(url_for('login'))
     return render_template('main.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
 
-@app.route('/validate_scan_barcode')
+@app.route('/validate-scan-barcode')
 def validate_scan_barcode():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return redirect(url_for('login'))
