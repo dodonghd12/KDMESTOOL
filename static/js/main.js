@@ -548,7 +548,7 @@ function displayTable(result, columns) {
 
     // Table body
     const truncateThreshold = 50; // chỉ truncate nếu dài hơn ngưỡng này
-    const displayLength = 30; // số ký tự hiển thị
+    const displayLength = 45; // số ký tự hiển thị
 
     result.forEach((row, index) => {
         const tr = document.createElement('tr');

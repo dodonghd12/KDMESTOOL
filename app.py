@@ -191,6 +191,12 @@ def substitutions():
         return redirect(url_for('login'))
     return render_template('substitutions.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
 
+@app.route('/check-mesync')
+def check_mesync():
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+        return redirect(url_for('login'))
+    return render_template('check_mesync.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
+
 @app.route('/nes')
 def nes():
     if 'user_id' not in session:
@@ -1558,6 +1564,50 @@ def fetch_original_info_by_barcode():
         return jsonify({
             'success': False,
             'message': f'Lỗi: {str(e)}'
+        })
+    
+@app.route('/api/mesync/get-mesync-inbox-events', methods=['POST'])
+def get_mesync_inbox_events():
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    keyword = request.json.get('keyword', '').strip()
+    if not keyword:
+        return jsonify({'result': [], 'columns': []})
+
+    query = """
+        SELECT event_type, payload, status, retry_count, 
+            next_retry_at, created_at, last_error
+        FROM kvmes.mesync_inbox_events
+        WHERE payload::text ILIKE %s
+        ORDER BY created_at desc
+        LIMIT 200;
+    """
+
+    result, column_names = execute_pg_select_query(query, (f"%{keyword}%",))
+    if result:
+        convert_columns = ["next_retry_at", "created_at"]
+        
+        new_result = []
+        for row in result:
+            row_list = list(row)
+            for col in convert_columns:
+                if col in column_names:
+                    idx = column_names.index(col)
+                    row_list[idx] = convert_iso_datetime(str(row_list[idx])) if row_list[idx] else None
+            new_result.append(tuple(row_list))
+        
+        serialized_result = [serialize_row(list(row)) for row in new_result]
+        return jsonify({
+            'success': True,
+            'result': serialized_result,
+            'columns': column_names
+        })
+    else:
+        return jsonify({
+            'success': True,
+            'result': [],
+            'columns': column_names
         })
  
 if __name__ == '__main__':

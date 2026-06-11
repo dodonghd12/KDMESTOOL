@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Check Mesync</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}">
+
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/nes.css/css/nes.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined">
+</head>
+<body>
+    {% include "components/sidebar.html" %}
+    <canvas id="starfield"></canvas>
+    <div class="container" autocomplete="off">
+        <div class="search-section">
+            <div class="search-row">
+                <div class="input-box">
+                    <input required type="text" id="mesync_keyword" autocomplete="nope" class="input">
+                    <label class="user-label">Tìm kiếm</label>
+                </div>
+            </div>
+            <div class="search-row">
+                <div class="input-wrapper">
+                    <input placeholder="Tìm kiếm..." class="input" id="clientSearch" autocomplete="nope" type="text">
+                    <button class="search-icon-btn" type="button">
+                        <span class="material-symbols-outlined">search</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <div class="table-scroll">
+                <table>
+                    <thead id="tableHead"></thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+
+            <div class="table-footer hidden">
+                <div class="row-count">Số dòng: <span id="rowCount">0</span></div>
+                <button class="btn-export-excel" id="exportExcelBtn">
+                    <div class="btn-export-excel-wrapper">
+                        <div class="text">Xuất Excel</div>
+                        <span class="icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" width="2em" height="2em" preserveAspectRatio="xMidYMid meet" viewBox="0 0 24 24">
+                                <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 0 0 4.561 21h14.878a2 2 0 0 0 1.94-1.515L22 17"></path>
+                            </svg>
+                        </span>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Modal (dùng chung từ main.js) -->
+    <div id="customModal" class="custom-modal">
+        <div class="custom-modal-content">
+            <div id="modalIcon" class="custom-modal-icon"></div>
+            <div id="modalTitle" class="custom-modal-title"></div>
+            <div id="modalMessage" class="custom-modal-message"></div>
+            <div id="modalFooter" class="custom-modal-footer"></div>
+        </div>
+    </div>
+
+    <!-- Details Modal -->
+    <div id="detailsModal" class="details-modal hidden">
+        <div class="details-modal-content">
+            <div class="details-modal-header">
+                <span class="details-modal-title">Chi tiết</span>
+                <div class="details-modal-header-actions">
+                    <button id="copyDetailsBtn" class="details-modal-copy" title="Copy">
+                        <span class="material-symbols-outlined">content_copy</span>
+                    </button>
+                    <button class="details-modal-close">&times;</button>
+                </div>
+            </div>
+            <div class="details-modal-body-wrapper">
+                <div class="details-modal-body"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- API Loading -->
+    <div id="apiLoading" class="api-loading" style="display:none;">
+        <div class="wheel-and-hamster">
+            <div class="wheel"></div>
+            <div class="hamster">
+                <div class="hamster__body">
+                    <div class="hamster__head">
+                        <div class="hamster__ear"></div>
+                        <div class="hamster__eye"></div>
+                        <div class="hamster__nose"></div>
+                    </div>
+                    <div class="hamster__limb hamster__limb--fr"></div>
+                    <div class="hamster__limb hamster__limb--fl"></div>
+                    <div class="hamster__limb hamster__limb--br"></div>
+                    <div class="hamster__limb hamster__limb--bl"></div>
+                    <div class="hamster__tail"></div>
+                </div>
+            </div>
+            <div class="spoke"></div>
+        </div>
+    </div>
+
+    <!-- Speech Bubble -->
+    <div id="speech-bubble" class="speech-bubble hidden">
+        <div class="speech-bubble-content">
+            <span id="speech-bubble-text"></span>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/check_mesync.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
+</body>
+</html>
