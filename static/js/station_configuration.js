@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function initializeValidateScanBarcodeEventListeners() {
     setTimeout(() => {
-        speechBubble.show(`ℹ️ Chức năng này CHỈ sử dụng kiểm tra tem đầu vào của đơn điều động ĐANG HOẠT ĐỘNG trên máy (status = 1)!`, {
+        speechBubble.show(`ℹ️ Chức năng này để kiểm tra Mesync Inbox Events!`, {
             duration: 100000,
             animation: 'bounce'
         });
@@ -38,14 +38,6 @@ function initializeValidateScanBarcodeEventListeners() {
             animation: 'bounce'
         })
     })
-
-    document.addEventListener('sidebar:about', () => {
-        showAbout();
-    });
-
-    document.addEventListener('sidebar:logout', () => {
-        handleLogout();
-    });
 
     // Department search
     const departmentInput = document.getElementById('department'); 
@@ -322,19 +314,19 @@ function checkAndSearchWorkOrders() {
         return;
     }
 
-    searchWorkOrders(station);
+    searchStationConfigurations(station);
 }
 
-async function searchWorkOrders(station) {
+async function searchStationConfigurations(station) {
     try {
-        const data = await apiFetch('/api/work-orders/get-active-list', {
+        const data = await apiFetch('/api/barcodes/get-station-configuration-list', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({station})
         });
         
         if (Array.isArray(data.result) && data.result.length === 0) {
-            await showAlert(`Máy ${station} đang không có đơn điều động nào đang hoạt động`, 'error');
+            await showAlert(`Máy ${station} chưa có thiết lập nào, cần phải thiết lập!`, 'error');
             clearTable();
             return;
         }
@@ -342,158 +334,7 @@ async function searchWorkOrders(station) {
         setTableData(data.result, data.columns, null);
 
     } catch (error) {
-        console.error('Error searching work orders:', error);
+        console.error('Error searching station configuration:', error);
         clearTable();
-    }
-}
-
-function handleRowClick(e) {
-    const row = e.target.closest('tr');
-    if (!row) return;
-    
-    // Remove previous selection
-    document.querySelectorAll('#tableBody tr').forEach(r => r.classList.remove('selected'));
-    
-    // Add selection to current row
-    row.classList.add('selected');
-    selectedRow = row;
-    
-    // Get row data
-    const cells = row.querySelectorAll('td');
-    const columns = Array.from(document.querySelectorAll('#tableHead th')).map(th => th.textContent);
-    selectedRowData = {};
-    columns.forEach((col, index) => {
-        selectedRowData[col] = cells[index]?.textContent || '';
-    });
-}
-
-function handleContextMenu(e) {
-    e.preventDefault();
-    const row = e.target.closest('tr');
-    if (!row) return;
-    
-    handleRowClick(e);
-    
-    const contextMenu = document.getElementById('contextMenu');
-    contextMenu.style.display = 'block';
-    contextMenu.style.left = e.pageX + 'px';
-    contextMenu.style.top = e.pageY + 'px';
-}
-
-function handleContextMenuAction(e) {
-    const action = e.target.dataset.action;
-    if (!selectedRowData) return;
-    
-    if (action === 'validate_scan_barcode') {
-        validateScanBarcode();
-    }
-    
-    document.getElementById('contextMenu').style.display = 'none';
-}
-
-async function validateScanBarcode() {
-    const recipeId = selectedRowData['recipe_id'];
-    const station = selectedRowData['station'];
-    
-    if (!recipeId || !station) {
-        alert('Thiếu thông tin recipe_id hoặc station');
-        return;
-    }
-    
-    try {
-        const response = await fetch('/api/stations/validate-scan-barcode', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({recipe_id: recipeId, station: station})
-        });
-        
-        const data = await response.json();
-        if (data.success) {
-            displayComparison(data.result);
-        } else {
-            alert(data.message || 'Có lỗi xảy ra');
-        }
-    } catch (error) {
-        console.error('Error checking recipe:', error);
-        alert('Lỗi kết nối');
-    }
-}
-
-function displayComparison(result) {
-    const modal = document.getElementById('comparisonModal');
-    const content = document.getElementById('comparisonContent');
-    
-    // Get current time in UTC+7 (Asia/Ho_Chi_Minh)
-    const now = new Date();
-    const utc7Offset = 7 * 60; // minutes
-    const localOffset = now.getTimezoneOffset(); // minutes
-    const currentTimeUTC7 = new Date(now.getTime() + (utc7Offset + localOffset) * 60 * 1000);
-    
-    // Create comparison table
-    let html = '<table class="comparison-table">';
-    html += '<thead><tr><th style="width: 30%;">Site</th><th style="width: 35%;">Tem Đầu vào</th><th style="width: 35%;">YAML</th></tr></thead>';
-    html += '<tbody>';
-    
-    result.forEach(item => {
-        const rowClass = item.match ? 'match' : 'mismatch';
-        
-        // Check if expired
-        const isExpired = item.expiry_time
-            ? new Date(item.expiry_time) < currentTimeUTC7
-            : false;
-
-        // Check if quantity <= 0
-        const isEmptyQuantity = item.quantity !== null 
-            && item.quantity !== undefined 
-            && Number(item.quantity) <= 0;
-        
-        html += `<tr class="${rowClass}">`;
-        html += `<td>${item.site || ''}</td>`;
-        
-        // NVL column - show recipe name (site) and barcode (resource_id)
-        html += '<td>';
-        html += `<div>${item.site_id || '<span class="empty-cell">N/A</span>'}</div>`;
-        if (item.site_barcode) {
-            let barcodeClass = 'barcode-highlight';
-            if (isEmptyQuantity) {
-                barcodeClass += ' empty-quantity';
-            } else if (isExpired) {
-                barcodeClass += ' expired';
-            }
-
-            html += `<div class="${barcodeClass}">${item.site_barcode}</div>`;
-        } else {
-            html += '<div class="empty-cell">N/A</div>';
-        }
-        html += '</td>';
-        
-        // YAML column - only show site_id (name)
-        html += '<td>';
-        html += `<div>${item.recipe_name || '<span class="empty-cell">N/A</span>'}</div>`;
-        html += '</td>';
-        
-        html += '</tr>';
-    });
-    
-    html += '</tbody></table>';
-    content.innerHTML = html;
-    modal.classList.add('show');
-
-    speechBubble.show('💡Tip: Barcode màu Xanh là khớp, màu đỏ là không khớp, màu vàng là hết hạn, màu tím là số lượng hết', {
-            duration: 20000,
-            animation: 'bounce'
-        })
-}
-
-function closeComparisonModal() {
-    const modal = document.getElementById('comparisonModal');
-    modal.classList.remove('show');
-}
-
-// Close modal when clicking outside
-window.onclick = function(event) {
-    const modal = document.getElementById('comparisonModal');
-    if (event.target === modal) {
-        closeComparisonModal();
     }
 }

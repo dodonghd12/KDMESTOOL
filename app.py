@@ -197,6 +197,12 @@ def check_mesync():
         return redirect(url_for('login'))
     return render_template('check_mesync.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
 
+@app.route('/station-configuration')
+def station_configuration():
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+        return redirect(url_for('login'))
+    return render_template('station_configuration.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
+
 @app.route('/nes')
 def nes():
     if 'user_id' not in session:
@@ -1609,7 +1615,40 @@ def get_mesync_inbox_events():
             'result': [],
             'columns': column_names
         })
- 
+
+@app.route('/api/barcodes/get-station-configuration-list', methods=['POST'])
+def get_station_configuration_list():
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    station = request.json.get('station', '').strip()
+    
+    if not station:
+        return jsonify({'result': [], 'columns': []})
+    
+    query = """
+        SELECT station_id, production, ui, updated_at, updated_by
+	    FROM kvmes.station_configuration
+        WHERE station_id = %s
+        LIMIT 100;
+    """
+    result, column_names = execute_pg_select_query(query, (station, ))
+    if result:
+        convert_columns = ["updated_at"]
+        result = convert_timestamp(result, column_names, convert_columns)
+        serialized_result = [serialize_row(list(row)) for row in result]
+        return jsonify({
+            'success': True,
+            'result': serialized_result,
+            'columns': column_names
+        })
+    else:
+        return jsonify({
+            'success': True,
+            'result': [],
+            'columns': column_names
+        })
+    
 if __name__ == '__main__':
     import os
     port = int(os.environ.get('PORT', 5000))

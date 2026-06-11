@@ -372,6 +372,7 @@ async function SearchHistoryPrintByStation(station, fromDate, toDate) {
 
     if (Array.isArray(data.result) && data.result.length === 0) {
         await showAlert(`Máy ${station} không có lịch sử in tem từ ${fromDate} đến ${toDate}`, 'error');
+        clearTable();
         return;
     }
 

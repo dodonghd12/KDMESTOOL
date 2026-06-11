@@ -100,6 +100,7 @@ async function queryReprintBarcode(fromDate, toDate) {
 
     if (Array.isArray(data.result) && data.result.length === 0) {
         await showAlert(`Không có tem in bù từ ${fromDate} đến ${toDate}`, 'error');
+        clearTable();
         return;
     }
 
