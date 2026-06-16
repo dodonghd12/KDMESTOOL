@@ -1,15 +1,15 @@
 from typing import Any
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for # type: ignore
 from flask_session import Session
-import requests
+import pytz # type: ignore
+import urllib3 # type: ignore
+import requests # type: ignore
 import json
 import os
 import base64
 from datetime import datetime, timezone, timedelta
-import pytz
 import ast
 import re
-import urllib3
 from typing import Optional
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -202,6 +202,12 @@ def station_configuration():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return redirect(url_for('login'))
     return render_template('station_configuration.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
+
+@app.route('/gitlab')
+def gitlab():
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+        return redirect(url_for('login'))
+    return render_template('gitlab.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
 
 @app.route('/nes')
 def nes():
@@ -597,48 +603,52 @@ def search_scan_barcode_history_by_barcode():
     params = [f"%{resource_id}%"]
 
     query = """
-        SELECT DISTINCT ON (rpd.oid)
-            sv.station              AS station,
-            sv.name                 AS site,
-            sv.updated_at           AS scan_at,
+        SELECT *
+        FROM (
+            SELECT DISTINCT ON (rpd.oid)
+                sv.station              AS station,
+                sv.name                 AS site,
+                sv.updated_at           AS scan_at,
 
-            wo.id                   AS work_order_id,
-            wo.status               AS work_order_status,
-            wo.reserved_date::text  AS reserved_date,
+                wo.id                   AS work_order_id,
+                wo.status               AS work_order_status,
+                wo.reserved_date::text  AS reserved_date,
 
-            rpd.recipe_id,
-            rpd.product_id,
-            rpd.product_type
-        FROM kvmes.site_view sv
-        JOIN kvmes.recipe_process_definition rpd
-        ON EXISTS (
-                SELECT 1
-                FROM jsonb_array_elements(rpd.configs::jsonb) cfg
-                WHERE cfg->'stations' ? sv.station
-            )
-        AND EXISTS (
-                SELECT 1
-                FROM jsonb_array_elements(rpd.configs::jsonb) cfg
-                CROSS JOIN jsonb_array_elements(cfg->'steps') step
-                CROSS JOIN jsonb_array_elements(step->'materials') mat
-                WHERE mat->>'name'
-                    = sv.content->'slot'->'material'->'material'->>'id'
-                AND mat->>'site'
-                    = sv.name
-            )
+                rpd.recipe_id,
+                rpd.product_id,
+                rpd.product_type
+            FROM kvmes.site_view sv
+            JOIN kvmes.recipe_process_definition rpd
+            ON EXISTS (
+                    SELECT 1
+                    FROM jsonb_array_elements(rpd.configs::jsonb) cfg
+                    WHERE cfg->'stations' ? sv.station
+                )
+            AND EXISTS (
+                    SELECT 1
+                    FROM jsonb_array_elements(rpd.configs::jsonb) cfg
+                    CROSS JOIN jsonb_array_elements(cfg->'steps') step
+                    CROSS JOIN jsonb_array_elements(step->'materials') mat
+                    WHERE mat->>'name'
+                        = sv.content->'slot'->'material'->'material'->>'id'
+                    AND mat->>'site'
+                        = sv.name
+                )
 
-        LEFT JOIN kvmes.work_order wo
-        ON wo.recipe_id = rpd.recipe_id
-        AND wo.station   = sv.station
+            LEFT JOIN kvmes.work_order wo
+            ON wo.recipe_id = rpd.recipe_id
+            AND wo.station   = sv.station
 
-        WHERE sv.content->'slot'->'material'->>'resource_id' LIKE %s
-        AND wo.id IS NOT NULL
-        AND wo.status <> 3
+            WHERE sv.content->'slot'->'material'->>'resource_id' LIKE %s
+            AND wo.id IS NOT NULL
+            AND wo.status <> 3
 
-        ORDER BY
-            rpd.oid,
-            wo.updated_at DESC,
-            sv.updated_at DESC;
+            ORDER BY
+                rpd.oid,
+                wo.updated_at DESC,
+                sv.updated_at DESC
+        ) sub
+        ORDER BY scan_at DESC;
     """
 
     result, column_names = execute_pg_select_query(query, tuple(params))

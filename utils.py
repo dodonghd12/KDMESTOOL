@@ -1,14 +1,14 @@
 from tkinter import messagebox
 from datetime import datetime, timezone, timedelta
-from dateutil import parser
+from dateutil import parser # type: ignore
+import pytz # type: ignore
 from tkinter import ttk
 import tkinter as tk
-import pytz
 import base64, os, json, socket, ast, re
 
 ############################################################################################################################################################
 
-APP_VERSION = "1.5.7"
+APP_VERSION = "1.5.8"
 default_language = "vi"
 VN_TZ = pytz.timezone('Asia/Ho_Chi_Minh')
 
