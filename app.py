@@ -12,6 +12,7 @@ import ast
 import re
 from typing import Optional
 
+gitlab_private_token = os.environ.get('GITLAB_PRIVATE_TOKEN', '')
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 def serialize_row(row):
@@ -1538,6 +1539,202 @@ def fetch_work_order_by_recipe():
                 'message': 'Không tìm thấy mã MES'
             })
     
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
+
+@app.route('/api/recipes/fetch-commit-gitlab', methods=['POST'])
+def fetch_commit_gitlab():
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    global gitlab_private_token
+
+    recipe_id = request.json.get('recipe_id', '').strip()
+    product_type = request.json.get('product_type', '').strip()
+
+    if not recipe_id or not product_type:
+        return jsonify({'success': False, 'message': 'Thiếu recipe_id hoặc product_type'})
+
+    CBK = {
+        'BEAD', 'BEAD_AND_BEAD_FILLER_PREASSEMBLY', 'BEAD_WIRE', 'BEAD_FILLER',
+        'CARCASS_PLY', 'CAP_PLY', 'CHAFER', 'INNER_LINER', 'PLY',
+        'SIDEWALL', 'SQUEEZE', 'STEEL_BELT', 'STEEL_WIRE', 'TREAD'
+    }
+
+    if product_type == 'GREEN_TIRE':
+        project_id = 133
+    elif product_type == 'TIRE':
+        project_id = 134
+    elif product_type in CBK:
+        project_id = 135
+    else:
+        project_id = 136
+
+    session['current_gitlab_project_id'] = project_id
+
+    headers = {
+        'PRIVATE-TOKEN': gitlab_private_token
+    }
+
+    try:
+        # Step 1: Search for the yaml file in GitLab
+        search_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/search'
+        search_params = {
+            'scope': 'blobs',
+            'search': recipe_id
+        }
+
+        search_response = requests.get(search_url, headers=headers, params=search_params, verify=False)
+        search_response.raise_for_status()
+        search_data = search_response.json()
+
+        if not search_data:
+            return jsonify({'success': False, 'message': 'Không tìm thấy file yaml ở gitlab'})
+
+        # Get file path from first result
+        path = search_data[0].get('path', '')
+        if not path:
+            return jsonify({'success': False, 'message': 'Không tìm thấy path của file yaml'})
+
+        # Step 2: URL-encode the path (replace / with %2F)
+        encoded_path = path.replace('/', '%2F')
+
+        # Step 3: Fetch blame (commit history) for the file
+        blame_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/files/{encoded_path}/blame'
+        blame_params = {'ref': 'master'}
+
+        blame_response = requests.get(blame_url, headers=headers, params=blame_params, verify=False)
+        blame_response.raise_for_status()
+        blame_data = blame_response.json()
+
+        if not blame_data:
+            return jsonify({'success': False, 'message': 'Không tìm thấy lịch sử commit'})
+
+        # Step 4: Extract unique commits (deduplicate by commit id)
+        column_names = [
+            'message', 'authored_date', 'author_name', 'author_email', 
+            'committed_date', 'committer_name', 'committer_email', 'id'
+        ]
+
+        seen_commit_ids = set()
+        result = []
+
+        for blame_entry in blame_data:
+            commit = blame_entry.get('commit', {})
+            commit_id = commit.get('id', '')
+
+            if commit_id in seen_commit_ids:
+                continue
+            seen_commit_ids.add(commit_id)
+
+            row = [
+                commit.get('message', ''),
+                commit.get('authored_date', ''),
+                commit.get('author_name', ''),
+                commit.get('author_email', ''),
+                commit.get('committed_date', ''),
+                commit.get('committer_name', ''),
+                commit.get('committer_email', ''),
+                commit_id,
+            ]
+            result.append(row)
+
+        result.sort(key=lambda row: row[column_names.index('authored_date')] or '')
+        
+        if result:
+            convert_columns = ['authored_date', 'committed_date']
+            
+            new_result = []
+            for row in result:
+                row_list = list(row)
+                for col in convert_columns:
+                    if col in column_names:
+                        idx = column_names.index(col)
+                        row_list[idx] = convert_iso_datetime(str(row_list[idx])) if row_list[idx] else None
+                new_result.append(tuple(row_list))
+            
+            serialized_result = [serialize_row(list(row)) for row in new_result]
+            return jsonify({
+                'success': True,
+                'result': serialized_result,
+                'columns': column_names
+            })
+        else:
+            return jsonify({
+                'success': True,
+                'result': [],
+                'columns': column_names,
+                'message': 'Không tìm thấy commit nào'
+            })
+
+    except requests.RequestException as e:
+        return jsonify({'success': False, 'message': f'Lỗi kết nối GitLab: {str(e)}'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
+
+@app.route('/api/recipes/commit-gitlab/details', methods=['POST'])
+def fetch_commit_gitlab_details():
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    global gitlab_private_token
+
+    commit_id = request.json.get('commit_id', '').strip()
+    if not commit_id:
+        return jsonify({'success': False, 'message': 'Thiếu commit_id'})
+
+    project_id = session.get('current_gitlab_project_id')
+    if not project_id:
+        return jsonify({'success': False, 'message': 'Chưa có project_id, vui lòng tải danh sách commit trước'})
+
+    headers = {
+        'PRIVATE-TOKEN': gitlab_private_token
+    }
+
+    try:
+        diff_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits/{commit_id}/diff'
+
+        diff_response = requests.get(diff_url, headers=headers, verify=False)
+        diff_response.raise_for_status()
+        diff_data = diff_response.json()
+
+        if not diff_data:
+            return jsonify({'success': False, 'message': 'Không tìm thấy diff cho commit này'})
+
+        column_names = [
+            'diff', 'new_path', 'old_path',
+            'new_file', 'renamed_file', 'deleted_file'
+        ]
+
+        result = []
+        for item in diff_data:
+            row = [
+                item.get('diff', ''),
+                item.get('new_path', ''),
+                item.get('old_path', ''),
+                item.get('new_file', False),
+                item.get('renamed_file', False),
+                item.get('deleted_file', False)
+            ]
+            result.append(row)
+
+        if result:
+            serialized_result = [serialize_row(list(row)) for row in result]
+            return jsonify({
+                'success': True,
+                'result': serialized_result,
+                'columns': column_names
+            })
+        else:
+            return jsonify({
+                'success': True,
+                'result': [],
+                'columns': column_names,
+                'message': 'Không có thay đổi trong commit này'
+            })
+
+    except requests.RequestException as e:
+        return jsonify({'success': False, 'message': f'Lỗi kết nối GitLab: {str(e)}'})
     except Exception as e:
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
 

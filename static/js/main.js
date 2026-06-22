@@ -808,7 +808,8 @@ function updateContextMenu() {
             'fetchOriginalInfo'
         ],
         'recipe': [
-            'searchWorkOrderByRecipe'
+            'searchWorkOrderByRecipe',
+            'searchCommitGitlabByRecipe'
         ],
         'outputBarcodeByFeedRecords': [
             'outputBarcodeByFeedRecords'
@@ -827,7 +828,8 @@ function updateContextMenu() {
 function updateOutputContextMenu() {
     const menuConfig = {
         'workOrderOutputByBarcode': ['outputByBarcode'],
-        'workOrderOutputByRecipe': ['outputByRecipe']
+        'workOrderOutputByRecipe': ['outputByRecipe'],
+        'commitDetailByRecipe': ['commitDetailByRecipe']
     };
 
     const allowedActions = menuConfig[currentOutputTableType] || [];
@@ -884,7 +886,7 @@ function handleContextMenuAction(e) {
     const action = e.target.dataset.action;
       
     // Xác định sử dụng data từ table nào
-    const isOutputTable = ['outputByBarcode', 'outputByRecipe'].includes(action);
+    const isOutputTable = ['outputByBarcode', 'outputByRecipe', 'commitDetailByRecipe'].includes(action);
     const rowData = isOutputTable ? selectedOutputRowData : selectedRowData;
     
     if (!rowData) return;
@@ -922,6 +924,9 @@ function handleContextMenuAction(e) {
         case 'searchWorkOrderByRecipe':
             openOutputTable('workOrderByRecipe', rowData);
             break;
+        case 'searchCommitGitlabByRecipe':
+            openOutputTable('commitGitlabByRecipe', rowData);
+            break;
             
         // currentOutputTableType 
         case 'outputByBarcode':
@@ -929,6 +934,9 @@ function handleContextMenuAction(e) {
             break;
         case 'outputByRecipe':
             fetchOutputBarcodeByWorkOrder('outputByRecipe', rowData);
+            break;
+        case 'commitDetailByRecipe':
+            fetchCommitGitlabDetail('commitDetailByRecipe', rowData);
             break;
     }
 
@@ -1339,6 +1347,34 @@ async function fetchOutputBarcodeByWorkOrder(type, rowData) {
     }
 }
 
+async function fetchCommitGitlabDetail(type, rowData) {
+    const commit_id = rowData['id'];
+    if (!commit_id) {
+        await showAlert('Chưa chọn hàng dữ liệu.', 'warning');
+        return;
+    }
+
+    const data = await apiFetch('/api/recipes/commit-gitlab/details', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ commit_id })
+    });
+
+    if (data.success) {
+        if (data.result && data.result.length > 0) {
+            outputBarcodeRawData = data.result;
+            outputBarcodeColumns = data.columns;
+
+            currentOutputTableType = null;
+            renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
+        } else {
+            await showAlert(data.message || 'Không tìm thấy chi tiết commit', 'info');
+        }
+    } else {
+        await showAlert(data.message, 'error');
+    }
+}
+
 function initDetailsModal() {
     const modal = document.getElementById('detailsModal');
     if (!modal) return;
@@ -1421,6 +1457,13 @@ function showDetailsModal(data) {
     const body = modal.querySelector('.details-modal-body');
     if (!body) return;
 
+    if (data.hasOwnProperty('diff') && data['diff']) {
+        body.innerHTML = renderDiffViewer(data);
+        modal.classList.remove('hidden');
+        document.body.classList.add('modal-open');
+        return;
+    }
+
     const processedData = {};
     for (const [key, value] of Object.entries(data)) {
         if (typeof value === 'string') {
@@ -1442,12 +1485,57 @@ function showDetailsModal(data) {
         }
     }
 
-    // Format JSON with syntax highlighting
     const jsonString = JSON.stringify(processedData, null, 2);
     body.innerHTML = formatJSON(jsonString);
 
     modal.classList.remove('hidden');
     document.body.classList.add('modal-open');
+}
+
+function renderDiffViewer(data) {
+    const diffText = data['diff'] || '';
+    const newPath = data['new_path'] || '';
+    const oldPath = data['old_path'] || '';
+    const isNewFile = data['new_file'] === 'true' || data['new_file'] === true;
+    const isRenamed = data['renamed_file'] === 'true' || data['renamed_file'] === true;
+    const isDeleted = data['deleted_file'] === 'true' || data['deleted_file'] === true;
+
+    let fileInfoHtml = `
+        <div class="diff-file-info">
+            <span class="diff-file-path">${newPath}</span>
+            ${isNewFile ? '<span class="diff-badge diff-badge-new">New File</span>' : ''}
+            ${isRenamed ? `<span class="diff-badge diff-badge-renamed">Renamed from: ${oldPath}</span>` : ''}
+            ${isDeleted ? '<span class="diff-badge diff-badge-deleted">Deleted</span>' : ''}
+        </div>
+    `;
+
+    const lines = diffText.split('\n');
+    let diffHtml = '<div class="diff-viewer">';
+
+    lines.forEach(line => {
+        if (line.startsWith('@@')) {
+            diffHtml += `<div class="diff-line diff-hunk">${escapeHtml(line)}</div>`;
+        } else if (line.startsWith('+')) {
+            diffHtml += `<div class="diff-line diff-added"><span class="diff-sign">+</span>${escapeHtml(line.substring(1))}</div>`;
+        } else if (line.startsWith('-')) {
+            diffHtml += `<div class="diff-line diff-removed"><span class="diff-sign">-</span>${escapeHtml(line.substring(1))}</div>`;
+        } else {
+            diffHtml += `<div class="diff-line diff-unchanged"><span class="diff-sign"> </span>${escapeHtml(line)}</div>`;
+        }
+    });
+
+    diffHtml += '</div>';
+
+    return fileInfoHtml + diffHtml;
+}
+
+function escapeHtml(text) {
+    return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }
 
 /**
@@ -1606,8 +1694,33 @@ async function fetchWorkOrderByRecipe() {
     }
 }
 
+async function fetchCommitGitlabByRecipe() {
+    const recipe_id = selectedRowData['recipe_id'];
+    const product_type = selectedRowData['product_type'];
+
+    const data = await apiFetch('/api/recipes/fetch-commit-gitlab', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recipe_id, product_type })
+    });
+
+    if (data.success) {
+        if (data.result && data.result.length > 0) {
+            outputBarcodeRawData = mapWorkOrderStatus(data.result, data.columns);
+            outputBarcodeColumns = data.columns;
+
+            currentOutputTableType = 'commitDetailByRecipe';
+            renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
+        } else {
+            await showAlert(data.message || 'Không tìm thấy Commit ở Gitlab nào!', 'info');
+        }
+    } else {
+        await showAlert(data.message, 'error');
+    }
+}
+
 function filterClientResult(keyword) {
-    if (['inputBarcode', 'outputBarcodeByFeedRecords', 'workOrderByRecipe', 'workOrderByBarcode', 'outputByBarcode', 'outputByRecipe'].includes(activeSearchContext)) {
+    if (['inputBarcode', 'outputBarcodeByFeedRecords', 'workOrderByRecipe', 'commitGitlabByRecipe', 'workOrderByBarcode', 'outputByBarcode', 'outputByRecipe', 'commitDetailByRecipe'].includes(activeSearchContext)) {
         filterOutputBarcode(keyword);
         return;
     }
@@ -1676,6 +1789,11 @@ function openOutputTable(type, rowData) {
         fetchWorkOrderByRecipe(rowData.recipe_id);
     }
 
+    if (type === 'commitGitlabByRecipe') {
+        outputHeaderContentEl.textContent = 'Commit Gitlab theo quy cách'
+        fetchCommitGitlabByRecipe(rowData.recipe_id, rowData.product_type);
+    }
+
     if (type === 'workOrderByBarcode') {
         outputHeaderContentEl.textContent = 'Đơn điều động theo barcode'
         fetchWorkOrderByBarcode(rowData.id, rowData.info);
@@ -1720,7 +1838,6 @@ function renderOutputBarcodeTable(rows, columns) {
     thead.innerHTML = '';
     tbody.innerHTML = '';
 
-    // ===== HEADER =====
     const trHead = document.createElement('tr');
     columns.forEach(col => {
         const th = document.createElement('th');
@@ -1729,12 +1846,44 @@ function renderOutputBarcodeTable(rows, columns) {
     });
     thead.appendChild(trHead);
 
-    // ===== BODY =====
+    const truncateThreshold = 50;
+    const displayLength = 45;
+
     rows.forEach(row => {
         const tr = document.createElement('tr');
         row.forEach(val => {
             const td = document.createElement('td');
-            td.textContent = val;
+
+            let cellValue = '';
+            let fullValue = '';
+
+            if (val !== null && val !== undefined) {
+                if (typeof val === 'object') {
+                    try {
+                        fullValue = JSON.stringify(val, null, 2);
+                        cellValue = fullValue;
+                    } catch (e) {
+                        fullValue = String(val);
+                        cellValue = fullValue;
+                    }
+                } else {
+                    fullValue = String(val);
+                    cellValue = fullValue;
+                }
+            }
+
+            console.log('cellValue length:', cellValue.length, '| value:', cellValue.substring(0, 30));
+
+            if (cellValue.length > truncateThreshold) {
+                td.textContent = cellValue.substring(0, displayLength) + '...';
+                td.title = fullValue;
+                td.classList.add('truncated-cell');
+            } else {
+                td.textContent = cellValue;
+            }
+
+            td.dataset.fullValue = fullValue;
+
             tr.appendChild(td);
         });
         tbody.appendChild(tr);
