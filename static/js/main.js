@@ -809,7 +809,8 @@ function updateContextMenu() {
         ],
         'recipe': [
             'searchWorkOrderByRecipe',
-            'searchCommitGitlabByRecipe'
+            'searchCommitGitlabByRecipe',
+            'fetchYamlDetails'
         ],
         'outputBarcodeByFeedRecords': [
             'outputBarcodeByFeedRecords'
@@ -926,6 +927,9 @@ function handleContextMenuAction(e) {
             break;
         case 'searchCommitGitlabByRecipe':
             openOutputTable('commitGitlabByRecipe', rowData);
+            break;
+        case 'fetchYamlDetails':
+            fetchYamlContent();
             break;
             
         // currentOutputTableType 
@@ -1717,6 +1721,255 @@ async function fetchCommitGitlabByRecipe() {
     } else {
         await showAlert(data.message, 'error');
     }
+}
+
+async function fetchYamlContent() {
+    const recipe_id = selectedRowData['recipe_id'];
+    const product_type = selectedRowData['product_type'];
+
+    if (!recipe_id || !product_type) {
+        await showAlert('Thiếu thông tin recipe_id hoặc product_type', 'error');
+        return;
+    }
+
+    const data = await apiFetch('/api/recipes/fetch-yaml-content', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recipe_id, product_type })
+    });
+
+    if (!data.success) {
+        await showAlert(data.message || 'Không tải được nội dung yaml', 'error');
+        return;
+    }
+
+    const modal = document.getElementById('detailsModal');
+    const body = modal.querySelector('.details-modal-body');
+    const titleEl = modal.querySelector('.details-modal-title');
+
+    if (titleEl) titleEl.textContent = `YAML: ${data.file_name || data.file_path}`;
+
+    const errors = detectYamlErrors(data.content);
+
+    body.innerHTML = renderYamlWithErrors(data.content, data.file_path, errors);
+
+    modal.classList.remove('hidden');
+    document.body.classList.add('modal-open');
+
+    if (errors.length > 0) {
+        setTimeout(() => {
+            speechBubble.show(`⚠️ Phát hiện ${errors.length} lỗi trong file YAML!`, {
+                duration: 6000,
+                animation: 'shake'
+            });
+        }, 300);
+    } else {
+        setTimeout(() => {
+            speechBubble.show(`✅ File YAML không phát hiện lỗi!`, {
+                duration: 4000,
+                animation: 'bounce'
+            });
+        }, 300);
+    }
+}
+
+/**
+ * Phát hiện lỗi trong nội dung YAML dựa theo các pattern lỗi thực tế từ pipeline
+ * @param {string} content - Nội dung YAML raw
+ * @returns {Array} - Mảng { lineIndex, type, message }
+ */
+function detectYamlErrors(content) {
+    const lines = content.split('\n');
+    const errors = [];
+
+    // Danh sách tool type hợp lệ (từ pipeline error)
+    const VALID_TOOL_TYPES = new Set([
+        'MOLD', 'BLADDER', 'RING', 'BLOCK',
+        'PREFORMER', 'PREFORMER-1', 'PREFORMER-2', 'PREFORMER-3', 'PREFORMER-4',
+        'COLOR_LINE_LEFT_1', 'COLOR_LINE_LEFT_2', 'COLOR_LINE_LEFT_3',
+        'COLOR_LINE_MIDDLE',
+        'COLOR_LINE_RIGHT_1', 'COLOR_LINE_RIGHT_2', 'COLOR_LINE_RIGHT_3', 'COLOR_LINE_RIGHT_4',
+        'MARKING'
+    ]);
+
+    let insideControls = false;
+    let insideTools    = false;
+    let insideSteps    = false;
+    let currentIndent  = 0;
+
+    const indentStack = [];
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const trimmed = line.trimStart();
+        if (!trimmed || trimmed.startsWith('#')) continue;
+
+        const indent = line.length - trimmed.length;
+
+        while (indentStack.length > 0 && indentStack[indentStack.length - 1].indent >= indent) {
+            indentStack.pop();
+        }
+
+        const currentContext = indentStack.map(s => s.type).join('.');
+
+        const keyMatch = trimmed.match(/^-?\s*([\w\-]+)\s*:/);
+        if (keyMatch) {
+            const key = keyMatch[1];
+            indentStack.push({ indent, type: key });
+        }
+
+        if (/^\s*value\s*:/.test(line)) {
+            const isInControls = indentStack.some(s => s.type === 'controls');
+            const isInSteps    = indentStack.some(s => s.type === 'steps');
+
+            if (isInControls && isInSteps) {
+                const valueStr = line.split(':').slice(1).join(':').trim();
+
+                const isPlainNumber = /^-?\d+(\.\d+)?$/.test(valueStr);
+                const isPlainString = /^['"]\w.*['"]$/.test(valueStr) && !/center/.test(valueStr);
+                const isEmpty       = valueStr === '' || valueStr === 'null' || valueStr === '~';
+
+                let nextNonEmpty = '';
+                for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+                    const t = lines[j].trim();
+                    if (t) { nextNonEmpty = t; break; }
+                }
+
+                const hasCenter = nextNonEmpty.startsWith('center:') || nextNonEmpty.startsWith('center ');
+
+                if (isPlainNumber || isEmpty || (valueStr !== '' && !hasCenter && !valueStr.startsWith('{'))) {
+                    errors.push({
+                        lineIndex: i,
+                        type: 'controls_value',
+                        message: 'value: 需符合至少一種結構（anyOf）— Chỉ hỗ trợ cấu trúc center value'
+                    });
+                }
+            }
+        }
+
+        if (/^\s*type\s*:/.test(line)) {
+            const isInTools = indentStack.some(s => s.type === 'tools');
+            if (isInTools) {
+                const typeValue = line.split(':').slice(1).join(':').trim()
+                    .replace(/^['"]|['"]$/g, '');
+
+                if (typeValue && !VALID_TOOL_TYPES.has(typeValue)) {
+                    errors.push({
+                        lineIndex: i,
+                        type: 'tool_type',
+                        message: `tools.type "${typeValue}" không hợp lệ — Phải là một trong: MOLD, BLADDER, RING, BLOCK, PREFORMER, PREFORMER-1~4, COLOR_LINE_*, MARKING`
+                    });
+                }
+            }
+        }
+
+        if (/^\s*ID\s*:/.test(line)) {
+            const isInTools = indentStack.some(s => s.type === 'tools');
+            if (isInTools) {
+                const idValue = line.split(':').slice(1).join(':').trim();
+                const isNull  = idValue === '' || idValue === 'null' || idValue === '~';
+
+                if (isNull) {
+                    errors.push({
+                        lineIndex: i,
+                        type: 'tool_id_null',
+                        message: 'tools.ID: null — ID phải là string, integer, hoặc number; không được để trống'
+                    });
+                }
+            }
+        }
+    }
+
+    return errors;
+}
+
+function renderYamlWithErrors(content, filePath, errors) {
+    const errorLines = new Set(errors.map(e => e.lineIndex));
+    const errorMap   = {};
+    errors.forEach(e => {
+        if (!errorMap[e.lineIndex]) errorMap[e.lineIndex] = [];
+        errorMap[e.lineIndex].push(e.message);
+    });
+
+    const lines = content.split('\n');
+
+    let summaryHtml = '';
+    if (errors.length > 0) {
+        const errorItems = errors.map(e =>
+            `<div class="yaml-error-summary-item">
+                <span class="yaml-error-line-badge">Dòng ${e.lineIndex + 1}</span>
+                <span class="yaml-error-summary-text">${escapeHtml(e.message)}</span>
+            </div>`
+        ).join('');
+
+        summaryHtml = `
+            <div class="yaml-error-summary">
+                <div class="yaml-error-summary-title">
+                    ⚠️ Phát hiện ${errors.length} lỗi tiềm ẩn
+                </div>
+                ${errorItems}
+            </div>
+        `;
+    } else {
+        summaryHtml = `
+            <div class="yaml-ok-summary">
+                ✅ Không phát hiện lỗi trong file YAML
+            </div>
+        `;
+    }
+
+    const fileInfoHtml = `
+        <div class="diff-file-info" style="margin-bottom:8px;">
+            <span class="diff-file-path">${escapeHtml(filePath)}</span>
+        </div>
+        ${summaryHtml}
+    `;
+
+    let html = '<div class="yaml-viewer">';
+
+    lines.forEach((line, i) => {
+        const escaped   = escapeHtml(line);
+        const isError   = errorLines.has(i);
+        const errorMsgs = errorMap[i] || [];
+
+        let lineClass  = 'yaml-line';
+        let extraAttrs = '';
+        let tooltip    = '';
+
+        if (isError) {
+            lineClass  += ' yaml-line-error';
+            tooltip     = errorMsgs.join(' | ');
+            extraAttrs  = `title="${escapeHtml(tooltip)}"`;
+        }
+
+        let displayLine = escaped;
+
+        if (/^\s*#/.test(line)) {
+            lineClass += ' yaml-comment';
+        } else {
+            displayLine = escaped.replace(
+                /^(\s*-?\s*)([\w\-]+)(\s*:)/,
+                (match, pre, key, colon) => {
+                    const keyClass = isError ? 'yaml-key yaml-key-error' : 'yaml-key';
+                    return `${pre}<span class="${keyClass}">${key}</span>${colon}`;
+                }
+            );
+        }
+
+        const lineNum = String(i + 1).padStart(4, ' ');
+
+        html += `
+            <div class="${lineClass}" ${extraAttrs}>
+                <span class="yaml-line-num">${lineNum}</span>
+                <span class="yaml-line-content">${displayLine}</span>
+                ${isError ? '<span class="yaml-error-icon" title="' + escapeHtml(tooltip) + '">⚠</span>' : ''}
+            </div>
+        `;
+    });
+
+    html += '</div>';
+
+    return fileInfoHtml + html;
 }
 
 function filterClientResult(keyword) {
