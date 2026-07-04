@@ -1,0 +1,108 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: Poppins, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background: #0a0e27;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.my-custom-face-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 500px;
+    color: #3dd5c0;
+    gap: 20px;
+}
+
+.my-custom-face-container .face {
+    width: 200px;
+}
+
+.error-text {
+    text-align: center;
+    color: #e2e8f0;
+}
+
+/* .error-text h1 {
+    font-size: 48px;
+    color: #3dd5c0;
+    letter-spacing: 4px;
+    text-shadow: 0 0 20px rgba(61, 213, 192, 0.5);
+    margin-bottom: 8px;
+} */
+
+.error-text p {
+    font-size: 16px;
+    color: #94a3b8;
+    margin-bottom: 20px;
+}
+
+.back-home-btn {
+    display: inline-block;
+    padding: 10px 24px;
+    background: #16a085;
+    color: #fff;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: background 0.2s ease;
+}
+
+.back-home-btn:hover {
+    background: #149174;
+}
+
+.my-custom-face-container .face__eyes,
+.my-custom-face-container .face__eye-lid,
+.my-custom-face-container .face__mouth-left,
+.my-custom-face-container .face__mouth-right,
+.my-custom-face-container .face__nose,
+.my-custom-face-container .face__pupil {
+    animation: eyes 1s 0.3s forwards;
+}
+.my-custom-face-container .face__eye-lid,
+.my-custom-face-container .face__pupil {
+    animation-duration: 4s;
+    animation-delay: 1.3s;
+    animation-iteration-count: infinite;
+}
+.my-custom-face-container .face__eye-lid { animation-name: eye-lid; }
+.my-custom-face-container .face__mouth-left { animation-name: mouth-left; }
+.my-custom-face-container .face__mouth-right { animation-name: mouth-right; }
+.my-custom-face-container .face__nose { animation-name: nose; }
+.my-custom-face-container .face__pupil { animation-name: pupil; }
+
+@keyframes eye-lid {
+    0%, 40%, 45%, 100% { transform: translateY(0); }
+    42.5% { transform: translateY(17.5px); }
+}
+@keyframes eyes {
+    from { transform: translateY(112.5px); }
+    to { transform: translateY(15px); }
+}
+@keyframes pupil {
+    0%, 37.5%, 40%, 45%, 87.5%, 100% { stroke-dashoffset: 0; transform: translate(0, 0); }
+    12.5%, 25%, 62.5%, 75% { transform: translate(-35px, 0); }
+    42.5% { stroke-dashoffset: 35; transform: translate(0, 17.5px); }
+}
+@keyframes mouth-left {
+    from, 50% { stroke-dashoffset: -102; }
+    to { stroke-dashoffset: 0; }
+}
+@keyframes mouth-right {
+    from, 50% { stroke-dashoffset: 102; }
+    to { stroke-dashoffset: 0; }
+}
+@keyframes nose {
+    from { transform: translate(0, 0); }
+    to { transform: translate(0, 22.5px); }
+}

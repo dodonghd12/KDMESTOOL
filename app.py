@@ -1639,7 +1639,7 @@ def fetch_commit_gitlab():
             ]
             result.append(row)
 
-        result.sort(key=lambda row: row[column_names.index('authored_date')] or '')
+        result.sort(key=lambda row: row[column_names.index('authored_date')] or '', reverse=True)
         
         if result:
             convert_columns = ['authored_date', 'committed_date']
@@ -1980,7 +1980,11 @@ def get_station_configuration_list():
             'result': [],
             'columns': column_names
         })
-    
+
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('404.html'), 404
+   
 if __name__ == '__main__':
     import os
     port = int(os.environ.get('PORT', 5000))
