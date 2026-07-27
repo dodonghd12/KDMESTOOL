@@ -186,6 +186,12 @@ def reprint():
         return redirect(url_for('login'))
     return render_template('reprint.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
 
+@app.route('/check-qc-data')
+def check_qc_data():
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+        return redirect(url_for('login'))
+    return render_template('check_qc_data.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
+
 @app.route('/substitutions')
 def substitutions():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
@@ -1467,6 +1473,57 @@ def get_reprint_barcode_list():
             'message': str(e)
         }), 500
 
+@app.route('/api/get-qc-data-by-date', methods=['POST'])
+def get_qc_data_by_date():
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    from_date  = request.json.get('fromDate', '').strip()
+    to_date    = request.json.get('toDate', '').strip()
+    # product_id = request.json.get('product_id', '').strip()
+
+    if not from_date or not to_date:
+        return jsonify({'success': False, 'message': 'Vui lòng chọn khoảng ngày'})
+
+    try:
+        params = [from_date, to_date]
+
+        query = """
+            SELECT
+                mr.id                           AS barcode,
+                mr.product_id                   AS mstp,
+                dr.code                         AS code,
+                dr.is_good                      AS is_good,
+                dr.created_at                   AS created_at,
+                dr.created_by                   AS created_by
+            FROM kvmes.defective_records dr
+            JOIN kvmes.material_resource mr
+                ON dr.resource_oid = mr.oid
+            WHERE dr.created_at >= EXTRACT(EPOCH FROM (%s::date::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')) * 1000000000
+            AND dr.created_at <  EXTRACT(EPOCH FROM ((%s::date + INTERVAL '1 day')::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')) * 1000000000
+            ORDER BY dr.created_at DESC;
+        """
+
+        result, column_names = execute_pg_select_query(query, tuple(params))
+        if result:
+            convert_columns = ['created_at']
+            result = convert_timestamp(result, column_names, convert_columns)
+            serialized_result = [serialize_row(list(row)) for row in result]
+            return jsonify({
+                'success': True,
+                'result': serialized_result,
+                'columns': column_names
+            })
+        else:
+            return jsonify({
+                'success': True,
+                'result': [],
+                'columns': column_names
+            })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
+    
 @app.route('/api/barcodes/get-substitutions-list', methods=['POST'])
 def search_substitutions():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:

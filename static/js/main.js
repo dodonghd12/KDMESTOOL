@@ -2436,6 +2436,16 @@ function getVietnamTimestamp() {
     );
 }
 
+function formatDate(date) {
+    if (!(date instanceof Date)) return '';
+
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+
+    return `${y}-${m}-${d}`;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const autoClearInputs = [
         '#clientSearch',
@@ -2668,6 +2678,8 @@ function initDateRangePicker(type) {
             if (type == 'print_barcode_history') { checkAndSearchHistoryPrintByStation() }
 
             if (type == 'reprint') { checkQueryReprintBarcode() }
+
+            if (type == 'check_qc_data') { checkAndSearchQCData() }
         }
     });
     // Event click để clear calendar
