@@ -13,7 +13,7 @@ function initializeQCDataEventListeners() {
     }, 1000);
 
     document.querySelector('.input-box')?.addEventListener('mouseenter', () => {
-        speechBubble.show('💡Tip: Chọn khoảng thời gian và nhập mã sản phẩm (nếu cần)!', {
+        speechBubble.show('💡Tip: Chọn khoảng thời gian, bấm 2 lần vào 1 ngày để chọn thời gian trong 1 ngày', {
             duration: 10000,
             animation: 'bounce'
         });

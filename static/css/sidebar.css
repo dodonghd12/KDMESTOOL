@@ -401,7 +401,7 @@ main p {
     padding: 24px;
     min-width: 360px;
     /* nền ảnh */
-    background-image: url("/static/img/chuataydau.png");
+    background-image: url("/static/img/error.png");
     /* đường dẫn ảnh */
     background-size: cover;
     background-position: center;
