@@ -2038,6 +2038,144 @@ def get_station_configuration_list():
             'columns': column_names
         })
 
+@app.route('/api/barcodes/get-prdeba', methods=['POST'])
+def get_prdeba():
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    resource_id = request.json.get('resource_id', '').strip()
+    if not resource_id:
+        return jsonify({'success': False, 'message': 'Thiếu Resource ID'})
+
+    try:
+        query = """
+            SELECT
+                m_elem->>'station'                 AS machno,
+                cr.work_order                      AS mesid,
+                mr.product_id                      AS partno,
+                wo.information->'plan_quantity'->>'plan_quantity' AS preqty,
+                fr_elem->>'resource_id'            AS barcode,
+                fr_elem->>'product_id'             AS itnbr,
+                fr_elem->>'quantity'               AS mqty,
+                mr_res.quantity                    AS qty,
+                m_elem->'site'->>'name'            AS purseq,
+                to_char(to_timestamp(mr.created_at / 1000000000.0) AT TIME ZONE 'Asia/Ho_Chi_Minh', 'HH24:MI:SS') AS intime,
+                to_char(to_timestamp(mr.created_at / 1000000000.0) AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYYMMDD') AS indat,
+                mr.created_by                      AS usrno
+            FROM kvmes.material_resource mr
+            JOIN kvmes.feed_record fr
+                ON fr.id = ANY (mr.feed_records_id)
+            CROSS JOIN LATERAL jsonb_array_elements(fr.materials) AS m_elem
+            CROSS JOIN LATERAL jsonb_array_elements(m_elem->'feed_resources') AS fr_elem
+            LEFT JOIN kvmes.collect_record cr
+                ON cr.resource_oid = mr.oid
+                AND cr.station = m_elem->>'station'
+            LEFT JOIN kvmes.work_order wo
+                ON wo.id = cr.work_order
+            LEFT JOIN kvmes.material_resource mr_res
+                ON mr_res.id = fr_elem->>'resource_id'
+            WHERE mr.id = %s
+                -- AND mr.created_at BETWEEN
+                --     (extract(epoch FROM '2026-08-10'::date AT TIME ZONE 'Asia/Ho_Chi_Minh') * 1000000000)::bigint
+                --     AND
+                --     (extract(epoch FROM ('2026-08-10'::date + 1) AT TIME ZONE 'Asia/Ho_Chi_Minh') * 1000000000)::bigint - 1;
+                -- AND mr.product_type = 'BEAD'
+                -- AND m_elem->>'station' LIKE '%P8300%'
+        """
+        result, column_names = execute_pg_select_query(query, (resource_id,))
+        serialized_result = [serialize_row(list(row)) for row in result] if result else []
+        return jsonify({'success': True, 'result': serialized_result, 'columns': column_names})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
+
+
+@app.route('/api/barcodes/get-prdebb', methods=['POST'])
+def get_prdebb():
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    resource_id = request.json.get('resource_id', '').strip()
+    if not resource_id:
+        return jsonify({'success': False, 'message': 'Thiếu Resource ID'})
+
+    try:
+        query = """
+            SELECT
+                mr.info->'production_info'->>'station'   AS machno,
+                cr.work_order                            AS mesid,
+                mr.id                                    AS barcode,
+                mr.product_id                            AS partno,
+                mr.quantity                              AS qty,
+                to_char(to_timestamp(mr.created_at / 1000000000.0) AT TIME ZONE 'Asia/Ho_Chi_Minh', 'HH24:MI:SS') AS intime,
+                to_char(to_timestamp(mr.created_at / 1000000000.0) AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYYMMDD') AS indat,
+                mr.updated_by                            AS usrno
+            FROM kvmes.material_resource mr
+            LEFT JOIN kvmes.collect_record cr
+                ON cr.resource_oid = mr.oid
+                AND cr.station = mr.info->'production_info'->>'station'
+            WHERE mr.id = %s
+                -- AND mr.product_type LIKE 'BEAD'
+                -- AND mr.info->'production_info'->>'station' LIKE '%P8300%'
+                -- AND (to_timestamp(mr.created_at / 1000000000.0) AT TIME ZONE 'Asia/Ho_Chi_Minh')::date 
+                --     BETWEEN '2026-08-10'::date AND '2026-08-10'::date
+        """
+        result, column_names = execute_pg_select_query(query, (resource_id,))
+        serialized_result = [serialize_row(list(row)) for row in result] if result else []
+        return jsonify({'success': True, 'result': serialized_result, 'columns': column_names})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
+
+
+@app.route('/api/barcodes/get-prdebc', methods=['POST'])
+def get_prdebc():
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    resource_id = request.json.get('resource_id', '').strip()
+    if not resource_id:
+        return jsonify({'success': False, 'message': 'Thiếu Resource ID'})
+
+    try:
+        query = """
+            SELECT
+                m_elem->>'station'                 AS machno,
+                cr.work_order                      AS mesid,
+                mr.id                              AS barcode,
+                mr.product_id                      AS partno,
+                mr.quantity                        AS qty,
+                fr_elem->>'resource_id'            AS bacode,
+                fr_elem->>'product_id'             AS itnbr,
+                fr_elem->>'quantity'               AS mqty,
+                to_char(to_timestamp(mr.created_at / 1000000000.0) AT TIME ZONE 'Asia/Ho_Chi_Minh', 'HH24:MI:SS') AS intime,
+                to_char(to_timestamp(mr.created_at / 1000000000.0) AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYYMMDD') AS indat,
+                mr.created_by                      AS usrno
+            FROM kvmes.material_resource mr
+            JOIN kvmes.feed_record fr
+                ON fr.id = ANY (mr.feed_records_id)
+            CROSS JOIN LATERAL jsonb_array_elements(fr.materials) AS m_elem
+            CROSS JOIN LATERAL jsonb_array_elements(m_elem->'feed_resources') AS fr_elem
+            LEFT JOIN kvmes.collect_record cr
+                ON cr.resource_oid = mr.oid
+                AND cr.station = m_elem->>'station'
+            LEFT JOIN kvmes.work_order wo
+                ON wo.id = cr.work_order
+            WHERE mr.id = %s
+                -- AND mr.created_at BETWEEN
+                --     (extract(epoch FROM '2026-08-10'::date AT TIME ZONE 'Asia/Ho_Chi_Minh') * 1000000000)::bigint
+                --     AND
+                --     (extract(epoch FROM ('2026-08-10'::date + 1) AT TIME ZONE 'Asia/Ho_Chi_Minh') * 1000000000)::bigint - 1;
+                -- AND mr.product_type = 'BEAD'
+                -- AND m_elem->>'station' LIKE '%P8300%'
+        """
+        result, column_names = execute_pg_select_query(query, (resource_id,))
+        serialized_result = [serialize_row(list(row)) for row in result] if result else []
+        return jsonify({'success': True, 'result': serialized_result, 'columns': column_names})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
+    
 @app.errorhandler(404)
 def page_not_found(e):
     return render_template('404.html'), 404

@@ -805,7 +805,10 @@ function updateContextMenu() {
             'checkBarcodeWorkOrder',
             'checkBarcodeTransfer',
             'checkBarcodeExtendDateTime',
-            'fetchOriginalInfo'
+            'fetchOriginalInfo',
+            'getPrdeba',
+            'getPrdebb',
+            'getPrdebc'
         ],
         'recipe': [
             'searchWorkOrderByRecipe',
@@ -914,6 +917,15 @@ function handleContextMenuAction(e) {
             break;
         case 'fetchOriginalInfo':
             openOutputTable('fetchOriginalInfoByBarcode', rowData);
+            break;
+        case 'getPrdeba':
+            fetchPrde('prdeba', rowData);
+            break;
+        case 'getPrdebb':
+            fetchPrde('prdebb', rowData);
+            break;
+        case 'getPrdebc':
+            fetchPrde('prdebc', rowData);
             break;
 
         // currentTableType === 'outputBarcode'
@@ -1306,6 +1318,59 @@ async function fetchOriginalInfoByBarcode() {
     } catch (err) {
         await showAlert(err.message || 'Lỗi khi tải thông tin gốc', 'error');
     }
+}
+
+async function fetchPrde(type, rowData) {
+    const resource_id = rowData['id'];
+    if (!resource_id) {
+        await showAlert('Chưa chọn hàng dữ liệu.', 'warning');
+        return;
+    }
+
+    const urlMap = {
+        'prdeba': '/api/barcodes/get-prdeba',
+        'prdebb': '/api/barcodes/get-prdebb',
+        'prdebc': '/api/barcodes/get-prdebc'
+    };
+
+    const headerMap = {
+        'prdeba': 'PRDEBA',
+        'prdebb': 'PRDEBB',
+        'prdebc': 'PRDEBC'
+    };
+
+    const outputHeaderContentEl = document.getElementById('outputHeaderContent');
+    if (outputHeaderContentEl) {
+        outputHeaderContentEl.textContent = headerMap[type] || type.toUpperCase();
+    }
+
+    const container = document.getElementById('outputContainer');
+    if (container) container.style.display = 'flex';
+
+    enterSingleRowMode();
+    clearOutputBarcodeTable();
+    activeSearchContext = type;
+
+    const data = await apiFetch(urlMap[type], {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resource_id })
+    });
+
+    if (!data.success) {
+        await showAlert(data.message || `Không tải được dữ liệu ${type.toUpperCase()}`, 'error');
+        return;
+    }
+
+    if (!data.result || data.result.length === 0) {
+        await showAlert(`Không có dữ liệu ${type.toUpperCase()} cho barcode này`, 'info');
+        return;
+    }
+
+    outputBarcodeRawData = data.result;
+    outputBarcodeColumns = data.columns;
+    currentOutputTableType = null;
+    renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
 }
 
 async function fetchOutputBarcodeByWorkOrder(type, rowData) {
