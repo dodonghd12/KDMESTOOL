@@ -461,7 +461,20 @@ function displayComparison(result) {
                 barcodeClass += ' expired';
             }
 
+            // barcode
             html += `<div class="${barcodeClass}">${item.site_barcode}</div>`;
+
+            // Số lượng
+            const quantityText = (item.quantity !== null && item.quantity !== undefined)
+                ? item.quantity
+                : 'N/A';
+            html += `<div class="barcode-meta">Số lượng: ${quantityText}</div>`;
+
+            // Thời hạn
+            const expiryText = item.expiry_time
+                ? new Date(item.expiry_time).toLocaleString('vi-VN')
+                : 'N/A';
+            html += `<div class="barcode-meta${isExpired ? ' expired-text' : ''}">HSD: ${expiryText}</div>`;
         } else {
             html += '<div class="empty-cell">N/A</div>';
         }

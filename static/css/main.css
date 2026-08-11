@@ -2175,8 +2175,8 @@ body.modal-open {
 
 .comparison-modal-content {
     background: rgba(15, 23, 42, 1);
-    margin: 30px auto;
-    padding: 30px;
+    margin: 20px auto;
+    padding: 20px;
     border-radius: 10px;
     max-width: 1200px;
     width: 95%;
@@ -2208,9 +2208,9 @@ body.modal-open {
 }
 
 .comparison-title {
-    font-size: 24px;
+    font-size: 20px;
     font-weight: bold;
-    margin-bottom: 20px;
+    margin-bottom: 0px;
     text-align: center;
     color: #e2e8f0;
 }
@@ -2218,7 +2218,8 @@ body.modal-open {
 .comparison-table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 20px;
+    margin-top: 10px;
+    font-size: 14px;
 }
 
 .comparison-table th {
@@ -2227,8 +2228,9 @@ body.modal-open {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 
     font-weight: 600;
-    font-size: 16px;
-    letter-spacing: 0.5px;
+    font-size: 14px;
+    letter-spacing: 0.3px;
+    padding: 8px 10px;
 }
 
 .comparison-table thead th:first-child {
@@ -2240,9 +2242,12 @@ body.modal-open {
 }
 
 .comparison-table td {
-    padding: 12px;
+    padding: 6px 10px;
     vertical-align: top;
     color: #e2e8f0;
+    font-size: 14px;
+    line-height: 1.4;
+    border-bottom: 1px solid rgba(61, 213, 192, 0.2);
 }
 
 .comparison-table tr.match {
@@ -2270,12 +2275,27 @@ body.modal-open {
     color: #721c24;
 }
 
+.comparison-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
 .barcode-highlight.expired {
     color: #f39c12 !important;
 }
 
 .barcode-highlight.empty-quantity {
     color: #9b59b6 !important;
+}
+
+.barcode-meta {
+    font-size: 14px;
+    color: #94a3b8;
+    margin-top: 1px;
+    line-height: 1.3;
+}
+
+.barcode-meta.expired-text {
+    color: #f39c12;
 }
 
 .empty-cell {
