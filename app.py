@@ -712,7 +712,7 @@ def fetch_work_order_by_barcode():
             FROM kvmes.collect_record cr
             JOIN kvmes.material_resource mr ON mr.oid = cr.resource_oid
                 AND mr.id = %s
-            WHERE cr.work_order = wo.id
+            WHERE TRIM(cr.work_order) = TRIM(wo.id)
         """
     if station:
         query += """
@@ -868,7 +868,7 @@ def get_used_history_by_barcode():
             ON mr.id = p.resource_id
            AND mr.product_type = p.product_type
         JOIN kvmes.batch b ON TRUE
-        JOIN kvmes.work_order wo ON wo.id = b.work_order
+        JOIN kvmes.work_order wo ON TRIM(wo.id) = TRIM(b.work_order)
         JOIN kvmes.recipe_process_definition rpd
             ON rpd.recipe_id = wo.recipe_id
         LEFT JOIN LATERAL (
@@ -944,7 +944,7 @@ def fetch_output_barcode_by_work_order():
             FROM kvmes.collect_record cr
             LEFT JOIN kvmes.material_resource mr
                 ON mr.oid = cr.resource_oid
-            WHERE cr.work_order = %s
+            WHERE TRIM(cr.work_order) = TRIM(%s)
             ORDER BY cr.sequence ASC
         """
 
@@ -1910,7 +1910,7 @@ def fetch_original_info_by_barcode():
                         ON mr.oid = cr.resource_oid
                     AND mr.id = p.material_id
                     AND (p.product_type IS NULL OR mr.product_type = p.product_type)
-                    WHERE cr.work_order = wo.id
+                    WHERE TRIM(cr.work_order) = TRIM(wo.id)
                 )
             )
 
@@ -1930,7 +1930,7 @@ def fetch_original_info_by_barcode():
             JOIN kvmes.work_order wo
                 ON wo.id = tw.work_order
             JOIN kvmes.collect_record cr
-                ON cr.work_order = wo.id
+                ON TRIM(cr.work_order) = TRIM(wo.id)
             JOIN kvmes.material_resource mr
                 ON mr.oid = cr.resource_oid
             AND mr.id = p.material_id
@@ -2071,7 +2071,7 @@ def get_prdeba():
                 ON cr.resource_oid = mr.oid
                 AND cr.station = m_elem->>'station'
             LEFT JOIN kvmes.work_order wo
-                ON wo.id = cr.work_order
+                ON TRIM(wo.id) = TRIM(cr.work_order)
             LEFT JOIN kvmes.material_resource mr_res
                 ON mr_res.id = fr_elem->>'resource_id'
             WHERE mr.id = %s
@@ -2160,7 +2160,7 @@ def get_prdebc():
                 ON cr.resource_oid = mr.oid
                 AND cr.station = m_elem->>'station'
             LEFT JOIN kvmes.work_order wo
-                ON wo.id = cr.work_order
+                ON TRIM(wo.id) = TRIM(cr.work_order)
             WHERE mr.id = %s
                 -- AND mr.created_at BETWEEN
                 --     (extract(epoch FROM '2026-08-10'::date AT TIME ZONE 'Asia/Ho_Chi_Minh') * 1000000000)::bigint
