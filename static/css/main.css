@@ -2309,6 +2309,487 @@ body.modal-open {
     padding: 0;
 }
 
+/* ===== MAGIC WINX ===== */
+.winx-container {
+    padding: 24px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    height: 100vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* ── SEARCH BAR ── */
+.winx-search-bar {
+    background: rgba(22, 160, 133, 0.07);
+    border: 1px solid rgba(61, 213, 192, 0.2);
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
+    padding: 20px 24px;
+    width: 33%;
+    min-width: 340px;
+}
+
+.winx-label {
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #3dd5c0;
+    margin-bottom: 8px;
+    display: block;
+}
+
+.winx-input-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.winx-input {
+    background: rgba(10, 14, 28, 0.8);
+    border: 1px solid rgba(61, 213, 192, 0.25);
+    color: #e2e8f0;
+    font-size: 14px;
+    padding: 10px 14px;
+    outline: none;
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%);
+    transition: all 150ms;
+    flex: 1;
+    min-width: 0;
+    font-family: inherit;
+}
+
+.winx-input:focus {
+    border-color: #3dd5c0;
+    box-shadow: 0 0 16px rgba(61, 213, 192, 0.2), inset 0 0 8px rgba(61, 213, 192, 0.04);
+    background: rgba(10, 14, 28, 0.95);
+}
+
+.winx-input::placeholder { color: rgba(100, 120, 140, 0.6); }
+
+/* ── BUTTONS ── */
+.winx-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 18px;
+    font-size: 12px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    border: 1px solid;
+    cursor: pointer;
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%);
+    transition: all 120ms;
+    white-space: nowrap;
+    background: none;
+    font-family: inherit;
+}
+
+.winx-btn .material-symbols-outlined {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+.winx-btn-primary {
+    border-color: #3dd5c0;
+    color: #3dd5c0;
+}
+
+.winx-btn-primary:hover {
+    background: rgba(61, 213, 192, 0.12);
+    box-shadow: 0 0 16px rgba(61, 213, 192, 0.25);
+    color: #00ff88;
+    border-color: #00ff88;
+}
+
+.winx-btn-ghost {
+    border-color: rgba(100, 120, 140, 0.4);
+    color: #8899aa;
+}
+
+.winx-btn-ghost:hover {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: #ef4444;
+    color: #ef4444;
+}
+
+.winx-btn-download:hover {
+    background: rgba(0, 255, 136, 0.12);
+    box-shadow: 0 0 16px rgba(0, 255, 136, 0.25);
+    color: #00ff88;
+    border-color: #00ff88;
+}
+
+.winx-btn-danger {
+    border-color: #ef4444;
+    color: #ef4444;
+}
+
+.winx-btn-danger:hover {
+    background: rgba(239, 68, 68, 0.12);
+    box-shadow: 0 0 16px rgba(239, 68, 68, 0.25);
+}
+
+/* ── STATUS PANEL ── */
+.winx-status-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    animation: winxFadeIn 0.3s ease;
+}
+
+@keyframes winxFadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.winx-status-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+}
+
+.winx-stat-card {
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid rgba(61, 213, 192, 0.15);
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%);
+    padding: 14px 16px;
+}
+
+.winx-stat-label {
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: rgba(100, 120, 140, 0.8);
+    margin-bottom: 6px;
+}
+
+.winx-stat-value {
+    font-size: 15px;
+    font-weight: 700;
+    color: #e2e8f0;
+    word-break: break-all;
+}
+
+.winx-stat-insert {
+    color: #60a5fa !important;
+    text-shadow: 0 0 8px rgba(96, 165, 250, 0.4);
+}
+
+.winx-stat-danger {
+    color: #ef4444 !important;
+    text-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+}
+
+.winx-accent {
+    color: #00ff88 !important;
+    text-shadow: 0 0 8px rgba(0, 255, 136, 0.4);
+}
+
+/* ── PREVIEW TABLE ── */
+.winx-preview-wrap {
+    background: rgba(10, 14, 28, 0.7);
+    border: 1px solid rgba(61, 213, 192, 0.15);
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
+    overflow: hidden;
+}
+
+.winx-preview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    background: rgba(15, 23, 42, 0.9);
+    border-bottom: 1px solid rgba(61, 213, 192, 0.12);
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #3dd5c0;
+}
+
+.winx-badge {
+    background: rgba(61, 213, 192, 0.12);
+    border: 1px solid rgba(61, 213, 192, 0.3);
+    color: #3dd5c0;
+    padding: 2px 10px;
+    font-size: 10px;
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%);
+}
+
+.winx-table-scroll {
+    max-height: 320px;
+    overflow: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #149174 rgba(61, 213, 192, 0.1);
+}
+
+.winx-table-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
+.winx-table-scroll::-webkit-scrollbar-track { background: rgba(61, 213, 192, 0.1); border-radius: 10px; }
+.winx-table-scroll::-webkit-scrollbar-thumb { background-color: #149174; border-radius: 10px; border: 3px solid rgba(61, 213, 192, 0.1); }
+.winx-table-scroll::-webkit-scrollbar-thumb:hover { background-color: #0f6f5a; }
+
+.winx-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.winx-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: rgba(15, 23, 42, 0.98);
+    color: #3dd5c0;
+    border-bottom: 1px solid rgba(61, 213, 192, 0.2);
+}
+
+.winx-table th {
+    background: rgba(15, 23, 42, 0.98);
+    padding: 8px 12px;
+    text-align: left;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    font-size: 10px;
+    font-weight: bold;
+}
+
+.winx-table td {
+    padding: 7px 12px;
+    color: #94a3b8;
+    border-bottom: 1px solid rgba(61, 213, 192, 0.06);
+}
+
+.winx-table tbody tr:hover td {
+    background: rgba(61, 213, 192, 0.04);
+    color: #cbd5e1;
+}
+
+.winx-table td.winx-cell-accent { color: #00ff88; }
+.winx-table td.winx-cell-warn   { color: #f59e0b; }
+
+/* ── ACTION ROW ── */
+.winx-action-row {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+/* ── MODALS ── */
+.winx-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    z-index: 5000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.winx-modal {
+    background: rgba(10, 14, 28, 0.98);
+    border: 1px solid rgba(61, 213, 192, 0.3);
+    clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+    min-width: 380px;
+    max-width: 520px;
+    width: 90vw;
+    box-shadow: 0 0 40px rgba(61, 213, 192, 0.1), 0 0 80px rgba(0, 0, 0, 0.5);
+    animation: winxFadeIn 0.2s ease;
+}
+
+.winx-modal-sm  { min-width: 400px; max-width: 520px; }
+.winx-modal-lg  { min-width: 700px; max-width: 900px; width: 92vw; }
+
+.winx-modal-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(61, 213, 192, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.winx-modal-header-danger { border-bottom-color: rgba(239, 68, 68, 0.3); }
+
+.winx-modal-title {
+    font-size: 13px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #3dd5c0;
+}
+
+.winx-modal-header-danger .winx-modal-title { color: #ef4444; }
+
+.winx-modal-close {
+    width: 28px;
+    height: 28px;
+    background: none;
+    border: 1px solid rgba(61, 213, 192, 0.2);
+    color: #94a3b8;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    clip-path: polygon(0 4px, 4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%);
+    transition: all 120ms;
+}
+
+.winx-modal-close:hover {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: #ef4444;
+    color: #ef4444;
+}
+
+.winx-modal-body   { padding: 20px; }
+
+.winx-modal-footer {
+    padding: 14px 20px;
+    border-top: 1px solid rgba(61, 213, 192, 0.1);
+    display: flex;
+    gap: 10px;
+    justify-content: space-between;
+    flex-wrap: wrap;
+}
+
+.winx-footer-message {
+    font-size: 12px;
+    color: #f59e0b;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+}
+
+.winx-footer-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.winx-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.winx-confirm-msg {
+    font-size: 15px;
+    color: #94a3b8;
+    line-height: 1.8;
+    letter-spacing: 0.3px;
+}
+
+.winx-confirm-msg strong { 
+    color: #ef4444;
+    font-size: 16px;
+}
+
+.winx-confirm-msg code {
+    background: rgba(61, 213, 192, 0.08);
+    color: #3dd5c0;
+    padding: 2px 8px;
+    font-size: 14px;
+    font-family: inherit;
+}
+
+/* ── SELECT MODAL ── */
+.winx-select-toolbar {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(61, 213, 192, 0.1);
+}
+
+.winx-lot-filter {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.winx-lot-label {
+    font-size: 10px;
+    color: rgba(100, 120, 140, 0.8);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.winx-lot-btn {
+    background: none;
+    border: 1px solid rgba(61, 213, 192, 0.2);
+    color: #667788;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    padding: 3px 10px;
+    cursor: pointer;
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%);
+    transition: all 100ms;
+    text-transform: uppercase;
+    font-family: inherit;
+}
+
+.winx-lot-btn:hover,
+.winx-lot-btn.active {
+    background: rgba(61, 213, 192, 0.1);
+    border-color: rgba(61, 213, 192, 0.4);
+    color: #3dd5c0;
+}
+
+.winx-select-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.winx-selected-count {
+    font-size: 11px;
+    color: #667788;
+}
+
+.winx-selected-count strong { color: #00ff88; }
+
+.winx-select-scroll {
+    height: 420px;
+    overflow: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #149174 rgba(61, 213, 192, 0.1);
+}
+
+.winx-select-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
+.winx-select-scroll::-webkit-scrollbar-track { background: rgba(61, 213, 192, 0.1); border-radius: 10px; }
+.winx-select-scroll::-webkit-scrollbar-thumb { background-color: #149174; border-radius: 10px; border: 3px solid rgba(61, 213, 192, 0.1); }
+.winx-select-scroll::-webkit-scrollbar-thumb:hover { background-color: #0f6f5a; }
+
+.winx-select-table td input[type="checkbox"] {
+    cursor: pointer;
+    accent-color: #3dd5c0;
+}
+
+.winx-select-table tbody tr                 { cursor: pointer; }
+.winx-select-table tbody tr.selected-row td { background: rgba(61, 213, 192, 0.06); }
+.winx-select-table tbody tr.hidden-row      { display: none; }
+
+.winx-oid-cell {
+    font-size: 10px;
+    color: #445;
+}
+
+.winx-row-existed {
+    cursor: default;
+}
+
+.winx-row-existed td {
+    color: #00ff88 !important;
+}
+
+.winx-row-existed td.winx-cell-warn {
+    color: #f59e0b !important;
+}
+
 /* ===== PAGE TRANSITION - GLITCH EFFECT ===== */
 .page-transition-overlay {
     position: fixed;

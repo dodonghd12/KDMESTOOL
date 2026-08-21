@@ -11,6 +11,8 @@ from datetime import datetime, timezone, timedelta
 import ast
 import re
 from typing import Optional
+from db_execute import (execute_pg_select_query, execute_pg_update_query)
+from db_connections import (connect_pg_db, connect_old_pg_db)
 
 gitlab_private_token = os.environ.get('GITLAB_PRIVATE_TOKEN', '')
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -215,6 +217,12 @@ def gitlab():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return redirect(url_for('login'))
     return render_template('gitlab.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
+
+@app.route('/magic-winx')
+def magic_winx():
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+        return redirect(url_for('login'))
+    return render_template('magic_winx.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
 
 @app.route('/nes')
 def nes():
@@ -2175,7 +2183,672 @@ def get_prdebc():
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
+
+@app.route('/api/magic-winx/work-order/fetch-collect-records', methods=['POST'])
+def magic_winx_fetch_collect_records():
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    work_order_id = request.json.get('work_order_id', '').strip()
+    if not work_order_id:
+        return jsonify({'success': False, 'message': 'Thiếu Work Order ID'})
+
+    try:
+        # Work order info
+        wo_query = """
+            SELECT id, recipe_id, process_name, process_type, department_id, status,
+                   station, reserved_date::text AS reserved_date, reserved_sequence,
+                   information, updated_at, updated_by, created_at, created_by
+            FROM kvmes.work_order
+            WHERE id = %s
+        """
+        wo_result, wo_cols = execute_pg_select_query(wo_query, (work_order_id,))
+        if not wo_result:
+            return jsonify({'success': False, 'message': f'Không tìm thấy work order: {work_order_id}'})
+
+        wo_row = dict(zip(wo_cols, wo_result[0]))
+
+        import json as _json
+        information = wo_row.get('information', {})
+
+        if isinstance(information, str):
+            information = _json.loads(information)
+
+        product_id = information.get('product_id', '')
+        if not product_id:
+            parts = wo_row.get('recipe_id', '').split('-')
+            product_id = parts[2] if len(parts) >= 3 else wo_row.get('recipe_id', '')
+
+        # Toàn bộ collect_record
+        cr_query = """
+            SELECT work_order, sequence, lot_number, station, resource_oid,
+                   detail, created_at, oid, work_date
+            FROM kvmes.collect_record
+            WHERE work_order = %s
+            ORDER BY sequence ASC
+        """
+        cr_result, cr_cols = execute_pg_select_query(cr_query, (work_order_id,))
+
+        cr_rows = []
+        if cr_result:
+            for row in cr_result:
+                d = dict(zip(cr_cols, row))
+                cr_rows.append({
+                    'sequence':     d.get('sequence'),
+                    'lot_number':   d.get('lot_number', ''),
+                    'station':      d.get('station', ''),
+                    'resource_oid': str(d.get('resource_oid', '')),
+                    'work_date':    str(d.get('work_date', '')),
+                    'created_at':   d.get('created_at'),
+                })
+
+        # Distinct lot_numbers để group
+        lot_numbers = sorted(set(r['lot_number'] for r in cr_rows if r['lot_number']))
+
+        return jsonify({
+            'success':       True,
+            'work_order':    wo_row,
+            'recipe_id':     wo_row.get('recipe_id', ''),
+            'product_id':    product_id,
+            'reserved_date': wo_row.get('reserved_date', ''),
+            'collect_records': cr_rows,
+            'lot_numbers':   lot_numbers,
+            'total':         len(cr_rows),
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
+
+@app.route('/api/magic-winx/collect-record/material-resource-existed', methods=['POST'])
+def magic_winx_check_material_resource_existed():
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    data = request.get_json() or {}
+    resource_ids = data.get('resource_ids', [])
+
+    if not resource_ids:
+        return jsonify({'success': True, 'existed_oids': []})
+
+    resource_ids = [str(x).strip() for x in resource_ids if x is not None and str(x).strip()]
+    resource_ids = list(dict.fromkeys(resource_ids))
+
+    if not resource_ids:
+        return jsonify({'success': True, 'existed_oids': []})
+
+    try:
+        query = """
+            SELECT oid
+            FROM kvmes.material_resource
+            WHERE oid = ANY(%s)
+        """
+        result, column_names = execute_pg_select_query(query, (resource_ids,))
+        existed_oids = [str(row[0]) for row in result] if result else []
+
+        return jsonify({'success': True, 'existed_oids': existed_oids})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
     
+@app.route('/api/magic-winx/prepare-insert-data', methods=['POST'])
+def magic_winx_prepare():
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    data          = request.get_json() or {}
+    work_order_id = data.get('work_order_id', '').strip()
+    recipe_id     = data.get('recipe_id', '').strip()  
+    selected_oids = data.get('selected_oids', [])   # danh sách resource_oid user chọn
+    selected_seqs = data.get('selected_seqs', [])   # danh sách sequence tương ứng
+    product_id    = data.get('product_id', '').strip()
+    reserved_date = data.get('reserved_date', '').strip()
+
+    if not work_order_id or not selected_oids:
+        return jsonify({'success': False, 'message': 'Thiếu thông tin đầu vào'})
+
+    try:
+        from datetime import datetime, timedelta
+        import json as _json
+
+        seq_list = [int(s) for s in selected_seqs if s is not None]
+        if not seq_list:
+            return jsonify({'success': False, 'message': 'Không có sequence nào được chọn'})
+
+        seq_min = min(seq_list)
+        seq_max = max(seq_list)
+
+        # collect_record chỉ lấy các dòng được chọn (theo resource_oid)
+        cr_query = """
+            SELECT work_order, sequence, lot_number, station, resource_oid,
+                   detail, created_at, oid, work_date
+            FROM kvmes.collect_record
+            WHERE work_order = %s
+              AND sequence = ANY(%s)
+            ORDER BY sequence ASC
+        """
+        cr_result, cr_cols = execute_pg_select_query(cr_query, (work_order_id, seq_list))
+
+        # batch — lấy theo khoảng number chứa các sequence đã chọn
+        batch_query = """
+            SELECT work_order, "number", status,
+                   updated_at, updated_by, records_id, records
+            FROM kvmes.batch
+            WHERE work_order = %s
+              AND "number" = ANY(%s)
+            ORDER BY "number" ASC
+        """
+        batch_result, batch_cols = execute_pg_select_query(batch_query, (work_order_id, seq_list))
+
+        # feed_record
+        fr_query = """
+            SELECT fr.* FROM kvmes.feed_record fr
+            WHERE fr.id IN (
+                SELECT UNNEST(records_id)
+                FROM kvmes.batch
+                WHERE TRIM(work_order) = TRIM(%s)
+                  AND "number" = ANY(%s)
+            )
+        """
+        fr_result, fr_cols = execute_pg_select_query(fr_query, (work_order_id, seq_list))
+
+        # material_resource (GREEN_TIRE)
+        rd = datetime.strptime(reserved_date, '%Y-%m-%d')
+        date_from = (rd - timedelta(days=500)).strftime('%Y-%m-%d') + ' 00:00:00'
+        date_to   = (rd + timedelta(days=500)).strftime('%Y-%m-%d') + ' 23:59:59'
+
+        mr_query = """
+            SELECT oid, id, product_id, product_type, quantity, status, expiry_time,
+                   info, warehouse_id, warehouse_location, updated_at, updated_by,
+                   created_at, created_by, station, feed_records_id, batch_count, reprint_reason,
+                   collected, erp_tire_barcode_synced, standing_time, initial_quantity
+            FROM kvmes.material_resource mr
+            WHERE mr.product_id LIKE %s AND mr.id like '7%'
+              AND LENGTH(mr.id) < 20
+              AND mr.product_type = 'GREEN_TIRE'
+              AND NOT EXISTS (
+                  SELECT 1 FROM kvmes.material_resource mr2
+                  WHERE mr2.id = mr.id AND mr2.product_type = 'TIRE'
+              )
+              AND to_timestamp(mr.created_at / 1000000000.0) AT TIME ZONE 'Asia/Ho_Chi_Minh'
+                  BETWEEN %s AND %s
+        """
+        mr_result, mr_cols = execute_pg_select_query(
+            mr_query, (f'%{product_id}%', date_from, date_to)
+        )
+
+        cr_count = len(cr_result) if cr_result else 0
+        mr_slice = mr_result[:cr_count] if mr_result else []
+
+        # batch map: sequence → feed_record id
+        batch_map = {}
+        if batch_result:
+            for brow in batch_result:
+                bdict = dict(zip(batch_cols, brow))
+                rids  = bdict.get('records_id') or []
+                batch_map[int(bdict['number'])] = rids[0] if rids else None
+
+        # Build insert rows
+        insert_rows = []
+        for i, cr_row in enumerate(cr_result or []):
+            cr_dict  = dict(zip(cr_cols, cr_row))
+            mr_dict  = dict(zip(mr_cols, mr_slice[i])) if i < len(mr_slice) else {}
+            sequence = int(cr_dict.get('sequence', 0))
+            fr_id    = batch_map.get(sequence)
+
+            production_time = cr_dict.get('created_at')
+
+            info = {
+                "unit": "",
+                "grade": "",
+                "remark": "",
+                "purchase": {
+                    "item_no": "",
+                    "order_no": "",
+                    "delivery_count": ""
+                },
+                "change_log": None,
+                "lot_number": str(cr_dict.get('lot_number') or ""),
+                "min_dosage": "0",
+                "hold_reason": 0,
+                "inspections": None,
+                "deferrals_count": 0,
+                "production_info": {
+                    "station": str(cr_dict.get('station') or ""),
+                    "recipe_id": recipe_id,
+                    "next_station": "",
+                    "process_name": "Tire-building",
+                    "process_type": "PRODUCE",
+                    "production_time": production_time
+                },
+                "planned_quantity": "0",
+                "additional_fields": None
+            }
+
+            insert_rows.append({
+                '_sequence':              sequence,
+                'oid':                    str(cr_dict.get('resource_oid', '')),
+                'id':                     str(mr_dict.get('id', '')),
+                'product_id':             product_id,
+                'product_type':           'TIRE',
+                'quantity':               1.0,
+                'status':                 3,
+                'expiry_time':            mr_dict.get('expiry_time'),
+                'info':                   info,
+                'warehouse_id':           ' ',
+                'warehouse_location':     ' ',
+                'updated_at':             mr_dict.get('updated_at'),
+                'updated_by':             'p8500',
+                'created_at':             mr_dict.get('created_at'),
+                'created_by':             mr_dict.get('created_by'),
+                'station':                str(cr_dict.get('station', '')),
+                'feed_records_id':        f'{{{fr_id}}}' if fr_id else '{}',
+                'batch_count':            0,
+                'reprint_reason':         0,
+                'collected':              True,
+                'erp_tire_barcode_synced': False,
+                'standing_time':          mr_dict.get('standing_time'),
+                'initial_quantity':       1,
+            })
+
+        return jsonify({
+            'success':       True,
+            'insert_rows':   insert_rows,
+            'product_id':    product_id,
+            'reserved_date': reserved_date,
+            'cr_count':      cr_count,
+            'mr_count':      len(mr_result) if mr_result else 0,
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
+
+@app.route('/api/magic-winx/insert-material', methods=['POST'])
+def magic_winx_execute():
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    data        = request.get_json() or {}
+    insert_rows = data.get('insert_rows', [])
+
+    if not insert_rows:
+        return jsonify({'success': False, 'message': 'Không có dữ liệu để insert'})
+
+    import json as _json
+    from db_execute import execute_pg_select_query
+    # Import connection thô để chạy INSERT
+    try:
+        from db_execute import execute_pg_update_query
+    except ImportError:
+        return jsonify({'success': False, 'message': 'Không import được execute_pg_update_query'})
+
+    cols_order = [
+        'oid', 'id', 'product_id', 'product_type', 'quantity', 'status',
+        'expiry_time', 'info', 'warehouse_id', 'warehouse_location',
+        'updated_at', 'updated_by', 'created_at', 'created_by', 'station',
+        'feed_records_id', 'batch_count', 'reprint_reason', 'collected',
+        'erp_tire_barcode_synced', 'standing_time', 'initial_quantity'
+    ]
+
+    values_list = []
+    for row in insert_rows:
+        values_list.append(tuple(row.get(c) for c in cols_order))
+
+    placeholders = ', '.join(['%s'] * len(cols_order))
+    insert_sql = f"""
+        INSERT INTO kvmes.material_resource ({', '.join(cols_order)})
+        VALUES ({placeholders})
+    """
+
+    try:
+        conn   = connect_pg_db()
+        cursor = conn.cursor()
+        inserted = 0
+        errors   = []
+
+        for i, vals in enumerate(values_list):
+            try:
+                cursor.execute(insert_sql, vals)
+                inserted += 1
+            except Exception as row_err:
+                errors.append({'row': i + 1, 'error': str(row_err)})
+                conn.rollback()
+
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        return jsonify({
+            'success':  True,
+            'inserted': inserted,
+            'errors':   errors,
+            'message':  f'Insert thành công {inserted}/{len(values_list)} dòng'
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Lỗi kết nối DB: {str(e)}'})
+    
+@app.route('/api/magic-winx/update-feed-record-material', methods=['POST'])
+def magic_winx_update():
+    if 'user_id' not in session or \
+       'user_token' not in session or \
+       'user_ip' not in session:
+
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    data = request.get_json() or {}
+
+    work_order_id = data.get('work_order_id', '').strip()
+    updates = data.get('updates', [])
+
+    if not work_order_id:
+        return jsonify({
+            'success': False,
+            'message': 'Thiếu Work Order ID'
+        })
+
+    if not updates:
+        return jsonify({
+            'success': False,
+            'message': 'Không có dữ liệu cần update'
+        })
+
+    try:
+
+        import json as _json
+        from db_connections import connect_pg_db
+
+        conn = connect_pg_db()
+        cursor = conn.cursor()
+
+        updated = 0
+        errors = []
+
+        for item in updates:
+
+            sequence = item.get('sequence')
+            new_resource_id = str(
+                item.get('new_resource_id') or ''
+            ).strip()
+
+            station = str(
+                item.get('station') or ''
+            ).strip()
+
+            if sequence is None:
+                errors.append({
+                    'sequence': sequence,
+                    'error': 'Thiếu sequence'
+                })
+                continue
+
+            if not new_resource_id:
+                errors.append({
+                    'sequence': sequence,
+                    'error': 'Thiếu new_resource_id'
+                })
+                continue
+
+            try:
+
+                sequence = int(sequence)
+
+                find_sql = """
+                    SELECT fr.id, fr.materials
+                    FROM kvmes.feed_record fr
+                    WHERE fr.id IN (
+                        SELECT UNNEST(records_id)
+                        FROM kvmes.batch
+                        WHERE TRIM(work_order) = TRIM(%s)
+                          AND "number" = %s
+                    )
+                """
+
+                cursor.execute(
+                    find_sql,
+                    (
+                        work_order_id,
+                        sequence
+                    ))
+
+                feed_rows = cursor.fetchall()
+
+                if not feed_rows:
+                    errors.append({
+                        'sequence': sequence,
+                        'error': 'Không tìm thấy feed_record'
+                    })
+                    continue
+
+                sequence_updated = False
+
+                for feed_id, materials in feed_rows:
+                    if materials is None:
+                        continue
+
+                    if isinstance(materials, str):
+                        materials = _json.loads(materials)
+
+                    if not isinstance(materials, list):
+                        continue
+
+                    changed = False
+
+                    for material in materials:
+                        if not isinstance(material, dict):
+                            continue
+
+                        material_station = str(material.get('station') or '').strip()
+
+                        if station and material_station != station:
+                            continue
+
+                        feed_resources = material.get(
+                            'feed_resources',
+                            []
+                        )
+
+                        if not isinstance(feed_resources, list):
+                            continue
+
+                        for feed_resource in feed_resources:
+                            if not isinstance(feed_resource, dict):
+                                continue
+
+                            if feed_resource.get('product_type') != 'GREEN_TIRE':
+                                continue
+
+                            old_resource_id = feed_resource.get('resource_id')
+                            if not old_resource_id:
+                                continue
+
+                            feed_resource['resource_id'] = new_resource_id
+                            changed = True
+
+                    if changed:
+                        update_sql = """
+                            UPDATE kvmes.feed_record
+                            SET materials = %s
+                            WHERE id = %s
+                        """
+
+                        cursor.execute(
+                            update_sql,
+                            (
+                                _json.dumps(materials, ensure_ascii=False),
+                                feed_id
+                            ))
+
+                        updated += 1
+                        sequence_updated = True
+
+                if not sequence_updated:
+                    errors.append({
+                        'sequence': sequence,
+                        'error': 'Không tìm thấy GREEN_TIRE phù hợp để update'
+                    })
+
+            except Exception as row_err:
+
+                errors.append({
+                    'sequence': sequence,
+                    'error': str(row_err)
+                })
+
+        conn.commit()
+
+        cursor.close()
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'updated': updated,
+            'errors': errors,
+            'message': (
+                f'Update thành công '
+                f'{updated}/{len(updates)} feed_record'
+            )
+        })
+
+    except Exception as e:
+
+        try:
+            conn.rollback()
+            cursor.close()
+            conn.close()
+        except Exception:
+            pass
+
+        return jsonify({
+            'success': False,
+            'message': f'Lỗi update: {str(e)}'
+        })
+
+@app.route('/api/magic-winx/update-green-tire-quantity', methods=['POST'])
+def magic_winx_magic():
+
+    API_NAME = 'API Update GREEN TIRE quantity'
+    if 'user_id' not in session or \
+       'user_token' not in session or \
+       'user_ip' not in session:
+
+        return jsonify({
+            'success': False,
+            'api': API_NAME,
+            'message': f'{API_NAME} lỗi: Unauthorized'
+        }), 401
+
+    try:
+        data = request.get_json() or {}
+        ids = data.get('ids', [])
+        if not ids:
+            return jsonify({
+                'success': False,
+                'api': API_NAME,
+                'message': f'{API_NAME} lỗi: Không có ID nào được gửi lên'
+            })
+
+        ids = [
+            str(x).strip()
+            for x in ids
+            if x is not None and str(x).strip()
+        ]
+
+        ids = list(dict.fromkeys(ids))
+        if not ids:
+            return jsonify({
+                'success': False,
+                'api': API_NAME,
+                'message': f'{API_NAME} lỗi: Danh sách ID rỗng sau khi xử lý'
+            })
+
+        mr_query = """
+            SELECT *
+            FROM kvmes.material_resource
+            WHERE id = ANY(%s)
+              AND product_type = 'GREEN_TIRE'
+        """
+
+        mr_result, mr_cols = execute_pg_select_query(
+            mr_query,
+            (ids,)
+        )
+
+        found_count = len(mr_result) if mr_result else 0
+        requested_count = len(ids)
+
+        if found_count != requested_count:
+            found_ids = set()
+            if mr_result:
+                id_index = mr_cols.index('id')
+                for row in mr_result:
+                    found_ids.add(str(row[id_index]).strip())
+
+            missing_ids = [
+                x for x in ids
+                if x not in found_ids
+            ]
+
+            return jsonify({
+                'success': False,
+                'api': API_NAME,
+                'message': (
+                    f'{API_NAME} lỗi: '
+                    f'Số lượng GREEN_TIRE không khớp. '
+                    f'Yêu cầu {requested_count} ID, '
+                    f'nhưng tìm thấy {found_count} dòng.'
+                ),
+                'requested_count': requested_count,
+                'found_count': found_count,
+                'missing_ids': missing_ids
+            })
+
+        update_query = """
+            UPDATE kvmes.material_resource
+            SET quantity = 0
+            WHERE id = ANY(%s)
+              AND product_type = 'GREEN_TIRE'
+        """
+
+        try:
+            update_result = execute_pg_update_query(
+                update_query,
+                (ids,)
+            )
+        except Exception as update_error:
+
+            return jsonify({
+                'success': False,
+                'api': API_NAME,
+                'message': (
+                    f'{API_NAME} lỗi khi UPDATE quantity = 0: '
+                    f'{str(update_error)}'
+                ),
+                'requested_count': requested_count,
+                'found_count': found_count
+            })
+
+        return jsonify({
+            'success': True,
+            'api': API_NAME,
+            'message': (
+                f'{API_NAME} thành công. '
+                f'Đã update quantity = 0 cho '
+                f'{found_count} GREEN_TIRE.'
+            ),
+            'requested_count': requested_count,
+            'found_count': found_count,
+            'updated_count': found_count,
+            'ids': ids
+        })
+
+    except Exception as e:
+
+        return jsonify({
+            'success': False,
+            'api': API_NAME,
+            'message': f'{API_NAME} lỗi: {str(e)}'
+        })
+   
 @app.errorhandler(404)
 def page_not_found(e):
     return render_template('404.html'), 404

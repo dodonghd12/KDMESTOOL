@@ -250,7 +250,7 @@ function closeModal() {
 }
 
 // Replace alert/confirm functions
-function showAlert(message, type = 'info') {
+function showAlert(message, type = 'info', onOk = null) {
     const titles = {
         'info': 'Thông tin',
         'success': 'Thành công',
@@ -258,9 +258,23 @@ function showAlert(message, type = 'info') {
         'warning': 'Cảnh báo'
     };
 
-    return showModal(type, titles[type] || 'Thông tin', message, [
-        { text: 'OK', class: 'custom-modal-btn-primary', value: true }
-    ]);
+    return showModal(
+        type,
+        titles[type] || 'Thông tin',
+        message,
+        [
+            {
+                text: 'OK',
+                class: 'custom-modal-btn-primary',
+                value: true
+            }
+        ]
+    ).then(result => {
+        if (typeof onOk === 'function') {
+            onOk();
+        }
+        return result;
+    });
 }
 
 function showConfirm(message, title = 'Xác nhận') {

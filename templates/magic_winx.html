@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Magic Winx</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/nes.css/css/nes.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined">
+</head>
+<body>
+    {% include "components/sidebar.html" %}
+    <canvas id="starfield"></canvas>
+
+    <div class="container winx-container">
+
+        <!-- ── SEARCH BAR ── -->
+        <div class="winx-search-bar">
+            <div class="winx-input-group">
+                <label class="winx-label">Work Order ID</label>
+                <div class="winx-input-row">
+                    <input type="text" id="workOrderInput" class="winx-input"
+                           placeholder="Nhập Work Order ID..." autocomplete="off">
+                    <button id="searchBtn" class="winx-btn winx-btn-primary" onclick="fetchCollectRecords()">
+                        <span class="material-symbols-outlined">search</span>
+                        Tìm
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── STATUS PANEL ── -->
+        <div class="winx-status-panel" id="statusPanel" style="display:none;">
+            <div class="winx-status-grid">
+                <div class="winx-stat-card">
+                    <div class="winx-stat-label">Work Order</div>
+                    <div class="winx-stat-value" id="statWO">—</div>
+                </div>
+                <div class="winx-stat-card">
+                    <div class="winx-stat-label">Product ID</div>
+                    <div class="winx-stat-value" id="statProduct">—</div>
+                </div>
+                <div class="winx-stat-card">
+                    <div class="winx-stat-label">Reserved Date</div>
+                    <div class="winx-stat-value" id="statDate">—</div>
+                </div>
+                <div class="winx-stat-card">
+                    <div class="winx-stat-label">Collect Records</div>
+                    <div class="winx-stat-value" id="statCR">—</div>
+                </div>
+                <div class="winx-stat-card">
+                    <div class="winx-stat-label">Material Resources</div>
+                    <div class="winx-stat-value" id="statMR">—</div>
+                </div>
+                <div class="winx-stat-card">
+                    <div class="winx-stat-label">Insert Row</div>
+                    <div class="winx-stat-value winx-stat-insert" id="statInsert">—</div>
+                </div>
+            </div>
+
+            <!-- preview table -->
+            <div class="winx-preview-wrap">
+                <div class="winx-preview-header">
+                    <span>Preview dữ liệu sẽ insert</span>
+                    <span id="previewCount" class="winx-badge">0 dòng</span>
+                </div>
+                <div class="winx-table-scroll">
+                    <table class="winx-table" id="previewTable">
+                        <thead id="previewHead"></thead>
+                        <tbody id="previewBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- action buttons -->
+            <div class="winx-action-row">
+                <button class="winx-btn winx-btn-ghost winx-btn-download" onclick="downloadInsertMaterialLog()">
+                    <span class="material-symbols-outlined">download</span>
+                    Download Log
+                </button>
+                <button class="winx-btn winx-btn-danger" onclick="openConfirmModal()">
+                    <span class="material-symbols-outlined">bolt</span>
+                    Thực hiện Insert
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ MODAL: chọn collect records ══ -->
+    <div class="winx-overlay" id="selectModal" style="display:none;">
+        <div class="winx-modal winx-modal-lg">
+            <div class="winx-modal-header">
+                <span class="winx-modal-title">// Chọn Collect Records</span>
+                <button class="winx-modal-close" onclick="closeSelectModal()">&times;</button>
+            </div>
+
+            <div class="winx-modal-body" style="padding:12px 16px;">
+
+                <!-- Toolbar -->
+                <div class="winx-select-toolbar">
+                    <div class="winx-lot-filter" id="lotFilterBar">
+                        <span class="winx-lot-label">Lọc theo Lot:</span>
+                        <button class="winx-lot-btn active" data-lot="ALL" onclick="filterByLot('ALL', this)">Tất cả</button>
+                    </div>
+                    <div class="winx-select-actions">
+                        <span class="winx-selected-count">Đã chọn: <strong id="selectedCount">0</strong></span>
+                        <button class="winx-btn winx-btn-ghost" onclick="deselectAll()">Bỏ chọn</button>
+                    </div>
+                </div>
+
+                <!-- Table -->
+                <div class="winx-select-scroll">
+                    <table class="winx-table winx-select-table">
+                        <thead>
+                            <tr>
+                                <th style="width:36px;">
+                                    <input type="checkbox" id="masterCheck" onchange="toggleMaster(this)">
+                                </th>
+                                <th>Sequence</th>
+                                <th>Lot Number</th>
+                                <th>Station</th>
+                                <th>Work Date</th>
+                                <th>Resource OID</th>
+                            </tr>
+                        </thead>
+                        <tbody id="selectTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="winx-modal-footer">
+                <span class="winx-footer-message" id="selectFooterMessage"></span>
+                <div class="winx-footer-actions">
+                    <button class="winx-btn winx-btn-ghost" onclick="closeSelectModal()">Hủy</button>
+                    <button class="winx-btn winx-btn-primary" id="continueBtn" onclick="runPrepareFromSelection()">
+                        Tiếp tục (<span id="footerCount">0</span> dòng)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ MODAL: xác nhận insert ══ -->
+    <div class="winx-overlay" id="confirmModal" style="display:none;">
+        <div class="winx-modal winx-modal-sm">
+            <div class="winx-modal-header winx-modal-header-danger">
+                <span class="winx-modal-title">⚠ Xác nhận thực hiện</span>
+            </div>
+            <div class="winx-modal-body">
+                <p class="winx-confirm-msg" id="confirmMsg">
+                    Bạn sắp insert <strong id="confirmCount">0</strong> dòng vào bảng
+                    <code>kvmes.material_resource</code>.<br>
+                    Hành động này <strong>không thể hoàn tác</strong>. Bạn có chắc chắn?
+                </p>
+            </div>
+            <div class="winx-modal-footer">
+                <button class="winx-btn winx-btn-ghost" onclick="closeConfirmModal()">Không</button>
+                <button class="winx-btn winx-btn-ghost" onclick="downloadInsertMaterialLog()">
+                    <span class="material-symbols-outlined">download</span>
+                    Download Log
+                </button>
+                <button class="winx-btn winx-btn-danger" onclick="runExecute()">
+                    <span class="material-symbols-outlined">check</span>
+                    Xác nhận
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/magic_winx.js') }}"></script>
+</body>
+</html>
