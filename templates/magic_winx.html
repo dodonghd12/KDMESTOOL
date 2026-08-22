@@ -18,10 +18,11 @@
     <div class="container winx-container">
 
         <div class="winx-top-row">
-            <!-- ── SEARCH BAR (dùng chung style với main.html) ── -->
+
+            <!-- ── SEARCH BAR ── -->
             <div class="winx-search-bar">
                 <div class="winx-input-group">
-                    <label class="winx-label">Work Order ID</label>
+                    <label class="winx-label">BÙA LIỆU TIRE KD</label>
                     <div class="winx-input-row">
                         <input type="text" id="workOrderInput" class="winx-input"
                             placeholder="Nhập Work Order ID..." autocomplete="off">
@@ -35,17 +36,17 @@
 
             <!-- ── BULK CHECK TOOLS ── -->
             <div class="winx-search-bar">
-                <span class="winx-label">Check SLL Work Order</span>
+                <span class="winx-label">CHECK LIỆU THEO DANH SÁCH WORK ORDER</span>
                 <div class="winx-input-row">
                     <button id="checkBulkBtn" class="winx-btn winx-btn-ghost" onclick="triggerBulkFileInput()">
                         <span class="material-symbols-outlined">fact_check</span>
-                        Import Excel and Check
+                        IMPORT EXCEL AND CHECK
                     </button>
                     <input type="file" id="bulkFileInput" accept=".xlsx,.xls" style="display:none;" onchange="handleBulkFileSelected(event)">
 
                     <button id="downloadTemplateBtn" class="winx-btn winx-btn-ghost" onclick="downloadWorkOrderTemplate()">
                         <span class="material-symbols-outlined">file_download</span>
-                        Tải Template Excel
+                        Tải Template
                     </button>
                 </div>
             </div>

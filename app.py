@@ -2224,7 +2224,7 @@ def magic_winx_fetch_collect_records():
             SELECT work_order, sequence, lot_number, station, resource_oid,
                    detail, created_at, oid, work_date
             FROM kvmes.collect_record
-            WHERE work_order = %s
+            WHERE TRIM(work_order) = TRIM(%s)
             ORDER BY sequence ASC
         """
         cr_result, cr_cols = execute_pg_select_query(cr_query, (work_order_id,))
@@ -2322,7 +2322,7 @@ def magic_winx_prepare():
             SELECT work_order, sequence, lot_number, station, resource_oid,
                    detail, created_at, oid, work_date
             FROM kvmes.collect_record
-            WHERE work_order = %s
+            WHERE TRIM(work_order) = TRIM(%s)
               AND sequence = ANY(%s)
             ORDER BY sequence ASC
         """
@@ -2333,7 +2333,7 @@ def magic_winx_prepare():
             SELECT work_order, "number", status,
                    updated_at, updated_by, records_id, records
             FROM kvmes.batch
-            WHERE work_order = %s
+            WHERE TRIM(work_order) = TRIM(%s)
               AND "number" = ANY(%s)
             ORDER BY "number" ASC
         """
@@ -2947,13 +2947,25 @@ def magic_winx_check_work_orders_bulk():
     wo_result, wo_cols = execute_pg_select_query(query, (work_order_ids,))
 
     result = []
+    total_collect_record = 0
+    total_batch = 0
+    total_feed_record = 0
+    total_material_resource = 0
 
     for row_data in wo_result:
         row = dict(zip(wo_cols, row_data))
 
         wo_id = row['work_order']
+
         cr_count = row['collect_record_count'] or 0
+        batch_count = row['batch_count'] or 0
+        feed_count = row['feed_record_count'] or 0
         mr_count = row['material_resource_count'] or 0
+
+        total_collect_record += cr_count
+        total_batch += batch_count
+        total_feed_record += feed_count
+        total_material_resource += mr_count
 
         if cr_count != mr_count:
             result.append([
@@ -2962,8 +2974,18 @@ def magic_winx_check_work_orders_bulk():
                 mr_count
             ])
 
-    return jsonify({'success': True, 'result': result, 'columns': columns})
-   
+    return jsonify({
+        'success': True,
+        'result': result,
+        'columns': columns,
+        'summary': {
+            'collect_record': total_collect_record,
+            'batch': total_batch,
+            'feed_record': total_feed_record,
+            'material_resource': total_material_resource
+        }
+    })
+    
 @app.errorhandler(404)
 def page_not_found(e):
     return render_template('404.html'), 404

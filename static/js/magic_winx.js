@@ -735,7 +735,23 @@ async function runBulkCheckWorkOrders(workOrderIds) {
     winxBulkColumns   = data.columns || [];
 
     if (!winxBulkRawResult.length) {
-        await showAlert('Không có Work Order nào lệch số lượng Collect Record / Material Resource', 'info');
+        const summary = data.summary || {};
+
+        const totalCollectRecord = summary.collect_record || 0;
+        const totalBatch = summary.batch || 0;
+        const totalFeedRecord = summary.feed_record || 0;
+        const totalMaterialResource = summary.material_resource || 0;
+
+        await showAlert(
+            `Không có Work Order nào lệch số lượng
+            Tổng số lượng đã đếm được:
+            • Collect Record: ${totalCollectRecord.toLocaleString()}
+            • Feed Record: ${totalFeedRecord.toLocaleString()}
+            • Batch: ${totalBatch.toLocaleString()}
+            • Material Resource: ${totalMaterialResource.toLocaleString()}`,
+            'info'
+        );
+
         return;
     }
 

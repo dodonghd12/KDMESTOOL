@@ -2689,6 +2689,11 @@ body.modal-open {
     min-width: 340px;
 }
 
+.modal-lg {
+    width: 900px;
+    max-width: 92vw;
+}
+
 .winx-label {
     font-size: 11px;
     letter-spacing: 2px;
