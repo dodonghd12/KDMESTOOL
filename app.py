@@ -2848,6 +2848,121 @@ def magic_winx_magic():
             'api': API_NAME,
             'message': f'{API_NAME} lỗi: {str(e)}'
         })
+
+@app.route('/api/magic-winx/check-work-orders-bulk', methods=['POST'])
+def magic_winx_check_work_orders_bulk():
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    data = request.get_json() or {}
+    work_order_ids = data.get('work_order_ids', [])
+
+    if not work_order_ids:
+        return jsonify({'success': False, 'message': 'Danh sách Work Order rỗng'})
+
+    work_order_ids = [str(x).strip() for x in work_order_ids if x is not None and str(x).strip()]
+    work_order_ids = list(dict.fromkeys(work_order_ids))
+
+    if not work_order_ids:
+        return jsonify({'success': False, 'message': 'Danh sách Work Order rỗng sau khi xử lý'})
+
+    columns = ['work_order', 'cr_count', 'mr_count']
+    result = []
+
+    query = """
+        WITH params AS (
+            SELECT TRIM(x) AS work_order
+            FROM unnest(%s::text[]) AS x
+        ),
+
+        cr_counts AS (
+            SELECT
+                TRIM(cr.work_order) AS work_order,
+                COUNT(*) AS collect_record_count
+            FROM kvmes.collect_record cr
+            JOIN params p
+                ON TRIM(cr.work_order) = p.work_order
+            GROUP BY TRIM(cr.work_order)
+        ),
+
+        batch_data AS (
+            SELECT
+                TRIM(b.work_order) AS work_order,
+                b.records_id
+            FROM kvmes.batch b
+            JOIN params p
+                ON TRIM(b.work_order) = p.work_order
+        ),
+
+        batch_counts AS (
+            SELECT
+                work_order,
+                COUNT(*) AS batch_count
+            FROM batch_data
+            GROUP BY work_order
+        ),
+
+        feed_counts AS (
+            SELECT
+                bd.work_order,
+                COUNT(*) AS feed_record_count
+            FROM batch_data bd
+            CROSS JOIN LATERAL unnest(bd.records_id) AS fr_id
+            JOIN kvmes.feed_record fr
+                ON fr.id = fr_id
+            GROUP BY bd.work_order
+        ),
+
+        mr_counts AS (
+            SELECT
+                TRIM(cr.work_order) AS work_order,
+                COUNT(*) AS material_resource_count
+            FROM kvmes.collect_record cr
+            JOIN params p
+                ON TRIM(cr.work_order) = p.work_order
+            JOIN kvmes.material_resource mr
+                ON mr.oid = cr.resource_oid
+            GROUP BY TRIM(cr.work_order)
+        )
+
+        SELECT
+            p.work_order,
+            COALESCE(cr.collect_record_count, 0) AS collect_record_count,
+            COALESCE(bc.batch_count, 0) AS batch_count,
+            COALESCE(fc.feed_record_count, 0) AS feed_record_count,
+            COALESCE(mc.material_resource_count, 0) AS material_resource_count
+        FROM params p
+        LEFT JOIN cr_counts cr
+            ON cr.work_order = p.work_order
+        LEFT JOIN batch_counts bc
+            ON bc.work_order = p.work_order
+        LEFT JOIN feed_counts fc
+            ON fc.work_order = p.work_order
+        LEFT JOIN mr_counts mc
+            ON mc.work_order = p.work_order
+        ORDER BY p.work_order;
+    """
+
+
+    wo_result, wo_cols = execute_pg_select_query(query, (work_order_ids,))
+
+    result = []
+
+    for row_data in wo_result:
+        row = dict(zip(wo_cols, row_data))
+
+        wo_id = row['work_order']
+        cr_count = row['collect_record_count'] or 0
+        mr_count = row['material_resource_count'] or 0
+
+        if cr_count != mr_count:
+            result.append([
+                wo_id,
+                cr_count,
+                mr_count
+            ])
+
+    return jsonify({'success': True, 'result': result, 'columns': columns})
    
 @app.errorhandler(404)
 def page_not_found(e):

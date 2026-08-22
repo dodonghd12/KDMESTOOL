@@ -7,6 +7,8 @@ let winxAllCRRows    = [];
 let winxFilteredSeqs = [];
 let winxCRResourceOids = [];
 let winxExistingResourceOidSet = new Set();
+let winxBulkRawResult = [];
+let winxBulkColumns   = [];
 
 document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('sidebar:logout', handleLogout);
@@ -639,3 +641,163 @@ async function runUpdateGreenTireQuantity() {
 
     return true;
 }
+
+function triggerBulkFileInput() {
+    document.getElementById('bulkFileInput').click();
+}
+
+async function handleBulkFileSelected(event) {
+    const file = event.target.files[0];
+    event.target.value = ''; // cho phép chọn lại cùng file lần sau
+
+    if (!file) return;
+
+    if (!/\.(xlsx|xls)$/i.test(file.name)) {
+        await showAlert('Vui lòng chọn file Excel (.xlsx hoặc .xls)', 'error');
+        return;
+    }
+
+    let workOrderIds;
+    try {
+        workOrderIds = await parseWorkOrderExcelFile(file);
+    } catch (err) {
+        await showAlert(err.message || 'Lỗi khi đọc file Excel', 'error');
+        return;
+    }
+
+    if (!workOrderIds.length) {
+        await showAlert('Không tìm thấy dữ liệu hợp lệ trong cột work_order_list', 'warning');
+        return;
+    }
+
+    await runBulkCheckWorkOrders(workOrderIds);
+}
+
+function parseWorkOrderExcelFile(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+
+        reader.onload = (e) => {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+
+                if (!rows.length) {
+                    reject(new Error('File Excel trống'));
+                    return;
+                }
+
+                const headerCell = String(rows[0][0] || '').trim().toLowerCase();
+                if (headerCell !== 'work_order_list') {
+                    reject(new Error('Cột A dòng 1 phải là "work_order_list"'));
+                    return;
+                }
+
+                const ids = [];
+                for (let i = 1; i < rows.length; i++) {
+                    const val = String(rows[i][0] || '').trim();
+                    if (val) ids.push(val.toUpperCase());
+                }
+
+                resolve([...new Set(ids)]);
+            } catch (err) {
+                reject(new Error('Không đọc được file Excel'));
+            }
+        };
+
+        reader.onerror = () => reject(new Error('Không đọc được file'));
+        reader.readAsArrayBuffer(file);
+    });
+}
+
+function downloadWorkOrderTemplate() {
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([['work_order_list']]);
+    XLSX.utils.book_append_sheet(wb, ws, 'Template');
+    XLSX.writeFile(wb, 'template_work_order_list.xlsx');
+}
+
+async function runBulkCheckWorkOrders(workOrderIds) {
+    const data = await apiFetch('/api/magic-winx/check-work-orders-bulk', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ work_order_ids: workOrderIds })
+    });
+
+    if (!data.success) {
+        await showAlert(data.message || 'Lỗi khi kiểm tra Work Order', 'error');
+        return;
+    }
+
+    winxBulkRawResult = data.result || [];
+    winxBulkColumns   = data.columns || [];
+
+    if (!winxBulkRawResult.length) {
+        await showAlert('Không có Work Order nào lệch số lượng Collect Record / Material Resource', 'info');
+        return;
+    }
+
+    document.getElementById('bulkClientSearch').value = '';
+    renderBulkResultTable(winxBulkRawResult);
+    document.getElementById('bulkCheckModal').classList.remove('hidden');
+}
+
+function renderBulkResultTable(rows) {
+    const tbody = document.getElementById('bulkResultTableBody');
+    tbody.innerHTML = '';
+
+    rows.forEach(row => {
+        const [workOrder, crCount, mrCount] = row;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${workOrder}</td>
+            <td>${crCount}</td>
+            <td>${mrCount}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    document.getElementById('bulkResultCount').textContent = rows.length;
+}
+
+function closeBulkCheckModal() {
+    document.getElementById('bulkCheckModal').classList.add('hidden');
+}
+
+function filterBulkResult(keyword) {
+    if (!keyword) {
+        renderBulkResultTable(winxBulkRawResult);
+        return;
+    }
+
+    const filtered = winxBulkRawResult.filter(row =>
+        row.some(val => val !== null && val !== undefined &&
+            String(val).toLowerCase().includes(keyword))
+    );
+
+    renderBulkResultTable(filtered);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const bulkSearchInput   = document.getElementById('bulkClientSearch');
+    const bulkSearchIconBtn = document.getElementById('bulkSearchIconBtn');
+
+    if (bulkSearchInput && bulkSearchIconBtn) {
+        bulkSearchIconBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (document.activeElement === bulkSearchInput) {
+                bulkSearchInput.value = '';
+                bulkSearchInput.blur();
+                filterBulkResult('');
+            } else {
+                bulkSearchInput.focus();
+            }
+        });
+
+        bulkSearchInput.addEventListener('input', function () {
+            filterBulkResult(this.value.trim().toLowerCase());
+        });
+    }
+});

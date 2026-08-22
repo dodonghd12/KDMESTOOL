@@ -17,16 +17,35 @@
 
     <div class="container winx-container">
 
-        <!-- ── SEARCH BAR ── -->
-        <div class="winx-search-bar">
-            <div class="winx-input-group">
-                <label class="winx-label">Work Order ID</label>
+        <div class="winx-top-row">
+            <!-- ── SEARCH BAR (dùng chung style với main.html) ── -->
+            <div class="winx-search-bar">
+                <div class="winx-input-group">
+                    <label class="winx-label">Work Order ID</label>
+                    <div class="winx-input-row">
+                        <input type="text" id="workOrderInput" class="winx-input"
+                            placeholder="Nhập Work Order ID..." autocomplete="off">
+                        <button id="searchBtn" class="winx-btn winx-btn-primary" onclick="fetchCollectRecords()">
+                            <span class="material-symbols-outlined">search</span>
+                            Tìm
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── BULK CHECK TOOLS ── -->
+            <div class="winx-search-bar">
+                <span class="winx-label">Check SLL Work Order</span>
                 <div class="winx-input-row">
-                    <input type="text" id="workOrderInput" class="winx-input"
-                           placeholder="Nhập Work Order ID..." autocomplete="off">
-                    <button id="searchBtn" class="winx-btn winx-btn-primary" onclick="fetchCollectRecords()">
-                        <span class="material-symbols-outlined">search</span>
-                        Tìm
+                    <button id="checkBulkBtn" class="winx-btn winx-btn-ghost" onclick="triggerBulkFileInput()">
+                        <span class="material-symbols-outlined">fact_check</span>
+                        Import Excel and Check
+                    </button>
+                    <input type="file" id="bulkFileInput" accept=".xlsx,.xls" style="display:none;" onchange="handleBulkFileSelected(event)">
+
+                    <button id="downloadTemplateBtn" class="winx-btn winx-btn-ghost" onclick="downloadWorkOrderTemplate()">
+                        <span class="material-symbols-outlined">file_download</span>
+                        Tải Template Excel
                     </button>
                 </div>
             </div>
@@ -166,6 +185,45 @@
                     <span class="material-symbols-outlined">check</span>
                     Xác nhận
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ MODAL: Check SLL Work Order (bulk) ══ -->
+    <div class="modal-overlay hidden" id="bulkCheckModal">
+        <div class="modal modal-lg">
+            <div class="modal-header">
+                Kết quả kiểm tra SLL Work Order
+                <span class="close" onclick="closeBulkCheckModal()">&times;</span>
+            </div>
+
+            <div class="modal-body">
+                <div class="winx-bulk-toolbar">
+                    <div class="input-wrapper">
+                        <input placeholder="Tìm kiếm..." class="input" id="bulkClientSearch" autocomplete="nope" type="text">
+                        <button class="search-icon-btn" type="button" id="bulkSearchIconBtn">
+                            <span class="material-symbols-outlined">search</span>
+                        </button>
+                    </div>
+                    <span class="winx-selected-count">Số dòng: <strong id="bulkResultCount">0</strong></span>
+                </div>
+
+                <div class="winx-select-scroll">
+                    <table class="winx-table" id="bulkResultTable">
+                        <thead>
+                            <tr>
+                                <th>Work Order</th>
+                                <th>Số lượng Collect Record</th>
+                                <th>Số lượng Material Resource</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bulkResultTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn" style="background:#374151;color:#e5e7eb;" onclick="closeBulkCheckModal()">Đóng</button>
             </div>
         </div>
     </div>

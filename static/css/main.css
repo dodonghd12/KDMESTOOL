@@ -2666,6 +2666,79 @@ body.modal-open {
     gap: 10px;
 }
 
+.winx-bulk-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.winx-top-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.winx-search-bar {
+    background: rgba(22, 160, 133, 0.07);
+    border: 1px solid rgba(61, 213, 192, 0.2);
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
+    padding: 20px 24px;
+    width: 33%;
+    min-width: 340px;
+}
+
+.winx-label {
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #3dd5c0;
+    margin-bottom: 8px;
+    display: block;
+}
+
+.winx-input-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.winx-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 18px;
+    font-size: 12px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    border: 1px solid;
+    cursor: pointer;
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%);
+    transition: all 120ms;
+    white-space: nowrap;
+    background: none;
+    font-family: inherit;
+}
+
+.winx-btn .material-symbols-outlined {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+.winx-btn-ghost {
+    border-color: rgba(100, 120, 140, 0.4);
+    color: #8899aa;
+}
+
+.winx-btn-ghost:hover {
+    border-color: rgba(61, 213, 192, 0.4);
+    color: #3dd5c0;
+    background: rgba(61, 213, 192, 0.06);
+}
+
 .winx-btn:disabled {
     opacity: 0.4;
     cursor: not-allowed;
