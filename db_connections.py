@@ -16,14 +16,14 @@ def connect_pg_db():
     except Exception as e:
         print(f"Error connecting to the database: {e}")
         return None
-    
-def connect_old_pg_db():
+
+def connect_pg_db_dev():
     try:
         conn = pg8000.connect(
             user = "postgres",
             password = "kenda",
-            database = "kverp",
-            host = "198.1.1.92",
+            database = "kverp_dev",
+            host = "198.1.10.3",
             port = 5432
         )
 

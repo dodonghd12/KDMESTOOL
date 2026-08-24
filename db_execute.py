@@ -3,7 +3,7 @@ import json
 
 ############################################################################################################################################################
 
-from db_connections import connect_pg_db, connect_old_pg_db
+from db_connections import connect_pg_db, connect_pg_db_dev
 
 ############################################################################################################################################################
 
@@ -23,8 +23,8 @@ def execute_pg_select_query(query, params=()):
     finally:
         conn.close()
 
-def execute_old_pg_select_query(query, params=()):
-    conn = connect_old_pg_db()
+def execute_pg_dev_select_query(query, params=()):
+    conn = connect_pg_db_dev()
     if conn is None:
         return [], []
     
@@ -37,7 +37,6 @@ def execute_old_pg_select_query(query, params=()):
     finally:
         conn.close()
 
-#Postgre Update Query
 def execute_pg_update_query(query, params):
     conn = connect_pg_db()
     if conn is None:

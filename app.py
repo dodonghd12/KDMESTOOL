@@ -12,7 +12,8 @@ import ast
 import re
 from typing import Optional
 from db_execute import (execute_pg_select_query, execute_pg_update_query)
-from db_connections import (connect_pg_db, connect_old_pg_db)
+from db_connections import (connect_pg_db, connect_pg_db_dev)
+import uuid
 
 gitlab_private_token = os.environ.get('GITLAB_PRIVATE_TOKEN', '')
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -2468,30 +2469,73 @@ def magic_winx_execute():
         return jsonify({'error': 'Unauthorized'}), 401
 
     data        = request.get_json() or {}
+
+    default_cols_order = [
+            'oid', 'id', 'product_id', 'product_type', 'quantity', 'status',
+            'expiry_time', 'info', 'warehouse_id', 'warehouse_location',
+            'updated_at', 'updated_by', 'created_at', 'created_by', 'station',
+            'feed_records_id', 'batch_count', 'reprint_reason', 'collected',
+            'erp_tire_barcode_synced', 'standing_time', 'initial_quantity']
+    
     insert_rows = data.get('insert_rows', [])
 
-    if not insert_rows:
-        return jsonify({'success': False, 'message': 'Không có dữ liệu để insert'})
+    if isinstance(insert_rows, dict):
+        insert_rows = [insert_rows]
 
-    import json as _json
-    from db_execute import execute_pg_select_query
-    # Import connection thô để chạy INSERT
-    try:
-        from db_execute import execute_pg_update_query
-    except ImportError:
-        return jsonify({'success': False, 'message': 'Không import được execute_pg_update_query'})
+    if not isinstance(insert_rows, list) or not insert_rows:
+        return jsonify({
+            'success': False,
+            'message': 'Không có dữ liệu để insert'
+        })
+
+    normalized_rows = []
+
+    for original_row in insert_rows:
+
+        if not isinstance(original_row, dict):
+            continue
+
+        row = dict(original_row)
+
+        is_special_bead_wire = bool(
+            row.get('_special_bead_wire')
+        )
+
+        if (
+            is_special_bead_wire
+            and str(row.get('id') or '').startswith('7')
+            and float(row.get('quantity') or 0) > 1
+        ):
+            if not row.get('oid'):
+                row['oid'] = str(uuid.uuid4())
+
+        info_val = row.get('info')
+
+        if isinstance(info_val, dict):
+            row['info'] = json.dumps(
+                info_val,
+                ensure_ascii=False
+            )
+
+        normalized_rows.append(row)
+
+    if not normalized_rows:
+        return jsonify({
+            'success': False,
+            'message': 'Không có dòng dữ liệu hợp lệ để insert'
+        })
 
     cols_order = [
-        'oid', 'id', 'product_id', 'product_type', 'quantity', 'status',
-        'expiry_time', 'info', 'warehouse_id', 'warehouse_location',
-        'updated_at', 'updated_by', 'created_at', 'created_by', 'station',
-        'feed_records_id', 'batch_count', 'reprint_reason', 'collected',
-        'erp_tire_barcode_synced', 'standing_time', 'initial_quantity'
+        c
+        for c in default_cols_order
+        if any(c in row for row in normalized_rows)
     ]
 
-    values_list = []
-    for row in insert_rows:
-        values_list.append(tuple(row.get(c) for c in cols_order))
+    if not cols_order:
+        return jsonify({
+            'success': False,
+            'message': 'Không xác định được column để insert'
+        })
 
     placeholders = ', '.join(['%s'] * len(cols_order))
     insert_sql = f"""
@@ -2505,7 +2549,19 @@ def magic_winx_execute():
         inserted = 0
         errors   = []
 
-        for i, vals in enumerate(values_list):
+        if conn is None:
+            return jsonify({
+                'success': False,
+                'message': 'Không thể kết nối cơ sở dữ liệu'
+            })
+
+        for i, vals in enumerate(normalized_rows):
+            
+            vals = tuple(
+                row.get(c)
+                for c in cols_order
+            )
+
             try:
                 cursor.execute(insert_sql, vals)
                 inserted += 1
@@ -2985,7 +3041,586 @@ def magic_winx_check_work_orders_bulk():
             'material_resource': total_material_resource
         }
     })
+
+@app.route('/api/magic-winx/prepare-material-resource', methods=['POST'])
+def magic_winx_prepare_material_resource():
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    data = request.get_json() or {}
+    raw_input = data.get('raw_input', '').strip()
+
+    id_val = str(data.get('id') or '').strip()
+    product_id_val = str(data.get('product_id') or '').strip()
+    station_val = str(data.get('station') or '').strip()
+    quantity_val = data.get('quantity')
+    lot_number_val = str(data.get('lot_number') or '').strip()
+    created_at_val = str(data.get('created_at') or '').strip()
+    expiry_time_val = str(data.get('expiry_time') or '').strip()
+    created_by_val = str(data.get('created_by') or '').strip()
+
+
+    special_bead_wire = bool(data.get('special_bead_wire'))
+
+    try:
+        special_qty = float(quantity_val)
+    except (ValueError, TypeError):
+        special_qty = 0.0
+
+    is_special_bead_wire = (
+        id_val.startswith('7') and
+        special_qty > 1
+    )
+
+    if special_bead_wire or is_special_bead_wire:
+        if (
+            not id_val or
+            not product_id_val or
+            quantity_val is None or
+            str(quantity_val).strip() == '' or
+            not created_at_val or
+            not expiry_time_val
+        ):
+            return jsonify({
+                'success': False,
+                'message': (
+                    'Trường hợp BEAD_WIRE yêu cầu: '
+                    'id, product_id, quantity, created_at, expiry_time'
+                )
+            })
+        
+        if not id_val.startswith('7'):
+            return jsonify({
+                'success': False,
+                'message': 'BEAD_WIRE special case yêu cầu ID phải bắt đầu bằng 7'
+            })
+
+        if special_qty <= 1:
+            return jsonify({
+                'success': False,
+                'message': 'BEAD_WIRE special case yêu cầu quantity > 1'
+            })
+
+        tz_vn = pytz.timezone('Asia/Ho_Chi_Minh')
+        def parse_special_datetime(dt_str):
+            if not dt_str:
+                return None
+
+            s = str(dt_str).strip()
+            if s.isdigit():
+                if len(s) >= 19:
+                    return int(s)
+                elif len(s) >= 13:
+                    return int(s) * 1_000_000
+                elif len(s) >= 10:
+                    return int(s) * 1_000_000_000
+
+            fmts = [
+                '%Y-%m-%d %H:%M:%S',
+                '%Y-%m-%d %H:%M:%S.%f',
+                '%Y-%m-%d %H:%M',
+                '%Y/%m/%d %H:%M:%S',
+                '%Y/%m/%d %H:%M:%S.%f',
+                '%Y/%m/%d %H:%M',
+                '%Y-%m-%dT%H:%M:%S',
+                '%Y-%m-%dT%H:%M:%S.%f',
+                '%Y-%m-%dT%H:%M:%SZ',
+                '%Y-%m-%d',
+                '%Y/%m/%d'
+            ]
+
+            for fmt in fmts:
+                try:
+                    return datetime.strptime(s, fmt)
+                except ValueError:
+                    continue
+
+            return None
+
+        parsed_created = parse_special_datetime(created_at_val)
+
+        if isinstance(parsed_created, int):
+            created_at_ns = parsed_created
+
+        elif isinstance(parsed_created, datetime):
+            created_dt_vn = (
+                tz_vn.localize(parsed_created)
+                if parsed_created.tzinfo is None
+                else parsed_created.astimezone(tz_vn)
+            )
+
+            created_at_ns = (
+                int(created_dt_vn.timestamp()) * 1_000_000_000
+                + created_dt_vn.microsecond * 1000
+            )
+
+        else:
+            return jsonify({
+                'success': False,
+                'message': f'Định dạng created_at không hợp lệ: {created_at_val}'
+            })
+
+        parsed_expiry = parse_special_datetime(expiry_time_val)
+
+        if isinstance(parsed_expiry, int):
+            expiry_time_ns = parsed_expiry
+
+        elif isinstance(parsed_expiry, datetime):
+            expiry_dt_vn = (
+                tz_vn.localize(parsed_expiry)
+                if parsed_expiry.tzinfo is None
+                else parsed_expiry.astimezone(tz_vn)
+            )
+
+            expiry_time_ns = (
+                int(expiry_dt_vn.timestamp()) * 1_000_000_000
+                + expiry_dt_vn.microsecond * 1000
+            )
+
+        else:
+            return jsonify({
+                'success': False,
+                'message': f'Định dạng expiry_time không hợp lệ: {expiry_time_val}'
+            })
+
+        info_dict = {
+            "unit": "",
+            "grade": "B",
+            "remark": "",
+            "purchase": {
+                "item_no": "05",
+                "order_no": "V603081",
+                "delivery_count": "01"
+            }
+        }
+
+        generated_oid = str(uuid.uuid4())
+
+        preview_row = {
+            'oid': generated_oid,
+            'id': id_val,
+            'product_id': product_id_val,
+            'product_type': 'BEAD_WIRE',
+            'quantity': special_qty,
+            'status': 1,
+            'expiry_time': expiry_time_ns,
+            'info': info_dict,
+            'warehouse_id': ' ',
+            'warehouse_location': ' ',
+            'updated_at': created_at_ns,
+            'updated_by': '鄧氏化',
+            'created_at': created_at_ns,
+            'created_by': '鄧氏化',
+            'station': ' ',
+            'feed_records_id': '{}',
+            'batch_count': 0,
+            'reprint_reason': 0,
+            'collected': False,
+            'erp_tire_barcode_synced': False,
+
+            'staning_time': 0,
+            'initial_quantity': special_qty
+        }
+
+        return jsonify({
+            'success': True,
+            'preview_row': preview_row,
+            'work_order': None,
+            'recipe_id': None,
+            'special_bead_wire': True,
+            'message': (
+                f'Chuẩn bị preview BEAD_WIRE thành công cho ID = {id_val}'
+            )
+        })
     
+    if raw_input and (not id_val or not product_id_val or not station_val):
+        parts = []
+        if ',' in raw_input:
+            parts = [p.strip() for p in raw_input.split(',')]
+        elif '\t' in raw_input:
+            parts = [p.strip() for p in raw_input.split('\t')]
+        elif ';' in raw_input:
+            parts = [p.strip() for p in raw_input.split(';')]
+        elif '|' in raw_input:
+            parts = [p.strip() for p in raw_input.split('|')]
+        else:
+            parts = [p.strip() for p in raw_input.split()]
+            if len(parts) == 10:
+                parts = [
+                    parts[0], parts[1], parts[2], parts[3], parts[4],
+                    f"{parts[5]} {parts[6]}",
+                    f"{parts[7]} {parts[8]}",
+                    parts[9]
+                ]
+        if len(parts) >= 8:
+            id_val = parts[0]
+            product_id_val = parts[1]
+            station_val = parts[2]
+            quantity_val = parts[3]
+            lot_number_val = parts[4]
+            created_at_val = parts[5]
+            expiry_time_val = parts[6]
+            created_by_val = parts[7]
+
+    if not id_val or not product_id_val or not station_val or quantity_val is None or quantity_val == '' or not lot_number_val or not created_at_val or not expiry_time_val or not created_by_val:
+        return jsonify({
+            'success': False,
+            'message': 'Vui lòng nhập đầy đủ: id, product_id, station, quantity, lot_number, created_at, expiry_time, created_by'
+        })
+
+    try:
+        # Xử lý trước giá trị quantity dưới dạng số để so sánh
+        try:
+            qty_num = float(quantity_val)
+        except (ValueError, TypeError):
+            qty_num = 0.0
+
+        # Bước 1: Query work_order
+        wo_query = """
+            SELECT id, recipe_id
+            FROM kvmes.work_order wo
+            WHERE wo.recipe_id LIKE %s
+              AND wo.station LIKE %s
+              AND (wo.reserved_date::date = '2026-08-23'::date OR wo.reserved_date::text LIKE '2026-08-24%')
+            ORDER BY wo.updated_at DESC;
+        """
+        wo_result, wo_cols = execute_pg_select_query(wo_query, (f"%{product_id_val}%", f"%{station_val}%"))
+        if not wo_result:
+            return jsonify({
+                'success': False,
+                'message': f'Không tìm thấy Work Order phù hợp với recipe_id LIKE "%{product_id_val}%", station LIKE "%{station_val}%" và reserved_date = "2026-08-24"'
+            })
+
+        selected_wo_row = None
+
+        if len(wo_result) > 1:
+            for row_data in wo_result:
+                r_dict = dict(zip(wo_cols, row_data))
+                candidate_wo_id = r_dict.get('id')
+                if not candidate_wo_id:
+                    continue
+
+                check_mr_query = """
+                    SELECT COUNT(*) FROM kvmes.material_resource
+                    WHERE oid IN (
+                        SELECT resource_oid 
+                        FROM kvmes.collect_record 
+                        WHERE TRIM(work_order) = TRIM(%s)
+                        ORDER BY "sequence" ASC
+                    )
+                """
+                mr_check_result, _ = execute_pg_select_query(check_mr_query, (candidate_wo_id,))
+                mr_count = mr_check_result[0][0] if mr_check_result and mr_check_result[0] else 0
+
+                check_cr_query = """
+                    SELECT COUNT(*)
+                    FROM kvmes.collect_record
+                    where TRIM(work_order) = TRIM(%s);
+                """
+                cr_check_result, _ = execute_pg_select_query(check_cr_query, (candidate_wo_id,))
+                cr_count = cr_check_result[0][0] if cr_check_result and cr_check_result[0] else 0
+
+                if cr_count != mr_count:
+                    selected_wo_row = r_dict
+                    break
+
+            if not selected_wo_row:
+                return jsonify({
+                    'success': False,
+                    'message': f'Tìm thấy {len(wo_result)} Work Order nhưng tất cả đều đã có đủ dữ liệu trong bảng material_resource'
+                })
+        else:
+            selected_wo_row = dict(zip(wo_cols, wo_result[0]))
+
+        recipe_id = selected_wo_row.get('recipe_id')
+        work_order_id = selected_wo_row.get('id')
+
+        if not recipe_id or not work_order_id:
+            return jsonify({
+                'success': False,
+                'message': 'Không lấy được recipe_id hoặc id từ kết quả truy vấn work_order'
+            })
+
+        # Bước 2: Query recipe_process_definition
+        rpd_query = """
+            SELECT oid, recipe_id, name, type, configs, product_id, product_type, limitary_hour
+            FROM kvmes.recipe_process_definition
+            WHERE recipe_id = %s
+            LIMIT 1;
+        """
+        rpd_result, rpd_cols = execute_pg_select_query(rpd_query, (recipe_id,))
+        if not rpd_result:
+            return jsonify({
+                'success': False,
+                'message': f'Không tìm thấy recipe_process_definition cho recipe_id = "{recipe_id}"'
+            })
+
+        rpd_row = dict(zip(rpd_cols, rpd_result[0]))
+        rpd_recipe_id = rpd_row.get('recipe_id') or recipe_id
+        rpd_name = rpd_row.get('name') or ''
+        rpd_type = rpd_row.get('type') or ''
+        rpd_product_type = rpd_row.get('product_type') or ''
+
+        # Bước 3: Query collect_record
+        cr_query = """
+            SELECT work_order, sequence, lot_number, station, resource_oid, detail, 
+                   created_at, oid, work_date
+            FROM kvmes.collect_record
+            WHERE TRIM(work_order) = TRIM(%s)
+              AND (detail->>'quantity')::numeric = %s
+              AND resource_oid NOT IN (
+                  SELECT oid 
+                  FROM kvmes.material_resource 
+                  WHERE oid IN (
+                      SELECT resource_oid 
+                      FROM kvmes.collect_record 
+                      WHERE TRIM(work_order) = TRIM(%s)
+                  )
+              )
+            ORDER BY "sequence" ASC
+            LIMIT 1;
+        """
+        cr_params = (work_order_id, qty_num, work_order_id)
+        cr_result, cr_cols = execute_pg_select_query(cr_query, cr_params)
+        if not cr_result:
+            return jsonify({
+                'success': False,
+                'message': f'Không tìm thấy collect_record cho work_order = "{work_order_id}"'
+            })
+
+        cr_row = dict(zip(cr_cols, cr_result[0]))
+        resource_oid = str(cr_row.get('resource_oid') or '')
+        if not resource_oid:
+            return jsonify({
+                'success': False,
+                'message': f'collect_record không có resource_oid cho work_order = "{work_order_id}"'
+            })
+
+        # Bước 4: Query batch
+        batch_query = """
+            SELECT work_order, "number", status, updated_at, updated_by, records_id, records
+            FROM kvmes.batch
+            WHERE TRIM(work_order) = TRIM(%s)
+            ORDER BY "number" ASC;
+        """
+        batch_result, batch_cols = execute_pg_select_query(batch_query, (work_order_id,))
+
+        # Bước 5: Query feed_record
+        fr_query = """
+            SELECT fr.* FROM kvmes.feed_record fr
+            WHERE fr.id IN (
+                SELECT UNNEST(b.records_id)
+                FROM kvmes.batch b
+                WHERE TRIM(b.work_order) = TRIM(%s)
+                ORDER BY "number" ASC
+            )
+            LIMIT 1;
+        """
+        fr_result, fr_cols = execute_pg_select_query(fr_query, (work_order_id,))
+        feed_record_id = ""
+        if fr_result:
+            fr_row = dict(zip(fr_cols, fr_result[0]))
+            feed_record_id = str(fr_row.get('id') or '')
+
+        # Xử lý thời gian và định dạng nano second (19 số)
+        tz_vn = pytz.timezone('Asia/Ho_Chi_Minh')
+
+        def parse_input_datetime(dt_str):
+            if not dt_str:
+                return None
+            s = str(dt_str).strip()
+            if s.isdigit():
+                if len(s) >= 19:
+                    return int(s)
+                elif len(s) >= 13:
+                    return int(s) * 1_000_000
+                elif len(s) >= 10:
+                    return int(s) * 1_000_000_000
+
+            fmts = [
+                '%Y-%m-%d %H:%M:%S',
+                '%Y-%m-%d %H:%M:%S.%f',
+                '%Y-%m-%d %H:%M',
+                '%Y/%m/%d %H:%M:%S',
+                '%Y/%m/%d %H:%M:%S.%f',
+                '%Y/%m/%d %H:%M',
+                '%Y-%m-%dT%H:%M:%S',
+                '%Y-%m-%dT%H:%M:%S.%f',
+                '%Y-%m-%dT%H:%M:%SZ',
+                '%Y-%m-%d',
+                '%Y/%m/%d'
+            ]
+            for fmt in fmts:
+                try:
+                    return datetime.strptime(s, fmt)
+                except ValueError:
+                    continue
+            return None
+
+        parsed_expiry = parse_input_datetime(expiry_time_val)
+        if isinstance(parsed_expiry, int):
+            expiry_time_ns = parsed_expiry
+        elif isinstance(parsed_expiry, datetime):
+            dt_vn = tz_vn.localize(parsed_expiry) if parsed_expiry.tzinfo is None else parsed_expiry.astimezone(tz_vn)
+            expiry_time_ns = int(dt_vn.timestamp()) * 1_000_000_000 + (dt_vn.microsecond * 1000)
+        else:
+            return jsonify({'success': False, 'message': f'Định dạng expiry_time không hợp lệ: {expiry_time_val}'})
+
+        parsed_created = parse_input_datetime(created_at_val)
+        if isinstance(parsed_created, int):
+            created_at_ns = parsed_created
+            created_dt_vn = datetime.fromtimestamp(created_at_ns / 1_000_000_000.0, tz=tz_vn)
+        elif isinstance(parsed_created, datetime):
+            created_dt_vn = tz_vn.localize(parsed_created) if parsed_created.tzinfo is None else parsed_created.astimezone(tz_vn)
+            created_at_ns = int(created_dt_vn.timestamp()) * 1_000_000_000 + (created_dt_vn.microsecond * 1000)
+        else:
+            return jsonify({'success': False, 'message': f'Định dạng created_at không hợp lệ: {created_at_val}'})
+
+        created_dt_utc = created_dt_vn.astimezone(timezone.utc)
+        production_time_str = created_dt_utc.strftime('%Y-%m-%dT%H:%M:%S') + f'.{created_dt_vn.microsecond:06d}000Z'
+
+        # Xây dựng JSON cho cột info
+        info_dict = {
+            "unit": "",
+            "grade": "",
+            "remark": "",
+            "purchase": {
+                "item_no": "",
+                "order_no": "",
+                "delivery_count": ""
+            },
+            "change_log": None,
+            "lot_number": lot_number_val,
+            "min_dosage": "0",
+            "hold_reason": 0,
+            "inspections": None,
+            "deferrals_count": 0,
+            "production_info": {
+                "station": station_val,
+                "recipe_id": rpd_recipe_id,
+                "next_station": "",
+                "process_name": rpd_name,
+                "process_type": rpd_type,
+                "production_time": production_time_str
+            },
+            "planned_quantity": "0",
+            "additional_fields": None,
+            "is_special_approved": False,
+            "inspection_serial_number": ""
+        }
+
+        try:
+            qty_num = float(quantity_val)
+        except (ValueError, TypeError):
+            qty_num = 0.0
+
+        feed_records_id_param = f"{{{feed_record_id}}}" if feed_record_id else "{}"
+
+        preview_row = {
+            'oid': resource_oid,
+            'id': id_val,
+            'product_id': product_id_val,
+            'product_type': rpd_product_type,
+            'quantity': qty_num,
+            'status': 1,
+            'expiry_time': expiry_time_ns,
+            'info': info_dict,
+            'warehouse_id': ' ',
+            'warehouse_location': ' ',
+            'updated_at': created_at_ns,
+            'updated_by': created_by_val,
+            'created_at': created_at_ns,
+            'created_by': created_by_val,
+            'station': ' ',
+            'feed_records_id': feed_records_id_param,
+            'batch_count': 0,
+            'reprint_reason': 0,
+            'collected': True,
+            'erp_tire_barcode_synced': False,
+            'standing_time': created_at_ns,
+            'initial_quantity': 0
+        }
+
+        return jsonify({
+            'success': True,
+            'preview_row': preview_row,
+            'work_order': work_order_id,
+            'recipe_id': rpd_recipe_id,
+            'message': f'Chuẩn bị dữ liệu preview thành công cho ID = {id_val}'
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Lỗi thực thi: {str(e)}'})
+
+@app.route('/api/magic-winx/insert-material-resource', methods=['POST'])
+def magic_winx_insert_material_resource():
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    data = request.get_json() or {}
+
+    cols_order = [
+        'oid', 'id', 'product_id', 'product_type', 'quantity', 'status',
+        'expiry_time', 'info', 'warehouse_id', 'warehouse_location',
+        'updated_at', 'updated_by', 'created_at', 'created_by', 'station',
+        'feed_records_id', 'batch_count', 'reprint_reason', 'collected',
+        'erp_tire_barcode_synced', 'standing_time', 'initial_quantity'
+    ]
+
+    insert_row = data.get('insert_row')
+
+    if insert_row and isinstance(insert_row, dict):
+        row = dict(insert_row)
+        info_val = row.get('info')
+        if isinstance(info_val, dict):
+            row['info'] = json.dumps(info_val, ensure_ascii=False)
+
+        vals = tuple(row.get(c) for c in cols_order)
+        id_val = str(row.get('id') or '')
+    else:
+        # Nếu gọi trực tiếp thì chạy prepare trước
+        prep_res = magic_winx_prepare_material_resource()
+        if hasattr(prep_res, 'get_json'):
+            prep_data = prep_res.get_json()
+        else:
+            prep_data = prep_res[0].get_json() if isinstance(prep_res, tuple) else {}
+
+        if not prep_data.get('success'):
+            return prep_res
+
+        row = dict(prep_data.get('preview_row') or {})
+        info_val = row.get('info')
+        if isinstance(info_val, dict):
+            row['info'] = json.dumps(info_val, ensure_ascii=False)
+
+        vals = tuple(row.get(c) for c in cols_order)
+        id_val = str(row.get('id') or '')
+
+    insert_sql = f"""
+        INSERT INTO kvmes.material_resource ({', '.join(cols_order)})
+        VALUES ({', '.join(['%s'] * len(cols_order))})
+    """
+
+    try:
+        conn = connect_pg_db()
+        if conn is None:
+            return jsonify({'success': False, 'message': 'Không thể kết nối cơ sở dữ liệu'})
+
+        cursor = conn.cursor()
+        cursor.execute(insert_sql, vals)
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'message': f'Insert thành công material_resource với ID = {id_val}',
+            'inserted_id': id_val
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Lỗi khi Insert vào kvmes.material_resource: {str(e)}'})
+
 @app.errorhandler(404)
 def page_not_found(e):
     return render_template('404.html'), 404

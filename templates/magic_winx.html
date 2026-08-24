@@ -50,6 +50,59 @@
                     </button>
                 </div>
             </div>
+
+            <!-- ── INSERT MATERIAL RESOURCE ── -->
+            <div class="winx-search-bar winx-search-bar-form">
+                <div class="winx-mr-note">
+                    <div>// Nếu insert Tem vàng / Barcode đầu 7</div>
+                    <div>// thì chỉ cần nhập ID, product_id, quantity, created_at, expiry_time.</div>
+                </div>
+                <div class="winx-input-group">
+                    <label class="winx-label">BÙA LIỆU MATERIAL BỊ CONDINGU XÓA</label>
+                    <div class="winx-form-grid">
+                        <div class="winx-form-item">
+                            <label class="winx-sublabel">Barcode</label>
+                            <input type="text" id="mr_id" class="winx-input" placeholder="Nhập Barcode..." autocomplete="off">
+                        </div>
+                        <div class="winx-form-item">
+                            <label class="winx-sublabel">Product ID</label>
+                            <input type="text" id="mr_product_id" class="winx-input" placeholder="Ví dụ: 266RYB1" autocomplete="off">
+                        </div>
+                        <div class="winx-form-item">
+                            <label class="winx-sublabel">Quantity</label>
+                            <input type="number" step="any" id="mr_quantity" class="winx-input" placeholder="Ví dụ: 100" autocomplete="off">
+                        </div>
+                        <div class="winx-form-item">
+                            <label class="winx-sublabel">Lot Number</label>
+                            <input type="text" id="mr_lot_number" class="winx-input" placeholder="Ví dụ: 201-0824" autocomplete="off">
+                        </div>
+                        <div class="winx-form-item">
+                            <label class="winx-sublabel">Created By</label>
+                            <input type="text" id="mr_created_by" class="winx-input" placeholder="Department..." autocomplete="off">
+                            <div id="mr_created_by_dropdown" class="dropdown-list"></div>
+                        </div>
+                        <div class="winx-form-item">
+                            <label class="winx-sublabel">Station</label>
+                            <input type="text" id="mr_station" class="winx-input" placeholder="Station..." autocomplete="off">
+                            <div id="mr_station_dropdown" class="dropdown-list"></div>
+                        </div>
+                        <div class="winx-form-item">
+                            <label class="winx-sublabel">Created At</label>
+                            <input type="text" id="mr_created_at" class="winx-input" placeholder="YYYY-MM-DD HH:mm:ss" autocomplete="off">
+                        </div>
+                        <div class="winx-form-item">
+                            <label class="winx-sublabel">Expiry Time</label>
+                            <input type="text" id="mr_expiry_time" class="winx-input" placeholder="YYYY-MM-DD HH:mm:ss" autocomplete="off">
+                        </div>
+                    </div>
+                    <div class="winx-form-actions">
+                        <button id="insertMaterialBtn" class="winx-btn winx-btn-primary" onclick="handleInsertMaterialResource()">
+                            <span class="material-symbols-outlined">search</span>
+                            Tìm
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- ── STATUS PANEL ── -->
@@ -102,6 +155,35 @@
                     Download Log
                 </button>
                 <button class="winx-btn winx-btn-danger" onclick="openConfirmModal()">
+                    <span class="material-symbols-outlined">bolt</span>
+                    Thực hiện Insert
+                </button>
+            </div>
+        </div>
+
+        <!-- ── PREVIEW PANEL CHO INSERT MATERIAL RESOURCE ── -->
+        <div class="winx-status-panel" id="mrPreviewPanel" style="display:none;">
+            <!-- preview table -->
+            <div class="winx-preview-wrap">
+                <div class="winx-preview-header">
+                    <span>Preview dữ liệu sẽ insert</span>
+                    <span id="mrPreviewCount" class="winx-badge">0 dòng</span>
+                </div>
+                <div class="winx-table-scroll">
+                    <table class="winx-table" id="mrPreviewTable">
+                        <thead id="mrPreviewHead"></thead>
+                        <tbody id="mrPreviewBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- action buttons -->
+            <div class="winx-action-row">
+                <button class="winx-btn winx-btn-ghost winx-btn-download" onclick="downloadSingleInsertMaterialLog()">
+                    <span class="material-symbols-outlined">download</span>
+                    Download Log
+                </button>
+                <button class="winx-btn winx-btn-danger" onclick="openSingleInsertConfirmModal()">
                     <span class="material-symbols-outlined">bolt</span>
                     Thực hiện Insert
                 </button>
@@ -183,6 +265,33 @@
                     Download Log
                 </button>
                 <button class="winx-btn winx-btn-danger" onclick="runExecute()">
+                    <span class="material-symbols-outlined">check</span>
+                    Xác nhận
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ MODAL: xác nhận insert material resource ══ -->
+    <div class="winx-overlay" id="mrConfirmModal" style="display:none;">
+        <div class="winx-modal winx-modal-sm">
+            <div class="winx-modal-header winx-modal-header-danger">
+                <span class="winx-modal-title">⚠ Xác nhận thực hiện Insert</span>
+            </div>
+            <div class="winx-modal-body">
+                <p class="winx-confirm-msg">
+                    Bạn sắp insert <strong id="mrConfirmCount">1</strong> dòng (ID: <code id="mrConfirmId"></code>) vào bảng
+                    <code>kvmes.material_resource</code>.<br>
+                    Hành động này <strong>không thể hoàn tác</strong>. Bạn có chắc chắn?
+                </p>
+            </div>
+            <div class="winx-modal-footer">
+                <button class="winx-btn winx-btn-ghost" onclick="closeSingleInsertConfirmModal()">Không</button>
+                <button class="winx-btn winx-btn-ghost" onclick="downloadSingleInsertMaterialLog()">
+                    <span class="material-symbols-outlined">download</span>
+                    Download Log
+                </button>
+                <button class="winx-btn winx-btn-danger" onclick="executeSingleInsertMaterial()">
                     <span class="material-symbols-outlined">check</span>
                     Xác nhận
                 </button>
