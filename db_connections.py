@@ -1,7 +1,5 @@
 import pg8000
-import pyodbc
 
-#Postgre
 def connect_pg_db():
     try:
         conn = pg8000.connect(

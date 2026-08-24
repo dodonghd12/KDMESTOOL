@@ -2556,7 +2556,7 @@ def magic_winx_execute():
             })
 
         for i, vals in enumerate(normalized_rows):
-            
+
             vals = tuple(
                 row.get(c)
                 for c in cols_order
@@ -2577,7 +2577,7 @@ def magic_winx_execute():
             'success':  True,
             'inserted': inserted,
             'errors':   errors,
-            'message':  f'Insert thành công {inserted}/{len(values_list)} dòng'
+            'message':  f'Insert thành công {inserted}/{len(normalized_rows)} dòng'
         })
 
     except Exception as e:
