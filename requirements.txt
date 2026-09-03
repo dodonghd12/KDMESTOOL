@@ -8,3 +8,4 @@ tkcalendar
 openpyxl
 python-dateutil
 pyodbc
+uuid

@@ -2218,7 +2218,6 @@ body.modal-open {
 .comparison-table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 10px;
     font-size: 14px;
 }
 
