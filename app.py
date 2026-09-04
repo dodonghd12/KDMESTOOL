@@ -1,6 +1,6 @@
-from typing import Any
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for # type: ignore
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, Response # type: ignore
 from flask_session import Session
+from decimal import Decimal
 import pytz # type: ignore
 import urllib3 # type: ignore
 import requests # type: ignore
@@ -13,18 +13,31 @@ import re
 from typing import Optional
 from db_execute import (execute_pg_select_query, execute_pg_update_query)
 from db_connections import (connect_pg_db, connect_pg_db_dev)
+import threading
+import time
 import uuid
 
 gitlab_private_token = os.environ.get('GITLAB_PRIVATE_TOKEN', '')
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+def json_serial_fallback(obj):
+    if isinstance(obj, Decimal):
+        return float(obj) if obj % 1 else int(obj)
+    if isinstance(obj, (datetime, timedelta)):
+        return str(obj)
+    return str(obj)
+
 def serialize_row(row):
     serialized = []
     for value in row:
-        if isinstance(value, dict):
-            serialized.append(json.dumps(value, indent=2, ensure_ascii=False))
+        if isinstance(value, Decimal):
+            serialized.append(float(value) if value % 1 else int(value))
+        elif isinstance(value, dict):
+            serialized.append(json.dumps(value, indent=2, ensure_ascii=False, default=json_serial_fallback))
         elif isinstance(value, (list, tuple)) and value and isinstance(value[0], (dict, list)):
-            serialized.append(json.dumps(value, indent=2, ensure_ascii=False))
+            serialized.append(json.dumps(value, indent=2, ensure_ascii=False, default=json_serial_fallback))
+        elif isinstance(value, (datetime, timedelta)):
+            serialized.append(str(value))
         else:
             serialized.append(value)
     return serialized
@@ -977,21 +990,36 @@ def fetch_output_barcode_by_work_order():
             'message': f'Lỗi: {str(e)}'
         })
 
-@app.route('/api/barcodes/fetch-output-barcodes', methods=['POST'])
-def get_output_barcode_by_barcode():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
-    
-    resource_id = request.json.get('resource_id')
-    if not resource_id:
-        return jsonify({'success': False, 'message': 'Thiếu Resource ID'})
-    
-    work_order = request.json.get('work_order')
-    if not work_order:
-        return jsonify({'success': False, 'message': 'Thiếu MES ID'})
-    
+output_barcode_tasks = {}
+tasks_lock = threading.Lock()
+
+def cleanup_expired_barcode_tasks():
+    now = time.time()
+    with tasks_lock:
+        expired = [tid for tid, t in output_barcode_tasks.items() if now - t.get('created_at', now) > 1800]
+        for tid in expired:
+            output_barcode_tasks.pop(tid, None)
+
+def run_output_barcode_query_task(task_id, resource_id, work_order):
     try:
         query = """
+            WITH target_batches AS (
+                SELECT DISTINCT UNNEST(b.records_id) AS feed_id
+                FROM kvmes.batch b
+                WHERE TRIM(b.work_order) = TRIM(%s)
+            ),
+            matched_feed AS (
+                SELECT fr.id AS feed_id
+                FROM kvmes.feed_record fr
+                JOIN target_batches tb ON fr.id = tb.feed_id
+                WHERE EXISTS (
+                    SELECT 1
+                    FROM jsonb_array_elements(fr.materials) AS material_elem
+                    JOIN jsonb_array_elements(material_elem->'feed_resources') AS feed_elem
+                        ON TRUE
+                    WHERE feed_elem->>'resource_id' = %s
+                )
+            )
             SELECT
                 mr.id,
                 mr.product_id,
@@ -1001,41 +1029,296 @@ def get_output_barcode_by_barcode():
                 mr.info->>'lot_number' AS lot_number,
                 mr.product_type
             FROM kvmes.material_resource mr
-            JOIN kvmes.feed_record fr
-                ON fr.id = ANY (mr.feed_records_id)
-            JOIN kvmes.batch b
-                ON fr.id = ANY (b.records_id)
-            WHERE EXISTS (
-                SELECT 1
-                FROM jsonb_array_elements(fr.materials) AS material_elem
-                JOIN jsonb_array_elements(material_elem->'feed_resources') AS feed_elem
-                    ON TRUE
-                WHERE feed_elem->>'resource_id' = %s
-            )
-            AND b.work_order = %s
-            LIMIT 500;
+            JOIN matched_feed mf
+                ON mf.feed_id = ANY (mr.feed_records_id);
         """
-        
-        result, column_names = execute_pg_select_query(query, (resource_id, work_order))
-        if result:       
+        result, column_names = execute_pg_select_query(query, (work_order, resource_id))
+
+        if not result:
+            fallback_query = """
+                SELECT
+                    mr.id,
+                    mr.product_id,
+                    mr.quantity,
+                    mr.status,
+                    mr.created_at,
+                    mr.info->>'lot_number' AS lot_number,
+                    mr.product_type
+                FROM kvmes.material_resource mr
+                JOIN kvmes.feed_record fr
+                    ON fr.id = ANY (mr.feed_records_id)
+                JOIN kvmes.batch b
+                    ON fr.id = ANY (b.records_id)
+                WHERE EXISTS (
+                    SELECT 1
+                    FROM jsonb_array_elements(fr.materials) AS material_elem
+                    JOIN jsonb_array_elements(material_elem->'feed_resources') AS feed_elem
+                        ON TRUE
+                    WHERE feed_elem->>'resource_id' = %s
+                )
+                AND b.work_order = %s;
+            """
+            fb_result, fb_cols = execute_pg_select_query(fallback_query, (resource_id, work_order))
+            if fb_result:
+                result = fb_result
+                column_names = fb_cols
+
+        if result:
             convert_columns = ["expiry_time", "updated_at", "created_at", "standing_time"]
             result = convert_timestamp(result, column_names, convert_columns)
             serialized_result = [serialize_row(list(row)) for row in result]
-            return jsonify({
-                'success': True,
-                'result': serialized_result,
-                'columns': column_names
-            })
         else:
-            return jsonify({
-                'success': True,
-                'result': [],
-                'columns': column_names, 
-                'message': 'Không tìm thấy tem đầu ra'
-            })
-    
+            serialized_result = []
+
+        with tasks_lock:
+            if task_id in output_barcode_tasks:
+                task_start = output_barcode_tasks[task_id].get('created_at', time.time())
+                duration = round(time.time() - task_start, 2)
+                output_barcode_tasks[task_id].update({
+                    'status': 'completed',
+                    'success': True,
+                    'result': serialized_result,
+                    'columns': column_names if result else ['id', 'product_id', 'quantity', 'status', 'created_at', 'lot_number', 'product_type'],
+                    'count': len(serialized_result),
+                    'message': 'Thành công' if serialized_result else 'Không tìm thấy tem đầu ra',
+                    'completed_at': time.time(),
+                    'duration': duration
+                })
+
     except Exception as e:
-        return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
+        with tasks_lock:
+            if task_id in output_barcode_tasks:
+                task_start = output_barcode_tasks[task_id].get('created_at', time.time())
+                duration = round(time.time() - task_start, 2)
+                output_barcode_tasks[task_id].update({
+                    'status': 'failed',
+                    'success': False,
+                    'message': f'Lỗi truy vấn: {str(e)}',
+                    'completed_at': time.time(),
+                    'duration': duration
+                })
+
+@app.route('/api/barcodes/fetch-output-barcodes', methods=['POST'])
+def get_output_barcode_by_barcode():
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    resource_id = str(request.json.get('resource_id') or '').strip()
+    if not resource_id:
+        return jsonify({'success': False, 'message': 'Thiếu Resource ID'})
+    
+    work_order = str(request.json.get('work_order') or '').strip()
+    if not work_order:
+        return jsonify({'success': False, 'message': 'Thiếu MES ID'})
+
+    cleanup_expired_barcode_tasks()
+
+    task_id = uuid.uuid4().hex
+    with tasks_lock:
+        output_barcode_tasks[task_id] = {
+            'task_id': task_id,
+            'status': 'processing',
+            'created_at': time.time(),
+            'resource_id': resource_id,
+            'work_order': work_order,
+            'result': None,
+            'columns': None,
+            'success': None,
+            'message': 'Đang tìm kiếm tem đầu ra trong cơ sở dữ liệu...'
+        }
+
+    worker = threading.Thread(
+        target=run_output_barcode_query_task,
+        args=(task_id, resource_id, work_order),
+        daemon=True
+    )
+    worker.start()
+
+    return jsonify({
+        'success': True,
+        'task_id': task_id,
+        'status': 'processing',
+        'message': 'Đã khởi tạo truy vấn tem đầu ra, hệ thống đang xử lý...'
+    })
+
+@app.route('/api/barcodes/fetch-output-barcodes/status/<task_id>', methods=['GET'])
+def get_output_barcode_task_status(task_id):
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    with tasks_lock:
+        task = output_barcode_tasks.get(task_id)
+
+    if not task:
+        return jsonify({
+            'success': False,
+            'status': 'not_found',
+            'message': 'Yêu cầu không tồn tại hoặc đã hết hạn.'
+        }), 404
+
+    now = time.time()
+    created_at = task.get('created_at', now)
+    elapsed = round(now - created_at, 1)
+
+    if task['status'] == 'completed':
+        return jsonify({
+            'success': True,
+            'status': 'completed',
+            'result': task.get('result', []),
+            'columns': task.get('columns', []),
+            'message': task.get('message', ''),
+            'duration': task.get('duration', elapsed),
+            'elapsed_seconds': elapsed
+        })
+    elif task['status'] == 'failed':
+        return jsonify({
+            'success': False,
+            'status': 'failed',
+            'message': task.get('message', 'Truy vấn thất bại'),
+            'duration': task.get('duration', elapsed),
+            'elapsed_seconds': elapsed
+        })
+    elif task['status'] == 'cancelled':
+        return jsonify({
+            'success': False,
+            'status': 'cancelled',
+            'message': 'Yêu cầu đã bị hủy bởi người dùng',
+            'elapsed_seconds': elapsed
+        })
+    else:
+        return jsonify({
+            'success': True,
+            'status': 'processing',
+            'message': task.get('message', 'Đang truy vấn...'),
+            'elapsed_seconds': elapsed
+        })
+
+@app.route('/api/barcodes/fetch-output-barcodes/stream', methods=['GET'])
+def stream_output_barcodes():
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    resource_id = str(request.args.get('resource_id') or '').strip()
+    work_order = str(request.args.get('work_order') or '').strip()
+    
+    if not resource_id or not work_order:
+        def err_gen():
+            yield f"data: {json.dumps({'status': 'failed', 'message': 'Thiếu Resource ID hoặc MES ID'}, ensure_ascii=False)}\n\n"
+        return Response(err_gen(), mimetype='text/event-stream')
+
+    def event_stream():
+        task_data = {'status': 'processing', 'result': None, 'columns': None, 'error': None}
+        
+        def run_query():
+            try:
+                # Optimized CTE query filtering by work_order first on kvmes.batch
+                query = """
+                    WITH target_batches AS (
+                        SELECT DISTINCT UNNEST(b.records_id) AS feed_id
+                        FROM kvmes.batch b
+                        WHERE TRIM(b.work_order) = TRIM(%s)
+                    ),
+                    matched_feed AS (
+                        SELECT fr.id AS feed_id
+                        FROM kvmes.feed_record fr
+                        JOIN target_batches tb ON fr.id = tb.feed_id
+                        WHERE EXISTS (
+                            SELECT 1
+                            FROM jsonb_array_elements(fr.materials) AS material_elem
+                            JOIN jsonb_array_elements(material_elem->'feed_resources') AS feed_elem
+                                ON TRUE
+                            WHERE feed_elem->>'resource_id' = %s
+                        )
+                    )
+                    SELECT
+                        mr.id,
+                        mr.product_id,
+                        mr.quantity,
+                        mr.status,
+                        mr.created_at,
+                        mr.info->>'lot_number' AS lot_number,
+                        mr.product_type
+                    FROM kvmes.material_resource mr
+                    JOIN matched_feed mf
+                        ON mf.feed_id = ANY (mr.feed_records_id);
+                """
+                res, cols = execute_pg_select_query(query, (work_order, resource_id))
+
+                if not res:
+                    fallback_query = """
+                        SELECT
+                            mr.id,
+                            mr.product_id,
+                            mr.quantity,
+                            mr.status,
+                            mr.created_at,
+                            mr.info->>'lot_number' AS lot_number,
+                            mr.product_type
+                        FROM kvmes.material_resource mr
+                        JOIN kvmes.feed_record fr
+                            ON fr.id = ANY (mr.feed_records_id)
+                        JOIN kvmes.batch b
+                            ON fr.id = ANY (b.records_id)
+                        WHERE EXISTS (
+                            SELECT 1
+                            FROM jsonb_array_elements(fr.materials) AS material_elem
+                            JOIN jsonb_array_elements(material_elem->'feed_resources') AS feed_elem
+                                ON TRUE
+                            WHERE feed_elem->>'resource_id' = %s
+                        )
+                        AND b.work_order = %s;
+                    """
+                    fb_res, fb_cols = execute_pg_select_query(fallback_query, (resource_id, work_order))
+                    if fb_res:
+                        res, cols = fb_res, fb_cols
+
+                if res:
+                    convert_columns = ["expiry_time", "updated_at", "created_at", "standing_time"]
+                    res = convert_timestamp(res, cols, convert_columns)
+                    serialized = [serialize_row(list(row)) for row in res]
+                else:
+                    serialized = []
+
+                task_data['result'] = serialized
+                task_data['columns'] = cols if res else ['id', 'product_id', 'quantity', 'status', 'created_at', 'lot_number', 'product_type']
+                task_data['status'] = 'completed'
+            except Exception as e:
+                task_data['error'] = str(e)
+                task_data['status'] = 'failed'
+
+        worker = threading.Thread(target=run_query, daemon=True)
+        worker.start()
+
+        start_time = time.time()
+        
+        # Stream keep-alive / progress events until query finishes
+        while task_data['status'] == 'processing':
+            elapsed = round(time.time() - start_time, 1)
+            yield f"data: {json.dumps({'status': 'processing', 'elapsed': elapsed}, ensure_ascii=False)}\n\n"
+            time.sleep(1.0)
+
+        duration = round(time.time() - start_time, 2)
+        if task_data['status'] == 'completed':
+            yield f"data: {json.dumps({'status': 'completed', 'result': task_data['result'], 'columns': task_data['columns'], 'duration': duration, 'count': len(task_data['result'])}, ensure_ascii=False, default=json_serial_fallback)}\n\n"
+        else:
+            err_msg = task_data.get('error') or 'Lỗi không xác định'
+            yield f"data: {json.dumps({'status': 'failed', 'message': f'Lỗi: {err_msg}', 'duration': duration}, ensure_ascii=False, default=json_serial_fallback)}\n\n"
+
+    response = Response(event_stream(), mimetype='text/event-stream')
+    response.headers['Cache-Control'] = 'no-cache'
+    response.headers['X-Accel-Buffering'] = 'no'
+    return response
+
+@app.route('/api/barcodes/fetch-output-barcodes/cancel/<task_id>', methods=['POST'])
+def cancel_output_barcode_task(task_id):
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    with tasks_lock:
+        if task_id in output_barcode_tasks:
+            output_barcode_tasks[task_id]['status'] = 'cancelled'
+
+    return jsonify({'success': True, 'message': 'Đã hủy truy vấn'})
 
 @app.route('/api/barcodes/check-transfer', methods=['POST'])
 def check_barcode_transfer():

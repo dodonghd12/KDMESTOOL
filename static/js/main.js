@@ -1223,33 +1223,157 @@ async function fetchInputBarcode(id, product_type) {
     }
 }
 
-async function fetchOutputBarcode() {
+// ── STREAMING TASK PROGRESS CONTROLLER ──────────────────────────────────────
+let currentBarcodeEventSource = null;
+let barcodeTaskTimerInterval = null;
+let barcodeTaskStartTime = null;
+
+function showTaskProgressModal(title, subtitle) {
+    const modal = document.getElementById('taskProgressModal');
+    if (!modal) return;
+
+    const titleEl = document.getElementById('taskProgressTitle');
+    const subEl = document.getElementById('taskProgressSub');
+    const timerEl = document.getElementById('taskTimerCount');
+    const statusTextEl = document.getElementById('taskStatusText');
+
+    if (titleEl) titleEl.textContent = title || 'Đang truy vấn cơ sở dữ liệu MES...';
+    if (subEl) {
+        if (subtitle) {
+            subEl.innerHTML = subtitle;
+        } else {
+            subEl.textContent = 'Hệ thống đang quét dữ liệu trong bảng lớn, quá trình có thể mất từ vài chục giây đến vài phút.';
+        }
+    }
+    if (timerEl) timerEl.textContent = '00:00';
+    if (statusTextEl) statusTextEl.textContent = 'Đang khởi tạo kết nối cơ sở dữ liệu...';
+
+    barcodeTaskStartTime = Date.now();
+    modal.style.display = 'flex';
+
+    if (barcodeTaskTimerInterval) clearInterval(barcodeTaskTimerInterval);
+
+    barcodeTaskTimerInterval = setInterval(() => {
+        if (!barcodeTaskStartTime) return;
+        const elapsedSec = Math.floor((Date.now() - barcodeTaskStartTime) / 1000);
+        const mins = String(Math.floor(elapsedSec / 60)).padStart(2, '0');
+        const secs = String(elapsedSec % 60).padStart(2, '0');
+        if (timerEl) timerEl.textContent = `${mins}:${secs}`;
+
+        // Dynamic status updates based on elapsed seconds
+        if (statusTextEl) {
+            if (elapsedSec < 5) {
+                statusTextEl.textContent = 'Đang phân tích cấu trúc Batch cho MES ID...';
+            } else if (elapsedSec < 15) {
+                statusTextEl.textContent = 'Đang quét và đối chiếu các bản ghi Feed Record...';
+            } else if (elapsedSec < 30) {
+                statusTextEl.textContent = 'Đang tổng hợp dữ liệu Material Resource...';
+            } else if (elapsedSec < 60) {
+                statusTextEl.textContent = 'Dữ liệu lớn đang được xử lý ngầm, vui lòng kiên nhẫn...';
+            } else {
+                statusTextEl.textContent = 'Vẫn đang xử lý dữ liệu phức tạp, kết nối hoàn toàn ổn định...';
+            }
+        }
+    }, 1000);
+}
+
+function hideTaskProgressModal() {
+    const modal = document.getElementById('taskProgressModal');
+    if (modal) modal.style.display = 'none';
+
+    if (barcodeTaskTimerInterval) {
+        clearInterval(barcodeTaskTimerInterval);
+        barcodeTaskTimerInterval = null;
+    }
+    if (currentBarcodeEventSource) {
+        currentBarcodeEventSource.close();
+        currentBarcodeEventSource = null;
+    }
+    barcodeTaskStartTime = null;
+}
+
+function cancelCurrentBarcodeTask() {
+    hideTaskProgressModal();
+    showAlert('Đã dừng tìm kiếm tem đầu ra', 'info');
+}
+
+function fetchOutputBarcode() {
     const resource_id = feed_records_material_id;
     if (!resource_id) {
-        await showAlert('Thiếu Resource ID', 'error');
+        showAlert('Thiếu Resource ID', 'error');
         return;
     }
 
     const work_order = selectedRowData['work_order'];
+    if (!work_order) {
+        showAlert('Thiếu Work Order / MES ID', 'error');
+        return;
+    }
+
     totalOutputBarcode = selectedRowData['total_barcode'];
 
-    const data = await apiFetch('/api/barcodes/fetch-output-barcodes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ resource_id, work_order })
-    });
+    const subtitleHtml = `
+        <div class="task-sub-row"><span class="task-sub-label">MES ID:</span> <span class="task-sub-val">${work_order}</span></div>
+        <div class="task-sub-row"><span class="task-sub-label">Barcode:</span> <span class="task-sub-val">${resource_id}</span></div>
+    `;
 
-    if (data.success) {
-        if (data.result && data.result.length > 0) {
-            outputBarcodeRawData = data.result;
-            outputBarcodeColumns = data.columns;
-            renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
-        } else {
-            await showAlert(data.message || 'Không tìm thấy tem đầu ra', 'info');
-        }
-    } else {
-        await showAlert(data.message, 'error');
+    showTaskProgressModal(
+        'Đang tìm kiếm tem đầu ra',
+        subtitleHtml
+    );
+
+    if (currentBarcodeEventSource) {
+        currentBarcodeEventSource.close();
+        currentBarcodeEventSource = null;
     }
+
+    const streamUrl = `/api/barcodes/fetch-output-barcodes/stream?resource_id=${encodeURIComponent(resource_id)}&work_order=${encodeURIComponent(work_order)}`;
+    currentBarcodeEventSource = new EventSource(streamUrl);
+
+    currentBarcodeEventSource.onmessage = function (event) {
+        try {
+            const data = JSON.parse(event.data);
+
+            if (data.status === 'processing') {
+                // Heartbeat to keep connection alive without multiple requests
+                return;
+            }
+
+            // Stream completed or failed
+            if (currentBarcodeEventSource) {
+                currentBarcodeEventSource.close();
+                currentBarcodeEventSource = null;
+            }
+            hideTaskProgressModal();
+
+            if (data.status === 'completed') {
+                if (data.result && data.result.length > 0) {
+                    outputBarcodeRawData = data.result;
+                    outputBarcodeColumns = data.columns;
+                    renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
+                    if (typeof speechBubble !== 'undefined' && speechBubble.show) {
+                        speechBubble.show(`✨ Đã tìm thấy ${data.result.length} tem đầu ra (${data.duration}s)!`, { duration: 4000 });
+                    }
+                } else {
+                    showAlert(data.message || 'Không tìm thấy tem đầu ra', 'info');
+                }
+            } else if (data.status === 'failed') {
+                showAlert(data.message || 'Lỗi khi tìm kiếm tem đầu ra', 'error');
+            }
+        } catch (err) {
+            console.error('Lỗi phân tích dữ liệu SSE:', err);
+        }
+    };
+
+    currentBarcodeEventSource.onerror = function (err) {
+        console.warn('SSE stream error or connection closed:', err);
+        if (currentBarcodeEventSource) {
+            currentBarcodeEventSource.close();
+            currentBarcodeEventSource = null;
+        }
+        hideTaskProgressModal();
+        showAlert('Lỗi kết nối khi truyền dữ liệu tem đầu ra', 'error');
+    };
 }
 
 async function checkBarcodeTransfer() {
