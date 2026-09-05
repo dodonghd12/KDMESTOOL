@@ -8,32 +8,40 @@
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
 </head>
 <body>
-    <main class="my-custom-face-container">
-        <svg class="face" viewBox="0 0 320 380">
-            <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="25">
-                <g class="face__eyes" transform="translate(0,112.5)">
-                    <g transform="translate(15,0)">
-                        <polyline class="face__eye-lid" points="37,0 0,120 75,120"></polyline>
-                        <polyline class="face__pupil" points="55,120 55,155" stroke-dasharray="35 35"></polyline>
-                    </g>
-                    <g transform="translate(230,0)">
-                        <polyline class="face__eye-lid" points="37,0 0,120 75,120"></polyline>
-                        <polyline class="face__pupil" points="55,120 55,155" stroke-dasharray="35 35"></polyline>
-                    </g>
-                </g>
-                <rect class="face__nose" x="132.5" y="112.5" width="55" height="155" rx="4" ry="4"></rect>
-                <g transform="translate(65,334)" stroke-dasharray="102 102">
-                    <path class="face__mouth-left" d="M 0 30 C 0 30 40 0 95 0"></path>
-                    <path class="face__mouth-right" d="M 95 0 C 150 0 190 30 190 30"></path>
-                </g>
-            </g>
-        </svg>
+    <div class="error">
 
-        <div class="error-text">
-            <!-- <h1>404</h1> -->
-            <p>Trang bạn tìm không tồn tại hoặc đã bị xoá.</p>
-            <a href="{{ url_for('main') }}" class="back-home-btn">Về trang chủ</a>
-        </div>
-    </main>
+    <div class="wrap">
+    <div class="404">
+        <pre><code>
+        <span class="green">&lt;!</span><span>DOCTYPE html</span><span class="green">&gt;</span>
+    <span class="orange">&lt;html&gt;</span>
+        <span class="orange">&lt;style&gt;</span>
+    * {
+                    <span class="green">everything</span>:<span class="blue">awesome</span>;
+    }
+        <span class="orange">&lt;/style&gt;</span>
+    <span class="orange">&lt;body&gt;</span> 
+                ERROR 404!
+                    FILE NOT FOUND!
+                    <span class="comment">&lt;!--The file you are looking for, 
+                        is not where you think it is.--&gt;
+            </span>
+    <span class="orange"></span> 
+                
+
+
+    </div>
+    <br />
+    <span class="info">
+    <br />
+
+    <span class="orange">&nbsp;&lt;/body&gt;</span>
+
+    <br/>
+        <span class="orange">&lt;/html&gt;</span>
+        </code></pre>
+    </div>
+    </div>
+    </span>
 </body>
 </html>
