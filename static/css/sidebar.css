@@ -500,515 +500,363 @@ main p {
     transform: rotate(180deg);
 }
 
-/* ===== SPACESHIP ANIMATION ===== */
-.spaceship-animation-wrapper {
-    width: 100%;
-    margin-top: auto;
-    padding: 16px 0;
-    overflow: hidden;
-    margin-bottom: 0;
-    flex-shrink: 0;
-    position: relative;
-    height: 100px;
-    border-bottom: 1px solid var(--line-clr);
-}
-
-.spaceship {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    margin-left: -70px;
-    margin-top: 15px;
-    animation: speeder 0.4s linear infinite;
-    transform: scale(0.7);
-}
-
-.spaceship>span {
-    height: 5px;
-    width: 35px;
-    background: #cbd5e1;
-    position: absolute;
-    top: -19px;
-    left: 60px;
-    border-radius: 2px 10px 1px 0;
-}
-
-.base span {
-    position: absolute;
-    width: 0;
-    height: 0;
-    border-top: 6px solid transparent;
-    border-right: 100px solid #16a085;
-    border-bottom: 6px solid transparent;
-}
-
-.base span:before {
-    content: "";
-    height: 22px;
-    width: 22px;
-    border-radius: 50%;
-    background: #16a085;
-    position: absolute;
-    right: -110px;
-    top: -16px;
-}
-
-.base span:after {
-    content: "";
-    position: absolute;
-    width: 0;
-    height: 0;
-    border-top: 0 solid transparent;
-    border-right: 55px solid #16a085;
-    border-bottom: 16px solid transparent;
-    top: -16px;
-    right: -98px;
-}
-
-.face {
-    position: absolute;
-    height: 12px;
-    width: 20px;
-    background: #16a085;
-    border-radius: 20px 20px 0 0;
-    transform: rotate(-40deg);
-    right: -125px;
-    top: -15px;
-}
-
-.face:after {
-    content: "";
-    height: 12px;
-    width: 12px;
-    background: #16a085;
-    right: 4px;
-    top: 7px;
-    position: absolute;
-    transform: rotate(40deg);
-    transform-origin: 50% 50%;
-    border-radius: 0 0 0 2px;
-}
-
-.spaceship>span>span:nth-child(1),
-.spaceship>span>span:nth-child(2),
-.spaceship>span>span:nth-child(3),
-.spaceship>span>span:nth-child(4) {
-    width: 30px;
-    height: 1px;
-    background: #3dd5c0;
-    position: absolute;
-    animation: fazer1 0.2s linear infinite;
-}
-
-.spaceship>span>span:nth-child(2) {
-    top: 3px;
-    animation: fazer2 0.4s linear infinite;
-}
-
-.spaceship>span>span:nth-child(3) {
-    top: 1px;
-    animation: fazer3 0.4s linear infinite;
-    animation-delay: -1s;
-}
-
-.spaceship>span>span:nth-child(4) {
-    top: 4px;
-    animation: fazer4 1s linear infinite;
-    animation-delay: -1s;
-}
-
-@keyframes fazer1 {
-    0% {
-        left: 0;
-    }
-
-    100% {
-        left: -80px;
-        opacity: 0;
-    }
-}
-
-@keyframes fazer2 {
-    0% {
-        left: 0;
-    }
-
-    100% {
-        left: -100px;
-        opacity: 0;
-    }
-}
-
-@keyframes fazer3 {
-    0% {
-        left: 0;
-    }
-
-    100% {
-        left: -50px;
-        opacity: 0;
-    }
-}
-
-@keyframes fazer4 {
-    0% {
-        left: 0;
-    }
-
-    100% {
-        left: -150px;
-        opacity: 0;
-    }
-}
-
-@keyframes speeder {
-    0% {
-        transform: translate(2px, 1px) rotate(0deg);
-    }
-
-    10% {
-        transform: translate(-1px, -3px) rotate(-1deg);
-    }
-
-    20% {
-        transform: translate(-2px, 0px) rotate(1deg);
-    }
-
-    30% {
-        transform: translate(1px, 2px) rotate(0deg);
-    }
-
-    40% {
-        transform: translate(1px, -1px) rotate(1deg);
-    }
-
-    50% {
-        transform: translate(-1px, 3px) rotate(-1deg);
-    }
-
-    60% {
-        transform: translate(-1px, 1px) rotate(0deg);
-    }
-
-    70% {
-        transform: translate(3px, 1px) rotate(-1deg);
-    }
-
-    80% {
-        transform: translate(-2px, -1px) rotate(1deg);
-    }
-
-    90% {
-        transform: translate(2px, 1px) rotate(0deg);
-    }
-
-    100% {
-        transform: translate(1px, -2px) rotate(-1deg);
-    }
-}
-
-.longfazers {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-}
-
-.longfazers span {
-    position: absolute;
-    height: 2px;
-    width: 20%;
-    background: #cbd5e1;
-}
-
-.longfazers span:nth-child(1) {
-    top: 20%;
-    animation: lf 0.6s linear infinite;
-    animation-delay: -5s;
-}
-
-.longfazers span:nth-child(2) {
-    top: 40%;
-    animation: lf2 0.8s linear infinite;
-    animation-delay: -1s;
-}
-
-.longfazers span:nth-child(3) {
-    top: 60%;
-    animation: lf3 0.6s linear infinite;
-}
-
-.longfazers span:nth-child(4) {
-    top: 80%;
-    animation: lf4 0.5s linear infinite;
-    animation-delay: -3s;
-}
-
-@keyframes lf {
-    0% {
-        left: 200%;
-    }
-
-    100% {
-        left: -200%;
-        opacity: 0;
-    }
-}
-
-@keyframes lf2 {
-    0% {
-        left: 200%;
-    }
-
-    100% {
-        left: -200%;
-        opacity: 0;
-    }
-}
-
-@keyframes lf3 {
-    0% {
-        left: 200%;
-    }
-
-    100% {
-        left: -100%;
-        opacity: 0;
-    }
-}
-
-@keyframes lf4 {
-    0% {
-        left: 200%;
-    }
-
-    100% {
-        left: -100%;
-        opacity: 0;
-    }
-}
-
-.clouds {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    z-index: -1;
-    overflow: hidden;
-}
-
-.cloud {
-    position: absolute;
-    background: #fff;
-    border-radius: 50%;
-    opacity: 0.25;
-    animation: moveClouds linear infinite;
-}
-
-.cloud::before,
-.cloud::after {
-    content: "";
-    position: absolute;
-    background: #fff;
-    border-radius: 50%;
-}
-
-.cloud::before {
-    width: 60%;
-    height: 60%;
-    top: -30%;
-    left: 10%;
-}
-
-.cloud::after {
-    width: 40%;
-    height: 40%;
-    top: -20%;
-    left: 50%;
-}
-
-/* Clouds start off-screen (right) and move left */
-.cloud1 {
-    width: 50px;
-    height: 30px;
-    top: 15%;
-    left: 1400px;
-    /* off-screen to the right */
-    animation-duration: 2s;
-}
-
-.cloud2 {
-    width: 75px;
-    height: 40px;
-    top: 35%;
-    left: 1600px;
-    animation-duration: 3s;
-}
-
-.cloud3 {
-    width: 40px;
-    height: 25px;
-    top: 20%;
-    left: 2000px;
-    animation-duration: 4s;
-}
-
-.cloud4 {
-    width: 50px;
-    height: 40px;
-    top: 70%;
-    left: 1100px;
-    animation-duration: 3s;
-}
-
-.cloud5 {
-    width: 85px;
-    height: 25px;
-    top: 80%;
-    left: 1500px;
-    animation-duration: 2s;
-}
-
-@keyframes moveClouds {
-    0% {
-        transform: translateX(0);
-    }
-
-    100% {
-        transform: translateX(-2000px);
-    }
-}
-
-/* Sidebar closed state - hide animation */
-#sidebar.close .spaceship-animation-wrapper {
-    display: none;
-}
-
-/* CSS cho countdown box trong sidebar-footer */
+/* ==========================================================================
+   VIETNAMESE TET COUNTDOWN BOX (TẾT NGUYÊN ĐÁN FESTIVE THEME)
+   ========================================================================== */
 .tet-countdown-box {
-    background: linear-gradient(135deg, rgba(237, 28, 36, 0.2), rgba(255, 215, 0, 0.2));
-    backdrop-filter: blur(10px);
-    border: 2px solid rgba(237, 28, 36, 0.5);
-    border-radius: 12px;
-    padding: 12px;
+    background: linear-gradient(145deg, rgba(185, 28, 28, 0.35) 0%, rgba(127, 29, 29, 0.55) 45%, rgba(180, 83, 9, 0.3) 100%);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1.5px solid rgba(251, 191, 36, 0.45);
+    border-radius: 14px;
+    padding: 12px 8px 8px 8px;
     margin-bottom: 12px;
-    box-shadow: 0 4px 12px rgba(237, 28, 36, 0.3);
-    transition: all 0.3s ease;
+    box-shadow: 0 6px 20px rgba(185, 28, 28, 0.35), inset 0 1px 1px rgba(254, 240, 138, 0.4), 0 0 15px rgba(217, 119, 6, 0.15);
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     cursor: pointer;
     position: relative;
     overflow: hidden;
+    user-select: none;
 }
 
 .tet-countdown-box:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(237, 28, 36, 0.4);
-    border-color: rgba(255, 215, 0, 0.7);
+    transform: translateY(-2px) scale(1.01);
+    box-shadow: 0 10px 28px rgba(220, 38, 38, 0.5), inset 0 1px 2px rgba(254, 240, 138, 0.6), 0 0 25px rgba(245, 158, 11, 0.35);
+    border-color: rgba(253, 224, 71, 0.85);
 }
 
-.tet-icon {
-    font-size: 20px;
-    animation: rotate 3s linear infinite;
+/* Đèn lồng đỏ Việt Nam đung đưa */
+.tet-lantern {
+    position: absolute;
+    top: -2px;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    pointer-events: none;
 }
 
-@keyframes rotate {
+.tet-lantern.lantern-left {
+    left: 8px;
+    transform-origin: top center;
+    animation: swingLanternLeft 3.5s ease-in-out infinite;
+}
 
-    0%,
+.tet-lantern.lantern-right {
+    right: 8px;
+    transform-origin: top center;
+    animation: swingLanternRight 3.8s ease-in-out infinite 0.5s;
+}
+
+.lantern-string {
+    width: 1px;
+    height: 5px;
+    background: #fbbf24;
+}
+
+.lantern-body {
+    width: 16px;
+    height: 20px;
+    background: radial-gradient(circle at 40% 40%, #ef4444 0%, #b91c1c 70%, #7f1d1d 100%);
+    border-radius: 8px;
+    border: 1px solid #fde047;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.8), inset 0 0 4px rgba(254, 240, 138, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.lantern-char {
+    font-size: 7px;
+    color: #fef08a;
+    font-weight: 800;
+    line-height: 1;
+    text-shadow: 0 0 3px rgba(0, 0, 0, 0.8);
+    font-family: serif, "Times New Roman", Tahoma;
+}
+
+.lantern-tassel {
+    width: 2px;
+    height: 8px;
+    background: linear-gradient(to bottom, #fde047, #d97706);
+    box-shadow: 0 1px 3px rgba(217, 119, 6, 0.6);
+}
+
+@keyframes swingLanternLeft {
+    0%, 100% { transform: rotate(-7deg); }
+    50% { transform: rotate(7deg); }
+}
+
+@keyframes swingLanternRight {
+    0%, 100% { transform: rotate(7deg); }
+    50% { transform: rotate(-7deg); }
+}
+
+/* Cành hoa mai / hoa đào trang trí góc */
+.tet-corner-flower {
+    position: absolute;
+    pointer-events: none;
+    z-index: 4;
+}
+
+.tet-corner-flower.top-right {
+    top: 2px;
+    right: 26px;
+    font-size: 13px;
+    filter: drop-shadow(0 0 4px rgba(251, 191, 36, 0.6));
+    animation: petalSway 3s ease-in-out infinite;
+}
+
+.tet-corner-flower.bottom-left {
+    bottom: 4px;
+    left: 4px;
+    font-size: 12px;
+    filter: drop-shadow(0 0 4px rgba(251, 191, 36, 0.6));
+    animation: petalSway 3.2s ease-in-out infinite 1s;
+}
+
+@keyframes petalSway {
+    0%, 100% { transform: rotate(-5deg) scale(1); }
+    50% { transform: rotate(10deg) scale(1.15); }
+}
+
+/* Cánh hoa bay nhẹ trong box */
+.tet-petals-wrap {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.tet-petals-wrap .petal {
+    position: absolute;
+    opacity: 0;
+}
+
+.tet-petals-wrap .petal-1 {
+    font-size: 9px;
+    animation: floatPetal 7s linear infinite;
+}
+
+.tet-petals-wrap .petal-2 {
+    font-size: 8px;
+    animation: floatPetal 8s linear infinite 2.5s;
+}
+
+.tet-petals-wrap .petal-3 {
+    font-size: 10px;
+    animation: floatPetal 9s linear infinite 5s;
+}
+
+@keyframes floatPetal {
+    0% {
+        transform: translate(0px, -5px) rotate(0deg);
+        opacity: 0;
+    }
+    20% {
+        opacity: 0.55;
+    }
+    80% {
+        opacity: 0.55;
+    }
     100% {
-        transform: rotate(0deg);
-    }
-
-    25% {
-        transform: rotate(-10deg);
-    }
-
-    75% {
-        transform: rotate(10deg);
+        transform: translate(140px, 85px) rotate(360deg);
+        opacity: 0;
     }
 }
 
+/* Nội dung chính bên trong countdown */
 .tet-countdown-content {
     text-align: center;
+    position: relative;
+    z-index: 3;
 }
 
-.monday-count {
-    font-size: 36px;
-    font-weight: bold;
-    color: #ed1c24;
-    text-shadow: 0 0 20px rgba(237, 28, 36, 0.6);
-    animation: pulse 2s ease-in-out infinite;
-    line-height: 1;
+.tet-header-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    background: rgba(0, 0, 0, 0.28);
+    border: 1px solid rgba(251, 191, 36, 0.45);
+    border-radius: 20px;
+    padding: 2px 8px;
     margin-bottom: 6px;
 }
 
-@keyframes pulse {
+.tet-badge-title {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.8px;
+    color: #fef08a;
+    text-transform: uppercase;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+}
 
-    0%,
-    100% {
+.tet-badge-icon {
+    font-size: 10px;
+    line-height: 1;
+}
+
+/* Khung hiển thị số đếm chính */
+.tet-main-counter {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.tet-counter-card {
+    background: linear-gradient(145deg, rgba(220, 38, 38, 0.85) 0%, rgba(153, 27, 27, 0.95) 100%);
+    border: 1.5px solid rgba(253, 224, 71, 0.75);
+    border-radius: 10px;
+    padding: 2px 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(153, 27, 27, 0.5), inset 0 1px 0 rgba(254, 240, 138, 0.5);
+    min-width: 68px;
+}
+
+.monday-count {
+    font-size: 28px;
+    font-weight: 900;
+    line-height: 1.05;
+    background: linear-gradient(180deg, #ffffff 0%, #fef08a 35%, #f59e0b 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 2px 6px rgba(245, 158, 11, 0.6));
+    font-family: 'Poppins', sans-serif;
+    animation: pulseTet 2s ease-in-out infinite;
+    margin: 0;
+}
+
+@keyframes pulseTet {
+    0%, 100% {
         transform: scale(1);
     }
-
     50% {
-        transform: scale(1.05);
+        transform: scale(1.06);
     }
+}
+
+.tet-counter-unit {
+    font-size: 8.5px;
+    font-weight: 800;
+    color: #fef08a;
+    letter-spacing: 0.8px;
+    line-height: 1;
+    margin-top: 2px;
+}
+
+.tet-days-badge {
+    font-size: 11px;
+    font-weight: 700;
+    color: #fef3c7;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px dashed rgba(251, 191, 36, 0.6);
+    border-radius: 8px;
+    padding: 4px 8px;
+    white-space: nowrap;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
 }
 
 .monday-label {
-    font-size: 12px;
-    color: #e2e8f0;
-    font-weight: 500;
+    font-size: 11px;
+    font-weight: 600;
+    color: #fff1f2;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
     line-height: 1.3;
+    margin-bottom: 4px;
 }
 
 .tet-date {
-    font-size: 10px;
-    color: #94a3b8;
-    margin-top: 6px;
-    font-style: italic;
+    font-size: 9.5px;
+    font-weight: 600;
+    color: #fde68a;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+    font-style: normal;
+    margin-top: 2px;
 }
 
+/* Hiệu ứng pháo hoa khi hover & click */
 .firework {
     position: absolute;
-    width: 4px;
-    height: 4px;
+    width: 5px;
+    height: 5px;
     background: #ffd700;
     border-radius: 50%;
-    animation: firework 1.5s ease-out;
+    animation: firework 1.4s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
     opacity: 0;
     pointer-events: none;
+    z-index: 20;
 }
 
 @keyframes firework {
     0% {
-        transform: translate(0, 0) scale(1);
+        transform: translate(0, 0) scale(1.2);
         opacity: 1;
     }
-
+    70% {
+        opacity: 0.8;
+    }
     100% {
-        transform: translate(var(--x), var(--y)) scale(0);
+        transform: translate(var(--x), var(--y)) scale(0.2);
         opacity: 0;
     }
 }
 
-/* Responsive cho sidebar collapsed */
+/* ==========================================================================
+   RESPONSIVE CHO SIDEBAR COLLAPSED (#sidebar.close)
+   ========================================================================== */
+#sidebar.close .tet-countdown-box,
 .sidebar.close .tet-countdown-box {
-    padding: 8px;
+    padding: 6px 4px;
+    margin-bottom: 8px;
+    border-radius: 10px;
 }
 
-.sidebar.close .tet-countdown-header {
-    flex-direction: column;
-    gap: 4px;
-}
-
-.sidebar.close .tet-title {
-    font-size: 10px;
-    text-align: center;
-}
-
-.sidebar.close .monday-count {
-    font-size: 36px;
-}
-
+#sidebar.close .tet-lantern,
+#sidebar.close .tet-corner-flower,
+#sidebar.close .tet-petals-wrap,
+#sidebar.close .tet-header-badge,
+#sidebar.close .tet-days-badge,
+#sidebar.close .monday-label,
+#sidebar.close .tet-date,
+.sidebar.close .tet-lantern,
+.sidebar.close .tet-corner-flower,
+.sidebar.close .tet-petals-wrap,
+.sidebar.close .tet-header-badge,
+.sidebar.close .tet-days-badge,
 .sidebar.close .monday-label,
 .sidebar.close .tet-date {
-    display: none;
+    display: none !important;
+}
+
+#sidebar.close .tet-main-counter,
+.sidebar.close .tet-main-counter {
+    margin: 0;
+}
+
+#sidebar.close .tet-counter-card,
+.sidebar.close .tet-counter-card {
+    min-width: 0;
+    width: 100%;
+    padding: 4px 2px;
+}
+
+#sidebar.close .monday-count,
+.sidebar.close .monday-count {
+    font-size: 20px;
+}
+
+#sidebar.close .tet-counter-unit,
+.sidebar.close .tet-counter-unit {
+    font-size: 7.5px;
 }
 
 /* ===== SPA SHELL & VIEWPORT STYLES ===== */

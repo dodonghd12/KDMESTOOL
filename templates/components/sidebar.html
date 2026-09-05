@@ -85,41 +85,51 @@
         </li>
     </ul>
 
-    <!-- Spaceship Animation -->
-    <div class="spaceship-animation-wrapper">
-        <div class="clouds">
-            <div class="cloud cloud1"></div>
-            <div class="cloud cloud2"></div>
-            <div class="cloud cloud3"></div>
-            <div class="cloud cloud4"></div>
-            <div class="cloud cloud5"></div>
-        </div>
-        <div class="spaceship">
-            <span>
-                <span></span>
-                <span></span>
-                <span></span>
-                <span></span>
-            </span>
-            <div class="base">
-                <span></span>
-                <div class="face"></div>
-            </div>
-        </div>
-        <div class="longfazers">
-            <span></span>
-            <span></span>
-            <span></span>
-            <span></span>
-        </div>
-    </div>
-
     <div class="sidebar-footer">
-        <div class="tet-countdown-box" id="tetCountdown">
+        <div class="tet-countdown-box" id="tetCountdown" title="Đếm ngược Tết Nguyên Đán">
+            <!-- Đèn lồng truyền thống 2 bên -->
+            <div class="tet-lantern lantern-left">
+                <div class="lantern-string"></div>
+                <div class="lantern-body">
+                    <span class="lantern-char">Phúc</span>
+                </div>
+                <div class="lantern-tassel"></div>
+            </div>
+            <div class="tet-lantern lantern-right">
+                <div class="lantern-string"></div>
+                <div class="lantern-body">
+                    <span class="lantern-char">Lộc</span>
+                </div>
+                <div class="lantern-tassel"></div>
+            </div>
+
+            <!-- Cành hoa mai / hoa đào trang trí góc -->
+            <div class="tet-corner-flower top-right">🌸</div>
+            <div class="tet-corner-flower bottom-left">🌼</div>
+
+            <!-- Cánh hoa mai bay nhẹ trong box -->
+            <div class="tet-petals-wrap">
+                <span class="petal petal-1">🌸</span>
+                <span class="petal petal-2">✨</span>
+                <span class="petal petal-3">🌼</span>
+            </div>
+
+            <!-- Nội dung chính -->
             <div class="tet-countdown-content">
-                <div class="monday-count" id="mondayCount">--</div>
-                <div class="monday-label"> cái thứ 2 nữa là tới Tết! 🧧🧧🧧</div>
-                <div class="tet-date" id="tetDate">Đang tải...</div>
+                <div class="tet-header-badge">
+                    <span class="tet-badge-icon">🧧</span>
+                    <span class="tet-badge-title" id="tetYearTitle">TẾT NGUYÊN ĐÁN</span>
+                    <span class="tet-badge-icon">🌸</span>
+                </div>
+
+                <div class="tet-main-counter">
+                    <div class="tet-counter-card">
+                        <div class="monday-count" id="mondayCount">--</div>
+                        <div class="monday-label" id="tetSlogan"></div>
+                    </div>
+                </div>
+                <div class="tet-days-badge" id="daysCount">-- ngày</div>
+                <div class="tet-date" id="tetDate">Đang tải lịch Tết...</div>
             </div>
         </div>
 
@@ -175,23 +185,15 @@
 </div>
 
 <div class="api-loading" id="apiLoading" style="display:none;">
-    <div aria-label="Orange and tan hamster running in a metal wheel" role="img" class="wheel-and-hamster">
-        <div class="wheel"></div>
-        <div class="hamster">
-            <div class="hamster__body">
-                <div class="hamster__head">
-                    <div class="hamster__ear"></div>
-                    <div class="hamster__eye"></div>
-                    <div class="hamster__nose"></div>
-                </div>
-                <div class="hamster__limb hamster__limb--fr"></div>
-                <div class="hamster__limb hamster__limb--fl"></div>
-                <div class="hamster__limb hamster__limb--br"></div>
-                <div class="hamster__limb hamster__limb--bl"></div>
-                <div class="hamster__tail"></div>
-            </div>
+    <div class="loader">
+        <p>loading</p>
+        <div class="words">
+            <span class="word">data</span>
+            <span class="word">data</span>
+            <span class="word">inputs</span>
+            <span class="word">components</span>
+            <span class="word">buttons</span>
         </div>
-        <div class="spoke"></div>
     </div>
 </div>
 

@@ -81,8 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /**
- * Tính ngày Tết Nguyên Đán (âm lịch)
- * Bảng tra cứu cho các năm đến 2035
+ * Bảng tra cứu ngày Tết Nguyên Đán (Mùng 1 Âm lịch) theo Dương lịch
  */
 function getLunarNewYearDate(year) {
     const tetDates = {
@@ -98,107 +97,166 @@ function getLunarNewYearDate(year) {
         2034: new Date(2034, 1, 19),  // 19/02/2034 - Tết Giáp Dần
         2035: new Date(2035, 1, 8),   // 08/02/2035 - Tết Ất Mão
     };
-    
     return tetDates[year] || null;
 }
 
 /**
- * Đếm số thứ 2 từ ngày hiện tại đến ngày Tết
+ * Tính Can Chi và Linh vật cho năm Tết
+ */
+function getTetCanChiInfo(year) {
+    const CAN = ["Giáp", "Ất", "Bính", "Đinh", "Mậu", "Kỷ", "Canh", "Tân", "Nhâm", "Quý"];
+    const CHI = ["Tý", "Sửu", "Dần", "Mão", "Thìn", "Tỵ", "Ngọ", "Mùi", "Thân", "Dậu", "Tuất", "Hợi"];
+    const ZODIAC_EMOJI = {
+        "Tý": "🐭", "Sửu": "🐂", "Dần": "🐅", "Mão": "🐱",
+        "Thìn": "🐲", "Tỵ": "🐍", "Ngọ": "🐎", "Mùi": "🐐",
+        "Thân": "🐒", "Dậu": "🐓", "Tuất": "🐕", "Hợi": "🐖"
+    };
+
+    const canIndex = ((year - 4) % 10 + 10) % 10;
+    const chiIndex = ((year - 4) % 12 + 12) % 12;
+
+    const canName = CAN[canIndex];
+    const chiName = CHI[chiIndex];
+    const emoji = ZODIAC_EMOJI[chiName] || "🧧";
+
+    return {
+        can: canName,
+        chi: chiName,
+        fullName: `Tết ${canName} ${chiName} ${year}`,
+        shortTitle: `XUÂN ${canName.toUpperCase()} ${chiName.toUpperCase()} ${year}`,
+        emoji: emoji
+    };
+}
+
+/**
+ * Đếm số thứ 2 và số ngày còn lại đến Tết Nguyên Đán
  */
 function countMondaysUntilTet() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     let currentYear = today.getFullYear();
     let tetDate = getLunarNewYearDate(currentYear);
-    
-    // Nếu Tết năm nay đã qua, tính Tết năm sau
+
+    // Nếu Tết năm nay đã qua, tính tiếp Tết năm sau
     if (!tetDate || today > tetDate) {
         currentYear++;
         tetDate = getLunarNewYearDate(currentYear);
     }
-    
+
     if (!tetDate) {
-        return { count: 0, tetDate: null };
+        return { count: 0, daysRemaining: 0, tetDate: null, canChi: null };
     }
-    
-    // Đếm số thứ 2
+
+    // Tính số ngày còn lại
+    const diffMs = tetDate.getTime() - today.getTime();
+    const daysRemaining = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+
+    // Đếm số ngày Thứ Hai
     let mondayCount = 0;
     let currentDate = new Date(today);
-    
+
     while (currentDate <= tetDate) {
         if (currentDate.getDay() === 1) {
             mondayCount++;
         }
         currentDate.setDate(currentDate.getDate() + 1);
     }
-    
-    return { count: mondayCount, tetDate: tetDate };
+
+    const canChi = getTetCanChiInfo(currentYear);
+
+    return {
+        count: mondayCount,
+        daysRemaining: daysRemaining,
+        tetDate: tetDate,
+        canChi: canChi
+    };
 }
 
 /**
- * Định dạng tên Tết theo Can Chi
- * Sửa lại công thức tính Can Chi cho chính xác
- */
-function getTetName(year) {
-    // Can bắt đầu từ Giáp = 4 (năm 1984, 1994, 2004, 2014, 2024...)
-    // Chi bắt đầu từ Tý = 4 (năm 1984, 1996, 2008, 2020...)
-    const can = ["Giáp", "Ất", "Bính", "Đinh", "Mậu", "Kỷ", "Canh", "Tân", "Nhâm", "Quý"];
-    const chi = ["Tý", "Sửu", "Dần", "Mão", "Thìn", "Tỵ", "Ngọ", "Mùi", "Thân", "Dậu", "Tuất", "Hợi"];
-    
-    // Công thức tính Can: (năm - 4) % 10
-    // Công thức tính Chi: (năm - 4) % 12
-    const canIndex = (year - 4) % 10;
-    const chiIndex = (year - 4) % 12;
-    
-    return `Tết ${can[canIndex]} ${chi[chiIndex]} ${year}`;
-}
-
-/**
- * Cập nhật hiển thị countdown
+ * Cập nhật giao diện đếm ngược Tết
  */
 function updateTetCountdown() {
     const result = countMondaysUntilTet();
     const mondayCountEl = document.getElementById('mondayCount');
+    const daysCountEl = document.getElementById('daysCount');
+    const tetYearTitleEl = document.getElementById('tetYearTitle');
+    const tetSloganEl = document.getElementById('tetSlogan');
     const tetDateEl = document.getElementById('tetDate');
-    
+
     if (!mondayCountEl || !tetDateEl) return;
-    
-    if (result.count === 0) {
+
+    if (result.daysRemaining === 0) {
         mondayCountEl.textContent = '0';
-        tetDateEl.textContent = 'Chúc mừng năm mới! 🎊🎊🎊';
+        if (daysCountEl) daysCountEl.textContent = 'MÙNG 1 TẾT! 🎊';
+        if (tetYearTitleEl) tetYearTitleEl.textContent = 'CHÚC MỪNG NĂM MỚI';
+        if (tetSloganEl) tetSloganEl.textContent = 'Vạn Sự Như Ý - An Khang Thịnh Vượng! 🧧';
+        tetDateEl.textContent = '🎊 Chúc mừng Tết Nguyên Đán! 🎊';
     } else {
         mondayCountEl.textContent = result.count;
-        
-        if (result.tetDate) {
+        if (daysCountEl) daysCountEl.textContent = `còn ${result.daysRemaining} ngày`;
+
+        if (result.canChi) {
+            if (tetYearTitleEl) {
+                tetYearTitleEl.textContent = result.canChi.shortTitle;
+            }
+        }
+
+        if (tetSloganEl) {
+            if (result.daysRemaining <= 15) {
+                tetSloganEl.textContent = 'Tết cận kề rồi, về quê thôi! 🌸🧧';
+            } else if (result.daysRemaining <= 45) {
+                tetSloganEl.textContent = 'Sắp được ăn bánh chưng rồi! 🧧🎋';
+            } else {
+                tetSloganEl.textContent = 'cái thứ 2 nữa là tới Tết!';
+            }
+        }
+
+        if (result.tetDate && result.canChi) {
+            const day = String(result.tetDate.getDate()).padStart(2, '0');
+            const month = String(result.tetDate.getMonth() + 1).padStart(2, '0');
             const year = result.tetDate.getFullYear();
-            const day = result.tetDate.getDate();
-            const month = result.tetDate.getMonth() + 1;
-            tetDateEl.textContent = `${getTetName(year)} - ${day}/${month}/${year}`;
+            tetDateEl.textContent = `🌸 Mùng 1: ${day}/${month}/${year} ${result.canChi.emoji}`;
         }
     }
 }
 
 /**
- * Tạo hiệu ứng pháo hoa
+ * Tạo hiệu ứng pháo hoa Tết rực rỡ nhiều màu
  */
 function createTetFirework(centerX, centerY) {
     const box = document.getElementById('tetCountdown');
     if (!box) return;
-    
-    const firework = document.createElement('div');
-    firework.className = 'firework';
-    firework.style.left = centerX + 'px';
-    firework.style.top = centerY + 'px';
-    
-    const angle = Math.random() * Math.PI * 2;
-    const distance = 30 + Math.random() * 30;
-    firework.style.setProperty('--x', `${Math.cos(angle) * distance}px`);
-    firework.style.setProperty('--y', `${Math.sin(angle) * distance}px`);
-    
-    box.appendChild(firework);
-    
-    setTimeout(() => firework.remove(), 1500);
+
+    const colors = [
+        '#ffd700', // Vàng kim
+        '#ff3b30', // Đỏ son
+        '#ff9500', // Cam lửa
+        '#ff2d55', // Hồng hoa đào
+        '#3dd5c0', // Xanh ngọc
+        '#ffe600', // Vàng hoa mai
+        '#ffffff'  // Tia sáng trắng
+    ];
+
+    const count = 6;
+    for (let i = 0; i < count; i++) {
+        const firework = document.createElement('div');
+        firework.className = 'firework';
+        firework.style.left = centerX + 'px';
+        firework.style.top = centerY + 'px';
+
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        firework.style.backgroundColor = color;
+        firework.style.boxShadow = `0 0 6px ${color}, 0 0 10px ${color}`;
+
+        const angle = (Math.PI * 2 / count) * i + (Math.random() * 0.4 - 0.2);
+        const distance = 25 + Math.random() * 35;
+        firework.style.setProperty('--x', `${Math.cos(angle) * distance}px`);
+        firework.style.setProperty('--y', `${Math.sin(angle) * distance}px`);
+
+        box.appendChild(firework);
+        setTimeout(() => firework.remove(), 1400);
+    }
 }
 
 /**
@@ -206,49 +264,58 @@ function createTetFirework(centerX, centerY) {
  */
 function initTetCountdown() {
     updateTetCountdown();
-    
+
     // Cập nhật mỗi ngày lúc nửa đêm
     const now = new Date();
     const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
     const timeUntilMidnight = tomorrow - now;
-    
+
     setTimeout(() => {
         updateTetCountdown();
         setInterval(updateTetCountdown, 24 * 60 * 60 * 1000);
     }, timeUntilMidnight);
-    
-    // Thêm hiệu ứng pháo hoa khi HOVER
+
+    // Hiệu ứng pháo hoa khi HOVER & CLICK
     const tetBox = document.getElementById('tetCountdown');
     if (tetBox) {
         let fireworkInterval = null;
-        
-        tetBox.addEventListener('mouseenter', (e) => {
+
+        tetBox.addEventListener('mouseenter', () => {
             const rect = tetBox.getBoundingClientRect();
-            
-            // Tạo pháo hoa ngay lập tức
-            for (let i = 0; i < 8; i++) {
+
+            // Nổ pháo hoa chào đón
+            for (let i = 0; i < 4; i++) {
                 setTimeout(() => {
                     const randomX = Math.random() * rect.width;
                     const randomY = Math.random() * rect.height;
                     createTetFirework(randomX, randomY);
-                }, i * 50);
+                }, i * 120);
             }
-            
-            // Tiếp tục tạo pháo hoa trong khi hover
+
+            // Tiếp tục tạo pháo hoa trong lúc hover
             fireworkInterval = setInterval(() => {
-                for (let i = 0; i < 3; i++) {
-                    const randomX = Math.random() * rect.width;
-                    const randomY = Math.random() * rect.height;
-                    createTetFirework(randomX, randomY);
-                }
-            }, 500);
+                const randomX = Math.random() * rect.width;
+                const randomY = Math.random() * rect.height;
+                createTetFirework(randomX, randomY);
+            }, 400);
         });
-        
+
         tetBox.addEventListener('mouseleave', () => {
-            // Dừng tạo pháo hoa khi không hover
             if (fireworkInterval) {
                 clearInterval(fireworkInterval);
                 fireworkInterval = null;
+            }
+        });
+
+        tetBox.addEventListener('click', (e) => {
+            const rect = tetBox.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const clickY = e.clientY - rect.top;
+
+            for (let i = 0; i < 3; i++) {
+                setTimeout(() => {
+                    createTetFirework(clickX, clickY);
+                }, i * 80);
             }
         });
     }
