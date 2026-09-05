@@ -49,7 +49,7 @@
 
         // 3. Update document title
         if (route.title) {
-            document.title = `${route.title} - KDMES TOOL`;
+            document.title = `${route.title}`;
         }
 
         // 4. Update browser URL without reload

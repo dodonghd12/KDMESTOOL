@@ -178,7 +178,6 @@ def check_auth():
 
     return jsonify({'success': True})
 
-
 #========= PAGE ROUTES =========#
 def render_page_or_shell(template_name, page_path, page_title="KDMES TOOL"):
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
@@ -850,78 +849,113 @@ def get_used_history_by_barcode():
             SELECT
                 %s::text AS resource_id,
                 %s::text AS product_type
+        ),
+        target_material AS (
+            SELECT mr.product_id
+            FROM params p
+            JOIN kvmes.material_resource mr
+                ON mr.id = p.resource_id
+            AND mr.product_type = p.product_type
+        ),
+        target_recipes AS (
+            SELECT
+                rpd.recipe_id,
+                MAX((material_elem->'value'->>'mid')::numeric) AS consumption
+            FROM kvmes.recipe_process_definition rpd
+            CROSS JOIN target_material tm
+            CROSS JOIN LATERAL jsonb_array_elements(rpd.configs::jsonb) cfg
+            CROSS JOIN LATERAL jsonb_array_elements(cfg->'steps') step
+            CROSS JOIN LATERAL jsonb_array_elements(step->'materials') material_elem
+            WHERE material_elem->>'name' = tm.product_id
+            GROUP BY rpd.recipe_id
+        ),
+        target_work_orders AS (
+            SELECT
+                wo.id AS work_order_id,
+                wo.recipe_id,
+                wo.station,
+                wo.reserved_date,
+                tr.consumption
+            FROM target_recipes tr
+            JOIN kvmes.work_order wo ON wo.recipe_id = tr.recipe_id
+        ),
+        candidate_batches AS (
+            SELECT
+                b.work_order,
+                b.status,
+                b.records_id,
+                two.recipe_id,
+                two.station,
+                two.reserved_date,
+                two.consumption
+            FROM target_work_orders two
+            JOIN kvmes.batch b ON TRIM(b.work_order) = TRIM(two.work_order_id)
+        ),
+        matched_batches AS (
+            SELECT
+                cb.work_order,
+                cb.recipe_id,
+                cb.station,
+                cb.reserved_date,
+                cb.consumption,
+                cb.status,
+                cb.records_id
+            FROM candidate_batches cb, params p
+            WHERE EXISTS (
+                SELECT 1
+                FROM kvmes.feed_record f
+                WHERE f.id = ANY (cb.records_id)
+                AND jsonb_path_exists(
+                        f.materials,
+                        '$.** ? (@.resource_id == $rid)',
+                        jsonb_build_object('rid', p.resource_id)
+                    )
+            )
         )
         SELECT
-            b.work_order,
-            wo.recipe_id,
-            wo.station,
-            to_char(wo.reserved_date, 'YYYY-MM-DD') AS reserved_date,
-            MAX(mat_elem->'value'->>'mid') AS consumption,
+            mb.work_order,
+            mb.recipe_id,
+            mb.station,
+            to_char(mb.reserved_date, 'YYYY-MM-DD') AS reserved_date,
+            mb.consumption::text AS consumption,
             
-            /* ===== TOTAL BARCODE = Tổng số phần tử trong records_id (status = 2) ===== */
             SUM (
                 CASE 
-                    WHEN b.status = 2 THEN COALESCE(array_length(b.records_id, 1), 0)
+                    WHEN mb.status = 2 THEN COALESCE(array_length(mb.records_id, 1), 0)
                     ELSE 0
                 END
             ) AS total_barcode,
             
-            /* ===== TOTAL FAIL BARCODE (status = 1) ===== */
             SUM (
                 CASE 
-                    WHEN b.status = 1 THEN COALESCE(array_length(b.records_id, 1), 0)
+                    WHEN mb.status = 1 THEN COALESCE(array_length(mb.records_id, 1), 0)
                     ELSE 0
                 END
             ) AS total_fail_barcode,
             
-            /* ===== TOTAL CONSUMPTION = (total_barcode + total_fail_barcode) * consumption ===== */
             (
                 SUM (
                     CASE 
-                        WHEN b.status = 2 THEN COALESCE(array_length(b.records_id, 1), 0)
+                        WHEN mb.status = 2 THEN COALESCE(array_length(mb.records_id, 1), 0)
                         ELSE 0
                     END
                 )
                 + SUM (
                     CASE 
-                        WHEN b.status = 1 THEN COALESCE(array_length(b.records_id, 1), 0)
+                        WHEN mb.status = 1 THEN COALESCE(array_length(mb.records_id, 1), 0)
                         ELSE 0
                     END
                 )
-            ) * MAX((mat_elem->'value'->>'mid')::numeric) AS total_consumption
-                
-        FROM params p
-        JOIN kvmes.material_resource mr
-            ON mr.id = p.resource_id
-           AND mr.product_type = p.product_type
-        JOIN kvmes.batch b ON TRUE
-        JOIN kvmes.work_order wo ON TRIM(wo.id) = TRIM(b.work_order)
-        JOIN kvmes.recipe_process_definition rpd
-            ON rpd.recipe_id = wo.recipe_id
-        LEFT JOIN LATERAL (
-            SELECT material_elem AS mat_elem
-            FROM jsonb_array_elements(rpd.configs::jsonb) cfg,
-                 jsonb_array_elements(cfg->'steps') step,
-                 jsonb_array_elements(step->'materials') material_elem
-            WHERE material_elem->>'name' = mr.product_id
-        ) m ON TRUE
-        WHERE EXISTS (
-            SELECT 1
-            FROM kvmes.feed_record f
-            WHERE f.id = ANY (b.records_id)
-              AND jsonb_path_exists(
-                    f.materials,
-                    '$.** ? (@.resource_id == $rid)',
-                    jsonb_build_object('rid', p.resource_id)
-                )
-        )
+            ) * mb.consumption AS total_consumption
+
+        FROM matched_batches mb
         GROUP BY
-            b.work_order,
-            wo.recipe_id,
-            wo.station,
-            wo.reserved_date,
-            mr.product_id
-        ORDER BY b.work_order;
+            mb.work_order,
+            mb.recipe_id,
+            mb.station,
+            mb.reserved_date,
+            mb.consumption
+        ORDER BY mb.work_order;
         """
 
         result, column_names = execute_pg_select_query(query, (material_oid, material_type))
@@ -1011,7 +1045,7 @@ def run_output_barcode_query_task(task_id, resource_id, work_order):
             WITH target_batches AS (
                 SELECT DISTINCT UNNEST(b.records_id) AS feed_id
                 FROM kvmes.batch b
-                WHERE TRIM(b.work_order) = TRIM(%s)
+                WHERE TRIM(b.work_order) = %s
             ),
             matched_feed AS (
                 SELECT fr.id AS feed_id
@@ -1024,6 +1058,10 @@ def run_output_barcode_query_task(task_id, resource_id, work_order):
                         ON TRUE
                     WHERE feed_elem->>'resource_id' = %s
                 )
+            ),
+            feed_array AS (
+                SELECT array_agg(feed_id) AS ids
+                FROM matched_feed
             )
             SELECT
                 mr.id,
@@ -1034,8 +1072,8 @@ def run_output_barcode_query_task(task_id, resource_id, work_order):
                 mr.info->>'lot_number' AS lot_number,
                 mr.product_type
             FROM kvmes.material_resource mr
-            JOIN matched_feed mf
-                ON mf.feed_id = ANY (mr.feed_records_id);
+            JOIN feed_array fa
+                ON mr.feed_records_id && fa.ids;
         """
         result, column_names = execute_pg_select_query(query, (work_order, resource_id))
 
@@ -1221,7 +1259,7 @@ def stream_output_barcodes():
                     WITH target_batches AS (
                         SELECT DISTINCT UNNEST(b.records_id) AS feed_id
                         FROM kvmes.batch b
-                        WHERE TRIM(b.work_order) = TRIM(%s)
+                        WHERE TRIM(b.work_order) = %s
                     ),
                     matched_feed AS (
                         SELECT fr.id AS feed_id
@@ -1234,6 +1272,10 @@ def stream_output_barcodes():
                                 ON TRUE
                             WHERE feed_elem->>'resource_id' = %s
                         )
+                    ),
+                    feed_array AS (
+                        SELECT array_agg(feed_id) AS ids
+                        FROM matched_feed
                     )
                     SELECT
                         mr.id,
@@ -1244,8 +1286,8 @@ def stream_output_barcodes():
                         mr.info->>'lot_number' AS lot_number,
                         mr.product_type
                     FROM kvmes.material_resource mr
-                    JOIN matched_feed mf
-                        ON mf.feed_id = ANY (mr.feed_records_id);
+                    JOIN feed_array fa
+                        ON mr.feed_records_id && fa.ids;
                 """
                 res, cols = execute_pg_select_query(query, (work_order, resource_id))
 

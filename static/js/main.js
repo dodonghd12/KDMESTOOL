@@ -408,11 +408,16 @@ const Toast = {
 };
 window.Toast = Toast;
 
-// ===== INPUT CLEAR BUTTONS (x) =====
+// ===== INPUT CLEAR BUTTONS (x) & FLOATING LABELS TRACKER =====
 function initInputClearButtons() {
     document.querySelectorAll('.input-box').forEach(box => {
         const input = box.querySelector('.input');
         if (!input) return;
+
+        // Ensure placeholder is set for CSS :not(:placeholder-shown) floating label support
+        if (!input.placeholder || input.placeholder === '') {
+            input.placeholder = ' ';
+        }
 
         let clearBtn = box.querySelector('.clear-btn');
         if (!clearBtn) {
@@ -442,6 +447,9 @@ function initInputClearButtons() {
 
         input.addEventListener('input', updateClearState);
         input.addEventListener('change', updateClearState);
+        input.addEventListener('keyup', updateClearState);
+        input.addEventListener('blur', updateClearState);
+        input.addEventListener('focus', updateClearState);
         updateClearState();
     });
 }
@@ -1697,77 +1705,6 @@ async function fetchInputBarcode(id, product_type) {
 
 // ── STREAMING TASK PROGRESS CONTROLLER ──────────────────────────────────────
 let currentBarcodeEventSource = null;
-let barcodeTaskTimerInterval = null;
-let barcodeTaskStartTime = null;
-
-function showTaskProgressModal(title, subtitle) {
-    const modal = document.getElementById('taskProgressModal');
-    if (!modal) return;
-
-    const titleEl = document.getElementById('taskProgressTitle');
-    const subEl = document.getElementById('taskProgressSub');
-    const timerEl = document.getElementById('taskTimerCount');
-    const statusTextEl = document.getElementById('taskStatusText');
-
-    if (titleEl) titleEl.textContent = title || 'Đang truy vấn cơ sở dữ liệu MES...';
-    if (subEl) {
-        if (subtitle) {
-            subEl.innerHTML = subtitle;
-        } else {
-            subEl.textContent = 'Hệ thống đang quét dữ liệu trong bảng lớn, quá trình có thể mất từ vài chục giây đến vài phút.';
-        }
-    }
-    if (timerEl) timerEl.textContent = '00:00';
-    if (statusTextEl) statusTextEl.textContent = 'Đang khởi tạo kết nối cơ sở dữ liệu...';
-
-    barcodeTaskStartTime = Date.now();
-    modal.style.display = 'flex';
-
-    if (barcodeTaskTimerInterval) clearInterval(barcodeTaskTimerInterval);
-
-    barcodeTaskTimerInterval = setInterval(() => {
-        if (!barcodeTaskStartTime) return;
-        const elapsedSec = Math.floor((Date.now() - barcodeTaskStartTime) / 1000);
-        const mins = String(Math.floor(elapsedSec / 60)).padStart(2, '0');
-        const secs = String(elapsedSec % 60).padStart(2, '0');
-        if (timerEl) timerEl.textContent = `${mins}:${secs}`;
-
-        // Dynamic status updates based on elapsed seconds
-        if (statusTextEl) {
-            if (elapsedSec < 5) {
-                statusTextEl.textContent = 'Đang phân tích cấu trúc Batch cho MES ID...';
-            } else if (elapsedSec < 15) {
-                statusTextEl.textContent = 'Đang quét và đối chiếu các bản ghi Feed Record...';
-            } else if (elapsedSec < 30) {
-                statusTextEl.textContent = 'Đang tổng hợp dữ liệu Material Resource...';
-            } else if (elapsedSec < 60) {
-                statusTextEl.textContent = 'Dữ liệu lớn đang được xử lý ngầm, vui lòng kiên nhẫn...';
-            } else {
-                statusTextEl.textContent = 'Vẫn đang xử lý dữ liệu phức tạp, kết nối hoàn toàn ổn định...';
-            }
-        }
-    }, 1000);
-}
-
-function hideTaskProgressModal() {
-    const modal = document.getElementById('taskProgressModal');
-    if (modal) modal.style.display = 'none';
-
-    if (barcodeTaskTimerInterval) {
-        clearInterval(barcodeTaskTimerInterval);
-        barcodeTaskTimerInterval = null;
-    }
-    if (currentBarcodeEventSource) {
-        currentBarcodeEventSource.close();
-        currentBarcodeEventSource = null;
-    }
-    barcodeTaskStartTime = null;
-}
-
-function cancelCurrentBarcodeTask() {
-    hideTaskProgressModal();
-    showAlert('Đã dừng tìm kiếm tem đầu ra', 'info');
-}
 
 function fetchOutputBarcode() {
     const resource_id = feed_records_material_id;
@@ -1784,15 +1721,7 @@ function fetchOutputBarcode() {
 
     totalOutputBarcode = selectedRowData['total_barcode'];
 
-    const subtitleHtml = `
-        <div class="task-sub-row"><span class="task-sub-label">MES ID:</span> <span class="task-sub-val">${work_order}</span></div>
-        <div class="task-sub-row"><span class="task-sub-label">Barcode:</span> <span class="task-sub-val">${resource_id}</span></div>
-    `;
-
-    showTaskProgressModal(
-        'Đang tìm kiếm tem đầu ra',
-        subtitleHtml
-    );
+    showLoading();
 
     if (currentBarcodeEventSource) {
         currentBarcodeEventSource.close();
@@ -1807,7 +1736,6 @@ function fetchOutputBarcode() {
             const data = JSON.parse(event.data);
 
             if (data.status === 'processing') {
-                // Heartbeat to keep connection alive without multiple requests
                 return;
             }
 
@@ -1816,7 +1744,7 @@ function fetchOutputBarcode() {
                 currentBarcodeEventSource.close();
                 currentBarcodeEventSource = null;
             }
-            hideTaskProgressModal();
+            hideLoading();
 
             if (data.status === 'completed') {
                 if (data.result && data.result.length > 0) {
@@ -1831,6 +1759,7 @@ function fetchOutputBarcode() {
             }
         } catch (err) {
             console.error('Lỗi phân tích dữ liệu SSE:', err);
+            hideLoading();
         }
     };
 
@@ -1840,7 +1769,7 @@ function fetchOutputBarcode() {
             currentBarcodeEventSource.close();
             currentBarcodeEventSource = null;
         }
-        hideTaskProgressModal();
+        hideLoading();
         showAlert('Lỗi kết nối khi truyền dữ liệu tem đầu ra', 'error');
     };
 }
@@ -3094,6 +3023,15 @@ function enterSingleRowMode() {
     tbody.innerHTML = '';
     tbody.appendChild(selectedRow);
 
+    const mainTableContainer = document.querySelector('.table-container:not(.output-barcode)');
+    if (mainTableContainer) {
+        mainTableContainer.classList.add('single-row-mode');
+    }
+    const container = document.querySelector('.container');
+    if (container) {
+        container.classList.add('has-output-barcode');
+    }
+
     updateVisibleRowCount();
 }
 
@@ -3106,6 +3044,15 @@ function exitSingleRowMode() {
     originalTableHTML = null;
     selectedRow = null;
     selectedRowData = null;
+
+    const mainTableContainer = document.querySelector('.table-container:not(.output-barcode)');
+    if (mainTableContainer) {
+        mainTableContainer.classList.remove('single-row-mode');
+    }
+    const container = document.querySelector('.container');
+    if (container) {
+        container.classList.remove('has-output-barcode');
+    }
 
     updateVisibleRowCount();
 }
