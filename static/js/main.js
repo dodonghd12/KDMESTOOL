@@ -628,6 +628,80 @@ function showTableSkeleton(columnsCount = 6, rowsCount = 5) {
     }
 }
 
+// ===== UNIVERSAL BROWSER AUTOFILL & SAVED INFO SUPPRESSOR =====
+function initAutofillSuppressor() {
+    function guardInput(input) {
+        if (!input || input.type === 'checkbox' || input.type === 'radio' || input.type === 'file' || input.type === 'button' || input.type === 'submit') {
+            return;
+        }
+
+        // Set anti-autofill attributes
+        input.setAttribute('autocomplete', 'off');
+        input.setAttribute('autocorrect', 'off');
+        input.setAttribute('autocapitalize', 'off');
+        input.setAttribute('spellcheck', 'false');
+        input.setAttribute('data-lpignore', 'true');
+        input.setAttribute('data-form-type', 'other');
+        input.setAttribute('data-1p-ignore', 'true');
+        input.setAttribute('aria-autocomplete', 'none');
+
+        // Prevent Edge/Chrome saved info popup via readonly toggle on pointerdown / focus
+        if (!input.dataset.autofillGuarded) {
+            input.dataset.autofillGuarded = 'true';
+
+            // Set readonly initially if not active element
+            if (document.activeElement !== input && !input.readOnly) {
+                input.readOnly = true;
+            }
+
+            input.addEventListener('focus', function () {
+                if (this.readOnly) {
+                    this.readOnly = false;
+                }
+            });
+
+            input.addEventListener('pointerdown', function () {
+                if (document.activeElement !== this && !this.readOnly) {
+                    this.readOnly = true;
+                    setTimeout(() => {
+                        this.readOnly = false;
+                    }, 40);
+                }
+            });
+
+            input.addEventListener('blur', function () {
+                // Re-lock to readonly on blur so next click is clean
+                if (!this.readOnly && this.type !== 'hidden') {
+                    this.readOnly = true;
+                }
+            });
+        }
+    }
+
+    // Apply to all current inputs
+    document.querySelectorAll('input').forEach(guardInput);
+
+    // Watch for dynamically added inputs
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            mutation.addedNodes.forEach((node) => {
+                if (node.nodeType === 1) {
+                    if (node.tagName === 'INPUT') {
+                        guardInput(node);
+                    } else if (node.querySelectorAll) {
+                        node.querySelectorAll('input').forEach(guardInput);
+                    }
+                }
+            });
+        });
+    });
+
+    observer.observe(document.body || document.documentElement, {
+        childList: true,
+        subtree: true
+    });
+}
+
 function initSkeletonState() {
     // 1. Check if top window already marked all pages as loaded
     try {
@@ -658,6 +732,7 @@ initSkeletonState();
 
 document.addEventListener('DOMContentLoaded', function () {
     initSkeletonState();
+    initAutofillSuppressor();
     Toast.init();
     checkAuth();
     initializeMainEventListeners();

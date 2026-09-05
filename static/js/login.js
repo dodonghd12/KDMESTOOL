@@ -238,6 +238,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Keypress handler on Enter
     if (terminalInput) {
+        terminalInput.setAttribute('autocomplete', 'off');
+        terminalInput.setAttribute('autocorrect', 'off');
+        terminalInput.setAttribute('autocapitalize', 'off');
+        terminalInput.setAttribute('spellcheck', 'false');
+        terminalInput.setAttribute('data-lpignore', 'true');
+        terminalInput.setAttribute('data-form-type', 'other');
+        terminalInput.setAttribute('aria-autocomplete', 'none');
+
         terminalInput.addEventListener('keydown', function (e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
