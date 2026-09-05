@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ page_title or 'KDMES TOOL' }}</title>
+    <title>{{ page_title }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}">
 
@@ -35,7 +35,7 @@
 
     <main id="spaViewport" class="spa-viewport">
         <!-- Preloaded Isolated Views -->
-        <iframe id="view-main" class="spa-view-frame {% if initial_path == '/main' or not initial_path %}active{% endif %}" src="{{ url_for('main', frame='1') }}" title="Home"></iframe>
+        <iframe id="view-main" class="spa-view-frame {% if initial_path == '/main' or not initial_path %}active{% endif %}" src="{{ url_for('main', frame='1') }}" title="Main"></iframe>
         <iframe id="view-scan-barcode-history" class="spa-view-frame {% if initial_path == '/scan-barcode-history' %}active{% endif %}" src="{{ url_for('scan_barcode_history', frame='1') }}" title="Lịch sử quét tem theo Máy"></iframe>
         <iframe id="view-print-barcode-history" class="spa-view-frame {% if initial_path == '/print-barcode-history' %}active{% endif %}" src="{{ url_for('print_barcode_history', frame='1') }}" title="Lịch sử in tem theo Máy"></iframe>
         <iframe id="view-validate-scan-barcode" class="spa-view-frame {% if initial_path == '/validate-scan-barcode' %}active{% endif %}" src="{{ url_for('validate_scan_barcode', frame='1') }}" title="Kiểm tra NVL mã MES"></iframe>

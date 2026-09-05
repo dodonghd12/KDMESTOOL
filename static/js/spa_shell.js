@@ -3,7 +3,7 @@
  */
 (function () {
     const SPA_ROUTES = [
-        { path: '/main', frameId: 'view-main', title: 'Home' },
+        { path: '/main', frameId: 'view-main', title: 'Main' },
         { path: '/scan-barcode-history', frameId: 'view-scan-barcode-history', title: 'Lịch sử quét tem theo Máy' },
         { path: '/print-barcode-history', frameId: 'view-print-barcode-history', title: 'Lịch sử in tem theo Máy' },
         { path: '/validate-scan-barcode', frameId: 'view-validate-scan-barcode', title: 'Kiểm tra NVL mã MES' },

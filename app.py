@@ -199,7 +199,7 @@ def render_page_or_shell(template_name, page_path, page_title="KDMES TOOL"):
 
 @app.route('/main')
 def main():
-    return render_page_or_shell('main.html', '/main', 'Home')
+    return render_page_or_shell('main.html', '/main', 'Main')
 
 @app.route('/validate-scan-barcode')
 def validate_scan_barcode():
