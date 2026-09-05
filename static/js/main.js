@@ -98,6 +98,11 @@ function navigateWithTransition(url, duration = 600) {
  * Attach transition to all sidebar links
  */
 function attachTransitionToSidebarLinks() {
+    // Skip if in SPA shell or inside sub-frame to allow instant 0ms switching
+    if (document.body.classList.contains('spa-shell-body') || document.body.classList.contains('is-spa-frame') || window !== window.top) {
+        return;
+    }
+
     // Wait for DOM to be ready
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', attachTransitionToSidebarLinks);
@@ -173,41 +178,70 @@ window.pageTransition = {
 // Custom Modal Functions
 function showModal(type, title, message, buttons = []) {
     const modal = document.getElementById('customModal');
+    if (!modal) return Promise.resolve(false);
+
+    const content = modal.querySelector('.custom-modal-content');
     const icon = document.getElementById('modalIcon');
     const titleEl = document.getElementById('modalTitle');
     const messageEl = document.getElementById('modalMessage');
     const footer = document.getElementById('modalFooter');
 
-    // Set icon and color
-    icon.className = 'custom-modal-icon ' + type;
-    const icons = {
-        'info': 'ℹ️',
-        'success': '✓',
-        'error': '✕',
-        'warning': '⚠'
-    };
-    icon.textContent = icons[type] || 'ℹ️';
+    const validTypes = ['info', 'success', 'error', 'warning'];
+    const currentType = validTypes.includes(type) ? type : 'info';
 
-    titleEl.textContent = title;
-    messageEl.textContent = message;
-    messageEl.style.whiteSpace = 'pre-line'; // Allow line breaks in message
+    // Set modal content theme class
+    if (content) {
+        content.className = 'custom-modal-content type-' + currentType;
+    }
+
+    // Set icon badge with Material Symbols
+    if (icon) {
+        icon.className = 'custom-modal-icon ' + currentType;
+        const icons = {
+            'info': '<span class="material-symbols-outlined">info</span>',
+            'success': '<span class="material-symbols-outlined">check_circle</span>',
+            'error': '<span class="material-symbols-outlined">error</span>',
+            'warning': '<span class="material-symbols-outlined">warning</span>'
+        };
+        icon.innerHTML = icons[currentType] || '<span class="material-symbols-outlined">info</span>';
+    }
+
+    if (titleEl) titleEl.textContent = title;
+    if (messageEl) {
+        messageEl.textContent = message;
+        messageEl.style.whiteSpace = 'pre-line'; // Allow line breaks in message
+    }
 
     // Clear and add buttons
-    footer.innerHTML = '';
-    buttons.forEach(btn => {
-        const button = document.createElement('button');
-        button.className = 'custom-modal-btn ' + btn.class;
-        button.textContent = btn.text;
-        footer.appendChild(button);
-    });
+    if (footer) {
+        footer.innerHTML = '';
+        buttons.forEach(btn => {
+            const button = document.createElement('button');
+            button.className = 'custom-modal-btn ' + (btn.class || 'custom-modal-btn-primary');
+            button.textContent = btn.text;
+            footer.appendChild(button);
+        });
+    }
 
     modal.classList.add('show');
 
     // Lock body scroll
     document.body.style.overflow = 'hidden';
 
+    // Auto-focus primary/confirm button for great keyboard UX
+    setTimeout(() => {
+        if (footer) {
+            const primaryBtn = footer.querySelector('.custom-modal-btn-primary') || footer.firstElementChild;
+            if (primaryBtn) primaryBtn.focus();
+        }
+    }, 40);
+
     // Return promise for confirm dialogs
     return new Promise((resolve) => {
+        if (!footer) {
+            resolve(true);
+            return;
+        }
         buttons.forEach((btn, index) => {
             const button = footer.children[index];
             if (button) {
@@ -311,11 +345,329 @@ function showCountdownConfirm(type, title, message, seconds) {
     }, 0);
 }
 
+// ===== TOAST NOTIFICATION CONTROLLER =====
+const Toast = {
+    container: null,
+    init() {
+        if (!this.container) {
+            this.container = document.getElementById('toastContainer');
+            if (!this.container) {
+                this.container = document.createElement('div');
+                this.container.id = 'toastContainer';
+                document.body.appendChild(this.container);
+            }
+        }
+        return this.container;
+    },
+    show(title, message, type = 'info', duration = 4000) {
+        if (window !== window.top && window.top && window.top.Toast && typeof window.top.Toast.show === 'function') {
+            window.top.Toast.show(title, message, type, duration);
+            return;
+        }
+        const container = this.init();
+        const icons = {
+            success: 'check_circle',
+            error: 'error',
+            warning: 'warning',
+            info: 'info'
+        };
+        const iconName = icons[type] || 'info';
+
+        const toast = document.createElement('div');
+        toast.className = `toast-item toast-${type}`;
+        toast.innerHTML = `
+            <span class="material-symbols-outlined toast-icon">${iconName}</span>
+            <div class="toast-content">
+                <div class="toast-title">${title}</div>
+                <div class="toast-message">${message}</div>
+            </div>
+            <button class="toast-close" title="Đóng">&times;</button>
+            <div class="toast-progress" style="animation: toastProgress ${duration}ms linear forwards;"></div>
+        `;
+
+        const closeBtn = toast.querySelector('.toast-close');
+        let timer = null;
+        const dismiss = () => {
+            if (timer) clearTimeout(timer);
+            toast.classList.add('removing');
+            setTimeout(() => toast.remove(), 300);
+        };
+
+        closeBtn.addEventListener('click', dismiss);
+        timer = setTimeout(dismiss, duration);
+
+        toast.addEventListener('mouseenter', () => { if (timer) clearTimeout(timer); });
+        toast.addEventListener('mouseleave', () => { timer = setTimeout(dismiss, 1500); });
+
+        container.appendChild(toast);
+    },
+    success(title, message, duration) { this.show(title, message, 'success', duration); },
+    error(title, message, duration) { this.show(title, message, 'error', duration); },
+    warning(title, message, duration) { this.show(title, message, 'warning', duration); },
+    info(title, message, duration) { this.show(title, message, 'info', duration); }
+};
+window.Toast = Toast;
+
+// ===== INPUT CLEAR BUTTONS (x) =====
+function initInputClearButtons() {
+    document.querySelectorAll('.input-box').forEach(box => {
+        const input = box.querySelector('.input');
+        if (!input) return;
+
+        let clearBtn = box.querySelector('.clear-btn');
+        if (!clearBtn) {
+            clearBtn = document.createElement('button');
+            clearBtn.type = 'button';
+            clearBtn.className = 'clear-btn';
+            clearBtn.innerHTML = '&times;';
+            clearBtn.title = 'Xóa nội dung';
+            box.appendChild(clearBtn);
+
+            clearBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                input.value = '';
+                box.classList.remove('has-value');
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                input.focus();
+            });
+        }
+
+        const updateClearState = () => {
+            if (input.value && input.value.trim().length > 0) {
+                box.classList.add('has-value');
+            } else {
+                box.classList.remove('has-value');
+            }
+        };
+
+        input.addEventListener('input', updateClearState);
+        input.addEventListener('change', updateClearState);
+        updateClearState();
+    });
+}
+
+// ===== AUTO UPPERCASE =====
+function initAutoUppercase() {
+    const uppercaseIds = ['barcode', 'product_id', 'feed_record_id', 'workOrderInput', 'substitutions', 'mr_id', 'mr_product_id', 'mr_station', 'station', 'department'];
+    uppercaseIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el && !el.dataset.uppercaseInit) {
+            el.dataset.uppercaseInit = 'true';
+            el.addEventListener('input', (e) => {
+                const start = e.target.selectionStart;
+                const end = e.target.selectionEnd;
+                e.target.value = e.target.value.toUpperCase();
+                if (start !== null && end !== null) {
+                    e.target.setSelectionRange(start, end);
+                }
+            });
+        }
+    });
+}
+
+// ===== KEYBOARD SHORTCUTS =====
+function initKeyboardShortcuts() {
+    document.addEventListener('keydown', (e) => {
+        // Ctrl + K -> Focus main search input
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+            e.preventDefault();
+            const searchInp = document.getElementById('barcode') ||
+                              document.getElementById('product_id') ||
+                              document.getElementById('clientSearch') ||
+                              document.getElementById('workOrderInput') ||
+                              document.querySelector('.input-box .input');
+            if (searchInp) {
+                searchInp.focus();
+                searchInp.select?.();
+            }
+            return;
+        }
+
+        // Ctrl + Enter -> Execute search / submit
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            const searchBtn = document.querySelector('.search-icon-btn') ||
+                              document.getElementById('searchBtn') ||
+                              document.getElementById('insertMaterialBtn');
+            if (searchBtn) {
+                searchBtn.click();
+            }
+            return;
+        }
+
+        // Ctrl + D -> View details for selected row
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') {
+            e.preventDefault();
+            if (selectedRow) {
+                showDetails();
+            } else if (selectedOutputRow) {
+                showOutputDetails();
+            } else {
+                Toast.info('Thông báo', 'Vui lòng click chọn 1 dòng dữ liệu để xem chi tiết');
+            }
+            return;
+        }
+
+        // Ctrl + E -> Export Excel
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'e') {
+            e.preventDefault();
+            const exportBtn = document.getElementById('exportExcelBtn') || document.getElementById('exportOutputExcelBtn');
+            if (exportBtn && !exportBtn.closest('.hidden')) {
+                exportBtn.click();
+            }
+            return;
+        }
+
+        // Escape -> Close Context Menu or Modals
+        if (e.key === 'Escape') {
+            const contextMenu = document.getElementById('contextMenu');
+            if (contextMenu && contextMenu.style.display !== 'none') {
+                contextMenu.style.display = 'none';
+                return;
+            }
+            const detailsModal = document.getElementById('detailsModal');
+            if (detailsModal && !detailsModal.classList.contains('hidden')) {
+                closeDetailsModal();
+                return;
+            }
+        }
+    });
+}
+
+// ===== CONTEXT MENU KEYBOARD NAVIGATION =====
+let contextMenuNavIndex = -1;
+
+function initContextMenuKeyboard() {
+    document.addEventListener('keydown', (e) => {
+        const contextMenu = document.getElementById('contextMenu');
+        if (!contextMenu || contextMenu.style.display === 'none') return;
+
+        const visibleItems = Array.from(contextMenu.querySelectorAll('.context-menu-item'))
+            .filter(item => item.style.display !== 'none');
+        if (visibleItems.length === 0) return;
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            contextMenuNavIndex = (contextMenuNavIndex + 1) % visibleItems.length;
+            updateContextMenuFocus(visibleItems);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            contextMenuNavIndex = (contextMenuNavIndex - 1 + visibleItems.length) % visibleItems.length;
+            updateContextMenuFocus(visibleItems);
+        } else if (e.key === 'Enter') {
+            if (contextMenuNavIndex >= 0 && contextMenuNavIndex < visibleItems.length) {
+                e.preventDefault();
+                visibleItems[contextMenuNavIndex].click();
+                contextMenu.style.display = 'none';
+                contextMenuNavIndex = -1;
+            }
+        }
+    });
+}
+
+function updateContextMenuFocus(items) {
+    items.forEach((item, idx) => {
+        if (idx === contextMenuNavIndex) {
+            item.classList.add('focused');
+            item.scrollIntoView({ block: 'nearest' });
+        } else {
+            item.classList.remove('focused');
+        }
+    });
+}
+
+// ===== ENHANCE CONTEXT MENU WITH MATERIAL ICONS =====
+function enhanceContextMenu() {
+    const actionIcons = {
+        'inputBarcode': 'barcode_scanner',
+        'feedRecords': 'history',
+        'checkScanBarcodeHistory': 'receipt_long',
+        'checkBarcodeWorkOrder': 'assignment',
+        'checkBarcodeTransfer': 'local_shipping',
+        'checkBarcodeExtendDateTime': 'update',
+        'fetchOriginalInfo': 'info',
+        'getPrdeba': 'dataset',
+        'getPrdebb': 'dataset',
+        'getPrdebc': 'dataset',
+        'outputBarcodeByFeedRecords': 'output',
+        'searchWorkOrderByRecipe': 'assignment',
+        'searchCommitGitlabByRecipe': 'source',
+        'fetchYamlDetails': 'code',
+        'outputByBarcode': 'qr_code_2',
+        'outputByRecipe': 'qr_code_2',
+        'commitDetailByRecipe': 'history_edu'
+    };
+
+    document.querySelectorAll('.context-menu-item').forEach(item => {
+        const action = item.dataset.action;
+        if (action && actionIcons[action] && !item.querySelector('.material-symbols-outlined')) {
+            const iconSpan = document.createElement('span');
+            iconSpan.className = 'material-symbols-outlined';
+            iconSpan.textContent = actionIcons[action];
+            item.prepend(iconSpan);
+        }
+    });
+}
+
+// ===== TABLE SKELETON LOADING HELPER =====
+function showTableSkeleton(columnsCount = 6, rowsCount = 5) {
+    const tbody = document.getElementById('tableBody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    for (let i = 0; i < rowsCount; i++) {
+        const tr = document.createElement('tr');
+        tr.className = 'skeleton-row';
+        for (let j = 0; j < columnsCount; j++) {
+            const td = document.createElement('td');
+            const skeletonDiv = document.createElement('div');
+            skeletonDiv.className = 'skeleton-cell';
+            skeletonDiv.style.width = `${55 + (j * 15) % 40}%`;
+            td.appendChild(skeletonDiv);
+            tr.appendChild(td);
+        }
+        tbody.appendChild(tr);
+    }
+}
+
+function initSkeletonState() {
+    // 1. Check if top window already marked all pages as loaded
+    try {
+        if (window.top && window.top.__kd_all_pages_loaded) {
+            document.body.classList.remove('app-loading-state');
+            return;
+        }
+    } catch (e) {}
+
+    // 2. Listen for broadcast from spa_shell
+    window.addEventListener('message', (e) => {
+        if (e.data && e.data.type === 'SPA_ALL_PAGES_LOADED') {
+            document.body.classList.remove('app-loading-state');
+        }
+    });
+
+    // 3. If standalone (not embedded in an iframe)
+    if (window.self === window.top) {
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                document.body.classList.remove('app-loading-state');
+            }, 300);
+        });
+    }
+}
+
+initSkeletonState();
+
 document.addEventListener('DOMContentLoaded', function () {
+    initSkeletonState();
+    Toast.init();
     checkAuth();
     initializeMainEventListeners();
     initClientSearch();
     initDetailsModal();
+    initInputClearButtons();
+    initAutoUppercase();
+    initKeyboardShortcuts();
+    initContextMenuKeyboard();
+    enhanceContextMenu();
 
     // ===== BLOCK ESC KEY WHEN MODAL IS OPEN =====
     document.addEventListener('keydown', function (e) {
@@ -343,31 +695,101 @@ document.querySelectorAll('.label[data-text]').forEach(label => {
     });
 });
 
-async function checkAuth() {
+let departments = [];
+
+/**
+ * Shared Global Department Cache & Request Deduplicator
+ */
+async function getDepartments(forceRefresh = false) {
+    let topWin = window;
     try {
-        const response = await fetch('/api/departments');
-        const result = await response.json();
-        if (result.error) {
-            await showAlert(
-                'Phiên đăng nhập hết hạn, Vui lòng đăng nhập lại',
-                'error'
-            );
-            window.location.href = '/login';
-            return;
+        topWin = window.top || window;
+    } catch (e) {
+        topWin = window;
+    }
+
+    if (!forceRefresh) {
+        // 1. Check in-memory in top window or current window
+        if (topWin.__kd_departments && Array.isArray(topWin.__kd_departments) && topWin.__kd_departments.length > 0) {
+            departments = topWin.__kd_departments;
+            window.departments = topWin.__kd_departments;
+            return topWin.__kd_departments;
         }
 
-        const items = result.data || [];
-        departments = items.map(item => ({
-            id: item.departmentID || ''
-        }));
+        // 2. Check sessionStorage
+        try {
+            const cached = sessionStorage.getItem('kd_departments_cache');
+            if (cached) {
+                const parsed = JSON.parse(cached);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    topWin.__kd_departments = parsed;
+                    departments = parsed;
+                    window.departments = parsed;
+                    return parsed;
+                }
+            }
+        } catch (e) {}
 
-    } catch (error) {
-        console.error('Error loading departments:', error);
+        // 3. Deduplicate concurrent in-flight requests across iframes
+        if (topWin.__kd_departments_promise) {
+            const depts = await topWin.__kd_departments_promise;
+            departments = depts;
+            window.departments = depts;
+            return depts;
+        }
     }
+
+    topWin.__kd_departments_promise = (async () => {
+        try {
+            const response = await fetch('/api/departments');
+            const result = await response.json();
+            if (result.error && (result.code === 'UNAUTHORIZED' || response.status === 401)) {
+                await showAlert(
+                    'Phiên đăng nhập hết hạn, Vui lòng đăng nhập lại',
+                    'error'
+                );
+                topWin.location.href = '/login';
+                return [];
+            }
+
+            const items = result.data || [];
+            const depts = items.map(item => {
+                const idVal = item.departmentID || item.id || '';
+                return {
+                    id: idVal,
+                    departmentID: idVal
+                };
+            });
+
+            topWin.__kd_departments = depts;
+            departments = depts;
+            window.departments = depts;
+            try {
+                sessionStorage.setItem('kd_departments_cache', JSON.stringify(depts));
+            } catch (e) {}
+
+            return depts;
+        } catch (error) {
+            console.error('Error loading departments:', error);
+            return [];
+        } finally {
+            topWin.__kd_departments_promise = null;
+        }
+    })();
+
+    const result = await topWin.__kd_departments_promise;
+    departments = result;
+    window.departments = result;
+    return result;
+}
+
+window.getDepartments = getDepartments;
+
+async function checkAuth() {
+    await getDepartments();
 }
 
 function initializeMainEventListeners() {
-
     // ===== MAIN PAGE INPUTS =====
     const barcodeInput = document.getElementById('barcode');
     const productInput = document.getElementById('product_id');
@@ -398,6 +820,7 @@ function initializeMainEventListeners() {
             if (barcodeInput) barcodeInput.value = '';
             if (feedRecordInput) feedRecordInput.value = '';
         });
+    }
 
     if (feedRecordInput) {
         feedRecordInput.addEventListener(
@@ -411,10 +834,8 @@ function initializeMainEventListeners() {
             if (productInput) productInput.value = '';
         });
     }
-    }
 
     // ===== SIDEBAR EVENTS =====
-    document.addEventListener('sidebar:about', showAbout);
     document.addEventListener('sidebar:logout', handleLogout);
 
     // ===== MODAL CLOSE BUTTONS =====
@@ -458,44 +879,6 @@ function initializeMainEventListeners() {
     });
 
     enhanceContextMenu();
-
-    // ===== SPEECH BUBBLE =====
-    speechBubble.init();
-
-    setTimeout(() => {
-        speechBubble.show(`Xin Chào! 👋`, {
-            duration: 10000,
-            animation: 'bounce'
-        });
-    }, 1000);
-
-    document.querySelector('thead')?.addEventListener('mouseenter', () => {
-        speechBubble.show('💡Tip: Click đúp chuột trái để xem chi tiết và click chuột phải vào dòng dữ liệu để xem thêm chức năng!', {
-            duration: 10000,
-            animation: 'bounce'
-        })
-    })
-
-    document.querySelector('.input-box')?.addEventListener('mouseenter', () => {
-        speechBubble.show('💡Tip: Search barcode, Search đơn điều động theo quy cách, Search feed records!', {
-            duration: 10000,
-            animation: 'bounce'
-        })
-    })
-
-    document.querySelector('.output-header')?.addEventListener('mouseenter', () => {
-        speechBubble.show('💡Tip: Nhớ tắt Bảng Chi Tiết Barcode để trở về ban đầu!', {
-            duration: 10000,
-            animation: 'bounce'
-        })
-    })
-
-    document.querySelector('.btn-export-excel')?.addEventListener('mouseenter', () => {
-        speechBubble.show('💡Tip: Xuất file Excel gồm toàn bộ dữ liệu của bảng phía trên!', {
-            duration: 10000,
-            animation: 'bounce'
-        })
-    })
 }
 
 function debounceSearch(func, delay) {
@@ -588,6 +971,20 @@ function displayTable(result, columns) {
 
     if (!result || result.length === 0) {
         rowCount.textContent = '0';
+        const emptyTr = document.createElement('tr');
+        const emptyTd = document.createElement('td');
+        emptyTd.colSpan = (columns && columns.length > 0) ? columns.length : 8;
+        emptyTd.style.textAlign = 'center';
+        emptyTd.style.padding = '48px 20px';
+        emptyTd.innerHTML = `
+            <div class="table-empty-state">
+                <span class="material-symbols-outlined empty-state-icon">search_off</span>
+                <div class="empty-state-title">Không có dữ liệu</div>
+            </div>
+        `;
+        emptyTr.appendChild(emptyTd);
+        tbody.appendChild(emptyTr);
+        updateVisibleRowCount();
         return;
     }
 
@@ -1351,9 +1748,6 @@ function fetchOutputBarcode() {
                     outputBarcodeRawData = data.result;
                     outputBarcodeColumns = data.columns;
                     renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
-                    if (typeof speechBubble !== 'undefined' && speechBubble.show) {
-                        speechBubble.show(`✨ Đã tìm thấy ${data.result.length} tem đầu ra (${data.duration}s)!`, { duration: 4000 });
-                    }
                 } else {
                     showAlert(data.message || 'Không tìm thấy tem đầu ra', 'info');
                 }
@@ -1762,15 +2156,20 @@ async function copyDetailsData() {
         await navigator.clipboard.writeText(textToCopy);
         
         // Visual feedback
-        const originalHTML = copyBtn.innerHTML;
-        copyBtn.classList.add('copied');
-        copyBtn.innerHTML = '<span class="material-symbols-outlined">check</span>';
-        
-        // Reset button sau 2 giây
-        setTimeout(() => {
-            copyBtn.classList.remove('copied');
-            copyBtn.innerHTML = originalHTML;
-        }, 2000);
+        if (copyBtn) {
+            const originalHTML = copyBtn.innerHTML;
+            copyBtn.classList.add('copied');
+            copyBtn.innerHTML = '<span class="material-symbols-outlined">check</span> <span>Đã copy!</span>';
+            if (typeof Toast !== 'undefined' && Toast.success) {
+                Toast.success('Thành công', 'Đã sao chép dữ liệu vào bộ nhớ tạm');
+            }
+            
+            // Reset button sau 2 giây
+            setTimeout(() => {
+                copyBtn.classList.remove('copied');
+                copyBtn.innerHTML = originalHTML;
+            }, 2000);
+        }
         
     } catch (err) {
         console.error('Copy failed:', err);
@@ -1786,15 +2185,16 @@ async function copyDetailsData() {
         try {
             document.execCommand('copy');
             
-            // Visual feedback
-            const originalHTML = copyBtn.innerHTML;
-            copyBtn.classList.add('copied');
-            copyBtn.innerHTML = '<span class="material-symbols-outlined">check</span>';
-            
-            setTimeout(() => {
-                copyBtn.classList.remove('copied');
-                copyBtn.innerHTML = originalHTML;
-            }, 2000);
+            if (copyBtn) {
+                const originalHTML = copyBtn.innerHTML;
+                copyBtn.classList.add('copied');
+                copyBtn.innerHTML = '<span class="material-symbols-outlined">check</span> <span>Đã copy!</span>';
+                
+                setTimeout(() => {
+                    copyBtn.classList.remove('copied');
+                    copyBtn.innerHTML = originalHTML;
+                }, 2000);
+            }
             
         } catch (fallbackErr) {
             showAlert('Không thể copy dữ liệu. Vui lòng thử lại.', 'error');
@@ -1855,7 +2255,7 @@ async function handleLogout() {
         const response = await fetch('/logout', { method: 'POST' });
         const data = await response.json();
         if (data.success) {
-            window.location.href = '/login';
+            (window.top || window).location.href = '/login';
         }
     } catch (error) {
         console.error('Logout error:', error);
@@ -1958,22 +2358,6 @@ async function fetchYamlContent() {
 
     modal.classList.remove('hidden');
     document.body.classList.add('modal-open');
-
-    if (errors.length > 0) {
-        setTimeout(() => {
-            speechBubble.show(`⚠️ Phát hiện ${errors.length} lỗi trong file YAML!`, {
-                duration: 6000,
-                animation: 'shake'
-            });
-        }, 300);
-    } else {
-        setTimeout(() => {
-            speechBubble.show(`✅ File YAML không phát hiện lỗi!`, {
-                duration: 4000,
-                animation: 'bounce'
-            });
-        }, 300);
-    }
 }
 
 /**
@@ -2348,25 +2732,8 @@ function renderOutputBarcodeTable(rows, columns) {
     const count = rows.length;
     rowCount.textContent = count;
 
-    if (count === 36) {
-        speechBubble.show(`Tôi tìm thấy ${count}☘️ kết quả! ✅`, {
-            duration: 2000
-        });
-    } else {
-        speechBubble.show(`Tôi tìm thấy ${count} kết quả! ✅`, {
-            duration: 2000
-        });
-    }
-
     if (count > totalOutputBarcode && totalOutputBarcode > 0) {
         const dif = count - totalOutputBarcode;
-
-        document.querySelector('.output-table-scroll')?.addEventListener('mouseenter', () => {
-            speechBubble.show(`⚠️ Có ${dif} tem in bù!`, {
-                duration: 5000,
-                animation: 'shake'
-            })
-        })
     }
 }
 
@@ -2384,29 +2751,19 @@ function initClientSearch() {
     }
 
     if (searchInput && searchIconBtn) {
-        // Click icon để toggle: nếu đang focus thì đóng + clear, nếu chưa thì mở
+        // Click icon: nếu có text thì clear & reset filter, nếu rỗng thì focus input
         searchIconBtn.addEventListener('click', (e) => {
             e.stopPropagation();
 
             // Không cho click nếu disabled
             if (searchInput.disabled) return;
 
-            if (document.activeElement === searchInput) {
-                // Đang focus → đóng và clear
+            if (searchInput.value.trim() !== '') {
                 searchInput.value = '';
-                searchInput.blur();
+                searchInput.focus();
                 filterClientResult(''); // Reset filter
             } else {
-                // Chưa focus → mở
                 searchInput.focus();
-            }
-        });
-
-        // Đóng search khi click bên ngoài và input rỗng
-        document.addEventListener('click', (e) => {
-            const clickedInside = inputWrapper.contains(e.target);
-            if (!clickedInside && searchInput.value.trim() === '') {
-                searchInput.blur();
             }
         });
     }
@@ -2417,22 +2774,6 @@ function initClientSearch() {
     searchInput.addEventListener('input', function () {
         const keyword = this.value.trim().toLowerCase();
         filterClientResult(keyword);
-    });
-
-    // Ẩn button khi search mở
-    searchInput.addEventListener('focus', () => {
-        if (searchInput.disabled) return;
-        searchIconBtn.style.pointerEvents = 'none';
-    });
-
-    // Hiện button khi search đóng
-    searchInput.addEventListener('blur', () => {
-        if (searchInput.disabled) {
-            searchIconBtn.style.cursor = 'not-allowed';
-        } else {
-            searchIconBtn.style.pointerEvents = 'auto';
-            searchIconBtn.style.cursor = 'pointer';
-        }
     });
 }
 
@@ -2450,11 +2791,13 @@ function updateClientSearchState(hasData = false) {
         // Enable clientSearch khi có dữ liệu
         searchInput.disabled = false;
         searchIconBtn.style.cursor = 'pointer';
+        searchIconBtn.removeAttribute('disabled');
     } else {
         // Disable clientSearch khi không có dữ liệu
         searchInput.disabled = true;
         searchInput.value = ''; // Clear input
         searchIconBtn.style.cursor = 'not-allowed';
+        searchIconBtn.setAttribute('disabled', 'true');
     }
 }
 
@@ -2511,16 +2854,6 @@ function updateVisibleRowCount() {
 
     const count = tbody.querySelectorAll('tr').length;
     rowCount.textContent = count;
-
-    if (count === 36) {
-        speechBubble.show(`Tôi tìm thấy ${count}☘️ kết quả! ✅`, {
-            duration: 2000
-        });
-    } else {
-        speechBubble.show(`Tôi tìm thấy ${count} kết quả! ✅`, {
-            duration: 2000
-        });
-    }
 
     // Ẩn toàn bộ table-footer nếu không có dòng
     tableFooter.classList.toggle('hidden', count === 0);
@@ -2702,146 +3035,6 @@ function exitSingleRowMode() {
     updateVisibleRowCount();
 }
 
-/**
- * Speech Bubble Controller
- * Sử dụng để hiển thị message từ NES button
- */
-const speechBubble = {
-    element: null,
-    textElement: null,
-    hideTimeout: null,
-
-    init () {
-        this.element = document.getElementById('speech-bubble');
-        this.textElement = document.getElementById('speech-bubble-text');
-
-        if (!this.element || !this.textElement) {
-            console.warn('Speech bubble elements not found');
-            return false;
-        }
-
-        // Add click event to hide
-        this.element.addEventListener('click', () => {
-            this.hide();
-        });
-
-        // Add cursor pointer style
-        this.element.style.cursor = 'pointer';
-
-        return true;
-    },
-
-    /**
-     * Hiển thị speech bubble với message tùy chỉnh
-     * @param {string} message - Nội dung hiển thị
-     * @param {Object} options - Tùy chọn
-     * @param {number} options.duration - Thời gian hiển thị (ms), 0 = không tự động ẩn
-     * @param {string} options.animation - 'bounce' | 'shake' | 'none'
-     * @param {boolean} options.pixelStyle - Sử dụng pixel art style
-     */
-    show (message, options = {}) {
-        if (!this.element || !this.textElement) {
-            if (!this.init()) return;
-        }
-
-        // Bear Speak
-        document.querySelector('.loader')?.classList.add('talking');
-
-        const {
-            duration = 3000,
-            animation = 'bounce',
-            pixelStyle = false
-        } = options;
-
-        // Clear previous timeout
-        if (this.hideTimeout) {
-            clearTimeout(this.hideTimeout);
-            this.hideTimeout = null;
-        }
-
-        // Set message
-        this.textElement.innerHTML = message;
-
-        // Apply pixel style if needed
-        if (pixelStyle) {
-            this.element.classList.add('pixel-style');
-        } else {
-            this.element.classList.remove('pixel-style');
-        }
-
-        // Remove previous animation classes
-        this.element.classList.remove('animate-bounce', 'animate-shake');
-
-        // Show bubble
-        this.element.classList.remove('hidden');
-
-        // Add animation
-        if (animation === 'bounce') {
-            this.element.classList.add('animate-bounce');
-        } else if (animation === 'shake') {
-            this.element.classList.add('animate-shake');
-        }
-
-        // Auto hide after duration
-        if (duration > 0) {
-            this.hideTimeout = setTimeout(() => {
-                this.hide();
-            }, duration);
-        }
-    },
-
-    /**
-     * Ẩn speech bubble
-     * @param {boolean} immediate - Ẩn ngay lập tức không có animation
-     */
-    hide (immediate = false) {
-        if (!this.element) return;
-
-        if (this.hideTimeout) {
-            clearTimeout(this.hideTimeout);
-            this.hideTimeout = null;
-        }
-
-        if (immediate) {
-            this.element.style.transition = 'none';
-            this.element.classList.add('hidden');
-            // hide bear talking
-            document.querySelector('.loader')?.classList.remove('talking')
-
-            setTimeout(() => {
-                this.element.style.transition = '';
-            }, 10);
-        } else {
-            this.element.classList.add('hidden');
-            // hide bear talking
-            document.querySelector('.loader')?.classList.remove('talking')
-        }
-    },
-
-    /**
-     * Toggle speech bubble
-     */
-    toggle (message, options = {}) {
-        if (!this.element) {
-            if (!this.init()) return;
-        }
-
-        if (this.element.classList.contains('hidden')) {
-            this.show(message, options);
-        } else {
-            this.hide();
-        }
-    },
-
-    /**
-     * Update message without hiding/showing
-     */
-    updateMessage (message) {
-        if (!this.textElement) return;
-        this.textElement.innerHTML = message;
-    }
-};
-
 function initDateRangePicker(type) {
     const dateInput = document.getElementById('dateRange');
     const fromDateEl = document.getElementById('fromDate');
@@ -2850,49 +3043,56 @@ function initDateRangePicker(type) {
     if (!dateInput) return;
 
     // explicit reset
-    fromDateEl.value = '';
-    toDateEl.value = '';
+    if (fromDateEl) fromDateEl.value = '';
+    if (toDateEl) toDateEl.value = '';
     dateInput.value = '';
 
     const flatpickrInstance = flatpickr(dateInput, {
         mode: "range",
         dateFormat: "Y-m-d",
         maxDate: "today",
-        allowInput: false, // tránh user gõ tay
+        allowInput: false,
         clickOpens: true,
         defaultDate: null,
         locale: {
-            rangeSeparator: " → "
+            rangeSeparator: "  →  ",
+            firstDayOfWeek: 1,
+            weekdays: {
+                shorthand: ["CN", "T2", "T3", "T4", "T5", "T6", "T7"],
+                longhand: ["Chủ nhật", "Thứ hai", "Thứ ba", "Thứ tư", "Thứ năm", "Thứ sáu", "Thứ bảy"]
+            },
+            months: {
+                shorthand: ["Th1", "Th2", "Th3", "Th4", "Th5", "Th6", "Th7", "Th8", "Th9", "Th10", "Th11", "Th12"],
+                longhand: ["Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6", "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"]
+            }
         },
 
         onClose(selectedDates) {
             // chưa chọn đủ range → reset
             if (selectedDates.length !== 2) {
-                fromDateEl.value = '';
-                toDateEl.value = '';
+                if (fromDateEl) fromDateEl.value = '';
+                if (toDateEl) toDateEl.value = '';
                 return;
             }
 
-            fromDateEl.value = formatDate(selectedDates[0]);
-            toDateEl.value = formatDate(selectedDates[1]);
+            if (fromDateEl) fromDateEl.value = formatDate(selectedDates[0]);
+            if (toDateEl) toDateEl.value = formatDate(selectedDates[1]);
 
-            if (type == 'scan_barcode_history') { checkAndSearchHistoryScanByStation() }
-
-            if (type == 'print_barcode_history') { checkAndSearchHistoryPrintByStation() }
-
-            if (type == 'reprint') { checkQueryReprintBarcode() }
-
-            if (type == 'check_qc_data') { checkAndSearchQCData() }
+            if (type == 'scan_barcode_history') { checkAndSearchHistoryScanByStation(); }
+            if (type == 'print_barcode_history') { checkAndSearchHistoryPrintByStation(); }
+            if (type == 'reprint') { checkQueryReprintBarcode(); }
+            if (type == 'check_qc_data') { checkAndSearchQCData(); }
         }
     });
+
     // Event click để clear calendar
     dateInput.addEventListener('click', function (e) {
         if (dateInput.value) {
             e.preventDefault();
             flatpickrInstance.clear();
             dateInput.value = '';
-            fromDateEl.value = '';
-            toDateEl.value = '';
+            if (fromDateEl) fromDateEl.value = '';
+            if (toDateEl) toDateEl.value = '';
             clearTable();
         }
     });
@@ -2991,149 +3191,3 @@ async function fetchScanBarcodeHistoryByBarcode() {
         await showAlert(data.message, 'error');
     }
 }
-
-// const canvas = document.getElementById("starfield");
-// const ctx = canvas.getContext("2d");
-// let w, h;
-// let speed = 2;
-// const stars = [];
-// let mouseX = 0;
-// let isMouseInWindow = true;
-// let animationId = null;
-
-// function resize() {
-//     w = canvas.width = window.innerWidth;
-//     h = canvas.height = window.innerHeight;
-    
-//     // Redraw background immediately after resize
-//     ctx.fillStyle = "rgba(2, 1, 17, 1)";
-//     ctx.fillRect(0, 0, w, h);
-    
-//     // Reinitialize stars proportionally to new size
-//     stars.forEach(star => {
-//         // Keep stars within new bounds
-//         if (Math.abs(star.x) > w / 2) {
-//             star.x = (Math.random() - 0.5) * w;
-//         }
-//         if (Math.abs(star.y) > h / 2) {
-//             star.y = (Math.random() - 0.5) * h;
-//         }
-//         if (star.z > w) {
-//             star.z = Math.random() * w;
-//         }
-//     });
-// }
-
-// // Debounce resize để tránh quá nhiều redraws
-// let resizeTimeout;
-// window.addEventListener("resize", () => {
-//     clearTimeout(resizeTimeout);
-//     resizeTimeout = setTimeout(() => {
-//         resize();
-//     }, 100);
-// });
-
-// resize();
-
-// // Initialize stars
-// for (let i = 0; i < 400; i++) {
-//     stars.push({
-//         x: Math.random() * w - w / 2,
-//         y: Math.random() * h - h / 2,
-//         z: Math.random() * w
-//     });
-// }
-
-// // Mouse move effect - chỉ cập nhật mouseX
-// document.addEventListener("mousemove", e => {
-//     mouseX = e.clientX;
-//     isMouseInWindow = true;
-// });
-
-// // Detect khi chuột rời khỏi window
-// document.addEventListener("mouseleave", () => {
-//     isMouseInWindow = false;
-//     // Reset speed về giá trị mặc định khi chuột rời window
-//     speed = 2;
-// });
-
-// // Detect khi chuột quay lại window
-// document.addEventListener("mouseenter", () => {
-//     isMouseInWindow = true;
-// });
-
-// // Detect khi tab/window bị blur (chuyển sang app khác)
-// window.addEventListener("blur", () => {
-//     isMouseInWindow = false;
-//     speed = 2;
-// });
-
-// // Detect khi tab/window được focus lại
-// window.addEventListener("focus", () => {
-//     isMouseInWindow = true;
-// });
-
-// // Visibility API - detect khi tab bị ẩn/hiện
-// document.addEventListener("visibilitychange", () => {
-//     if (document.hidden) {
-//         // Tab bị ẩn - tạm dừng animation
-//         if (animationId) {
-//             cancelAnimationFrame(animationId);
-//             animationId = null;
-//         }
-//         speed = 2;
-//     } else {
-//         // Tab được hiện lại - tiếp tục animation
-//         if (!animationId) {
-//             animate();
-//         }
-//     }
-// });
-
-// function animate() {
-//     // Semi-transparent black for trail effect
-//     ctx.fillStyle = "rgba(2, 1, 17, 0.4)";
-//     ctx.fillRect(0, 0, w, h);
-
-//     // Chỉ update speed khi chuột trong window
-//     if (isMouseInWindow) {
-//         speed = (mouseX / window.innerWidth) * 8 + 1;
-//     } else {
-//         // Smooth transition về speed mặc định
-//         speed += (2 - speed) * 0.1;
-//     }
-
-//     // Draw stars
-//     ctx.fillStyle = "#fff";
-//     stars.forEach(s => {
-//         s.z -= speed;
-//         if (s.z <= 0) {
-//             s.z = w;
-//             s.x = Math.random() * w - w / 2;
-//             s.y = Math.random() * h - h / 2;
-//         }
-
-//         const x = (s.x / s.z) * w + w / 2;
-//         const y = (s.y / s.z) * h + h / 2;
-//         const size = (1 - s.z / w) * 2.5;
-
-//         // Draw star
-//         ctx.beginPath();
-//         ctx.arc(x, y, size, 0, Math.PI * 2);
-//         ctx.fill();
-
-//         // Draw trail
-//         const px = (s.x / (s.z + speed * 2)) * w + w / 2;
-//         const py = (s.y / (s.z + speed * 2)) * h + h / 2;
-//         ctx.strokeStyle = `rgba(255, 255, 255, ${0.5 * (1 - s.z / w)})`;
-//         ctx.lineWidth = size;
-//         ctx.beginPath();
-//         ctx.moveTo(x, y);
-//         ctx.lineTo(px, py);
-//         ctx.stroke();
-//     });
-
-//     animationId = requestAnimationFrame(animate);
-// }
-
-// animate();

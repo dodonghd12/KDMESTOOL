@@ -8,10 +8,9 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}">
     <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="https://unpkg.com/nes.css/css/nes.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined">
 </head>
-<body>
+<body class="{% if is_frame %}is-spa-frame{% endif %} app-loading-state">
     {% include "components/sidebar.html" %}
     <!-- <canvas id="starfield"></canvas> -->
     <div class="container winx-container">
@@ -34,29 +33,28 @@
 
             <!-- ── BULK CHECK TOOLS ── -->
             <div class="winx-search-bar">
-                <span class="winx-label">CHECK LIỆU THEO DANH SÁCH WORK ORDER</span>
-                <div class="winx-input-row">
-                    <button id="checkBulkBtn" class="winx-btn winx-btn-ghost" onclick="triggerBulkFileInput()">
-                        <span class="material-symbols-outlined">fact_check</span>
-                        IMPORT EXCEL AND CHECK
-                    </button>
-                    <input type="file" id="bulkFileInput" accept=".xlsx,.xls" style="display:none;" onchange="handleBulkFileSelected(event)">
+                <div class="winx-input-group">
+                    <label class="winx-label">CHECK LIỆU THEO DANH SÁCH WORK ORDER</label>
+                    <div class="winx-input-row">
+                        <button id="checkBulkBtn" class="winx-btn winx-btn-ghost" onclick="triggerBulkFileInput()">
+                            <span class="material-symbols-outlined">fact_check</span>
+                            IMPORT EXCEL AND CHECK
+                        </button>
+                        <input type="file" id="bulkFileInput" accept=".xlsx,.xls" style="display:none;" onchange="handleBulkFileSelected(event)">
 
-                    <button id="downloadTemplateBtn" class="winx-btn winx-btn-ghost" onclick="downloadWorkOrderTemplate()">
-                        <span class="material-symbols-outlined">file_download</span>
-                        Tải Template
-                    </button>
+                        <button id="downloadTemplateBtn" class="winx-btn winx-btn-ghost" onclick="downloadWorkOrderTemplate()">
+                            <span class="material-symbols-outlined">file_download</span>
+                            Tải Template
+                        </button>
+                    </div>
                 </div>
             </div>
+        </div>
 
-            <!-- ── INSERT MATERIAL RESOURCE ── -->
-            <div class="winx-search-bar winx-search-bar-form">
-                <div class="winx-mr-note">
-                    <div>// Nếu insert Tem vàng / Barcode đầu 7</div>
-                    <div>// thì chỉ cần nhập ID, product_id, quantity, created_at, expiry_time.</div>
-                </div>
-                <div class="winx-input-group">
-                    <label class="winx-label">BÙA LIỆU MATERIAL BỊ CONDINGU XÓA</label>
+        <!-- ── INSERT MATERIAL RESOURCE ── -->
+        <div class="winx-search-bar winx-search-bar-form">
+            <div class="winx-input-group">
+                <label class="winx-label">BÙA LIỆU MATERIAL BỊ CONDINGU XÓA</label>
                     <div class="winx-form-grid">
                         <div class="winx-form-item">
                             <label class="winx-sublabel">Barcode</label>
@@ -94,6 +92,9 @@
                         </div>
                     </div>
                     <div class="winx-form-actions">
+                        <div class="winx-mr-note">
+                            <div>// Nếu insert Tem vàng (Barcode đầu 7) thì chỉ cần nhập ID, product_id, quantity, created_at, expiry_time</div>
+                        </div>
                         <button id="insertMaterialBtn" class="winx-btn winx-btn-primary" onclick="handleInsertMaterialResource()">
                             <span class="material-symbols-outlined">search</span>
                             Tìm
@@ -101,7 +102,6 @@
                     </div>
                 </div>
             </div>
-        </div>
 
         <!-- ── STATUS PANEL ── -->
         <div class="winx-status-panel" id="statusPanel" style="display:none;">
@@ -331,7 +331,7 @@
             </div>
 
             <div class="modal-footer">
-                <button class="btn" style="background:#374151;color:#e5e7eb;" onclick="closeBulkCheckModal()">Đóng</button>
+                <button class="winx-btn winx-btn-ghost" onclick="closeBulkCheckModal()">Đóng</button>
             </div>
         </div>
     </div>

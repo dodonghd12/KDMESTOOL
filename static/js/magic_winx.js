@@ -33,12 +33,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     initMRFormUI();
-
-    setTimeout(() => {
-        speechBubble.show('✨ Magic Winx — Chọn sequence để insert TIRE từ GREEN_TIRE!', {
-            duration: 8000, animation: 'bounce'
-        });
-    }, 800);
 });
 
 // ── STEP 1: fetch toàn bộ collect_records ────────────────────────────────────
@@ -1098,8 +1092,15 @@ async function initMRFormUI() {
 
 // ── Load /api/departments once, cache it ─────────────────────────────────────
 async function loadDepartments() {
-    if (cachedDepartments.length > 0) return;
+    if (cachedDepartments.length > 0) return cachedDepartments;
     try {
+        if (typeof getDepartments === 'function') {
+            const depts = await getDepartments();
+            if (Array.isArray(depts) && depts.length > 0) {
+                cachedDepartments = depts;
+                return cachedDepartments;
+            }
+        }
         const data = await apiFetch('/api/departments', { method: 'GET' });
         if (data && !data.error && Array.isArray(data.data)) {
             cachedDepartments = data.data;
@@ -1107,6 +1108,7 @@ async function loadDepartments() {
     } catch (e) {
         console.error('Error loading departments:', e);
     }
+    return cachedDepartments;
 }
 
 // ── INSERT MATERIAL RESOURCE ──────────────────────────────────────────────────

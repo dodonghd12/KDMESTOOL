@@ -3,28 +3,6 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 function initializeCheckMesyncEventListeners() {
-
-    setTimeout(() => {
-        speechBubble.show(`ℹ️ Chức năng này để kiểm tra Mesync Inbox Events!`, {
-            duration: 100000,
-            animation: 'bounce'
-        });
-    }, 1000);
-
-    document.querySelector('.input-box')?.addEventListener('mouseenter', () => {
-        speechBubble.show('💡Tip: Nhập từ khóa để tìm kiếm trong payload!', {
-            duration: 10000,
-            animation: 'bounce'
-        });
-    });
-
-    document.querySelector('thead')?.addEventListener('mouseenter', () => {
-        speechBubble.show('💡Tip: Click đúp chuột trái để xem chi tiết!', {
-            duration: 10000,
-            animation: 'bounce'
-        });
-    });
-
     const mesyncInput = document.getElementById('mesync_keyword');
     if (mesyncInput) {
         mesyncInput.addEventListener(

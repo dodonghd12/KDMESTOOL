@@ -16,28 +16,6 @@ document.querySelectorAll('.label[data-text]').forEach(label => {
 });
 
 function initializeSubstitutionsEventListeners() {
-            
-    setTimeout(() => {
-        speechBubble.show(`ℹ️ Chức năng này để xem tem có thể sử dụng tem quy cách nào làm nguyên vật liệu thay thế!`, {
-            duration: 100000,
-            animation: 'bounce'
-        });
-    }, 1000);
-
-    document.querySelector('.input-box')?.addEventListener('mouseenter', () => {
-        speechBubble.show('💡Tip: nhập Quy cách!', {
-            duration: 10000,
-            animation: 'bounce'
-        })
-    })
-
-    document.querySelector('thead')?.addEventListener('mouseenter', () => {
-        speechBubble.show('💡Tip: Click đúp chuột trái để xem chi tiết!', {
-            duration: 10000,
-            animation: 'bounce'
-        })
-    })
-
     const substitutionsInput = document.getElementById('substitutions');
     if (substitutionsInput) {
         substitutionsInput.addEventListener(

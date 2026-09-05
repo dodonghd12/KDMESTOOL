@@ -3,42 +3,102 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Đăng nhập</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>LOGIN</title>
 
     <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
     <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
+
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
 </head>
 <body>
-    <div id="stars"></div>
-    <div id="stars2"></div>
-    <div id="stars3"></div>
-    
-    <div class="terminal p-5 rounded-lg font-mono min-w-[480px]">
-        <div class="terminal-header bg-zinc-700 text-white p-2 rounded-t-lg flex items-center">
-            <span class="text-red-500 text-5xl leading-[0px] align-middle -mt-2">•</span>
-            <span class="text-yellow-500 text-5xl leading-[0px] align-middle -mt-2 ml-1">•</span>
-            <span class="text-green-500 text-5xl leading-[0px] align-middle -mt-2 ml-1">•</span>
-            <span class="ml-4 align-baseline">python3 auth.py --- interactive</span>
-        </div>
-        <div class="pl-4 pt-2 bg-gray-900 max-h-[500px] overflow-auto" id="output">
-            <p class="text-gray-500">You need to authenticate to continue!</p>
-            <p class="text-sky-300">Enter 1 to login</p>
-        </div>
-        <div class="input flex pl-4 bg-gray-900 pb-4 rounded-b-lg items-center" id="terminal-input-container">
-            <span class="text-green-500">➝</span>
-            <span class="text-sky-300 ml-2">~</span>
-            <span class="ml-2 text-md text-gray-500" id="placeholder"></span>
-            <input
-                class="bg-transparent border-none outline-none ring-0 focus:ring-0 text-amber-400 w-full"
-                id="terminal-input"
-                type="text"
-                autofocus
-            />
+    <!-- Background Cyber Layer -->
+    <div class="cyber-bg-grid"></div>
+    <div class="ambient-glow-orb orb-1"></div>
+    <div class="ambient-glow-orb orb-2"></div>
+    <div class="ambient-glow-orb orb-3"></div>
+    <canvas id="loginStarfield"></canvas>
+
+    <!-- Main Login Interface -->
+    <div class="login-wrapper">
+        <div class="login-card" id="loginCard">
+            <div class="login-card-accent-bar"></div>
+
+            <!-- Header / Branding -->
+            <div class="login-header">
+                <div class="logo-badge">
+                    <img src="{{ url_for('static', filename='img/kd_favicon.png') }}" alt="KD Logo">
+                </div>
+                <h1 class="login-title">KD<span class="highlight">MES</span> CONTROL</h1>
+                <div class="login-subtitle">
+                    <span>Security Access Gateway</span>
+                    <span class="badge-version">v{{ version or '2.0' }}</span>
+                </div>
+                <div class="system-status-bar">
+                    <span class="status-pulse-dot"></span>
+                    <span>ONLINE // 198.1.10.85:8810</span>
+                </div>
+            </div>
+
+            <!-- Terminal Window -->
+            <div class="terminal-wrapper" id="terminalWrapper">
+                <div class="terminal-bar">
+                    <div class="terminal-dots">
+                        <span class="t-dot red"></span>
+                        <span class="t-dot yellow"></span>
+                        <span class="t-dot green"></span>
+                    </div>
+                    <div class="terminal-title-text">
+                        <span class="material-symbols-outlined" style="font-size:14px; color:#3dd5c0;">terminal</span>
+                        auth.session // kdmes-security
+                    </div>
+                    <div class="terminal-clock" id="liveClock">--:--:--</div>
+                </div>
+
+                <div class="terminal-body" id="output">
+                    <div class="log-line">
+                        <span class="log-time" id="initTime">[--:--:--]</span>
+                        <span class="log-tag system">SYSTEM</span>
+                        <span class="log-msg">KDMES Gateway Access Security Module initialized.</span>
+                    </div>
+                    <div class="log-line">
+                        <span class="log-time" id="authTime">[--:--:--]</span>
+                        <span class="log-tag auth">AUTH</span>
+                        <span class="log-msg">Operator authentication required to unlock control center.</span>
+                    </div>
+                    <div class="log-line">
+                        <span class="log-time" id="hintTime">[--:--:--]</span>
+                        <span class="log-tag system">HINT</span>
+                        <span class="log-msg highlight">Press 1 then press Enter to login</span>
+                    </div>
+                </div>
+
+                <div class="terminal-input-row">
+                    <span class="prompt-prefix">root@kdmes:<span class="prompt-arrow">~</span>#</span>
+                    <div class="input-container">
+                        <input 
+                            type="text" 
+                            id="terminal-input" 
+                            class="terminal-cmd-input" 
+                            autocomplete="off" 
+                            autofocus 
+                            spellcheck="false"
+                        />
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer / Quick Guides -->
+            <div class="login-footer-info">
+                <div class="security-badge">
+                    <span class="material-symbols-outlined">verified_user</span>
+                    <span>SSL 256-bit Encrypted</span>
+                </div>
+            </div>
         </div>
     </div>
+
     <script src="{{ url_for('static', filename='js/login.js') }}"></script>
 </body>
 </html>

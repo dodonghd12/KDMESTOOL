@@ -2,52 +2,33 @@ document.addEventListener('DOMContentLoaded', () => {
     const sidebar = document.getElementById('sidebar');
     if (!sidebar) return;
 
-    const toggleButton = document.getElementById('toggle-btn')
-    const dropdownButtons = sidebar.querySelectorAll('.dropdown-btn')
-
-    toggleButton?.addEventListener('click', () => {
-        sidebar.classList.toggle('close')
-        toggleButton.classList.toggle('rotate')
-        closeAllSubMenus()
-    })
-
-    document.addEventListener('sidebar:about', () => {
-        showAbout();
-    });
+    const dropdownButtons = sidebar.querySelectorAll('.dropdown-btn');
 
     document.addEventListener('sidebar:logout', () => {
         handleLogout();
     });
 
     dropdownButtons.forEach(btn => {
-        if (btn.id === 'aboutBtn') return;
-
         btn.addEventListener('click', () => {
-            const subMenu = btn.nextElementSibling
+            const subMenu = btn.nextElementSibling;
 
             if (!subMenu) return;
 
             if (!subMenu.classList.contains('show')) {
-                closeAllSubMenus()
+                closeAllSubMenus();
             }
 
-            subMenu.classList.toggle('show')
-            btn.classList.toggle('rotate')
+            subMenu.classList.toggle('show');
+            btn.classList.toggle('rotate');
 
             if (sidebar.classList.contains('close')) {
-                sidebar.classList.remove('close')
-                toggleButton.classList.remove('rotate')
+                sidebar.classList.remove('close');
+                toggleButton?.classList.remove('rotate');
             }
-        })
-    })
+        });
+    });
 
     document.addEventListener('click', (e) => {
-        // About
-        if (e.target.closest('#aboutBtn')) {
-            document.dispatchEvent(new Event('sidebar:about'));
-            return;
-        }
-
         // Logout
         if (e.target.closest('#logoutMenuItem')) {
             document.dispatchEvent(new Event('sidebar:logout'));
@@ -67,9 +48,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function closeAllSubMenus() {
         sidebar.querySelectorAll('.sub-menu.show').forEach(menu => {
-            menu.classList.remove('show')
-            menu.previousElementSibling.classList.remove('rotate')
-        })
+            menu.classList.remove('show');
+            menu.previousElementSibling?.classList.remove('rotate');
+        });
     }
 
     (function highlightActiveSidebarItem() {

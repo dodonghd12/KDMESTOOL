@@ -1,11 +1,13 @@
-let departments = [];
 let stations = [];
 let currentDepartmentOid = null;
 let departmentSearchTimeout = null;
 let stationSearchTimeout = null;
 
 // Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
+    if (typeof getDepartments === 'function') {
+        departments = await getDepartments();
+    }
     initializeCheckPrintHistoryByStationEventListeners();
     initDateRangePicker("print_barcode_history");
     
@@ -15,28 +17,6 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initializeCheckPrintHistoryByStationEventListeners() {
-    
-    setTimeout(() => {
-        speechBubble.show(`ℹ️ Chức năng này để xem toàn bộ tem đã in theo máy trong khoảng thời gian nhất định!`, {
-            duration: 100000,
-            animation: 'bounce'
-        });
-    }, 1000);
-
-    document.querySelector('.input-box')?.addEventListener('mouseenter', () => {
-        speechBubble.show('💡Tip: Chọn bộ phận, sau đó chọn số máy của bộ phận (Có thể nhập để lọc kết quả), và chọn khoảng thời gian!', {
-            duration: 5000,
-            animation: 'bounce'
-        })
-    })
-
-    document.querySelector('thead')?.addEventListener('mouseenter', () => {
-        speechBubble.show('💡Tip: Click đúp chuột trái để xem chi tiết!', {
-            duration: 10000,
-            animation: 'bounce'
-        })
-    })
-
     document.addEventListener(
         'contextmenu',
         function (e) {

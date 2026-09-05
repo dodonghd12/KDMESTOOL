@@ -1,11 +1,13 @@
-let departments = [];
 let stations = [];
 let currentDepartmentOid = null;
 let departmentSearchTimeout = null;
 let stationSearchTimeout = null;
 
 // Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
+    if (typeof getDepartments === 'function') {
+        departments = await getDepartments();
+    }
     initializeValidateScanBarcodeEventListeners();
     
     // Initialize: disable station on load
@@ -25,20 +27,6 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initializeValidateScanBarcodeEventListeners() {
-    setTimeout(() => {
-        speechBubble.show(`ℹ️ Chức năng này CHỈ sử dụng kiểm tra tem đầu vào của đơn điều động ĐANG HOẠT ĐỘNG trên máy (status = 1)!`, {
-            duration: 100000,
-            animation: 'bounce'
-        });
-    }, 1000);
-
-    document.querySelector('.input-box')?.addEventListener('mouseenter', () => {
-        speechBubble.show('💡Tip: Chọn bộ phận, sau đó chọn số máy của bộ phận (Có thể nhập để lọc kết quả)!', {
-            duration: 10000,
-            animation: 'bounce'
-        })
-    })
-
     document.addEventListener('sidebar:about', () => {
         showAbout();
     });

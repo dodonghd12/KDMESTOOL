@@ -14,11 +14,10 @@
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <link rel="stylesheet" href="https://unpkg.com/nes.css/css/nes.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined">
 </head>
 
-<body>
+<body class="{% if is_frame %}is-spa-frame{% endif %} app-loading-state">
     {% include "components/sidebar.html" %}
     <!-- <canvas id="starfield"></canvas> -->
     <div class="container" autocomplete="off">

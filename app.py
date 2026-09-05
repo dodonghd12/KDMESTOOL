@@ -77,6 +77,14 @@ app.config['SESSION_TYPE'] = 'filesystem'
 app.config['SESSION_FILE_DIR'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'flask_session')
 Session(app)
 
+# Inject global variables to all Jinja templates
+@app.context_processor
+def inject_global_context():
+    return {
+        'version': APP_VERSION,
+        'app_version': APP_VERSION
+    }
+
 # Default language
 default_language = "vi"
 
@@ -172,59 +180,58 @@ def check_auth():
 
 
 #========= PAGE ROUTES =========#
-@app.route('/main')
-def main():
+def render_page_or_shell(template_name, page_path, page_title="KDMES TOOL"):
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return redirect(url_for('login'))
-    return render_template('main.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
+    is_frame = request.args.get('frame') == '1'
+    if not is_frame:
+        return render_template('spa_shell.html',
+                               initial_path=page_path,
+                               page_title=page_title,
+                               user_id=session.get('user_id'),
+                               user_ip=session.get('user_ip'),
+                               version=APP_VERSION)
+    return render_template(template_name,
+                           is_frame=True,
+                           user_id=session.get('user_id'),
+                           user_ip=session.get('user_ip'),
+                           version=APP_VERSION)
+
+@app.route('/main')
+def main():
+    return render_page_or_shell('main.html', '/main', 'Home')
 
 @app.route('/validate-scan-barcode')
 def validate_scan_barcode():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return redirect(url_for('login'))
-    return render_template('validate_scan_barcode.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
+    return render_page_or_shell('validate_scan_barcode.html', '/validate-scan-barcode', 'Kiểm tra NVL mã MES')
 
 @app.route('/scan-barcode-history')
 def scan_barcode_history():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return redirect(url_for('login'))
-    return render_template('scan_barcode_history.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
+    return render_page_or_shell('scan_barcode_history.html', '/scan-barcode-history', 'Lịch sử quét tem theo Máy')
 
 @app.route('/print-barcode-history')
 def print_barcode_history():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return redirect(url_for('login'))
-    return render_template('print_barcode_history.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
+    return render_page_or_shell('print_barcode_history.html', '/print-barcode-history', 'Lịch sử in tem theo Máy')
 
 @app.route('/reprint')
 def reprint():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return redirect(url_for('login'))
-    return render_template('reprint.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
+    return render_page_or_shell('reprint.html', '/reprint', 'Truy vấn in bù')
 
 @app.route('/check-qc-data')
 def check_qc_data():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return redirect(url_for('login'))
-    return render_template('check_qc_data.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
+    return render_page_or_shell('check_qc_data.html', '/check-qc-data', 'Check QC Data')
 
 @app.route('/substitutions')
 def substitutions():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return redirect(url_for('login'))
-    return render_template('substitutions.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
+    return render_page_or_shell('substitutions.html', '/substitutions', 'NVL thay thế')
 
 @app.route('/check-mesync')
 def check_mesync():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return redirect(url_for('login'))
-    return render_template('check_mesync.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
+    return render_page_or_shell('check_mesync.html', '/check-mesync', 'Check Mesync')
 
 @app.route('/station-configuration')
 def station_configuration():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return redirect(url_for('login'))
-    return render_template('station_configuration.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
+    return render_page_or_shell('station_configuration.html', '/station-configuration', 'Thiết lập máy')
 
 @app.route('/gitlab')
 def gitlab():
@@ -234,9 +241,7 @@ def gitlab():
 
 @app.route('/magic-winx')
 def magic_winx():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return redirect(url_for('login'))
-    return render_template('magic_winx.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
+    return render_page_or_shell('magic_winx.html', '/magic-winx', 'Magic Winx')
 
 @app.route('/nes')
 def nes():
@@ -1430,6 +1435,15 @@ def check_barcode_extend_time():
     except Exception as e:
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
 
+# ── Global Server Cache for Static MES Metadata (Departments & Stations) ──────
+_DEPARTMENTS_CACHE = {
+    'data': None,
+    'timestamp': 0,
+    'ttl': 600  # 10 minutes cache
+}
+_STATIONS_CACHE = {}  # {department_oid: {'data': [...], 'timestamp': ...}}
+_STATIONS_CACHE_TTL = 600  # 10 minutes cache
+
 @app.route('/api/departments', methods=['GET'])
 def get_department_list():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
@@ -1439,33 +1453,42 @@ def get_department_list():
             'message': 'User not logged in'
         }), 401
     
+    now = time.time()
+    if _DEPARTMENTS_CACHE['data'] is not None and (now - _DEPARTMENTS_CACHE['timestamp'] < _DEPARTMENTS_CACHE['ttl']):
+        return jsonify({
+            'error': False,
+            'data': _DEPARTMENTS_CACHE['data']
+        })
+    
     url = 'https://198.1.10.85:8810/api/departments'
     headers = get_auth_headers(session)
     
     try:
-        response = requests.get(url, headers=headers, verify=False)
-
+        response = requests.get(url, headers=headers, verify=False, timeout=10)
         response.raise_for_status()
         data = response.json()
         
+        dept_data = []
         if isinstance(data, dict) and 'data' in data:
-            return jsonify({
-                'error': False,
-                'data': data['data']
-            })
+            dept_data = data['data']
+        elif isinstance(data, list):
+            dept_data = data
         
-        if isinstance(data, list):
-            return jsonify({
-                'error': False,
-                'data': data
-            })
+        _DEPARTMENTS_CACHE['data'] = dept_data
+        _DEPARTMENTS_CACHE['timestamp'] = now
         
         return jsonify({
             'error': False,
-            'data': []
+            'data': dept_data
         })
     
     except Exception as e:
+        # Fallback to existing cache even if expired
+        if _DEPARTMENTS_CACHE['data'] is not None:
+            return jsonify({
+                'error': False,
+                'data': _DEPARTMENTS_CACHE['data']
+            })
         return jsonify({
             'error': True,
             'code': 'INTERNAL_ERROR',
@@ -1485,11 +1508,16 @@ def get_station_list_by_department():
     if not department_oid:
         return jsonify({'stations': []})
     
+    now = time.time()
+    cached_entry = _STATIONS_CACHE.get(department_oid)
+    if cached_entry and (now - cached_entry['timestamp'] < _STATIONS_CACHE_TTL):
+        return jsonify({'stations': cached_entry['data']})
+    
     url = f'https://198.1.10.85:8810/api/station-list/department-oid/{department_oid}'
     headers = get_auth_headers(session)
     
     try:
-        response = requests.get(url, headers=headers, verify=False)
+        response = requests.get(url, headers=headers, verify=False, timeout=10)
         data = response.json()
         stations = []
         if data.get('data'):
@@ -1498,8 +1526,15 @@ def get_station_list_by_department():
                     'id': item.get('ID', ''),
                     'name': item.get('name', '')
                 })
+        
+        _STATIONS_CACHE[department_oid] = {
+            'data': stations,
+            'timestamp': now
+        }
         return jsonify({'stations': stations})
     except requests.RequestException as e:
+        if cached_entry:
+            return jsonify({'stations': cached_entry['data']})
         return jsonify({'stations': [], 'error': str(e)})
 
 @app.route('/api/work-orders/get-active-list', methods=['POST'])
@@ -1518,6 +1553,8 @@ def get_active_work_order_list():
         FROM kvmes.work_order
         WHERE station = %s
         AND status = 1
+        AND reserved_date >= (CURRENT_DATE - INTERVAL '60 days')
+        AND reserved_date <= CURRENT_DATE
         ORDER BY reserved_sequence
     """
     

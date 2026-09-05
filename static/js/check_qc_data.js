@@ -4,28 +4,6 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initializeQCDataEventListeners() {
-
-    setTimeout(() => {
-        speechBubble.show(`ℹ️ Chức năng này để xem dữ liệu QC trong khoảng thời gian nhất định!`, {
-            duration: 100000,
-            animation: 'bounce'
-        });
-    }, 1000);
-
-    document.querySelector('.input-box')?.addEventListener('mouseenter', () => {
-        speechBubble.show('💡Tip: Chọn khoảng thời gian, bấm 2 lần vào 1 ngày để chọn thời gian trong 1 ngày', {
-            duration: 10000,
-            animation: 'bounce'
-        });
-    });
-
-    document.querySelector('thead')?.addEventListener('mouseenter', () => {
-        speechBubble.show('💡Tip: Click đúp chuột trái để xem chi tiết!', {
-            duration: 10000,
-            animation: 'bounce'
-        });
-    });
-
     document.addEventListener('sidebar:about', () => { showAbout(); });
     document.addEventListener('sidebar:logout', () => { handleLogout(); });
 

@@ -1,9 +1,3 @@
-let departments = [];
-let stations = [];
-let currentDepartmentOid = null;
-let departmentSearchTimeout = null;
-let stationSearchTimeout = null;
-
 const REPRINT_REASON_MAP = {
     1: 'Quét lố',
     2: 'Quét xót',
@@ -31,28 +25,6 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initializeReprintEventListeners() {
-        
-    setTimeout(() => {
-        speechBubble.show(`ℹ️ Chức năng này để xem toàn bộ tem đã in bù trong khoảng thời gian nhất định!`, {
-            duration: 100000,
-            animation: 'bounce'
-        });
-    }, 1000);
-
-    document.querySelector('.input-box')?.addEventListener('mouseenter', () => {
-        speechBubble.show('💡Tip: Chọn khoảng thời gian!', {
-            duration: 10000,
-            animation: 'bounce'
-        })
-    })
-
-    document.querySelector('thead')?.addEventListener('mouseenter', () => {
-        speechBubble.show('💡Tip: Click đúp chuột trái để xem chi tiết!', {
-            duration: 10000,
-            animation: 'bounce'
-        })
-    })
-
     document.addEventListener('sidebar:about', () => {
         showAbout();
     });

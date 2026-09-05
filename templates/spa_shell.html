@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ page_title or 'KDMES TOOL' }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}">
+
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined">
+</head>
+
+<body class="spa-shell-body">
+    {% include "components/sidebar.html" %}
+
+    <!-- Global Loading Indicator for Preloading SPA -->
+    <div id="spaPreloadBadge" class="spa-preload-badge">
+        <div class="spa-preload-header">
+            <div class="spa-preload-spinner"></div>
+            <div class="spa-preload-info">
+                <span class="spa-preload-title">Đang khởi tạo các phân hệ...</span>
+                <span class="spa-preload-counter" id="spaPreloadCounter">0/10</span>
+            </div>
+        </div>
+        <div class="spa-preload-progress-track">
+            <div class="spa-preload-progress-bar" id="spaPreloadProgressBar"></div>
+        </div>
+    </div>
+
+    <main id="spaViewport" class="spa-viewport">
+        <!-- Preloaded Isolated Views -->
+        <iframe id="view-main" class="spa-view-frame {% if initial_path == '/main' or not initial_path %}active{% endif %}" src="{{ url_for('main', frame='1') }}" title="Home"></iframe>
+        <iframe id="view-scan-barcode-history" class="spa-view-frame {% if initial_path == '/scan-barcode-history' %}active{% endif %}" src="{{ url_for('scan_barcode_history', frame='1') }}" title="Lịch sử quét tem theo Máy"></iframe>
+        <iframe id="view-print-barcode-history" class="spa-view-frame {% if initial_path == '/print-barcode-history' %}active{% endif %}" src="{{ url_for('print_barcode_history', frame='1') }}" title="Lịch sử in tem theo Máy"></iframe>
+        <iframe id="view-validate-scan-barcode" class="spa-view-frame {% if initial_path == '/validate-scan-barcode' %}active{% endif %}" src="{{ url_for('validate_scan_barcode', frame='1') }}" title="Kiểm tra NVL mã MES"></iframe>
+        <iframe id="view-reprint" class="spa-view-frame {% if initial_path == '/reprint' %}active{% endif %}" src="{{ url_for('reprint', frame='1') }}" title="Truy vấn in bù"></iframe>
+        <iframe id="view-substitutions" class="spa-view-frame {% if initial_path == '/substitutions' %}active{% endif %}" src="{{ url_for('substitutions', frame='1') }}" title="NVL thay thế"></iframe>
+        <iframe id="view-check-qc-data" class="spa-view-frame {% if initial_path == '/check-qc-data' %}active{% endif %}" src="{{ url_for('check_qc_data', frame='1') }}" title="Check QC Data"></iframe>
+        <iframe id="view-check-mesync" class="spa-view-frame {% if initial_path == '/check-mesync' %}active{% endif %}" src="{{ url_for('check_mesync', frame='1') }}" title="Check Mesync"></iframe>
+        <iframe id="view-station-configuration" class="spa-view-frame {% if initial_path == '/station-configuration' %}active{% endif %}" src="{{ url_for('station_configuration', frame='1') }}" title="Thiết lập máy"></iframe>
+        <iframe id="view-magic-winx" class="spa-view-frame {% if initial_path == '/magic-winx' %}active{% endif %}" src="{{ url_for('magic_winx', frame='1') }}" title="Magic Winx"></iframe>
+    </main>
+
+    <script>
+        window.initialRoutePath = '{{ initial_path or "/main" }}';
+    </script>
+    <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/spa_shell.js') }}"></script>
+</body>
+
+</html>

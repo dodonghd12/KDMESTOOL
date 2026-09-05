@@ -1,44 +1,32 @@
-let departments = [];
 let stations = [];
 let currentDepartmentOid = null;
 let departmentSearchTimeout = null;
 let stationSearchTimeout = null;
 
 // Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
+    if (typeof getDepartments === 'function') {
+        departments = await getDepartments();
+    }
     initializeValidateScanBarcodeEventListeners();
     
     // Initialize: disable station on load
     document.getElementById('station').disabled = true;
     
     // Close context menu on click outside
-    document.addEventListener('click', function() {
-        document.getElementById('contextMenu').style.display = 'none';
-    });
+    // document.addEventListener('click', function() {
+    //     document.getElementById('contextMenu').style.display = 'none';
+    // });
     
     // Close comparison modal on outside click
-    document.getElementById('comparisonModal').addEventListener('click', function(e) {
-        if (e.target === this) {
-            closeComparisonModal();
-        }
-    });
+    // document.getElementById('comparisonModal').addEventListener('click', function(e) {
+    //     if (e.target === this) {
+    //         closeComparisonModal();
+    //     }
+    // });
 });
 
 function initializeValidateScanBarcodeEventListeners() {
-    setTimeout(() => {
-        speechBubble.show(`ℹ️ Chức năng này để kiểm tra Mesync Inbox Events!`, {
-            duration: 100000,
-            animation: 'bounce'
-        });
-    }, 1000);
-
-    document.querySelector('.input-box')?.addEventListener('mouseenter', () => {
-        speechBubble.show('💡Tip: Chọn bộ phận, sau đó chọn số máy của bộ phận (Có thể nhập để lọc kết quả)!', {
-            duration: 10000,
-            animation: 'bounce'
-        })
-    })
-
     // Department search
     const departmentInput = document.getElementById('department'); 
     departmentInput.addEventListener('click', () => {
@@ -142,7 +130,7 @@ function initializeValidateScanBarcodeEventListeners() {
     document.getElementById('tableBody').addEventListener('contextmenu', handleContextMenu);
     
     // Context menu item
-    document.querySelector('.context-menu-item').addEventListener('click', handleContextMenuAction);
+    // document.querySelector('.context-menu-item').addEventListener('click', handleContextMenuAction);
 }
 
 function showDepartmentDropdown(items) {
