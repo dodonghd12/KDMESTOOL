@@ -243,9 +243,10 @@ body {
     padding: 20px;
     box-sizing: border-box;
     overflow: hidden;
+    background-color: rgb(31, 31, 34);
 }
 
-#starfield {
+/* #starfield {
     position: fixed;
     top: 0;
     left: 0;
@@ -253,7 +254,7 @@ body {
     height: 100vh;
     z-index: -1;
     pointer-events: none;
-}
+} */
 
 .search-section {
     display: flex;

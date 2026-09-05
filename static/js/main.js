@@ -2992,148 +2992,148 @@ async function fetchScanBarcodeHistoryByBarcode() {
     }
 }
 
-const canvas = document.getElementById("starfield");
-const ctx = canvas.getContext("2d");
-let w, h;
-let speed = 2;
-const stars = [];
-let mouseX = 0;
-let isMouseInWindow = true;
-let animationId = null;
+// const canvas = document.getElementById("starfield");
+// const ctx = canvas.getContext("2d");
+// let w, h;
+// let speed = 2;
+// const stars = [];
+// let mouseX = 0;
+// let isMouseInWindow = true;
+// let animationId = null;
 
-function resize() {
-    w = canvas.width = window.innerWidth;
-    h = canvas.height = window.innerHeight;
+// function resize() {
+//     w = canvas.width = window.innerWidth;
+//     h = canvas.height = window.innerHeight;
     
-    // Redraw background immediately after resize
-    ctx.fillStyle = "rgba(2, 1, 17, 1)";
-    ctx.fillRect(0, 0, w, h);
+//     // Redraw background immediately after resize
+//     ctx.fillStyle = "rgba(2, 1, 17, 1)";
+//     ctx.fillRect(0, 0, w, h);
     
-    // Reinitialize stars proportionally to new size
-    stars.forEach(star => {
-        // Keep stars within new bounds
-        if (Math.abs(star.x) > w / 2) {
-            star.x = (Math.random() - 0.5) * w;
-        }
-        if (Math.abs(star.y) > h / 2) {
-            star.y = (Math.random() - 0.5) * h;
-        }
-        if (star.z > w) {
-            star.z = Math.random() * w;
-        }
-    });
-}
+//     // Reinitialize stars proportionally to new size
+//     stars.forEach(star => {
+//         // Keep stars within new bounds
+//         if (Math.abs(star.x) > w / 2) {
+//             star.x = (Math.random() - 0.5) * w;
+//         }
+//         if (Math.abs(star.y) > h / 2) {
+//             star.y = (Math.random() - 0.5) * h;
+//         }
+//         if (star.z > w) {
+//             star.z = Math.random() * w;
+//         }
+//     });
+// }
 
-// Debounce resize để tránh quá nhiều redraws
-let resizeTimeout;
-window.addEventListener("resize", () => {
-    clearTimeout(resizeTimeout);
-    resizeTimeout = setTimeout(() => {
-        resize();
-    }, 100);
-});
+// // Debounce resize để tránh quá nhiều redraws
+// let resizeTimeout;
+// window.addEventListener("resize", () => {
+//     clearTimeout(resizeTimeout);
+//     resizeTimeout = setTimeout(() => {
+//         resize();
+//     }, 100);
+// });
 
-resize();
+// resize();
 
-// Initialize stars
-for (let i = 0; i < 400; i++) {
-    stars.push({
-        x: Math.random() * w - w / 2,
-        y: Math.random() * h - h / 2,
-        z: Math.random() * w
-    });
-}
+// // Initialize stars
+// for (let i = 0; i < 400; i++) {
+//     stars.push({
+//         x: Math.random() * w - w / 2,
+//         y: Math.random() * h - h / 2,
+//         z: Math.random() * w
+//     });
+// }
 
-// Mouse move effect - chỉ cập nhật mouseX
-document.addEventListener("mousemove", e => {
-    mouseX = e.clientX;
-    isMouseInWindow = true;
-});
+// // Mouse move effect - chỉ cập nhật mouseX
+// document.addEventListener("mousemove", e => {
+//     mouseX = e.clientX;
+//     isMouseInWindow = true;
+// });
 
-// Detect khi chuột rời khỏi window
-document.addEventListener("mouseleave", () => {
-    isMouseInWindow = false;
-    // Reset speed về giá trị mặc định khi chuột rời window
-    speed = 2;
-});
+// // Detect khi chuột rời khỏi window
+// document.addEventListener("mouseleave", () => {
+//     isMouseInWindow = false;
+//     // Reset speed về giá trị mặc định khi chuột rời window
+//     speed = 2;
+// });
 
-// Detect khi chuột quay lại window
-document.addEventListener("mouseenter", () => {
-    isMouseInWindow = true;
-});
+// // Detect khi chuột quay lại window
+// document.addEventListener("mouseenter", () => {
+//     isMouseInWindow = true;
+// });
 
-// Detect khi tab/window bị blur (chuyển sang app khác)
-window.addEventListener("blur", () => {
-    isMouseInWindow = false;
-    speed = 2;
-});
+// // Detect khi tab/window bị blur (chuyển sang app khác)
+// window.addEventListener("blur", () => {
+//     isMouseInWindow = false;
+//     speed = 2;
+// });
 
-// Detect khi tab/window được focus lại
-window.addEventListener("focus", () => {
-    isMouseInWindow = true;
-});
+// // Detect khi tab/window được focus lại
+// window.addEventListener("focus", () => {
+//     isMouseInWindow = true;
+// });
 
-// Visibility API - detect khi tab bị ẩn/hiện
-document.addEventListener("visibilitychange", () => {
-    if (document.hidden) {
-        // Tab bị ẩn - tạm dừng animation
-        if (animationId) {
-            cancelAnimationFrame(animationId);
-            animationId = null;
-        }
-        speed = 2;
-    } else {
-        // Tab được hiện lại - tiếp tục animation
-        if (!animationId) {
-            animate();
-        }
-    }
-});
+// // Visibility API - detect khi tab bị ẩn/hiện
+// document.addEventListener("visibilitychange", () => {
+//     if (document.hidden) {
+//         // Tab bị ẩn - tạm dừng animation
+//         if (animationId) {
+//             cancelAnimationFrame(animationId);
+//             animationId = null;
+//         }
+//         speed = 2;
+//     } else {
+//         // Tab được hiện lại - tiếp tục animation
+//         if (!animationId) {
+//             animate();
+//         }
+//     }
+// });
 
-function animate() {
-    // Semi-transparent black for trail effect
-    ctx.fillStyle = "rgba(2, 1, 17, 0.4)";
-    ctx.fillRect(0, 0, w, h);
+// function animate() {
+//     // Semi-transparent black for trail effect
+//     ctx.fillStyle = "rgba(2, 1, 17, 0.4)";
+//     ctx.fillRect(0, 0, w, h);
 
-    // Chỉ update speed khi chuột trong window
-    if (isMouseInWindow) {
-        speed = (mouseX / window.innerWidth) * 8 + 1;
-    } else {
-        // Smooth transition về speed mặc định
-        speed += (2 - speed) * 0.1;
-    }
+//     // Chỉ update speed khi chuột trong window
+//     if (isMouseInWindow) {
+//         speed = (mouseX / window.innerWidth) * 8 + 1;
+//     } else {
+//         // Smooth transition về speed mặc định
+//         speed += (2 - speed) * 0.1;
+//     }
 
-    // Draw stars
-    ctx.fillStyle = "#fff";
-    stars.forEach(s => {
-        s.z -= speed;
-        if (s.z <= 0) {
-            s.z = w;
-            s.x = Math.random() * w - w / 2;
-            s.y = Math.random() * h - h / 2;
-        }
+//     // Draw stars
+//     ctx.fillStyle = "#fff";
+//     stars.forEach(s => {
+//         s.z -= speed;
+//         if (s.z <= 0) {
+//             s.z = w;
+//             s.x = Math.random() * w - w / 2;
+//             s.y = Math.random() * h - h / 2;
+//         }
 
-        const x = (s.x / s.z) * w + w / 2;
-        const y = (s.y / s.z) * h + h / 2;
-        const size = (1 - s.z / w) * 2.5;
+//         const x = (s.x / s.z) * w + w / 2;
+//         const y = (s.y / s.z) * h + h / 2;
+//         const size = (1 - s.z / w) * 2.5;
 
-        // Draw star
-        ctx.beginPath();
-        ctx.arc(x, y, size, 0, Math.PI * 2);
-        ctx.fill();
+//         // Draw star
+//         ctx.beginPath();
+//         ctx.arc(x, y, size, 0, Math.PI * 2);
+//         ctx.fill();
 
-        // Draw trail
-        const px = (s.x / (s.z + speed * 2)) * w + w / 2;
-        const py = (s.y / (s.z + speed * 2)) * h + h / 2;
-        ctx.strokeStyle = `rgba(255, 255, 255, ${0.5 * (1 - s.z / w)})`;
-        ctx.lineWidth = size;
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-        ctx.lineTo(px, py);
-        ctx.stroke();
-    });
+//         // Draw trail
+//         const px = (s.x / (s.z + speed * 2)) * w + w / 2;
+//         const py = (s.y / (s.z + speed * 2)) * h + h / 2;
+//         ctx.strokeStyle = `rgba(255, 255, 255, ${0.5 * (1 - s.z / w)})`;
+//         ctx.lineWidth = size;
+//         ctx.beginPath();
+//         ctx.moveTo(x, y);
+//         ctx.lineTo(px, py);
+//         ctx.stroke();
+//     });
 
-    animationId = requestAnimationFrame(animate);
-}
+//     animationId = requestAnimationFrame(animate);
+// }
 
-animate();
+// animate();

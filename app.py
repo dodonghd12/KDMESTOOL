@@ -262,7 +262,7 @@ def search_barcode():
                standing_time, feed_records_id, info, oid,
                reprint_reason, collected, erp_tire_barcode_synced
         FROM kvmes.material_resource
-        WHERE id ILIKE %s
+        WHERE id LIKE %s
         LIMIT 100;
     """
     result, column_names = execute_pg_select_query(query, (f"%{keyword}%",))
