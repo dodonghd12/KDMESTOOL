@@ -56,7 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function toggleDensity() {
-        const current = localStorage.getItem(DENSITY_STORAGE_KEY) === 'compact' ? 'compact' : 'comfortable';
+        const current = (localStorage.getItem(DENSITY_STORAGE_KEY) || 'compact') === 'compact' ? 'compact' : 'comfortable';
         const next = (current === 'compact') ? 'comfortable' : 'compact';
         localStorage.setItem(DENSITY_STORAGE_KEY, next);
         applyDensity(next);
@@ -67,8 +67,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Khởi tạo trạng thái Density từ localStorage
-    const savedDensity = localStorage.getItem(DENSITY_STORAGE_KEY) || 'comfortable';
+    // Khởi tạo trạng thái Density từ localStorage (mặc định: compact)
+    const savedDensity = localStorage.getItem(DENSITY_STORAGE_KEY) || 'compact';
     applyDensity(savedDensity);
 
     // Lắng nghe sự kiện đồng bộ giữa các Tab/Cửa sổ

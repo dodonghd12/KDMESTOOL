@@ -1,13 +1,15 @@
 // ===== INSTANT TABLE DENSITY SYNC =====
 (function syncInitialDensity() {
     try {
-        const savedDensity = localStorage.getItem('kd_table_density') || 'comfortable';
-        if (savedDensity === 'compact') {
+        const savedDensity = localStorage.getItem('kd_table_density') || 'compact';
+        if (savedDensity !== 'comfortable') {
             document.body.classList.add('density-compact');
         } else {
             document.body.classList.remove('density-compact');
         }
-    } catch (e) {}
+    } catch (e) {
+        document.body.classList.add('density-compact');
+    }
 })();
 
 let searchTimeout = null;

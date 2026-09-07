@@ -16,7 +16,6 @@
     --text-muted: #94a3b8;
     --font-stack: Poppins, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 
-    /* ── BASE-4 / BASE-8 SPACING SCALE (MỤC 1) ── */
     --space-1: 4px;       /* 4px - Micro */
     --space-2: 8px;       /* 8px - Small */
     --space-3: 12px;      /* 12px - Medium */
@@ -27,7 +26,6 @@
     --space-10: 40px;     /* 40px - 3XLarge */
     --space-12: 48px;     /* 48px - 4XLarge */
 
-    /* ── SEMANTIC SPACING TOKENS (MỤC 2) ── */
     --space-layout-padding: 16px 20px;
     --space-layout-gap: var(--space-3);           /* 12px */
     --space-section-gap: var(--space-3);          /* 12px */
@@ -40,7 +38,6 @@
     --space-dropdown-py: var(--space-2);          /* 8px */
     --space-dropdown-px: var(--space-3);          /* 12px */
 
-    /* ── DENSITY VARIANT: COMFORTABLE (MẶC ĐỊNH - MỤC 6) ── */
     --table-cell-py: 11px;
     --table-cell-px: var(--space-4);              /* 16px */
     --table-th-py: 13px;
@@ -56,7 +53,6 @@
     --table-scroll-single-max-h: 98px;
 }
 
-/* ── DENSITY VARIANT: COMPACT (THU GỌN - MỤC 6) ── */
 body.density-compact,
 .density-compact {
     --table-cell-py: 5px;
@@ -3842,16 +3838,12 @@ body.modal-open {
     }
 }
 
-/* ==========================================================================
-   ACCESSIBILITY: FOCUS INDICATORS (:focus-visible) - MỤC 3
-   ========================================================================== */
 :focus-visible {
     outline: 2px solid var(--primary-cyan) !important;
     outline-offset: 2px !important;
     box-shadow: 0 0 12px rgba(61, 213, 192, 0.45) !important;
 }
 
-/* Specific focus-visible treatments for common interactive components */
 .btn:focus-visible,
 .btn-primary:focus-visible,
 .btn-export-excel:focus-visible,
