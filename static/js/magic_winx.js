@@ -800,21 +800,8 @@ function filterBulkResult(keyword) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    const bulkSearchInput   = document.getElementById('bulkClientSearch');
-    const bulkSearchIconBtn = document.getElementById('bulkSearchIconBtn');
-
-    if (bulkSearchInput && bulkSearchIconBtn) {
-        bulkSearchIconBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (document.activeElement === bulkSearchInput) {
-                bulkSearchInput.value = '';
-                bulkSearchInput.blur();
-                filterBulkResult('');
-            } else {
-                bulkSearchInput.focus();
-            }
-        });
-
+    const bulkSearchInput = document.getElementById('bulkClientSearch');
+    if (bulkSearchInput) {
         bulkSearchInput.addEventListener('input', function () {
             filterBulkResult(this.value.trim().toLowerCase());
         });

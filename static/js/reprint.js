@@ -64,6 +64,11 @@ async function queryReprintBarcode(fromDate, toDate) {
 
     // +1 ngày vì Api KD lấy data theo ngày trước 1 ngày toDate (CreatedBefore)
     const toDateExclusive = addOneDay(toDate);
+
+    if (typeof showTableSkeleton === 'function') {
+        showTableSkeleton(6, 5);
+    }
+
     const data = await apiFetch('/api/barcodes/get-reprint-list', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

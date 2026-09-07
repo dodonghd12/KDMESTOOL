@@ -1077,7 +1077,7 @@ span.flatpickr-weekday {
     background: var(--color-bg-surface);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    padding: 0 44px 0 16px;
+    padding: 0 16px;
     font-size: var(--font-size-base);
     font-family: inherit;
     color: var(--color-text-primary);
@@ -1103,54 +1103,6 @@ span.flatpickr-weekday {
     cursor: not-allowed;
     border-color: var(--color-border-glass);
     background: var(--color-interactive-disabled-bg);
-}
-
-.input-wrapper .search-icon-btn {
-    position: absolute;
-    right: 6px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 32px;
-    height: 32px;
-    background: var(--color-interactive-bg-hover);
-    border: 1.2px solid var(--color-border-interactive);
-    border-radius: 8px;
-    color: var(--color-text-accent);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-    padding: 0;
-    outline: none;
-    z-index: 2;
-}
-
-.input-wrapper .search-icon-btn:hover {
-    background: var(--primary-gradient);
-    color: var(--color-text-inverse);
-    border-color: var(--color-border-focus);
-    box-shadow: var(--color-border-glow);
-    transform: translateY(-50%) scale(1.05);
-}
-
-.input-wrapper .search-icon-btn[style*="not-allowed"] {
-    opacity: 0.45;
-    background: var(--color-interactive-disabled-bg);
-    border-color: var(--color-border-subtle);
-    transform: translateY(-50%);
-    box-shadow: none;
-}
-
-.input-wrapper .search-icon-btn .material-symbols-outlined {
-    font-size: 20px !important;
-    width: 20px !important;
-    height: 20px !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    color: inherit !important;
-    line-height: 1 !important;
 }
 
 /* ===== TABLE CONTAINER & DATA GRID ===== */
@@ -1506,7 +1458,6 @@ body.app-loading-state button,
 body.app-loading-state .btn,
 body.app-loading-state .btn-export-excel,
 body.app-loading-state .winx-btn,
-body.app-loading-state .search-icon-btn,
 body.app-loading-state .details-modal-copy,
 body.app-loading-state .winx-lot-btn {
     background: linear-gradient(
@@ -1530,8 +1481,7 @@ body.app-loading-state .winx-lot-btn {
 
 body.app-loading-state button *,
 body.app-loading-state .btn *,
-body.app-loading-state .winx-btn *,
-body.app-loading-state .search-icon-btn * {
+body.app-loading-state .winx-btn * {
     visibility: hidden !important;
 }
 
@@ -1575,8 +1525,7 @@ body.app-loading-state .winx-search-bar {
 body:not(.app-loading-state) .input,
 body:not(.app-loading-state) .winx-input,
 body:not(.app-loading-state) .btn,
-body:not(.app-loading-state) .winx-btn,
-body:not(.app-loading-state) .search-icon-btn {
+body:not(.app-loading-state) .winx-btn {
     animation: skeletonFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -1588,6 +1537,47 @@ body:not(.app-loading-state) .search-icon-btn {
     to {
         opacity: 1;
         filter: blur(0);
+    }
+}
+
+/* ===== ACCESSIBILITY: PREFERS-REDUCED-MOTION (A11Y) ===== */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+
+    /* Skeleton in reduced motion: steady flat neutral block instead of moving shimmer */
+    .skeleton-cell,
+    body.app-loading-state input,
+    body.app-loading-state select,
+    body.app-loading-state textarea,
+    body.app-loading-state .input,
+    body.app-loading-state .winx-input,
+    body.app-loading-state .flatpickr-input,
+    body.app-loading-state button,
+    body.app-loading-state .btn,
+    body.app-loading-state .btn-export-excel,
+    body.app-loading-state .winx-btn {
+        animation: none !important;
+        background: var(--color-interactive-bg-hover) !important;
+        opacity: 0.8 !important;
+    }
+
+    .skeleton-cell {
+        background: var(--color-interactive-bg-hover) !important;
+    }
+
+    .quick-btn-spin,
+    .quick-action-btn:active .quick-btn-icon,
+    .density-badge.compact .material-symbols-outlined,
+    .density-badge.comfortable .material-symbols-outlined {
+        transform: none !important;
+        animation: none !important;
     }
 }
 
@@ -4539,7 +4529,6 @@ body.modal-open {
 .details-modal-close:focus-visible,
 .details-modal-copy:focus-visible,
 .comparison-close-btn:focus-visible,
-.search-icon-btn:focus-visible,
 .density-toggle-btn:focus-visible,
 .dropdown-item:focus-visible,
 .context-menu-item:focus-visible {

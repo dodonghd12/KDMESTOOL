@@ -61,6 +61,10 @@ async function fetchQCData(fromDate, toDate, productId = '') {
         return;
     }
 
+    if (typeof showTableSkeleton === 'function') {
+        showTableSkeleton(6, 5);
+    }
+
     const data = await apiFetch('/api/get-qc-data-by-date', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

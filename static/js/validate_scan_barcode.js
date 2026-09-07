@@ -315,6 +315,10 @@ function checkAndSearchWorkOrders() {
 
 async function searchWorkOrders(station) {
     try {
+        if (typeof showTableSkeleton === 'function') {
+            showTableSkeleton(6, 5);
+        }
+
         const data = await apiFetch('/api/work-orders/get-active-list', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},

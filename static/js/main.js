@@ -478,6 +478,17 @@ function initInputClearButtons() {
     });
 }
 
+// ===== CLEAR INPUT HELPER =====
+function clearInputBox(inputEl) {
+    if (!inputEl) return;
+    inputEl.value = '';
+    const box = inputEl.closest('.input-box');
+    if (box) {
+        box.classList.remove('has-value');
+    }
+}
+window.clearInputBox = clearInputBox;
+
 // ===== AUTO UPPERCASE =====
 function initAutoUppercase() {
     const uppercaseIds = ['barcode', 'product_id', 'feed_record_id', 'workOrderInput', 'substitutions', 'mr_id', 'mr_product_id', 'mr_station', 'station', 'department'];
@@ -517,8 +528,7 @@ function initKeyboardShortcuts() {
 
         // Ctrl + Enter -> Execute search / submit
         if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-            const searchBtn = document.querySelector('.search-icon-btn') ||
-                              document.getElementById('searchBtn') ||
+            const searchBtn = document.getElementById('searchBtn') ||
                               document.getElementById('insertMaterialBtn');
             if (searchBtn) {
                 searchBtn.click();
@@ -743,24 +753,39 @@ function enhanceContextMenu() {
 }
 
 // ===== TABLE SKELETON LOADING HELPER =====
-function showTableSkeleton(columnsCount = 6, rowsCount = 5) {
-    const tbody = document.getElementById('tableBody');
+function showTableSkeleton(columnsCount = 6, rowsCount = 5, targetTbodyId = 'tableBody') {
+    const tbody = typeof targetTbodyId === 'string' ? document.getElementById(targetTbodyId) : targetTbodyId;
     if (!tbody) return;
+
+    // Check if table has thead columns
+    const table = tbody.closest('table') || document.querySelector('.table-container table');
+    let cols = columnsCount;
+    if (table) {
+        const headerThs = table.querySelectorAll('thead th');
+        if (headerThs && headerThs.length > 0) {
+            cols = headerThs.length;
+        }
+    }
+
     tbody.innerHTML = '';
+    const widths = [65, 80, 50, 70, 60, 75, 55, 85, 45, 68];
+
     for (let i = 0; i < rowsCount; i++) {
         const tr = document.createElement('tr');
         tr.className = 'skeleton-row';
-        for (let j = 0; j < columnsCount; j++) {
+        for (let j = 0; j < cols; j++) {
             const td = document.createElement('td');
             const skeletonDiv = document.createElement('div');
             skeletonDiv.className = 'skeleton-cell';
-            skeletonDiv.style.width = `${55 + (j * 15) % 40}%`;
+            const widthPct = widths[(i * 3 + j) % widths.length];
+            skeletonDiv.style.width = `${widthPct}%`;
             td.appendChild(skeletonDiv);
             tr.appendChild(td);
         }
         tbody.appendChild(tr);
     }
 }
+window.showTableSkeleton = showTableSkeleton;
 
 // ===== UNIVERSAL BROWSER AUTOFILL & SAVED INFO SUPPRESSOR =====
 function initAutofillSuppressor() {
@@ -1013,8 +1038,13 @@ function initializeMainEventListeners() {
 
         barcodeInput.addEventListener('input', e => {
             e.target.value = e.target.value.toUpperCase();
-            if (productInput) productInput.value = '';
-            if (feedRecordInput) feedRecordInput.value = '';
+            if (productInput) clearInputBox(productInput);
+            if (feedRecordInput) clearInputBox(feedRecordInput);
+            if (e.target.value.trim()) {
+                showTableSkeleton(10, 5);
+            } else {
+                clearTable();
+            }
         });
 
     }
@@ -1027,8 +1057,13 @@ function initializeMainEventListeners() {
 
         productInput.addEventListener('input', e => {
             e.target.value = e.target.value.toUpperCase();
-            if (barcodeInput) barcodeInput.value = '';
-            if (feedRecordInput) feedRecordInput.value = '';
+            if (barcodeInput) clearInputBox(barcodeInput);
+            if (feedRecordInput) clearInputBox(feedRecordInput);
+            if (e.target.value.trim()) {
+                showTableSkeleton(7, 5);
+            } else {
+                clearTable();
+            }
         });
     }
 
@@ -1040,8 +1075,13 @@ function initializeMainEventListeners() {
 
         feedRecordInput.addEventListener('input', e => {
             e.target.value = e.target.value.toUpperCase();
-            if (barcodeInput) barcodeInput.value = '';
-            if (productInput) productInput.value = '';
+            if (barcodeInput) clearInputBox(barcodeInput);
+            if (productInput) clearInputBox(productInput);
+            if (e.target.value.trim()) {
+                showTableSkeleton(10, 5);
+            } else {
+                clearTable();
+            }
         });
     }
 
@@ -1106,6 +1146,8 @@ async function searchBarcode() {
         return;
     }
 
+    showTableSkeleton(10, 5);
+
     try {
         const response = await fetch('/api/barcodes', {
             method: 'POST',
@@ -1130,6 +1172,8 @@ async function searchRecipes() {
         return;
     }
 
+    showTableSkeleton(7, 5);
+
     try {
         const response = await fetch('/api/recipes', {
             method: 'POST',
@@ -1153,6 +1197,8 @@ async function searchByFeedRecord() {
         clearTable();
         return;
     }
+
+    showTableSkeleton(10, 5);
 
     try {
         const response = await fetch('/api/feed_records', {
@@ -2870,36 +2916,10 @@ function renderOutputBarcodeTable(rows, columns) {
 
 function initClientSearch() {
     const searchInput = document.getElementById('clientSearch');
-    const searchIconBtn = document.querySelector('.search-icon-btn');
-    const inputWrapper = document.querySelector('.input-wrapper');
+    if (!searchInput) return;
 
     // Disable clientSearch khi vừa load page
-    if (searchInput) {
-        searchInput.disabled = true;
-    }
-    if (searchIconBtn) {
-        searchIconBtn.style.cursor = 'not-allowed';
-    }
-
-    if (searchInput && searchIconBtn) {
-        // Click icon: nếu có text thì clear & reset filter, nếu rỗng thì focus input
-        searchIconBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-
-            // Không cho click nếu disabled
-            if (searchInput.disabled) return;
-
-            if (searchInput.value.trim() !== '') {
-                searchInput.value = '';
-                searchInput.focus();
-                filterClientResult(''); // Reset filter
-            } else {
-                searchInput.focus();
-            }
-        });
-    }
-
-    if (!searchInput) return;
+    searchInput.disabled = true;
 
     // Filter khi người dùng nhập
     searchInput.addEventListener('input', function () {
@@ -2914,21 +2934,15 @@ function initClientSearch() {
  */
 function updateClientSearchState(hasData = false) {
     const searchInput = document.getElementById('clientSearch');
-    const searchIconBtn = document.querySelector('.search-icon-btn');
-
-    if (!searchInput || !searchIconBtn) return;
+    if (!searchInput) return;
 
     if (hasData) {
         // Enable clientSearch khi có dữ liệu
         searchInput.disabled = false;
-        searchIconBtn.style.cursor = 'pointer';
-        searchIconBtn.removeAttribute('disabled');
     } else {
         // Disable clientSearch khi không có dữ liệu
         searchInput.disabled = true;
         searchInput.value = ''; // Clear input
-        searchIconBtn.style.cursor = 'not-allowed';
-        searchIconBtn.setAttribute('disabled', 'true');
     }
 }
 

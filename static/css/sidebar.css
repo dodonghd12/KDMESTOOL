@@ -68,7 +68,6 @@ body {
     display: flex;
     align-items: center;
     gap: 6px;
-    overflow: hidden;
 }
 
 .logo-badge {
@@ -1221,4 +1220,29 @@ body.theme-light .quick-action-btn:hover {
     background: rgba(13, 148, 136, 0.1) !important;
     color: #0d9488 !important;
     border-color: rgba(13, 148, 136, 0.3) !important;
+}
+
+/* ===== ACCESSIBILITY: PREFERS-REDUCED-MOTION (A11Y) ===== */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+
+    .logo-animated .hover-text {
+        width: 100% !important;
+        border-right: none !important;
+        animation: none !important;
+    }
+
+    #sidebar,
+    .quick-btn-icon,
+    .density-badge {
+        transition: none !important;
+        animation: none !important;
+    }
 }

@@ -307,6 +307,10 @@ function checkAndSearchWorkOrders() {
 
 async function searchStationConfigurations(station) {
     try {
+        if (typeof showTableSkeleton === 'function') {
+            showTableSkeleton(6, 5);
+        }
+
         const data = await apiFetch('/api/barcodes/get-station-configuration-list', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},

@@ -12,6 +12,11 @@ function initializeCheckMesyncEventListeners() {
 
         mesyncInput.addEventListener('input', e => {
             e.target.value = e.target.value.toUpperCase();
+            if (e.target.value.trim() && typeof showTableSkeleton === 'function') {
+                showTableSkeleton(6, 5);
+            } else if (!e.target.value.trim()) {
+                clearTable();
+            }
         });
     }
 }
@@ -21,6 +26,10 @@ async function fetchMesyncEvents() {
     if (!keyword) {
         clearTable();
         return;
+    }
+
+    if (typeof showTableSkeleton === 'function') {
+        showTableSkeleton(6, 5);
     }
 
     try {

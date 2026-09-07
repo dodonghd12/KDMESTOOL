@@ -344,6 +344,10 @@ async function SearchHistoryPrintByStation(station, fromDate, toDate) {
         payload.toDate = toDate;
     }
 
+    if (typeof showTableSkeleton === 'function') {
+        showTableSkeleton(6, 5);
+    }
+
     const data = await apiFetch('/api/station/print-barcode-history', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
