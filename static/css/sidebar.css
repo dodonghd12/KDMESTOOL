@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 :root {
     --base-clr: #0a101e;
@@ -72,7 +72,7 @@ body {
 }
 
 .logo-badge {
-    font-size: 10px;
+    font-size: 11.5px;
     font-weight: 700;
     padding: 2px 7px;
     border-radius: 6px;
@@ -722,7 +722,7 @@ main p {
 }
 
 .tet-badge-title {
-    font-size: 10px;
+    font-size: 11.5px;
     font-weight: 800;
     letter-spacing: 0.8px;
     color: #fef08a;
@@ -731,7 +731,7 @@ main p {
 }
 
 .tet-badge-icon {
-    font-size: 10px;
+    font-size: 12px;
     line-height: 1;
 }
 
@@ -781,7 +781,7 @@ main p {
 }
 
 .tet-counter-unit {
-    font-size: 8.5px;
+    font-size: 11.5px;
     font-weight: 800;
     color: #fef08a;
     letter-spacing: 0.8px;
@@ -790,7 +790,7 @@ main p {
 }
 
 .tet-days-badge {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     color: #fef3c7;
     background: rgba(0, 0, 0, 0.35);
@@ -802,7 +802,7 @@ main p {
 }
 
 .monday-label {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     color: #fff1f2;
     text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
@@ -811,7 +811,7 @@ main p {
 }
 
 .tet-date {
-    font-size: 9.5px;
+    font-size: 11.5px;
     font-weight: 600;
     color: #fde68a;
     text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
@@ -892,7 +892,7 @@ main p {
 
 #sidebar.close .tet-counter-unit,
 .sidebar.close .tet-counter-unit {
-    font-size: 7.5px;
+    font-size: 11px;
 }
 
 /* ===== SPA SHELL & VIEWPORT STYLES ===== */
