@@ -1,4 +1,5 @@
 :root {
+    /* ── BRAND & THEME COLORS ── */
     --primary-cyan: #3dd5c0;
     --primary-emerald: #16a085;
     --primary-gradient: linear-gradient(135deg, #3dd5c0 0%, #16a085 100%);
@@ -14,6 +15,63 @@
     --text-secondary: #cbd5e1;
     --text-muted: #94a3b8;
     --font-stack: Poppins, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+
+    /* ── BASE-4 / BASE-8 SPACING SCALE (MỤC 1) ── */
+    --space-1: 4px;       /* 4px - Micro */
+    --space-2: 8px;       /* 8px - Small */
+    --space-3: 12px;      /* 12px - Medium */
+    --space-4: 16px;      /* 16px - Base */
+    --space-5: 20px;      /* 20px - Large */
+    --space-6: 24px;      /* 24px - XLarge */
+    --space-8: 32px;      /* 32px - 2XLarge */
+    --space-10: 40px;     /* 40px - 3XLarge */
+    --space-12: 48px;     /* 48px - 4XLarge */
+
+    /* ── SEMANTIC SPACING TOKENS (MỤC 2) ── */
+    --space-layout-padding: 16px 20px;
+    --space-layout-gap: var(--space-3);           /* 12px */
+    --space-section-gap: var(--space-3);          /* 12px */
+    --space-card-padding: var(--space-3) var(--space-4); /* 12px 16px */
+    --space-modal-padding: var(--space-6);        /* 24px */
+    --space-input-py: var(--space-2);             /* 8px */
+    --space-input-px: var(--space-3);             /* 12px */
+    --space-btn-py: var(--space-2);               /* 8px */
+    --space-btn-px: var(--space-4);               /* 16px */
+    --space-dropdown-py: var(--space-2);          /* 8px */
+    --space-dropdown-px: var(--space-3);          /* 12px */
+
+    /* ── DENSITY VARIANT: COMFORTABLE (MẶC ĐỊNH - MỤC 6) ── */
+    --table-cell-py: 11px;
+    --table-cell-px: var(--space-4);              /* 16px */
+    --table-th-py: 13px;
+    --table-th-px: var(--space-4);                /* 16px */
+    --table-font-size: 13.5px;
+    --table-header-font-size: 13.5px;
+    --table-line-height: 1.4;
+    --table-footer-py: 10px;
+    --table-footer-px: 18px;
+    --table-container-single-min-h: 145px;
+    --table-container-single-max-h: 170px;
+    --table-scroll-single-min-h: 85px;
+    --table-scroll-single-max-h: 98px;
+}
+
+/* ── DENSITY VARIANT: COMPACT (THU GỌN - MỤC 6) ── */
+body.density-compact,
+.density-compact {
+    --table-cell-py: 5px;
+    --table-cell-px: var(--space-2);              /* 8px */
+    --table-th-py: 6px;
+    --table-th-px: var(--space-2);                /* 8px */
+    --table-font-size: 12px;
+    --table-header-font-size: 12px;
+    --table-line-height: 1.3;
+    --table-footer-py: 6px;
+    --table-footer-px: var(--space-3);            /* 12px */
+    --table-container-single-min-h: 115px;
+    --table-container-single-max-h: 130px;
+    --table-scroll-single-min-h: 58px;
+    --table-scroll-single-max-h: 70px;
 }
 
 * {
@@ -29,9 +87,9 @@ body {
 }
 
 .btn {
-    padding: 8px 15px;
+    padding: var(--space-btn-py) var(--space-btn-px);
     border: none;
-    border-radius: 5px;
+    border-radius: 6px;
     cursor: pointer;
     font-size: 14px;
 }
@@ -531,18 +589,20 @@ span.flatpickr-weekday {
 .table-container.single-row-mode,
 .has-output-barcode .table-container:not(.output-barcode) {
     flex: 0 0 auto !important;
-    min-height: 145px !important;
-    max-height: 170px !important;
+    min-height: var(--table-container-single-min-h) !important;
+    max-height: var(--table-container-single-max-h) !important;
     height: auto !important;
+    transition: min-height 0.25s ease, max-height 0.25s ease;
 }
 
 .table-container.single-row-mode .table-scroll,
 .has-output-barcode .table-container:not(.output-barcode) .table-scroll {
     flex: 0 0 auto !important;
-    min-height: 85px !important;
-    max-height: 98px !important;
+    min-height: var(--table-scroll-single-min-h) !important;
+    max-height: var(--table-scroll-single-max-h) !important;
     overflow-x: auto;
     overflow-y: auto;
+    transition: min-height 0.25s ease, max-height 0.25s ease;
 }
 
 .table-scroll {
@@ -587,16 +647,18 @@ thead {
 }
 
 th {
-    padding: 13px 16px;
+    padding: var(--table-th-py) var(--table-th-px);
     text-align: left;
     font-weight: 600;
-    font-size: 13.5px;
+    font-size: var(--table-header-font-size);
+    line-height: var(--table-line-height);
     letter-spacing: 0.6px;
     text-transform: uppercase;
     color: #3dd5c0;
     white-space: nowrap;
     border-bottom: 2px solid rgba(61, 213, 192, 0.4);
     user-select: none;
+    transition: padding 0.2s cubic-bezier(0.4, 0, 0.2, 1), font-size 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 tbody {
@@ -619,13 +681,15 @@ tbody tr.selected {
 }
 
 td {
-    padding: 11px 16px;
+    padding: var(--table-cell-py) var(--table-cell-px);
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     color: #e2e8f0;
-    font-size: 13.5px;
+    font-size: var(--table-font-size);
+    line-height: var(--table-line-height);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    transition: padding 0.2s cubic-bezier(0.4, 0, 0.2, 1), font-size 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .truncated-cell {
@@ -634,7 +698,7 @@ td {
 
 /* ===== TABLE FOOTER ===== */
 .table-footer {
-    padding: 10px 18px;
+    padding: var(--table-footer-py) var(--table-footer-px);
     background: rgba(15, 23, 42, 0.95);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
@@ -644,6 +708,7 @@ td {
     justify-content: space-between;
     align-items: center;
     flex-shrink: 0;
+    transition: padding 0.2s ease;
 }
 
 .table-footer.hidden {
@@ -1634,20 +1699,23 @@ body:not(.app-loading-state) .search-icon-btn {
 
 #outputBarcodeTable thead th {
     background: rgba(15, 23, 42, 0.95);
-    padding: 12px 16px;
+    padding: var(--table-th-py) var(--table-th-px);
     text-align: left;
     font-weight: 600;
-    font-size: 13.5px;
+    font-size: var(--table-header-font-size);
     letter-spacing: 0.5px;
     white-space: nowrap;
+    transition: padding 0.2s cubic-bezier(0.4, 0, 0.2, 1), font-size 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 #outputBarcodeTable tbody td {
-    padding: 10px 16px;
+    padding: var(--table-cell-py) var(--table-cell-px);
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     color: #cbd5e1;
-    font-size: 13.5px;
+    font-size: var(--table-font-size);
+    line-height: var(--table-line-height);
     white-space: nowrap;
+    transition: padding 0.2s cubic-bezier(0.4, 0, 0.2, 1), font-size 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 #outputBarcodeTable tbody tr:hover {
@@ -1655,7 +1723,7 @@ body:not(.app-loading-state) .search-icon-btn {
 }
 
 .output-footer {
-    padding: 10px 18px;
+    padding: var(--table-footer-py) var(--table-footer-px);
     background: rgba(15, 23, 42, 0.95);
     backdrop-filter: blur(10px);
     border-top: 2px solid rgba(61, 213, 192, 0.3);
@@ -1665,6 +1733,7 @@ body:not(.app-loading-state) .search-icon-btn {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    transition: padding 0.2s ease;
 }
 
 /* ===== TOAST NOTIFICATION CONTAINER & CARDS ===== */

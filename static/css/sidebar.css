@@ -251,6 +251,23 @@ body {
     font-size: 13px;
 }
 
+.density-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text-clr);
+    transition: all 0.22s ease;
+}
+
+.density-menu-item .density-icon {
+    color: #3dd5c0;
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.density-menu-item:hover .density-icon {
+    transform: rotate(90deg) scale(1.15);
+}
+
 #toggle-btn {
     margin-left: auto;
     padding: 0;

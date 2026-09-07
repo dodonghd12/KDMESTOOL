@@ -1,3 +1,15 @@
+// ===== INSTANT TABLE DENSITY SYNC =====
+(function syncInitialDensity() {
+    try {
+        const savedDensity = localStorage.getItem('kd_table_density') || 'comfortable';
+        if (savedDensity === 'compact') {
+            document.body.classList.add('density-compact');
+        } else {
+            document.body.classList.remove('density-compact');
+        }
+    } catch (e) {}
+})();
+
 let searchTimeout = null;
 let selectedRow = null;
 let selectedRowData = null;

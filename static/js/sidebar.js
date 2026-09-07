@@ -28,7 +28,63 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // ── Table Density Mode Management (Compact / Comfortable) ──
+    const DENSITY_STORAGE_KEY = 'kd_table_density';
+
+    function applyDensity(density, notifyIframes = true) {
+        const isCompact = (density === 'compact');
+        document.body.classList.toggle('density-compact', isCompact);
+
+        const densityIcon = document.getElementById('densityIcon');
+        const densityLabel = document.getElementById('densityLabelText');
+
+        if (densityIcon) {
+            densityIcon.textContent = isCompact ? 'density_small' : 'density_medium';
+        }
+        if (densityLabel) {
+            densityLabel.textContent = isCompact ? 'Mật độ: Thu gọn' : 'Mật độ: Thoáng';
+        }
+
+        // Đồng bộ tới tất cả iframes (trong SPA Shell)
+        if (notifyIframes) {
+            document.querySelectorAll('iframe').forEach(frame => {
+                try {
+                    frame.contentDocument?.body?.classList?.toggle('density-compact', isCompact);
+                } catch (e) {}
+            });
+        }
+    }
+
+    function toggleDensity() {
+        const current = localStorage.getItem(DENSITY_STORAGE_KEY) === 'compact' ? 'compact' : 'comfortable';
+        const next = (current === 'compact') ? 'comfortable' : 'compact';
+        localStorage.setItem(DENSITY_STORAGE_KEY, next);
+        applyDensity(next);
+
+        // Hiển thị toast thông báo
+        if (typeof showToast === 'function') {
+            showToast(next === 'compact' ? 'Đã bật chế độ thu gọn bảng (Compact)' : 'Đã chuyển sang chế độ thoáng (Comfortable)', 'info');
+        }
+    }
+
+    // Khởi tạo trạng thái Density từ localStorage
+    const savedDensity = localStorage.getItem(DENSITY_STORAGE_KEY) || 'comfortable';
+    applyDensity(savedDensity);
+
+    // Lắng nghe sự kiện đồng bộ giữa các Tab/Cửa sổ
+    window.addEventListener('storage', (e) => {
+        if (e.key === DENSITY_STORAGE_KEY && e.newValue) {
+            applyDensity(e.newValue);
+        }
+    });
+
     document.addEventListener('click', (e) => {
+        // Density Mode Toggle
+        if (e.target.closest('#densityToggleMenuItem')) {
+            toggleDensity();
+            return;
+        }
+
         // Logout
         if (e.target.closest('#logoutMenuItem')) {
             document.dispatchEvent(new Event('sidebar:logout'));
