@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
 :root {
     /* ══════════════════════════════════════════════════════════════════════
        1. PRIMITIVE COLOR PALETTE (RAW SCALES: 50 -> 1000)
@@ -146,7 +148,7 @@
     --text-primary: var(--color-text-primary);
     --text-secondary: var(--color-text-secondary);
     --text-muted: var(--color-text-muted);
-    --font-stack: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-stack: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     --font-mono: 'JetBrains Mono', 'Consolas', 'Fira Code', 'Courier New', monospace;
 
     /* ── MODULAR TYPE SCALE (MINIMUM READABLE SIZE: 12px) ── */
@@ -1034,6 +1036,7 @@ span.flatpickr-weekday {
     transform: translateY(-50%);
     width: 22px;
     height: 22px;
+    box-sizing: border-box;
     border-radius: 50%;
     background: var(--color-interactive-bg-hover);
     color: var(--color-text-secondary);
@@ -1042,11 +1045,37 @@ span.flatpickr-weekday {
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    font-size: var(--font-size-sm);
-    line-height: 1;
+    padding: 0;
+    margin: 0;
+    line-height: 0;
     transition: all 0.2s ease;
     z-index: 5;
     user-select: none;
+}
+
+.input-box .clear-btn svg {
+    width: 12px;
+    height: 12px;
+    stroke-width: 2.5;
+    display: block;
+    pointer-events: none;
+    flex-shrink: 0;
+    color: inherit;
+}
+
+.input-box .clear-btn .material-symbols-outlined {
+    font-size: 14px !important;
+    width: 14px !important;
+    min-width: 14px !important;
+    max-width: 14px !important;
+    height: 14px !important;
+    min-height: 14px !important;
+    line-height: 14px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: inherit !important;
+    pointer-events: none;
 }
 
 .input-box .clear-btn:hover {
@@ -1056,7 +1085,7 @@ span.flatpickr-weekday {
 }
 
 .input-box.has-value .clear-btn {
-    display: flex;
+    display: inline-flex;
 }
 
 /* ===== CLIENT SEARCH INPUT BAR (PILL CAPSULE) ===== */
@@ -1608,15 +1637,45 @@ body:not(.app-loading-state) .winx-btn {
     top: 14px;
     width: 30px;
     height: 30px;
-    display: flex;
+    box-sizing: border-box;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
+    text-align: center;
     border-radius: 8px;
-    font-size: 20px;
-    font-weight: bold;
     color: var(--color-text-muted);
     cursor: pointer;
     transition: all 0.2s;
+    padding: 0;
+    margin: 0;
+    line-height: 0;
+    border: none;
+    background: transparent;
+}
+
+.close svg {
+    width: 16px;
+    height: 16px;
+    stroke-width: 2.2;
+    display: block;
+    pointer-events: none;
+    flex-shrink: 0;
+    color: inherit;
+}
+
+.close .material-symbols-outlined {
+    font-size: 18px !important;
+    width: 18px !important;
+    min-width: 18px !important;
+    max-width: 18px !important;
+    height: 18px !important;
+    min-height: 18px !important;
+    line-height: 18px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: inherit !important;
+    pointer-events: none;
 }
 
 .close:hover {
@@ -2028,19 +2087,45 @@ body:not(.app-loading-state) .winx-btn {
 .details-modal-close {
     width: 32px;
     height: 32px;
+    box-sizing: border-box;
     border-radius: 8px;
     border: 1px solid var(--color-border-glass);
     background: var(--color-interactive-bg-hover);
     color: var(--color-text-secondary);
-    font-size: 20px;
-    line-height: 30px;
     cursor: pointer;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     outline: none;
     transition: all 0.2s ease;
     padding: 0;
+    margin: 0;
+    line-height: 0;
+}
+
+.details-modal-close svg {
+    width: 18px;
+    height: 18px;
+    stroke-width: 2.2;
+    display: block;
+    pointer-events: none;
+    flex-shrink: 0;
+    color: inherit;
+}
+
+.details-modal-close .material-symbols-outlined {
+    font-size: 20px !important;
+    width: 20px !important;
+    min-width: 20px !important;
+    max-width: 20px !important;
+    height: 20px !important;
+    min-height: 20px !important;
+    line-height: 20px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: inherit !important;
+    pointer-events: none;
 }
 
 .details-modal-close:hover {
@@ -2270,9 +2355,10 @@ body:not(.app-loading-state) .winx-btn {
     margin-left: auto;
     width: 32px;
     height: 32px;
-    font-size: 20px;
-    font-weight: bold;
-    line-height: 32px;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     text-align: center;
     border-radius: 8px;
     border: none;
@@ -2280,6 +2366,34 @@ body:not(.app-loading-state) .winx-btn {
     color: var(--color-text-secondary);
     cursor: pointer;
     transition: all 0.2s;
+    padding: 0;
+    margin: 0;
+    line-height: 0;
+}
+
+.output-header .close-btn svg {
+    width: 18px;
+    height: 18px;
+    stroke-width: 2.2;
+    display: block;
+    pointer-events: none;
+    flex-shrink: 0;
+    color: inherit;
+}
+
+.output-header .close-btn .material-symbols-outlined {
+    font-size: 20px !important;
+    width: 20px !important;
+    min-width: 20px !important;
+    max-width: 20px !important;
+    height: 20px !important;
+    min-height: 20px !important;
+    line-height: 20px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: inherit !important;
+    pointer-events: none;
 }
 
 .output-header .close-btn:hover {
@@ -2428,13 +2542,27 @@ body:not(.app-loading-state) .winx-btn {
     border: none;
     color: var(--color-text-muted);
     cursor: pointer;
-    padding: 2px;
+    width: 20px;
+    height: 20px;
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
     border-radius: 4px;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
+    line-height: 0;
     transition: all 0.2s;
     flex-shrink: 0;
+}
+
+.toast-close svg {
+    width: 14px;
+    height: 14px;
+    stroke-width: 2.2;
+    display: block;
+    pointer-events: none;
+    color: inherit;
 }
 
 .toast-close:hover {
@@ -3110,19 +3238,45 @@ body.modal-open {
 .comparison-close-btn {
     width: 34px;
     height: 34px;
+    box-sizing: border-box;
     border-radius: 8px;
     border: 1px solid var(--color-border-glass);
     background: var(--color-interactive-bg-hover);
     color: var(--color-text-secondary);
-    font-size: 22px;
-    line-height: 32px;
     cursor: pointer;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     outline: none;
     transition: all 0.2s ease;
     padding: 0;
+    margin: 0;
+    line-height: 0;
+}
+
+.comparison-close-btn svg {
+    width: 18px;
+    height: 18px;
+    stroke-width: 2.2;
+    display: block;
+    pointer-events: none;
+    flex-shrink: 0;
+    color: inherit;
+}
+
+.comparison-close-btn .material-symbols-outlined {
+    font-size: 20px !important;
+    width: 20px !important;
+    min-width: 20px !important;
+    max-width: 20px !important;
+    height: 20px !important;
+    min-height: 20px !important;
+    line-height: 20px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: inherit !important;
+    pointer-events: none;
 }
 
 .comparison-close-btn:hover {
@@ -3346,15 +3500,22 @@ body.modal-open {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    padding: 4px 10px;
+    padding: 3px 10px;
     border-radius: 20px;
+    font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
     font-size: var(--font-size-xs);
     font-weight: 700;
-    letter-spacing: 0.4px;
+    letter-spacing: 0.3px;
+    line-height: 1.25;
+    white-space: nowrap;
+    text-transform: uppercase;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 .comparison-table .status-pill .material-symbols-outlined {
     font-size: 14px;
+    font-family: 'Material Symbols Outlined' !important;
 }
 
 .comparison-table .status-pill.status-match {
@@ -3974,17 +4135,44 @@ body.modal-open {
 .winx-modal-close {
     width: 30px;
     height: 30px;
+    box-sizing: border-box;
     background: var(--color-interactive-bg-hover);
     border: none;
     border-radius: 8px;
     color: var(--color-text-secondary);
-    font-size: 20px;
-    line-height: 30px;
     cursor: pointer;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     transition: all 0.2s ease;
+    padding: 0;
+    margin: 0;
+    line-height: 0;
+}
+
+.winx-modal-close svg {
+    width: 16px;
+    height: 16px;
+    stroke-width: 2.2;
+    display: block;
+    pointer-events: none;
+    flex-shrink: 0;
+    color: inherit;
+}
+
+.winx-modal-close .material-symbols-outlined {
+    font-size: 18px !important;
+    width: 18px !important;
+    min-width: 18px !important;
+    max-width: 18px !important;
+    height: 18px !important;
+    min-height: 18px !important;
+    line-height: 18px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: inherit !important;
+    pointer-events: none;
 }
 
 .winx-modal-close:hover {

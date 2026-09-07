@@ -476,16 +476,16 @@ function displayComparison(result, recipeId, station) {
     if (badgesEl) {
         badgesEl.innerHTML = `
             <span class="comparison-badge total">Tổng: ${totalCount}</span>
-            <span class="comparison-badge match"><span class="material-symbols-outlined">check_circle</span> Khớp: ${validCount}</span>
-            ${issueCount > 0 ? `<span class="comparison-badge mismatch"><span class="material-symbols-outlined">warning</span> Chưa đạt: ${issueCount}</span>` : ''}
+            <span class="comparison-badge match"><span class="material-symbols-outlined">check_circle</span> OK: ${validCount}</span>
+            ${issueCount > 0 ? `<span class="comparison-badge mismatch"><span class="material-symbols-outlined">warning</span> NG: ${issueCount}</span>` : ''}
         `;
     }
 
     // Create comparison table
     let html = '<table class="comparison-table">';
     html += '<thead><tr>';
-    html += '<th style="width: 24%;">Site (Vị trí)</th>';
-    html += '<th style="width: 42%;">Tem Đầu Vào (MES Scan)</th>';
+    html += '<th style="width: 24%;">Site (Trạm)</th>';
+    html += '<th style="width: 42%;">Tem Đầu Vào</th>';
     html += '<th style="width: 22%;">Quy Cách YAML</th>';
     html += '<th style="width: 12%; text-align: center;">Trạng thái</th>';
     html += '</tr></thead>';
@@ -557,7 +557,7 @@ function displayComparison(result, recipeId, station) {
         } else if (item._isEmptyQuantity) {
             html += '<span class="status-pill status-empty-qty"><span class="material-symbols-outlined">production_quantity_limits</span> HẾT SỐ LƯỢNG</span>';
         } else {
-            html += '<span class="status-pill status-match"><span class="material-symbols-outlined">check</span> KHỚP</span>';
+            html += '<span class="status-pill status-match"><span class="material-symbols-outlined">check</span> OK</span>';
         }
         html += '</td>';
 

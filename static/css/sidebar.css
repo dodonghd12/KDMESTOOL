@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 :root {
     --base-clr: var(--color-bg-canvas, #0a101e);
@@ -21,8 +21,8 @@ body {
 #sidebar {
     box-sizing: border-box;
     height: 100vh;
-    width: 250px;
-    padding: 12px 14px;
+    width: 256px;
+    padding: 12px 8px;
     background: var(--color-bg-surface-elevated, rgba(10, 16, 30, 0.96));
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
@@ -46,12 +46,15 @@ body {
 
 #sidebar ul {
     list-style: none;
+    margin: 0;
+    padding: 0;
 }
 
 #sidebar>ul {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
+    padding: 0 4px;
 }
 
 #sidebar>ul::-webkit-scrollbar {
@@ -198,6 +201,7 @@ body {
     outline: none;
     transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
     border-left: 3px solid transparent;
+    box-sizing: border-box;
 }
 
 .dropdown-btn,
@@ -224,14 +228,17 @@ body {
 }
 
 #sidebar a:hover,
-#sidebar a:focus-visible,
 #sidebar .dropdown-btn:hover,
+#sidebar .sidebar-btn:hover {
+    background-color: var(--hover-clr);
+    color: var(--color-text-accent);
+}
+
+#sidebar a:focus-visible,
 #sidebar .dropdown-btn:focus-visible,
-#sidebar .sidebar-btn:hover,
 #sidebar .sidebar-btn:focus-visible {
     background-color: var(--hover-clr);
     color: var(--color-text-accent);
-    transform: translateX(3px);
     outline: 2px solid var(--color-border-focus) !important;
     outline-offset: -2px !important;
 }
@@ -263,6 +270,7 @@ body {
 #sidebar .sub-menu a {
     padding-left: 2.2em;
     font-size: var(--font-size-sm);
+    box-sizing: border-box;
 }
 
 /* ===== TOP-RIGHT QUICK ACTIONS TOOLBAR (THEME & DENSITY ICON BUTTONS) ===== */
@@ -522,6 +530,7 @@ main p {
     cursor: pointer;
     font: inherit;
     text-align: left;
+    box-sizing: border-box;
 }
 
 .sidebar-footer button:hover {
@@ -572,26 +581,27 @@ main p {
     box-shadow: 0 0 12px var(--color-border-glow, rgba(61, 213, 192, 0.45));
 }
 
-.material-symbols-outlined {
+#sidebar .material-symbols-outlined,
+#toggle-btn .material-symbols-outlined {
     font-family: 'Material Symbols Outlined' !important;
-    font-size: 22px !important;
-    width: 24px !important;
-    min-width: 24px !important;
-    max-width: 24px !important;
-    height: 24px !important;
-    min-height: 24px !important;
-    line-height: 24px !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
+    font-size: 22px;
+    width: 24px;
+    min-width: 24px;
+    max-width: 24px;
+    height: 24px;
+    min-height: 24px;
+    line-height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     overflow: hidden;
     white-space: nowrap;
     color: var(--color-text-secondary, #e8eaed);
-    flex-shrink: 0 !important;
-    flex-grow: 0 !important;
-    margin: 0 !important;
-    text-align: center !important;
-    vertical-align: middle !important;
+    flex-shrink: 0;
+    flex-grow: 0;
+    margin: 0;
+    text-align: center;
+    vertical-align: middle;
     transform: none;
 }
 
