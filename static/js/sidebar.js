@@ -28,16 +28,86 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // ── Table Density Mode Management (Compact / Comfortable) ──
+    // ══════════════════════════════════════════════════════════════════════
+    // 1. THEME MODE MANAGEMENT (DARK MODE DEFAULT / LIGHT MODE)
+    // ══════════════════════════════════════════════════════════════════════
+    const THEME_STORAGE_KEY = 'kd_theme';
+
+    function applyTheme(theme, notifyIframes = true) {
+        const isLight = (theme === 'light');
+        document.documentElement.setAttribute('data-theme', isLight ? 'light' : 'dark');
+        document.body.classList.toggle('theme-light', isLight);
+
+        const themeQuickBtn = document.getElementById('themeQuickBtn');
+        const themeQuickIcon = document.getElementById('themeQuickIcon');
+
+        if (themeQuickIcon) {
+            // Khi đang Sáng, hiện icon Mặt Trăng (dark_mode) để chuyển sang Tối
+            // Khi đang Tối, hiện icon Mặt Trời (light_mode) để chuyển sang Sáng
+            themeQuickIcon.textContent = isLight ? 'dark_mode' : 'light_mode';
+        }
+        if (themeQuickBtn) {
+            themeQuickBtn.setAttribute(
+                'aria-label',
+                isLight ? 'Chuyển sang Giao diện Tối' : 'Chuyển sang Giao diện Sáng'
+            );
+        }
+
+        // Đồng bộ tới tất cả iframes (trong SPA Shell)
+        if (notifyIframes) {
+            document.querySelectorAll('iframe').forEach(frame => {
+                try {
+                    frame.contentDocument?.documentElement?.setAttribute('data-theme', isLight ? 'light' : 'dark');
+                    frame.contentDocument?.body?.classList?.toggle('theme-light', isLight);
+                } catch (e) {}
+            });
+        }
+    }
+
+    function toggleTheme() {
+        const current = (localStorage.getItem(THEME_STORAGE_KEY) || 'dark') === 'light' ? 'light' : 'dark';
+        const next = (current === 'dark') ? 'light' : 'dark';
+        localStorage.setItem(THEME_STORAGE_KEY, next);
+
+        // Micro-interaction icon spin animation
+        const themeQuickIcon = document.getElementById('themeQuickIcon');
+        if (themeQuickIcon) {
+            themeQuickIcon.classList.remove('spin-toggle');
+            void themeQuickIcon.offsetWidth;
+            themeQuickIcon.classList.add('spin-toggle');
+        }
+
+        applyTheme(next);
+    }
+
+    // Khởi tạo trạng thái Theme từ localStorage (mặc định: dark)
+    const savedTheme = localStorage.getItem(THEME_STORAGE_KEY) || 'dark';
+    applyTheme(savedTheme);
+
+    // ══════════════════════════════════════════════════════════════════════
+    // 2. TABLE DENSITY MODE MANAGEMENT (COMPACT / COMFORTABLE)
+    // ══════════════════════════════════════════════════════════════════════
     const DENSITY_STORAGE_KEY = 'kd_table_density';
 
     function applyDensity(density, notifyIframes = true) {
         const isCompact = (density === 'compact');
         document.body.classList.toggle('density-compact', isCompact);
 
+        const densityQuickBtn = document.getElementById('densityQuickBtn');
+        const densityQuickIcon = document.getElementById('densityQuickIcon');
         const densityIcon = document.getElementById('densityIcon');
         const densityBadge = document.getElementById('densityBadge');
         const densityToggleBtn = document.getElementById('densityToggleMenuItem');
+
+        if (densityQuickIcon) {
+            densityQuickIcon.textContent = isCompact ? 'density_small' : 'density_medium';
+        }
+        if (densityQuickBtn) {
+            densityQuickBtn.setAttribute(
+                'aria-label',
+                isCompact ? 'Chuyển sang chế độ Thoáng' : 'Chuyển sang chế độ Thu gọn'
+            );
+        }
 
         if (densityIcon) {
             densityIcon.textContent = isCompact ? 'density_small' : 'density_medium';
@@ -67,12 +137,15 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.setItem(DENSITY_STORAGE_KEY, next);
 
         // Micro-interaction icon spin animation
+        const densityQuickIcon = document.getElementById('densityQuickIcon');
         const densityIcon = document.getElementById('densityIcon');
-        if (densityIcon) {
-            densityIcon.classList.remove('spin-toggle');
-            void densityIcon.offsetWidth;
-            densityIcon.classList.add('spin-toggle');
-        }
+        [densityQuickIcon, densityIcon].forEach(icon => {
+            if (icon) {
+                icon.classList.remove('spin-toggle');
+                void icon.offsetWidth;
+                icon.classList.add('spin-toggle');
+            }
+        });
 
         applyDensity(next);
     }
@@ -86,11 +159,20 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === DENSITY_STORAGE_KEY && e.newValue) {
             applyDensity(e.newValue);
         }
+        if (e.key === THEME_STORAGE_KEY && e.newValue) {
+            applyTheme(e.newValue);
+        }
     });
 
     document.addEventListener('click', (e) => {
-        // Density Mode Toggle
-        if (e.target.closest('#densityToggleMenuItem')) {
+        // Theme Toggle Button
+        if (e.target.closest('#themeQuickBtn')) {
+            toggleTheme();
+            return;
+        }
+
+        // Density Mode Toggle Button
+        if (e.target.closest('#densityQuickBtn') || e.target.closest('#densityToggleMenuItem')) {
             toggleDensity();
             return;
         }

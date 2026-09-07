@@ -1,14 +1,24 @@
-// ===== INSTANT TABLE DENSITY SYNC =====
-(function syncInitialDensity() {
+// ===== INSTANT THEME & TABLE DENSITY SYNC =====
+(function syncInitialThemeAndDensity() {
     try {
+        // Theme Sync (default: dark)
+        const savedTheme = localStorage.getItem('kd_theme') || 'dark';
+        const isLight = (savedTheme === 'light');
+        document.documentElement.setAttribute('data-theme', isLight ? 'light' : 'dark');
+        if (document.body) {
+            document.body.classList.toggle('theme-light', isLight);
+        }
+
+        // Density Sync (default: compact)
         const savedDensity = localStorage.getItem('kd_table_density') || 'compact';
         if (savedDensity !== 'comfortable') {
-            document.body.classList.add('density-compact');
+            document.body ? document.body.classList.add('density-compact') : null;
         } else {
-            document.body.classList.remove('density-compact');
+            document.body ? document.body.classList.remove('density-compact') : null;
         }
     } catch (e) {
-        document.body.classList.add('density-compact');
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.body ? document.body.classList.add('density-compact') : null;
     }
 })();
 

@@ -130,6 +130,18 @@
             loadedSet.add(frameId);
             loadedCount = loadedSet.size;
 
+            // Apply active theme and density to newly loaded frame
+            try {
+                const frameEl = document.getElementById(frameId);
+                const isLight = (localStorage.getItem('kd_theme') || 'dark') === 'light';
+                const isCompact = (localStorage.getItem('kd_table_density') || 'compact') !== 'comfortable';
+                if (frameEl && frameEl.contentDocument) {
+                    frameEl.contentDocument.documentElement?.setAttribute('data-theme', isLight ? 'light' : 'dark');
+                    frameEl.contentDocument.body?.classList?.toggle('theme-light', isLight);
+                    frameEl.contentDocument.body?.classList?.toggle('density-compact', isCompact);
+                }
+            } catch (e) {}
+
             const counterEl = document.getElementById('spaPreloadCounter');
             const progressBar = document.getElementById('spaPreloadProgressBar');
             if (counterEl) counterEl.textContent = `${loadedCount}/${total}`;
