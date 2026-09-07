@@ -82,6 +82,15 @@
                 li.classList.remove('active');
             }
         });
+
+        // Trigger smooth 280ms indicator slide
+        if (typeof window.updateSidebarActiveIndicator === 'function') {
+            window.updateSidebarActiveIndicator(true);
+            setTimeout(() => window.updateSidebarActiveIndicator(true), 150);
+            setTimeout(() => window.updateSidebarActiveIndicator(true), 320);
+        } else {
+            document.dispatchEvent(new CustomEvent('sidebar:update_indicator', { detail: { animate: true } }));
+        }
     }
 
     function completeSpaPreloading() {

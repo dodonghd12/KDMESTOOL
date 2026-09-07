@@ -25,6 +25,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 sidebar.classList.remove('close');
                 toggleButton?.classList.remove('rotate');
             }
+
+            // Smoothly track indicator during/after submenu expansion/collapse
+            updateSidebarActiveIndicator(true);
+            setTimeout(() => updateSidebarActiveIndicator(true), 150);
+            setTimeout(() => updateSidebarActiveIndicator(true), 320);
         });
     });
 
@@ -242,6 +247,58 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function updateSidebarActiveIndicator(animate = true) {
+        const sidebarEl = document.getElementById('sidebar');
+        if (!sidebarEl) return;
+
+        const ul = sidebarEl.querySelector(':scope > ul') || sidebarEl.querySelector('ul');
+        if (!ul) return;
+
+        let indicator = document.getElementById('sidebarActiveIndicator');
+        if (!indicator) {
+            indicator = document.createElement('div');
+            indicator.className = 'sidebar-active-indicator';
+            indicator.id = 'sidebarActiveIndicator';
+            indicator.setAttribute('aria-hidden', 'true');
+            ul.prepend(indicator);
+        }
+
+        const activeItem = ul.querySelector('li.active > a, li.active > .dropdown-btn') || ul.querySelector('li.active');
+
+        if (!activeItem) {
+            indicator.style.opacity = '0';
+            return;
+        }
+
+        const ulRect = ul.getBoundingClientRect();
+        const itemRect = activeItem.getBoundingClientRect();
+
+        // Calculate offset relative to ul (including scroll position)
+        const targetTop = itemRect.top - ulRect.top + ul.scrollTop;
+        const targetHeight = itemRect.height;
+
+        if (targetHeight === 0) {
+            indicator.style.opacity = '0';
+            return;
+        }
+
+        if (!animate) {
+            indicator.style.transition = 'none';
+        } else {
+            indicator.style.transition = 'transform 280ms cubic-bezier(0.4, 0, 0.2, 1), height 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 200ms ease';
+        }
+
+        indicator.style.transform = `translateY(${targetTop}px)`;
+        indicator.style.height = `${targetHeight}px`;
+        indicator.style.opacity = '1';
+
+        if (!animate) {
+            void indicator.offsetWidth;
+            indicator.style.transition = 'transform 280ms cubic-bezier(0.4, 0, 0.2, 1), height 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 200ms ease';
+        }
+    }
+    window.updateSidebarActiveIndicator = updateSidebarActiveIndicator;
+
     (function highlightActiveSidebarItem() {
         const currentPath = window.location.pathname;
 
@@ -265,7 +322,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         });
+
+        // Initialize indicator position
+        requestAnimationFrame(() => {
+            updateSidebarActiveIndicator(false);
+            setTimeout(() => updateSidebarActiveIndicator(false), 80);
+            setTimeout(() => updateSidebarActiveIndicator(false), 250);
+        });
     })();
+
+    // Recalculate on window resize
+    window.addEventListener('resize', () => {
+        updateSidebarActiveIndicator(false);
+    });
+
+    // Listen to custom indicator update events
+    document.addEventListener('sidebar:update_indicator', (e) => {
+        const animate = e.detail ? e.detail.animate !== false : true;
+        updateSidebarActiveIndicator(animate);
+    });
 
 });
 
