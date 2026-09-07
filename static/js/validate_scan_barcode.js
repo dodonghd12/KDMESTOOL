@@ -436,23 +436,45 @@ function displayComparison(result, recipeId, station) {
     const localOffset = now.getTimezoneOffset(); // minutes
     const currentTimeUTC7 = new Date(now.getTime() + (utc7Offset + localOffset) * 60 * 1000);
     
+    // Evaluate validity for each item
+    // An item is valid ONLY if:
+    // 1. Has barcode
+    // 2. Recipe matches YAML (item.match === true)
+    // 3. Not expired (!isExpired)
+    // 4. Has remaining quantity (> 0)
+    const evaluatedItems = result.map(item => {
+        const hasBarcode = Boolean(item.site_barcode && String(item.site_barcode).trim());
+        const isMatch = Boolean(item.match);
+        const isExpired = item.expiry_time
+            ? new Date(item.expiry_time) < currentTimeUTC7
+            : false;
+        const isEmptyQuantity = (item.quantity !== null && item.quantity !== undefined)
+            ? Number(item.quantity) <= 0
+            : false;
+
+        const isValid = hasBarcode && isMatch && !isExpired && !isEmptyQuantity;
+
+        return {
+            ...item,
+            _hasBarcode: hasBarcode,
+            _isMatch: isMatch,
+            _isExpired: isExpired,
+            _isEmptyQuantity: isEmptyQuantity,
+            _isValid: isValid
+        };
+    });
+
     // Calculate statistics
-    const totalCount = result.length;
-    const matchCount = result.filter(item => item.match).length;
-    const mismatchCount = totalCount - matchCount;
+    const totalCount = evaluatedItems.length;
+    const validCount = evaluatedItems.filter(item => item._isValid).length;
+    const issueCount = totalCount - validCount;
 
     if (badgesEl) {
         badgesEl.innerHTML = `
             <span class="comparison-badge total">Tổng: ${totalCount}</span>
-            <span class="comparison-badge match"><span class="material-symbols-outlined">check_circle</span> Khớp: ${matchCount}</span>
-            ${mismatchCount > 0 ? `<span class="comparison-badge mismatch"><span class="material-symbols-outlined">error</span> Lệch: ${mismatchCount}</span>` : ''}
+            <span class="comparison-badge match"><span class="material-symbols-outlined">check_circle</span> Khớp: ${validCount}</span>
+            ${issueCount > 0 ? `<span class="comparison-badge mismatch"><span class="material-symbols-outlined">warning</span> Chưa đạt: ${issueCount}</span>` : ''}
         `;
-    }
-
-    if (footerInfoEl) {
-        footerInfoEl.innerHTML = mismatchCount > 0 
-            ? `<span style="color:#fb7185;font-weight:600;"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:text-bottom;">warning</span> Phát hiện ${mismatchCount} vị trí không khớp giữa Tem và YAML!</span>`
-            : `<span style="color:#34d399;font-weight:600;"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:text-bottom;">check_circle</span> Toàn bộ ${totalCount} vị trí tem quét đều khớp với YAML</span>`;
     }
 
     // Create comparison table
@@ -465,18 +487,19 @@ function displayComparison(result, recipeId, station) {
     html += '</tr></thead>';
     html += '<tbody>';
     
-    result.forEach(item => {
-        const rowClass = item.match ? 'row-match' : 'row-mismatch';
-        
-        // Check if expired
-        const isExpired = item.expiry_time
-            ? new Date(item.expiry_time) < currentTimeUTC7
-            : false;
-
-        // Check if quantity <= 0
-        const isEmptyQuantity = item.quantity !== null 
-            && item.quantity !== undefined 
-            && Number(item.quantity) <= 0;
+    evaluatedItems.forEach(item => {
+        let rowClass = 'row-match';
+        if (!item._isValid) {
+            if (!item._hasBarcode || !item._isMatch) {
+                rowClass = 'row-mismatch';
+            } else if (item._isExpired) {
+                rowClass = 'row-mismatch row-expired';
+            } else if (item._isEmptyQuantity) {
+                rowClass = 'row-mismatch row-empty-quantity';
+            } else {
+                rowClass = 'row-mismatch';
+            }
+        }
         
         html += `<tr class="comparison-row ${rowClass}">`;
         
@@ -486,11 +509,11 @@ function displayComparison(result, recipeId, station) {
         // 2. NVL column - show site_id (recipe name), barcode, quantity, expiry
         html += '<td class="material-cell">';
         html += `<div class="site-id-text">${item.site_id ? escapeHtml(item.site_id) : '<span class="empty-cell">N/A</span>'}</div>`;
-        if (item.site_barcode) {
+        if (item._hasBarcode) {
             let barcodeClass = 'barcode-highlight';
-            if (isEmptyQuantity) {
+            if (item._isEmptyQuantity) {
                 barcodeClass += ' empty-quantity';
-            } else if (isExpired) {
+            } else if (item._isExpired) {
                 barcodeClass += ' expired';
             }
 
@@ -507,7 +530,7 @@ function displayComparison(result, recipeId, station) {
 
             html += `<div class="barcode-meta-row">`;
             html += `<span class="meta-item"><span class="material-symbols-outlined">inventory_2</span> SL: <strong>${escapeHtml(String(quantityText))}</strong></span>`;
-            html += `<span class="meta-item${isExpired ? ' expired' : ''}"><span class="material-symbols-outlined">schedule</span> HSD: <strong>${escapeHtml(expiryText)}</strong>${isExpired ? ' <span class="badge-tag-expired">HẾT HẠN</span>' : ''}</span>`;
+            html += `<span class="meta-item${item._isExpired ? ' expired' : ''}"><span class="material-symbols-outlined">schedule</span> HSD: <strong>${escapeHtml(expiryText)}</strong>${item._isExpired ? ' <span class="badge-tag-expired">HẾT HẠN</span>' : ''}</span>`;
             html += `</div>`;
         } else {
             html += '<div class="empty-cell">Chưa quét tem</div>';
@@ -519,10 +542,18 @@ function displayComparison(result, recipeId, station) {
         
         // 4. Status
         html += '<td class="status-cell" style="text-align: center;">';
-        if (item.match) {
-            html += '<span class="status-pill status-match"><span class="material-symbols-outlined">check</span> KHỚP</span>';
+        if (!item._hasBarcode) {
+            html += '<span class="status-pill status-missing"><span class="material-symbols-outlined">qr_code_scanner</span> CHƯA QUÉT</span>';
+        } else if (!item._isMatch) {
+            html += '<span class="status-pill status-mismatch"><span class="material-symbols-outlined">close</span> SAI QUY CÁCH</span>';
+        } else if (item._isExpired && item._isEmptyQuantity) {
+            html += '<span class="status-pill status-expired"><span class="material-symbols-outlined">schedule</span> HẾT HẠN & SL</span>';
+        } else if (item._isExpired) {
+            html += '<span class="status-pill status-expired"><span class="material-symbols-outlined">schedule</span> HẾT HẠN</span>';
+        } else if (item._isEmptyQuantity) {
+            html += '<span class="status-pill status-empty-qty"><span class="material-symbols-outlined">production_quantity_limits</span> HẾT SỐ LƯỢNG</span>';
         } else {
-            html += '<span class="status-pill status-mismatch"><span class="material-symbols-outlined">close</span> LỆCH</span>';
+            html += '<span class="status-pill status-match"><span class="material-symbols-outlined">check</span> KHỚP</span>';
         }
         html += '</td>';
 

@@ -2709,6 +2709,24 @@ body.modal-open {
     background: rgba(225, 29, 72, 0.22);
 }
 
+.comparison-row.row-expired {
+    background: rgba(245, 158, 11, 0.1);
+    border-left: 4px solid #f59e0b;
+}
+
+.comparison-row.row-expired:hover {
+    background: rgba(245, 158, 11, 0.18);
+}
+
+.comparison-row.row-empty-quantity {
+    background: rgba(168, 85, 247, 0.1);
+    border-left: 4px solid #a855f7;
+}
+
+.comparison-row.row-empty-quantity:hover {
+    background: rgba(168, 85, 247, 0.18);
+}
+
 .comparison-table .site-cell {
     font-weight: 600;
     color: #94a3b8;
@@ -2826,6 +2844,26 @@ body.modal-open {
     box-shadow: 0 0 10px rgba(225, 29, 72, 0.3);
 }
 
+.comparison-table .status-pill.status-expired {
+    background: rgba(245, 158, 11, 0.2);
+    color: #fbbf24;
+    border: 1px solid rgba(251, 191, 36, 0.45);
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.25);
+}
+
+.comparison-table .status-pill.status-empty-qty {
+    background: rgba(168, 85, 247, 0.2);
+    color: #c084fc;
+    border: 1px solid rgba(192, 132, 252, 0.45);
+    box-shadow: 0 0 10px rgba(168, 85, 247, 0.25);
+}
+
+.comparison-table .status-pill.status-missing {
+    background: rgba(100, 116, 139, 0.2);
+    color: #94a3b8;
+    border: 1px solid rgba(148, 163, 184, 0.4);
+}
+
 .comparison-table .empty-cell {
     color: #64748b;
     font-style: italic;
@@ -2845,6 +2883,79 @@ body.modal-open {
 .comparison-footer-info {
     font-size: 13px;
     color: #94a3b8;
+    flex: 1;
+}
+
+.comparison-legend {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-size: 12.5px;
+}
+
+.comparison-legend .legend-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-weight: 600;
+    color: #94a3b8;
+    text-transform: uppercase;
+    font-size: 11.5px;
+    letter-spacing: 0.5px;
+}
+
+.comparison-legend .legend-title .material-symbols-outlined {
+    font-size: 15px;
+    color: #3dd5c0;
+}
+
+.comparison-legend .legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 9px;
+    border-radius: 6px;
+    font-weight: 500;
+    font-size: 12px;
+    letter-spacing: 0.2px;
+}
+
+.comparison-legend .legend-item .legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.comparison-legend .legend-item.normal {
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(52, 211, 153, 0.3);
+    color: #34d399;
+}
+.comparison-legend .legend-item.normal .legend-dot {
+    background: #34d399;
+    box-shadow: 0 0 6px #34d399;
+}
+
+.comparison-legend .legend-item.expired {
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(251, 191, 36, 0.35);
+    color: #fbbf24;
+}
+.comparison-legend .legend-item.expired .legend-dot {
+    background: #fbbf24;
+    box-shadow: 0 0 6px #fbbf24;
+}
+
+.comparison-legend .legend-item.empty-qty {
+    background: rgba(168, 85, 247, 0.12);
+    border: 1px solid rgba(192, 132, 252, 0.35);
+    color: #c084fc;
+}
+.comparison-legend .legend-item.empty-qty .legend-dot {
+    background: #c084fc;
+    box-shadow: 0 0 6px #c084fc;
 }
 
 /* ===== MAGIC WINX (GLASSMORPHISM & THEME UNIFIED) ===== */
