@@ -488,3 +488,53 @@ def get_config_data(key):
 def clear_treeview(treeview):
     for item in treeview.get_children():
         treeview.delete(item)
+
+# Đường dẫn file log mạng UNC
+API_LOG_FILE_PATH = r"\\198.1.10.2\Vitinh\Thu\QUAN TRONG KHONG XOA\log_kd_mes_tool.txt"
+
+def _append_api_log_entry(log_line: str):
+    """Ghi 1 dòng log vào file mạng qua background thread để không làm chậm request"""
+    try:
+        dir_path = os.path.dirname(API_LOG_FILE_PATH)
+        if dir_path and not os.path.exists(dir_path):
+            os.makedirs(dir_path, exist_ok=True)
+        with open(API_LOG_FILE_PATH, 'a', encoding='utf-8') as f:
+            f.write(log_line + '\n')
+    except Exception as e:
+        import sys
+        print(f"[API_LOG_ERROR] Lỗi khi ghi file log: {e}", file=sys.stderr)
+
+def write_api_log(api: str, user_ip: str, payload=None):
+    """
+    Ghi log thao tác API của người dùng theo định dạng JSON object:
+    {
+        "api": api,
+        "user_ip": user_ip,
+        "execution_time": "YYYY-MM-DD HH:MM:SS",
+        "payload": payload
+    }
+    """
+    try:
+        import threading
+        now_str = datetime.now(VN_TZ).strftime("%Y-%m-%d %H:%M:%S")
+
+        safe_payload = payload
+        if safe_payload is None:
+            safe_payload = {}
+        elif isinstance(safe_payload, dict):
+            if 'password' in safe_payload:
+                safe_payload = dict(safe_payload)
+                safe_payload['password'] = '******'
+
+        log_obj = {
+            "api": api or "",
+            "user_ip": user_ip or "",
+            "execution_time": now_str,
+            "payload": safe_payload
+        }
+
+        log_line = json.dumps(log_obj, ensure_ascii=False, default=str)
+        threading.Thread(target=_append_api_log_entry, args=(log_line,), daemon=True).start()
+    except Exception as e:
+        import sys
+        print(f"[API_LOG_ERROR] {e}", file=sys.stderr)

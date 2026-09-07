@@ -68,7 +68,9 @@ from utils import (
     APP_VERSION, 
     convert_iso_datetime, 
     convert_timestamp, 
-    get_config_data
+    get_config_data,
+    write_api_log,
+    API_LOG_FILE_PATH
 )
 
 app = Flask(__name__)
@@ -77,7 +79,31 @@ app.config['SESSION_TYPE'] = 'filesystem'
 app.config['SESSION_FILE_DIR'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'flask_session')
 Session(app)
 
-# Inject global variables to all Jinja templates
+def extract_request_payload():
+    try:
+        if request.is_json:
+            return request.get_json(silent=True) or {}
+        if request.form:
+            return request.form.to_dict()
+        if request.args:
+            return request.args.to_dict()
+        if request.data:
+            try:
+                return json.loads(request.data.decode('utf-8'))
+            except Exception:
+                return request.data.decode('utf-8', errors='ignore')
+        return {}
+    except Exception:
+        return {}
+
+@app.before_request
+def log_api_requests():
+    if request.path.startswith('/api/'):
+        user_ip = session.get('user_ip')
+        if user_ip:
+            payload = extract_request_payload()
+            write_api_log(api=request.path, user_ip=user_ip, payload=payload)
+
 @app.context_processor
 def inject_global_context():
     return {
