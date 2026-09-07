@@ -228,7 +228,7 @@ def main():
 
 @app.route('/validate-scan-barcode')
 def validate_scan_barcode():
-    return render_page_or_shell('validate_scan_barcode.html', '/validate-scan-barcode', 'Kiểm tra NVL mã MES')
+    return render_page_or_shell('validate_scan_barcode.html', '/validate-scan-barcode', 'Kiểm tra tem đầu vào')
 
 @app.route('/scan-barcode-history')
 def scan_barcode_history():

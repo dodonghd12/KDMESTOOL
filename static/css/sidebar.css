@@ -109,9 +109,9 @@ body {
     cursor: pointer;
     display: inline-block;
     --border-right: 4px;
-    --text-stroke-color: var(--color-text-muted, rgba(255, 255, 255, 0.6));
-    --animation-color: var(--color-text-accent, #3dd5c0);
-    --fs-size: var(--font-size-lg, 1.15em);
+    --text-stroke-color: rgba(255, 255, 255, 0.6);
+    --animation-color: #3dd5c0;
+    --fs-size: 1.15em;
     letter-spacing: 1.5px;
     text-decoration: none;
     font-size: var(--fs-size);
@@ -122,6 +122,7 @@ body {
     -webkit-text-stroke: 1px var(--text-stroke-color);
     font-weight: 700;
     margin-left: 4px;
+    white-space: nowrap;
 }
 
 .logo-animated .hover-text {
@@ -135,6 +136,7 @@ body {
     overflow: hidden;
     -webkit-text-stroke: 1px var(--animation-color);
     animation: logoScan 3s ease-in-out infinite;
+    white-space: nowrap;
 }
 
 @keyframes logoScan {
@@ -1221,28 +1223,4 @@ body.theme-light .quick-action-btn:hover {
     color: #0d9488 !important;
     border-color: rgba(13, 148, 136, 0.3) !important;
 }
-
-/* ===== ACCESSIBILITY: PREFERS-REDUCED-MOTION (A11Y) ===== */
-@media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
-        scroll-behavior: auto !important;
-    }
-
-    .logo-animated .hover-text {
-        width: 100% !important;
-        border-right: none !important;
-        animation: none !important;
-    }
-
-    #sidebar,
-    .quick-btn-icon,
-    .density-badge {
-        transition: none !important;
-        animation: none !important;
-    }
-}
+

@@ -1540,46 +1540,7 @@ body:not(.app-loading-state) .winx-btn {
     }
 }
 
-/* ===== ACCESSIBILITY: PREFERS-REDUCED-MOTION (A11Y) ===== */
-@media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
-        scroll-behavior: auto !important;
-    }
 
-    /* Skeleton in reduced motion: steady flat neutral block instead of moving shimmer */
-    .skeleton-cell,
-    body.app-loading-state input,
-    body.app-loading-state select,
-    body.app-loading-state textarea,
-    body.app-loading-state .input,
-    body.app-loading-state .winx-input,
-    body.app-loading-state .flatpickr-input,
-    body.app-loading-state button,
-    body.app-loading-state .btn,
-    body.app-loading-state .btn-export-excel,
-    body.app-loading-state .winx-btn {
-        animation: none !important;
-        background: var(--color-interactive-bg-hover) !important;
-        opacity: 0.8 !important;
-    }
-
-    .skeleton-cell {
-        background: var(--color-interactive-bg-hover) !important;
-    }
-
-    .quick-btn-spin,
-    .quick-action-btn:active .quick-btn-icon,
-    .density-badge.compact .material-symbols-outlined,
-    .density-badge.comfortable .material-symbols-outlined {
-        transform: none !important;
-        animation: none !important;
-    }
-}
 
 /* ===== EMPTY STATE ===== */
 .table-empty-state {

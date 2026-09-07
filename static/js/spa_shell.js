@@ -6,7 +6,7 @@
         { path: '/main', frameId: 'view-main', title: 'Main' },
         { path: '/scan-barcode-history', frameId: 'view-scan-barcode-history', title: 'Lịch sử quét tem theo Máy' },
         { path: '/print-barcode-history', frameId: 'view-print-barcode-history', title: 'Lịch sử in tem theo Máy' },
-        { path: '/validate-scan-barcode', frameId: 'view-validate-scan-barcode', title: 'Kiểm tra NVL mã MES' },
+        { path: '/validate-scan-barcode', frameId: 'view-validate-scan-barcode', title: 'Kiểm tra tem đầu vào' },
         { path: '/reprint', frameId: 'view-reprint', title: 'Truy vấn in bù' },
         { path: '/substitutions', frameId: 'view-substitutions', title: 'NVL thay thế' },
         { path: '/check-qc-data', frameId: 'view-check-qc-data', title: 'Check QC Data' },
