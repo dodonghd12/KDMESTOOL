@@ -133,9 +133,12 @@
             </div>
         </div>
 
-        <button id="densityToggleMenuItem" class="sidebar-btn density-menu-item" style="cursor: pointer;" title="Chuyển đổi mật độ hiển thị bảng (Compact / Comfortable)" aria-label="Chuyển đổi mật độ hiển thị bảng">
+        <button id="densityToggleMenuItem" class="sidebar-btn density-menu-item" style="cursor: pointer;" title="Chuyển đổi mật độ hiển thị bảng (Thu gọn / Thoáng)" aria-label="Chuyển đổi mật độ hiển thị bảng">
             <span class="material-symbols-outlined density-icon" id="densityIcon">density_small</span>
-            <span id="densityLabelText">Mật độ: Thu gọn</span>
+            <span class="density-label-wrap">
+                <span id="densityLabelText" class="density-label-text">Table style</span>
+                <span class="density-badge compact" id="densityBadge">Thu gọn</span>
+            </span>
         </button>
 
         <button class="dropdown-btn user-profile-btn">

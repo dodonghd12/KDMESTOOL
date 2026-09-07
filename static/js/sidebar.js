@@ -36,13 +36,19 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.classList.toggle('density-compact', isCompact);
 
         const densityIcon = document.getElementById('densityIcon');
-        const densityLabel = document.getElementById('densityLabelText');
+        const densityBadge = document.getElementById('densityBadge');
+        const densityToggleBtn = document.getElementById('densityToggleMenuItem');
 
         if (densityIcon) {
             densityIcon.textContent = isCompact ? 'density_small' : 'density_medium';
         }
-        if (densityLabel) {
-            densityLabel.textContent = isCompact ? 'Mật độ: Thu gọn' : 'Mật độ: Thoáng';
+        if (densityBadge) {
+            densityBadge.textContent = isCompact ? 'Thu gọn' : 'Thoáng';
+            densityBadge.className = `density-badge ${isCompact ? 'compact' : 'comfortable'}`;
+        }
+        if (densityToggleBtn) {
+            densityToggleBtn.setAttribute('title', isCompact ? 'Đang ở chế độ Thu gọn. Bấm để chuyển sang Thoáng' : 'Đang ở chế độ Thoáng. Bấm để chuyển sang Thu gọn');
+            densityToggleBtn.setAttribute('aria-label', isCompact ? 'Đang ở chế độ Thu gọn' : 'Đang ở chế độ Thoáng');
         }
 
         // Đồng bộ tới tất cả iframes (trong SPA Shell)
@@ -59,12 +65,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const current = (localStorage.getItem(DENSITY_STORAGE_KEY) || 'compact') === 'compact' ? 'compact' : 'comfortable';
         const next = (current === 'compact') ? 'comfortable' : 'compact';
         localStorage.setItem(DENSITY_STORAGE_KEY, next);
-        applyDensity(next);
 
-        // Hiển thị toast thông báo
-        if (typeof showToast === 'function') {
-            showToast(next === 'compact' ? 'Đã bật chế độ thu gọn bảng (Compact)' : 'Đã chuyển sang chế độ thoáng (Comfortable)', 'info');
+        // Micro-interaction icon spin animation
+        const densityIcon = document.getElementById('densityIcon');
+        if (densityIcon) {
+            densityIcon.classList.remove('spin-toggle');
+            void densityIcon.offsetWidth;
+            densityIcon.classList.add('spin-toggle');
         }
+
+        applyDensity(next);
     }
 
     // Khởi tạo trạng thái Density từ localStorage (mặc định: compact)

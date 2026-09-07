@@ -269,18 +269,81 @@ body {
     align-items: center;
     gap: 12px;
     color: var(--text-clr);
-    transition: all 0.22s ease;
+    transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
     margin-bottom: 4px;
+    position: relative;
+    user-select: none;
 }
 
 .density-menu-item .density-icon {
     color: var(--color-text-accent);
-    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .density-menu-item:hover .density-icon,
 .density-menu-item:focus-visible .density-icon {
-    transform: rotate(90deg) scale(1.15);
+    transform: scale(1.18);
+}
+
+.density-icon.spin-toggle {
+    animation: densitySpinToggle 0.38s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes densitySpinToggle {
+    0% {
+        transform: rotate(0deg) scale(0.85);
+        opacity: 0.6;
+    }
+    50% {
+        transform: rotate(180deg) scale(1.25);
+        opacity: 1;
+    }
+    100% {
+        transform: rotate(360deg) scale(1);
+        opacity: 1;
+    }
+}
+
+.density-label-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-grow: 1;
+    min-width: 0;
+    gap: 8px;
+}
+
+.density-label-text {
+    font-size: var(--font-size-base, 13.5px);
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.density-badge {
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 1.5px 7px;
+    border-radius: 12px;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    flex-shrink: 0;
+    transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    line-height: 1.2;
+}
+
+.density-badge.compact {
+    background: var(--color-feedback-info-bg);
+    border: 1px solid var(--color-border-interactive);
+    color: var(--color-text-accent);
+    box-shadow: 0 0 8px var(--color-border-subtle);
+}
+
+.density-badge.comfortable {
+    background: var(--color-interactive-bg-hover);
+    border: 1px solid var(--color-border-glass);
+    color: var(--color-text-secondary);
 }
 
 #toggle-btn {

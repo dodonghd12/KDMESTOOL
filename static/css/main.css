@@ -1071,7 +1071,7 @@ span.flatpickr-weekday {
     min-height: var(--table-container-single-min-h) !important;
     max-height: var(--table-container-single-max-h) !important;
     height: auto !important;
-    transition: min-height 0.25s ease, max-height 0.25s ease;
+    transition: min-height 0.2s cubic-bezier(0.16, 1, 0.3, 1), max-height 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .table-container.single-row-mode .table-scroll,
@@ -1081,7 +1081,7 @@ span.flatpickr-weekday {
     max-height: var(--table-scroll-single-max-h) !important;
     overflow-x: auto;
     overflow-y: auto;
-    transition: min-height 0.25s ease, max-height 0.25s ease;
+    transition: min-height 0.2s cubic-bezier(0.16, 1, 0.3, 1), max-height 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .table-scroll {
@@ -1137,7 +1137,7 @@ th {
     white-space: nowrap;
     border-bottom: 2px solid var(--color-border-interactive);
     user-select: none;
-    transition: padding 0.2s cubic-bezier(0.4, 0, 0.2, 1), font-size 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: background-color 0.15s ease;
 }
 
 tbody {
@@ -1146,7 +1146,7 @@ tbody {
 
 tbody tr {
     border-bottom: 1px solid var(--color-border-subtle);
-    transition: all 0.16s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: background-color 0.15s ease;
     cursor: pointer;
 }
 
@@ -1168,7 +1168,7 @@ td {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    transition: padding 0.2s cubic-bezier(0.4, 0, 0.2, 1), font-size 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .truncated-cell {
@@ -2268,7 +2268,7 @@ body:not(.app-loading-state) .search-icon-btn {
     font-size: var(--table-header-font-size);
     letter-spacing: 0.5px;
     white-space: nowrap;
-    transition: padding 0.2s cubic-bezier(0.4, 0, 0.2, 1), font-size 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: background-color 0.15s ease;
 }
 
 #outputBarcodeTable tbody td {
@@ -2278,7 +2278,7 @@ body:not(.app-loading-state) .search-icon-btn {
     font-size: var(--table-font-size);
     line-height: var(--table-line-height);
     white-space: nowrap;
-    transition: padding 0.2s cubic-bezier(0.4, 0, 0.2, 1), font-size 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 #outputBarcodeTable tbody tr:hover {
