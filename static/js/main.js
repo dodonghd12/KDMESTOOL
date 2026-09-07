@@ -9,16 +9,17 @@
             document.body.classList.toggle('theme-light', isLight);
         }
 
-        // Density Sync (default: compact)
-        const savedDensity = localStorage.getItem('kd_table_density') || 'compact';
-        if (savedDensity !== 'comfortable') {
-            document.body ? document.body.classList.add('density-compact') : null;
-        } else {
-            document.body ? document.body.classList.remove('density-compact') : null;
+        // Density Sync (default: default [48px], supported: compact, default, comfortable)
+        const savedDensity = localStorage.getItem('kd_table_density') || 'default';
+        if (document.body) {
+            document.body.classList.remove('density-compact', 'density-default', 'density-comfortable');
+            document.body.classList.add(`density-${savedDensity}`);
         }
     } catch (e) {
         document.documentElement.setAttribute('data-theme', 'dark');
-        document.body ? document.body.classList.add('density-compact') : null;
+        if (document.body) {
+            document.body.classList.add('density-default');
+        }
     }
 })();
 
@@ -887,6 +888,50 @@ function initSkeletonState() {
     }
 }
 
+// ===== TABLE STICKY OFFSETS SYNC =====
+function updateTableStickyOffsets() {
+    requestAnimationFrame(() => {
+        // Main table
+        const mainTable = document.querySelector('.table-scroll table');
+        if (mainTable) {
+            const firstTh = mainTable.querySelector('thead th:first-child');
+            if (firstTh) {
+                const width = firstTh.getBoundingClientRect().width || firstTh.offsetWidth;
+                if (width > 0) {
+                    mainTable.style.setProperty('--col-1-width', `${width}px`);
+                }
+            }
+        }
+        // Output Barcode Table
+        const outputTable = document.querySelector('#outputBarcodeTable');
+        if (outputTable) {
+            const firstTh = outputTable.querySelector('thead th:first-child');
+            if (firstTh) {
+                const width = firstTh.getBoundingClientRect().width || firstTh.offsetWidth;
+                if (width > 0) {
+                    outputTable.style.setProperty('--output-col-1-width', `${width}px`);
+                }
+            }
+        }
+    });
+}
+window.updateTableStickyOffsets = updateTableStickyOffsets;
+
+function initTableStickySync() {
+    window.addEventListener('resize', updateTableStickyOffsets);
+    document.addEventListener('density:changed', updateTableStickyOffsets);
+
+    if (typeof ResizeObserver !== 'undefined') {
+        const resizeObs = new ResizeObserver(() => {
+            updateTableStickyOffsets();
+        });
+        const mainScroll = document.querySelector('.table-scroll');
+        if (mainScroll) resizeObs.observe(mainScroll);
+        const outputScroll = document.querySelector('.output-table-scroll');
+        if (outputScroll) resizeObs.observe(outputScroll);
+    }
+}
+
 initSkeletonState();
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -903,6 +948,8 @@ document.addEventListener('DOMContentLoaded', function () {
     initContextMenuKeyboard();
     initDropdownKeyboardNavigation();
     enhanceContextMenu();
+    initTableStickySync();
+    updateTableStickyOffsets();
 
     // ===== BLOCK ESC KEY WHEN MODAL IS OPEN =====
     document.addEventListener('keydown', function (e) {
@@ -1301,7 +1348,8 @@ function displayTable(result, columns) {
     });
 
     rowCount.textContent = result.length;
-    updateVisibleRowCount()
+    updateVisibleRowCount();
+    updateTableStickyOffsets();
 }
 
 function clearTable() {
@@ -1314,6 +1362,7 @@ function clearTable() {
 
     updateClientSearchState(false);
     updateVisibleRowCount();
+    updateTableStickyOffsets();
 }
 
 function handleRowClick(e) {
@@ -2096,12 +2145,14 @@ async function fetchOutputBarcodeByWorkOrder(type, rowData) {
     }
 
     activeSearchContext = type;
-    let outputHeaderContentEl = document.getElementById('outputHeaderContent');
+    const outputHeaderContentEl = document.getElementById('outputHeaderContent');
 
-    if (type && type === 'outputByBarcode') {
-        outputHeaderContentEl.textContent = 'Tem đầu ra theo Barcode';
-    } else if (type && type === 'outputByRecipe') { 
-        outputHeaderContentEl.textContent = 'Tem đầu ra theo quy cách';
+    if (outputHeaderContentEl) {
+        if (type && type === 'outputByBarcode') {
+            outputHeaderContentEl.textContent = 'Tem đầu ra theo Barcode';
+        } else if (type && type === 'outputByRecipe') { 
+            outputHeaderContentEl.textContent = 'Tem đầu ra theo quy cách';
+        }
     }
 
     const data = await apiFetch('/api/workorders/fetch-output-barcodes', {
@@ -2784,7 +2835,7 @@ function openOutputTable(type, rowData) {
     enterSingleRowMode();
 
     const container = document.getElementById('outputContainer');
-    container.style.display = 'flex';
+    if (container) container.style.display = 'flex';
 
     activeSearchContext = type;
 
@@ -2792,32 +2843,32 @@ function openOutputTable(type, rowData) {
     const outputHeaderContentEl = document.getElementById('outputHeaderContent');
 
     if (type === 'inputBarcode') {
-        outputHeaderContentEl.textContent = 'Tem đầu vào';
+        if (outputHeaderContentEl) outputHeaderContentEl.textContent = 'Tem đầu vào';
         fetchInputBarcode(rowData.id, rowData.product_type);
     }
 
     if (type === 'outputBarcodeByFeedRecords') {
-        outputHeaderContentEl.textContent = 'Tem đầu ra'
+        if (outputHeaderContentEl) outputHeaderContentEl.textContent = 'Tem đầu ra';
         fetchOutputBarcode(rowData.work_order);
     }
 
     if (type === 'workOrderByRecipe') {
-        outputHeaderContentEl.textContent = 'Đơn điều động theo quy cách'
+        if (outputHeaderContentEl) outputHeaderContentEl.textContent = 'Đơn điều động theo quy cách';
         fetchWorkOrderByRecipe(rowData.recipe_id);
     }
 
     if (type === 'commitGitlabByRecipe') {
-        outputHeaderContentEl.textContent = 'Commit Gitlab theo quy cách'
+        if (outputHeaderContentEl) outputHeaderContentEl.textContent = 'Commit Gitlab theo quy cách';
         fetchCommitGitlabByRecipe(rowData.recipe_id, rowData.product_type);
     }
 
     if (type === 'workOrderByBarcode') {
-        outputHeaderContentEl.textContent = 'Đơn điều động theo barcode'
+        if (outputHeaderContentEl) outputHeaderContentEl.textContent = 'Đơn điều động theo barcode';
         fetchWorkOrderByBarcode(rowData.id, rowData.info);
     }
 
     if (type === 'fetchOriginalInfoByBarcode') {
-        outputHeaderContentEl.textContent = 'Thông tin gốc của barcode'
+        if (outputHeaderContentEl) outputHeaderContentEl.textContent = 'Thông tin gốc của barcode';
         fetchOriginalInfoByBarcode(rowData.id, rowData.product_type);
     }
 }
@@ -2845,6 +2896,7 @@ function clearOutputBarcodeTable() {
     // Clear output table selection
     selectedOutputRow = null;
     selectedOutputRowData = null;
+    updateTableStickyOffsets();
 }
 
 function renderOutputBarcodeTable(rows, columns) {
@@ -2912,6 +2964,7 @@ function renderOutputBarcodeTable(rows, columns) {
     if (count > totalOutputBarcode && totalOutputBarcode > 0) {
         const dif = count - totalOutputBarcode;
     }
+    updateTableStickyOffsets();
 }
 
 function initClientSearch() {
@@ -3174,6 +3227,7 @@ function enterSingleRowMode() {
     }
 
     updateVisibleRowCount();
+    updateTableStickyOffsets();
 }
 
 function exitSingleRowMode() {
@@ -3196,6 +3250,7 @@ function exitSingleRowMode() {
     }
 
     updateVisibleRowCount();
+    updateTableStickyOffsets();
 }
 
 function initDateRangePicker(type) {

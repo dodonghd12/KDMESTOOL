@@ -16,8 +16,8 @@
     <div class="container winx-container">
         <div class="winx-top-row">
 
-            <!-- ── SEARCH BAR ── -->
-            <div class="winx-search-bar">
+            <!-- ── SEARCH BAR: BÙA LIỆU TIRE KD (1 PHẦN) ── -->
+            <div class="winx-search-bar winx-search-bar-wo">
                 <div class="winx-input-group">
                     <label class="winx-label">BÙA LIỆU TIRE KD</label>
                     <div class="winx-input-row">
@@ -31,21 +31,91 @@
                 </div>
             </div>
 
-            <!-- ── BULK CHECK TOOLS ── -->
-            <div class="winx-search-bar">
-                <div class="winx-input-group">
-                    <label class="winx-label">CHECK LIỆU THEO DANH SÁCH WORK ORDER</label>
-                    <div class="winx-input-row">
-                        <button id="checkBulkBtn" class="winx-btn winx-btn-ghost" onclick="triggerBulkFileInput()">
-                            <span class="material-symbols-outlined">fact_check</span>
-                            IMPORT EXCEL AND CHECK
-                        </button>
-                        <input type="file" id="bulkFileInput" accept=".xlsx,.xls" style="display:none;" onchange="handleBulkFileSelected(event)">
-
+            <!-- ── BULK CHECK TOOLS: CHECK LIỆU THEO DANH SÁCH WORK ORDER (2 PHẦN) ── -->
+            <div class="winx-search-bar winx-search-bar-bulk">
+                <div class="winx-bulk-layout">
+                    <!-- 1/2 bên trái: Label trên, Download Template dưới -->
+                    <div class="winx-bulk-left">
+                        <label class="winx-label">CHECK BULK WORK ORDER</label>
                         <button id="downloadTemplateBtn" class="winx-btn winx-btn-ghost" onclick="downloadWorkOrderTemplate()">
                             <span class="material-symbols-outlined">file_download</span>
                             DOWNLOAD TEMPLATE
                         </button>
+                    </div>
+
+                    <!-- 1/2 bên phải: Ô Import Excel tương tác kéo thả & preview -->
+                    <div class="winx-bulk-right">
+                        <div class="winx-dropzone" id="winxDropzone" tabindex="0" role="button" aria-label="Kéo thả hoặc chọn file Excel">
+                            <input type="file" id="bulkFileInput" accept=".xlsx,.xls" style="display:none;" onchange="handleBulkFileSelected(event)">
+
+                            <!-- State 1: Chờ chọn file / Kéo thả -->
+                            <div class="dropzone-state dropzone-idle" id="dropzoneIdle">
+                                <div class="dropzone-icon-wrap">
+                                    <svg class="dropzone-cloud-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"></path>
+                                        <polyline points="12 12 12 16"></polyline>
+                                        <polyline points="9 13 12 10 15 13"></polyline>
+                                    </svg>
+                                </div>
+                                <div class="dropzone-title" id="dropzoneTitle">Drop your file</div>
+                                <div class="dropzone-subtitle" id="dropzoneSubtitle">XLSX, XLS — up to 50 MB</div>
+                            </div>
+
+                            <!-- State 2: Đang tải / Thanh Loading (0.5s - 1s) -->
+                            <div class="dropzone-state dropzone-loading" id="dropzoneLoading" style="display: none;">
+                                <div class="dropzone-file-meta">
+                                    <div class="dropzone-doc-badge">
+                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                            <polyline points="14 2 14 8 20 8"></polyline>
+                                        </svg>
+                                    </div>
+                                    <div class="dropzone-file-info">
+                                        <span class="dropzone-filename" id="loadingFileName">filename.xlsx</span>
+                                        <span class="dropzone-filesize" id="loadingFileSize">0 KB</span>
+                                    </div>
+                                    <span class="dropzone-loading-pct" id="loadingPercent">0%</span>
+                                </div>
+                                <div class="dropzone-progress-track">
+                                    <div class="dropzone-progress-bar" id="dropzoneProgressBar"></div>
+                                </div>
+                            </div>
+
+                            <!-- State 3: Preview File & Nút Check (2 phần Badge bên trái + 3 phần Info & Nút Check bên phải) -->
+                            <div class="dropzone-state dropzone-preview" id="dropzonePreview" style="display: none;">
+                                <!-- Bên trái (2 phần): Badge Excel phóng to -->
+                                <div class="dropzone-excel-badge">
+                                    <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                        <polyline points="14 2 14 8 20 8"></polyline>
+                                        <line x1="8" y1="13" x2="16" y2="17"></line>
+                                        <line x1="16" y1="13" x2="8" y2="17"></line>
+                                    </svg>
+                                    <span>XLSX</span>
+                                </div>
+
+                                <!-- Bên phải (3 phần): Tên file, nút xóa ở trên -> dung lượng & trạng thái -> nút check ở dưới -->
+                                <div class="dropzone-preview-info">
+                                    <div class="dropzone-name-row">
+                                        <span class="dropzone-preview-name" id="previewFileName">filename.xlsx</span>
+                                        <button type="button" class="dropzone-remove-btn" id="dropzoneRemoveBtn" onclick="resetDropzone(event)" title="Chọn file khác" aria-label="Xóa file đã chọn">
+                                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                        </button>
+                                    </div>
+                                    <div class="dropzone-meta-row">
+                                        <span id="previewFileSize">0 KB</span>
+                                        <span class="dropzone-success-tag">
+                                            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                            Tải file thành công
+                                        </span>
+                                    </div>
+                                    <button type="button" id="startCheckBtn" class="winx-btn winx-btn-primary dropzone-check-btn" onclick="executeUploadedBulkCheck(event)">
+                                        <span class="material-symbols-outlined">fact_check</span>
+                                        Kiểm tra Work Order
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

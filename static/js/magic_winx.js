@@ -43,6 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     initMRFormUI();
+    initWinxDropzone();
 });
 
 // ── STEP 1: fetch toàn bộ collect_records ────────────────────────────────────
@@ -645,18 +646,114 @@ async function runUpdateGreenTireQuantity() {
     return true;
 }
 
+// ── BULK CHECK DROPZONE INTERACTION & LOGIC ─────────────────────────────
+let uploadedWorkOrderFile = null;
+let parsedWorkOrderIds = [];
+let uploadProgressInterval = null;
+
+function formatBytes(bytes, decimals = 1) {
+    if (!bytes || bytes === 0) return '0 B';
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+}
+
 function triggerBulkFileInput() {
-    document.getElementById('bulkFileInput').click();
+    const fileInput = document.getElementById('bulkFileInput');
+    if (fileInput) fileInput.click();
+}
+
+function initWinxDropzone() {
+    const dropzone = document.getElementById('winxDropzone');
+    const fileInput = document.getElementById('bulkFileInput');
+    if (!dropzone || !fileInput) return;
+
+    // Click anywhere on dropzone to select file (when idle)
+    dropzone.addEventListener('click', (e) => {
+        if (e.target.closest('#dropzoneRemoveBtn') || e.target.closest('#startCheckBtn')) {
+            return;
+        }
+        if (dropzone.classList.contains('is-preview') || dropzone.classList.contains('is-loading')) {
+            return;
+        }
+        fileInput.click();
+    });
+
+    // Keyboard support (Enter / Space)
+    dropzone.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            if (!dropzone.classList.contains('is-preview') && !dropzone.classList.contains('is-loading')) {
+                e.preventDefault();
+                fileInput.click();
+            }
+        }
+    });
+
+    // Drag and Drop Interactive Feedback (Border, Glow, Copy)
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropzone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (dropzone.classList.contains('is-loading')) return;
+            dropzone.classList.add('drag-over');
+            const titleEl = document.getElementById('dropzoneTitle');
+            const subEl = document.getElementById('dropzoneSubtitle');
+            if (titleEl) titleEl.textContent = 'Thả file Excel vào đây';
+            if (subEl) subEl.textContent = 'Sẵn sàng tải lên file (.xlsx, .xls)';
+        }, false);
+    });
+
+    ['dragleave', 'dragend'].forEach(eventName => {
+        dropzone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzone.classList.remove('drag-over');
+            const titleEl = document.getElementById('dropzoneTitle');
+            const subEl = document.getElementById('dropzoneSubtitle');
+            if (titleEl) titleEl.textContent = 'Drop your file';
+            if (subEl) subEl.textContent = 'XLSX, XLS — up to 50 MB';
+        }, false);
+    });
+
+    dropzone.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzone.classList.remove('drag-over');
+        const titleEl = document.getElementById('dropzoneTitle');
+        const subEl = document.getElementById('dropzoneSubtitle');
+        if (titleEl) titleEl.textContent = 'Drop your file';
+        if (subEl) subEl.textContent = 'XLSX, XLS — up to 50 MB';
+
+        const dt = e.dataTransfer;
+        if (dt && dt.files && dt.files.length > 0) {
+            await processSelectedExcelFile(dt.files[0]);
+        }
+    }, false);
 }
 
 async function handleBulkFileSelected(event) {
-    const file = event.target.files[0];
-    event.target.value = ''; // cho phép chọn lại cùng file lần sau
+    const file = event.target.files && event.target.files[0];
+    event.target.value = ''; // Reset input to allow re-selecting same file
+    if (!file) return;
+    await processSelectedExcelFile(file);
+}
 
+async function processSelectedExcelFile(file) {
     if (!file) return;
 
+    // Validate file type
     if (!/\.(xlsx|xls)$/i.test(file.name)) {
-        await showAlert('Vui lòng chọn file Excel (.xlsx hoặc .xls)', 'error');
+        await showAlert('Chỉ chấp nhận file Excel (.xlsx hoặc .xls)', 'error');
+        resetDropzone();
+        return;
+    }
+
+    // Validate max size (50MB)
+    if (file.size > 50 * 1024 * 1024) {
+        await showAlert('Dung lượng file vượt quá giới hạn 50MB', 'error');
+        resetDropzone();
         return;
     }
 
@@ -665,15 +762,146 @@ async function handleBulkFileSelected(event) {
         workOrderIds = await parseWorkOrderExcelFile(file);
     } catch (err) {
         await showAlert(err.message || 'Lỗi khi đọc file Excel', 'error');
+        resetDropzone();
         return;
     }
 
-    if (!workOrderIds.length) {
+    if (!workOrderIds || !workOrderIds.length) {
         await showAlert('Không tìm thấy dữ liệu hợp lệ trong cột work_order_list', 'warning');
+        resetDropzone();
         return;
     }
 
-    await runBulkCheckWorkOrders(workOrderIds);
+    uploadedWorkOrderFile = file;
+    parsedWorkOrderIds = workOrderIds;
+
+    // Transition to Loading State
+    const dropzone = document.getElementById('winxDropzone');
+    const idleState = document.getElementById('dropzoneIdle');
+    const loadingState = document.getElementById('dropzoneLoading');
+    const previewState = document.getElementById('dropzonePreview');
+    const loadingFileName = document.getElementById('loadingFileName');
+    const loadingFileSize = document.getElementById('loadingFileSize');
+    const loadingPercent = document.getElementById('loadingPercent');
+    const progressBar = document.getElementById('dropzoneProgressBar');
+
+    if (dropzone) {
+        dropzone.classList.remove('is-preview');
+        dropzone.classList.add('is-loading');
+    }
+    if (idleState) idleState.style.display = 'none';
+    if (previewState) previewState.style.display = 'none';
+    if (loadingState) loadingState.style.display = 'flex';
+
+    if (loadingFileName) loadingFileName.textContent = file.name;
+    if (loadingFileSize) loadingFileSize.textContent = formatBytes(file.size);
+    if (loadingPercent) loadingPercent.textContent = '0%';
+    if (progressBar) progressBar.style.width = '0%';
+
+    // Animate progress smoothly over ~800ms
+    const startTime = performance.now();
+    const duration = 800; // ms
+
+    if (uploadProgressInterval) clearInterval(uploadProgressInterval);
+
+    uploadProgressInterval = setInterval(() => {
+        const elapsed = performance.now() - startTime;
+        const progress = Math.min(100, Math.round((elapsed / duration) * 100));
+
+        if (progressBar) progressBar.style.width = `${progress}%`;
+        if (loadingPercent) loadingPercent.textContent = `${progress}%`;
+
+        if (progress >= 100) {
+            clearInterval(uploadProgressInterval);
+            uploadProgressInterval = null;
+            setTimeout(() => {
+                showDropzonePreview(file);
+            }, 120);
+        }
+    }, 20);
+}
+
+function showDropzonePreview(file) {
+    const dropzone = document.getElementById('winxDropzone');
+    const idleState = document.getElementById('dropzoneIdle');
+    const loadingState = document.getElementById('dropzoneLoading');
+    const previewState = document.getElementById('dropzonePreview');
+    const previewFileName = document.getElementById('previewFileName');
+    const previewFileSize = document.getElementById('previewFileSize');
+
+    if (dropzone) {
+        dropzone.classList.remove('is-loading');
+        dropzone.classList.add('is-preview');
+    }
+    if (idleState) idleState.style.display = 'none';
+    if (loadingState) loadingState.style.display = 'none';
+    if (previewState) previewState.style.display = 'grid';
+
+    if (previewFileName) {
+        previewFileName.textContent = file.name;
+        previewFileName.title = file.name;
+    }
+    if (previewFileSize) {
+        previewFileSize.textContent = formatBytes(file.size);
+    }
+}
+
+function resetDropzone(e) {
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    if (uploadProgressInterval) {
+        clearInterval(uploadProgressInterval);
+        uploadProgressInterval = null;
+    }
+    uploadedWorkOrderFile = null;
+    parsedWorkOrderIds = [];
+
+    const fileInput = document.getElementById('bulkFileInput');
+    if (fileInput) fileInput.value = '';
+
+    const dropzone = document.getElementById('winxDropzone');
+    const idleState = document.getElementById('dropzoneIdle');
+    const loadingState = document.getElementById('dropzoneLoading');
+    const previewState = document.getElementById('dropzonePreview');
+
+    if (dropzone) {
+        dropzone.classList.remove('is-loading', 'is-preview', 'drag-over');
+    }
+    if (loadingState) loadingState.style.display = 'none';
+    if (previewState) previewState.style.display = 'none';
+    if (idleState) idleState.style.display = 'flex';
+}
+
+async function executeUploadedBulkCheck(e) {
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    if (!parsedWorkOrderIds || !parsedWorkOrderIds.length) {
+        await showAlert('Vui lòng tải lên file Excel chứa danh sách Work Order hợp lệ trước khi kiểm tra', 'warning');
+        return;
+    }
+
+    const checkBtn = document.getElementById('startCheckBtn');
+    const originalHtml = checkBtn ? checkBtn.innerHTML : '';
+    if (checkBtn) {
+        checkBtn.disabled = true;
+        checkBtn.innerHTML = `
+            <span class="material-symbols-outlined spin-toggle">sync</span>
+            Đang kiểm tra...
+        `;
+    }
+
+    try {
+        await runBulkCheckWorkOrders(parsedWorkOrderIds);
+    } finally {
+        if (checkBtn) {
+            checkBtn.disabled = false;
+            checkBtn.innerHTML = originalHtml;
+        }
+    }
 }
 
 function parseWorkOrderExcelFile(file) {
