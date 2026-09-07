@@ -185,7 +185,8 @@ body {
 }
 
 #sidebar a,
-#sidebar .dropdown-btn {
+#sidebar .dropdown-btn,
+#sidebar .sidebar-btn {
     border-radius: 8px;
     padding: 9px 12px;
     text-decoration: none;
@@ -198,7 +199,8 @@ body {
     border-left: 3px solid transparent;
 }
 
-.dropdown-btn {
+.dropdown-btn,
+.sidebar-btn {
     width: 100%;
     text-align: left;
     background: none;
@@ -209,7 +211,8 @@ body {
 }
 
 #sidebar a > span:not(.material-symbols-outlined),
-#sidebar .dropdown-btn > span:not(.material-symbols-outlined) {
+#sidebar .dropdown-btn > span:not(.material-symbols-outlined),
+#sidebar .sidebar-btn > span:not(.material-symbols-outlined) {
     flex-grow: 1;
     font-size: 13.5px;
     font-weight: 500;
@@ -220,14 +223,24 @@ body {
 }
 
 #sidebar a:hover,
-#sidebar .dropdown-btn:hover {
+#sidebar a:focus-visible,
+#sidebar .dropdown-btn:hover,
+#sidebar .dropdown-btn:focus-visible,
+#sidebar .sidebar-btn:hover,
+#sidebar .sidebar-btn:focus-visible {
     background-color: var(--hover-clr);
     color: #3dd5c0;
     transform: translateX(3px);
+    outline: 2px solid #3dd5c0 !important;
+    outline-offset: -2px !important;
 }
 
 #sidebar a:hover .material-symbols-outlined,
-#sidebar .dropdown-btn:hover .material-symbols-outlined {
+#sidebar a:focus-visible .material-symbols-outlined,
+#sidebar .dropdown-btn:hover .material-symbols-outlined,
+#sidebar .dropdown-btn:focus-visible .material-symbols-outlined,
+#sidebar .sidebar-btn:hover .material-symbols-outlined,
+#sidebar .sidebar-btn:focus-visible .material-symbols-outlined {
     color: #3dd5c0;
     transform: scale(1.12);
 }
@@ -254,9 +267,10 @@ body {
 .density-menu-item {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     color: var(--text-clr);
     transition: all 0.22s ease;
+    margin-bottom: 4px;
 }
 
 .density-menu-item .density-icon {
@@ -264,7 +278,8 @@ body {
     transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.density-menu-item:hover .density-icon {
+.density-menu-item:hover .density-icon,
+.density-menu-item:focus-visible .density-icon {
     transform: rotate(90deg) scale(1.15);
 }
 
@@ -445,13 +460,17 @@ main p {
 
 .sidebar.close a > span:not(.material-symbols-outlined),
 .sidebar.close .dropdown-btn > span:not(.material-symbols-outlined),
+.sidebar.close .sidebar-btn > span:not(.material-symbols-outlined),
+.sidebar.close .density-menu-item > span:not(.material-symbols-outlined),
 .sidebar.close .logo-animated,
 .sidebar.close .user-info-text {
     display: none !important;
 }
 
 .sidebar.close a,
-.sidebar.close .dropdown-btn {
+.sidebar.close .dropdown-btn,
+.sidebar.close .sidebar-btn,
+.sidebar.close .density-menu-item {
     height: 42px;
     width: 42px;
     margin: 4px auto;

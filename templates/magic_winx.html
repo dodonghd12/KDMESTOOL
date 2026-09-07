@@ -298,18 +298,18 @@
     </div>
 
     <!-- ══ MODAL: Check SLL Work Order (bulk) ══ -->
-    <div class="modal-overlay hidden" id="bulkCheckModal">
+    <div class="modal-overlay hidden" id="bulkCheckModal" role="dialog" aria-modal="true" aria-labelledby="bulkCheckModalTitle">
         <div class="modal modal-lg">
-            <div class="modal-header">
+            <div class="modal-header" id="bulkCheckModalTitle">
                 Kết quả kiểm tra SLL Work Order
-                <span class="close" onclick="closeBulkCheckModal()">&times;</span>
+                <span class="close" onclick="closeBulkCheckModal()" aria-label="Đóng popup">&times;</span>
             </div>
 
             <div class="modal-body">
                 <div class="winx-bulk-toolbar">
                     <div class="input-wrapper">
-                        <input placeholder="Tìm kiếm..." class="input" id="bulkClientSearch" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text">
-                        <button class="search-icon-btn" type="button" id="bulkSearchIconBtn">
+                        <input placeholder="Tìm kiếm..." class="input" id="bulkClientSearch" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text" aria-label="Tìm kiếm trong bảng kết quả">
+                        <button class="search-icon-btn" type="button" id="bulkSearchIconBtn" aria-label="Nút tìm kiếm">
                             <span class="material-symbols-outlined">search</span>
                         </button>
                     </div>

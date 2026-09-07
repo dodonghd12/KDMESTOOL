@@ -47,7 +47,7 @@
 
             <div class="table-footer hidden">
                 <div class="row-count">Số dòng: <span id="rowCount">0</span></div>
-                <button class="btn-export-excel" id="exportExcelBtn">
+                <button class="btn-export-excel" id="exportExcelBtn" aria-label="Xuất dữ liệu ra file Excel">
                     <div class="btn-export-excel-wrapper">
                         <div class="text">Xuất Excel</div>
                         <span class="icon">
@@ -67,11 +67,32 @@
     </div>
     
     <!-- Comparison Modal -->
-    <div id="comparisonModal" class="comparison-modal">
+    <div id="comparisonModal" class="comparison-modal hidden" role="dialog" aria-modal="true" aria-labelledby="comparisonModalTitle">
         <div class="comparison-modal-content">
-            <span class="comparison-close" onclick="closeComparisonModal()">&times;</span>
-            <!-- <div class="comparison-title">Kiểm tra tem đầu vào của mã MES</div> -->
-            <div id="comparisonContent"></div>
+            <div class="comparison-modal-header">
+                <div class="comparison-title-wrap">
+                    <div class="comparison-title-main">
+                        <span class="material-symbols-outlined comparison-icon" aria-hidden="true">compare_arrows</span>
+                        <span class="comparison-title" id="comparisonModalTitle">Kiểm tra tem đầu vào của mã MES</span>
+                    </div>
+                    <div class="comparison-meta-info" id="comparisonMetaInfo">
+                        <span class="comparison-meta-tag"><span class="material-symbols-outlined">precision_manufacturing</span> Số máy: <strong id="modalStation">--</strong></span>
+                        <span class="comparison-meta-tag"><span class="material-symbols-outlined">receipt_long</span> Recipe: <strong id="modalRecipeId">--</strong></span>
+                    </div>
+                    <div class="comparison-badges" id="comparisonBadges"></div>
+                </div>
+                <div class="comparison-header-actions">
+                    <button class="comparison-close-btn" onclick="closeComparisonModal()" title="Đóng" aria-label="Đóng hộp thoại so sánh" type="button">&times;</button>
+                </div>
+            </div>
+            <div class="comparison-modal-body">
+                <div class="comparison-table-scroll">
+                    <div id="comparisonContent"></div>
+                </div>
+            </div>
+            <div class="comparison-modal-footer">
+                <div class="comparison-footer-info" id="comparisonFooterInfo"></div>
+            </div>
         </div>
     </div>
 

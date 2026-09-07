@@ -42,9 +42,9 @@
             </div>
             <div class="search-row">
                 <div class="input-wrapper">
-                    <input placeholder="Tìm kiếm..." class="input" id="clientSearch" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text">
-                    <button class="search-icon-btn" type="button"> 
-                        <span class="material-symbols-outlined">search</span>
+                    <input placeholder="Tìm kiếm..." class="input" id="clientSearch" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text" aria-label="Tìm kiếm trong bảng">
+                    <button class="search-icon-btn" type="button" aria-label="Nút tìm kiếm"> 
+                        <span class="material-symbols-outlined" aria-hidden="true">search</span>
                     </button>
                 </div>
             </div>
@@ -60,7 +60,7 @@
 
             <div class="table-footer hidden">
                 <div class="row-count">Số dòng: <span id="rowCount">0</span></div>
-                <button class="btn-export-excel" id="exportExcelBtn">
+                <button class="btn-export-excel" id="exportExcelBtn" aria-label="Xuất dữ liệu ra file Excel">
                     <div class="btn-export-excel-wrapper">
                         <div class="text">Xuất Excel</div>
                         <span class="icon">
@@ -74,10 +74,10 @@
         </div>
 
         <!-- ===== OUTPUT BARCODE CONTAINER ===== -->
-        <div id="outputContainer" class="table-container output-barcode">
+        <div id="outputContainer" class="table-container output-barcode" role="region" aria-label="Bảng chi tiết tem đầu ra / đầu vào">
             <div class="output-header" id="outputHeader">
                 <div class="output-header-content" id="outputHeaderContent">Đang tải...</div>
-                <button class="close-btn" onclick="closeShowBarcodeWindow()">&times;</button>
+                <button class="close-btn" onclick="closeShowBarcodeWindow()" aria-label="Đóng bảng tem đầu ra">&times;</button>
             </div>
 
             <div class="output-table-scroll">
@@ -88,7 +88,7 @@
             </div>
             <div class="output-footer">
                 <div class="row-count">Số dòng: <span id="outputRowCount">0</span></div>
-                <button class="btn-export-excel" id="exportOutputExcelBtn">
+                <button class="btn-export-excel" id="exportOutputExcelBtn" aria-label="Xuất dữ liệu tem đầu ra file Excel">
                     <div class="btn-export-excel-wrapper">
                         <div class="text">Xuất Excel</div>
                         <span class="icon">

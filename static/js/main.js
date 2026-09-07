@@ -537,7 +537,7 @@ function initKeyboardShortcuts() {
             return;
         }
 
-        // Escape -> Close Context Menu or Modals
+        // Escape -> Close Context Menu, Modals, Dropdowns, or Output Barcode
         if (e.key === 'Escape') {
             const contextMenu = document.getElementById('contextMenu');
             if (contextMenu && contextMenu.style.display !== 'none') {
@@ -549,8 +549,110 @@ function initKeyboardShortcuts() {
                 closeDetailsModal();
                 return;
             }
+            const comparisonModal = document.getElementById('comparisonModal');
+            if (comparisonModal && !comparisonModal.classList.contains('hidden') && comparisonModal.style.display !== 'none') {
+                if (typeof closeComparisonModal === 'function') {
+                    closeComparisonModal();
+                } else {
+                    comparisonModal.classList.add('hidden');
+                    comparisonModal.classList.remove('show');
+                }
+                return;
+            }
+            const openDropdowns = document.querySelectorAll('.dropdown-list.show');
+            if (openDropdowns.length > 0) {
+                openDropdowns.forEach(dd => dd.classList.remove('show'));
+                return;
+            }
+            const outputContainer = document.getElementById('outputContainer');
+            if (outputContainer && outputContainer.style.display === 'flex') {
+                if (typeof closeShowBarcodeWindow === 'function') {
+                    closeShowBarcodeWindow();
+                }
+                return;
+            }
         }
     });
+}
+
+// ===== DROPDOWN LIST KEYBOARD NAVIGATION (MỤC 4) =====
+function initDropdownKeyboardNavigation() {
+    document.addEventListener('keydown', (e) => {
+        const openDropdown = document.querySelector('.dropdown-list.show');
+        if (!openDropdown) return;
+
+        const items = Array.from(openDropdown.querySelectorAll('.dropdown-item:not([style*="cursor:default"])'));
+        if (items.length === 0) return;
+
+        let currentIndex = items.findIndex(item => item.classList.contains('highlight'));
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            e.stopPropagation();
+            const nextIndex = (currentIndex + 1) % items.length;
+            items.forEach((item, idx) => {
+                if (idx === nextIndex) {
+                    item.classList.add('highlight');
+                    item.scrollIntoView({ block: 'nearest' });
+                } else {
+                    item.classList.remove('highlight');
+                }
+            });
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            e.stopPropagation();
+            const prevIndex = (currentIndex - 1 + items.length) % items.length;
+            items.forEach((item, idx) => {
+                if (idx === prevIndex) {
+                    item.classList.add('highlight');
+                    item.scrollIntoView({ block: 'nearest' });
+                } else {
+                    item.classList.remove('highlight');
+                }
+            });
+        } else if (e.key === 'Enter') {
+            let target = null;
+            if (currentIndex >= 0 && currentIndex < items.length) {
+                target = items[currentIndex];
+            } else {
+                const hoveredItem = openDropdown.querySelector('.dropdown-item:hover');
+                if (hoveredItem && !hoveredItem.getAttribute('style')?.includes('cursor:default')) {
+                    target = hoveredItem;
+                } else if (items.length === 1) {
+                    target = items[0];
+                }
+            }
+
+            if (target) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+
+                // 1. Dispatch mousedown (cho các trang dùng mousedown listener)
+                target.dispatchEvent(new MouseEvent('mousedown', {
+                    bubbles: true,
+                    cancelable: true,
+                    view: window,
+                    buttons: 1
+                }));
+
+                // 2. Dispatch mouseup
+                target.dispatchEvent(new MouseEvent('mouseup', {
+                    bubbles: true,
+                    cancelable: true,
+                    view: window,
+                    buttons: 1
+                }));
+
+                // 3. Dispatch click (cho các trang dùng click listener)
+                target.click();
+
+                // Đóng dropdown và xóa highlight
+                openDropdown.classList.remove('show');
+                items.forEach(item => item.classList.remove('highlight'));
+            }
+        }
+    }, true);
 }
 
 // ===== CONTEXT MENU KEYBOARD NAVIGATION =====
@@ -762,6 +864,7 @@ document.addEventListener('DOMContentLoaded', function () {
     initAutoUppercase();
     initKeyboardShortcuts();
     initContextMenuKeyboard();
+    initDropdownKeyboardNavigation();
     enhanceContextMenu();
 
     // ===== BLOCK ESC KEY WHEN MODAL IS OPEN =====

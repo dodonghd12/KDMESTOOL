@@ -32,6 +32,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // Escape -> Close bulk check modal
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') {
+            const bulkModal = document.getElementById('bulkCheckModal');
+            if (bulkModal && !bulkModal.classList.contains('hidden')) {
+                closeBulkCheckModal();
+            }
+        }
+    });
+
     initMRFormUI();
 });
 
@@ -68,11 +78,6 @@ async function fetchCollectRecords() {
     updateSelectedCount();
 
     document.getElementById('selectModal').style.display = 'flex';
-
-    speechBubble.show(
-        `📋 Tìm thấy ${data.total} collect records — hãy chọn các dòng cần xử lý`,
-        { duration: 6000, animation: 'bounce' }
-    );
 }
 
 async function checkExistingMaterialResources() {
@@ -314,11 +319,6 @@ async function runPrepareFromSelection() {
     renderPreviewTable(winxInsertRows);
 
     document.getElementById('statusPanel').style.display = 'flex';
-
-    speechBubble.show(
-        `⚡ Đã chọn ${selectedSeqs.length} sequences — sẽ insert ${winxInsertRows.length} dòng`,
-        { duration: 6000, animation: 'bounce' }
-    );
 }
 
 function renderStatusPanel(data, selectedCount) {
@@ -641,11 +641,6 @@ async function runUpdateGreenTireQuantity() {
     }
 
     showAlert(`${data.message}`, 'success');
-
-    speechBubble.show(
-        `✨ Update GREEN_TIRE quantity hoàn tất! Đã reset ${data.updated_count} GREEN_TIRE.`,
-        {duration: 6000, animation: 'bounce'}
-    );
 
     return true;
 }
@@ -1175,16 +1170,6 @@ async function handleInsertMaterialResource() {
             renderSingleMRPreviewTable(singleMRInsertRow);
             document.getElementById('mrPreviewPanel').style.display = 'flex';
 
-            if (typeof speechBubble !== 'undefined' && speechBubble.show) {
-                speechBubble.show(
-                    `📋 Đã tạo preview BEAD_WIRE cho ID: ${idVal} — hãy kiểm tra và bấm Thực hiện Insert!`,
-                    {
-                        duration: 6000,
-                        animation: 'bounce'
-                    }
-                );
-            }
-
         } catch (err) {
             showAlert(`Lỗi: ${err.message || err}`, 'error');
         }
@@ -1229,9 +1214,6 @@ async function handleInsertMaterialResource() {
         renderSingleMRPreviewTable(singleMRInsertRow);
         document.getElementById('mrPreviewPanel').style.display = 'flex';
 
-        if (typeof speechBubble !== 'undefined' && speechBubble.show) {
-            speechBubble.show(`📋 Đã tạo preview dữ liệu cho ID: ${idVal} — hãy kiểm tra và bấm Thực hiện Insert!`, { duration: 6000, animation: 'bounce' });
-        }
     } catch (err) {
         showAlert(`Lỗi: ${err.message || err}`, 'error');
     }
@@ -1345,9 +1327,7 @@ async function executeSingleInsertMaterial() {
         }
 
         await showAlert(data.message || 'Insert material_resource thành công!', 'success');
-        if (typeof speechBubble !== 'undefined' && speechBubble.show) {
-            speechBubble.show(`✨ ${data.message}`, { duration: 6000, animation: 'bounce' });
-        }
+
     } catch (err) {
         showAlert(`Lỗi: ${err.message || err}`, 'error');
     }

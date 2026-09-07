@@ -133,6 +133,11 @@
             </div>
         </div>
 
+        <button id="densityToggleMenuItem" class="sidebar-btn density-menu-item" style="cursor: pointer;" title="Chuyển đổi mật độ hiển thị bảng (Compact / Comfortable)" aria-label="Chuyển đổi mật độ hiển thị bảng">
+            <span class="material-symbols-outlined density-icon" id="densityIcon">density_medium</span>
+            <span id="densityLabelText">Mật độ: Thoáng</span>
+        </button>
+
         <button class="dropdown-btn user-profile-btn">
             <span class="material-symbols-outlined user-avatar-icon">account_circle</span>
             <span class="user-info-text">{{ user_ip }} <span class="user-status-dot" title="Online"></span></span>
@@ -142,13 +147,7 @@
         <ul class="sub-menu">
             <div>
                 <li>
-                    <a id="densityToggleMenuItem" class="density-menu-item" style="cursor: pointer;" title="Chuyển đổi mật độ hiển thị bảng (Compact / Comfortable)">
-                        <span class="material-symbols-outlined density-icon" id="densityIcon">density_medium</span>
-                        <span id="densityLabelText">Mật độ: Thoáng</span>
-                    </a>
-                </li>
-                <li>
-                    <a id="logoutMenuItem">
+                    <a id="logoutMenuItem" aria-label="Đăng xuất tài khoản">
                         <span class="material-symbols-outlined">logout</span>
                         <span>Đăng xuất</span>
                     </a>
@@ -159,9 +158,9 @@
 </nav>
 
 <!-- Custom Modal -->
-<div id="customModal" class="custom-modal">
+<div id="customModal" class="custom-modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalMessage">
     <div class="custom-modal-content">
-        <div id="modalIcon" class="custom-modal-icon"></div>
+        <div id="modalIcon" class="custom-modal-icon" aria-hidden="true"></div>
         <div id="modalTitle" class="custom-modal-title"></div>
         <div id="modalMessage" class="custom-modal-message"></div>
         <div id="modalFooter" class="custom-modal-footer"></div>
@@ -169,19 +168,19 @@
 </div>
 
 <!-- Details Modal -->
-<div id="detailsModal" class="details-modal hidden">
+<div id="detailsModal" class="details-modal hidden" role="dialog" aria-modal="true" aria-labelledby="detailsModalTitle">
     <div class="details-modal-content">
         <div class="details-modal-header">
             <div class="details-modal-title-wrap">
-                <span class="material-symbols-outlined details-modal-icon">data_object</span>
-                <span class="details-modal-title">Chi tiết dữ liệu</span>
+                <span class="material-symbols-outlined details-modal-icon" aria-hidden="true">data_object</span>
+                <span class="details-modal-title" id="detailsModalTitle">Chi tiết dữ liệu</span>
             </div>
             <div class="details-modal-header-actions">
-                <button class="details-modal-copy" id="copyDetailsBtn" title="Sao chép dữ liệu" type="button">
-                    <span class="material-symbols-outlined">content_copy</span>
+                <button class="details-modal-copy" id="copyDetailsBtn" title="Sao chép dữ liệu" aria-label="Sao chép toàn bộ dữ liệu chi tiết" type="button">
+                    <span class="material-symbols-outlined" aria-hidden="true">content_copy</span>
                     <span>Sao chép</span>
                 </button>
-                <button class="details-modal-close" title="Đóng" type="button">&times;</button>
+                <button class="details-modal-close" title="Đóng" aria-label="Đóng hộp thoại chi tiết" type="button">&times;</button>
             </div>
         </div>
         <div class="details-modal-body-wrapper">
@@ -190,7 +189,7 @@
     </div>
 </div>
 
-<div class="api-loading" id="apiLoading" style="display:none;">
+<div class="api-loading" id="apiLoading" style="display:none;" role="status" aria-live="polite" aria-label="Đang gọi API xử lý dữ liệu">
     <div class="loader">
         <p>loading</p>
         <div class="words">

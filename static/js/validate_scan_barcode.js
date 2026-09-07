@@ -380,8 +380,8 @@ function handleContextMenuAction(e) {
 }
 
 async function validateScanBarcode() {
-    const recipeId = selectedRowData['recipe_id'];
-    const station = selectedRowData['station'];
+    const recipeId = selectedRowData ? (selectedRowData['recipe_id'] || '') : '';
+    const station = selectedRowData ? (selectedRowData['station'] || '') : (document.getElementById('station')?.value || '');
     
     if (!recipeId || !station) {
         alert('Thiếu thông tin recipe_id hoặc station');
@@ -397,7 +397,7 @@ async function validateScanBarcode() {
         
         const data = await response.json();
         if (data.success) {
-            displayComparison(data.result);
+            displayComparison(data.result, recipeId, station);
         } else {
             alert(data.message || 'Có lỗi xảy ra');
         }
@@ -407,23 +407,66 @@ async function validateScanBarcode() {
     }
 }
 
-function displayComparison(result) {
+function displayComparison(result, recipeId, station) {
     const modal = document.getElementById('comparisonModal');
     const content = document.getElementById('comparisonContent');
+    const badgesEl = document.getElementById('comparisonBadges');
+    const footerInfoEl = document.getElementById('comparisonFooterInfo');
+    const modalStationEl = document.getElementById('modalStation');
+    const modalRecipeIdEl = document.getElementById('modalRecipeId');
     
+    if (!result || !Array.isArray(result)) {
+        result = [];
+    }
+
+    // Populate Station and Recipe ID in Header
+    const currentRecipeId = recipeId || (selectedRowData ? selectedRowData['recipe_id'] : '') || '--';
+    const currentStation = station || (selectedRowData ? selectedRowData['station'] : '') || (document.getElementById('station')?.value || '') || '--';
+
+    if (modalStationEl) {
+        modalStationEl.textContent = currentStation;
+    }
+    if (modalRecipeIdEl) {
+        modalRecipeIdEl.textContent = currentRecipeId;
+    }
+
     // Get current time in UTC+7 (Asia/Ho_Chi_Minh)
     const now = new Date();
     const utc7Offset = 7 * 60; // minutes
     const localOffset = now.getTimezoneOffset(); // minutes
     const currentTimeUTC7 = new Date(now.getTime() + (utc7Offset + localOffset) * 60 * 1000);
     
+    // Calculate statistics
+    const totalCount = result.length;
+    const matchCount = result.filter(item => item.match).length;
+    const mismatchCount = totalCount - matchCount;
+
+    if (badgesEl) {
+        badgesEl.innerHTML = `
+            <span class="comparison-badge total">Tổng: ${totalCount}</span>
+            <span class="comparison-badge match"><span class="material-symbols-outlined">check_circle</span> Khớp: ${matchCount}</span>
+            ${mismatchCount > 0 ? `<span class="comparison-badge mismatch"><span class="material-symbols-outlined">error</span> Lệch: ${mismatchCount}</span>` : ''}
+        `;
+    }
+
+    if (footerInfoEl) {
+        footerInfoEl.innerHTML = mismatchCount > 0 
+            ? `<span style="color:#fb7185;font-weight:600;"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:text-bottom;">warning</span> Phát hiện ${mismatchCount} vị trí không khớp giữa Tem và YAML!</span>`
+            : `<span style="color:#34d399;font-weight:600;"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:text-bottom;">check_circle</span> Toàn bộ ${totalCount} vị trí tem quét đều khớp với YAML</span>`;
+    }
+
     // Create comparison table
     let html = '<table class="comparison-table">';
-    html += '<thead><tr><th style="width: 30%;">Site</th><th style="width: 35%;">Tem Đầu vào</th><th style="width: 35%;">YAML</th></tr></thead>';
+    html += '<thead><tr>';
+    html += '<th style="width: 24%;">Site (Vị trí)</th>';
+    html += '<th style="width: 42%;">Tem Đầu Vào (MES Scan)</th>';
+    html += '<th style="width: 22%;">Quy Cách YAML</th>';
+    html += '<th style="width: 12%; text-align: center;">Trạng thái</th>';
+    html += '</tr></thead>';
     html += '<tbody>';
     
     result.forEach(item => {
-        const rowClass = item.match ? 'match' : 'mismatch';
+        const rowClass = item.match ? 'row-match' : 'row-mismatch';
         
         // Check if expired
         const isExpired = item.expiry_time
@@ -435,12 +478,14 @@ function displayComparison(result) {
             && item.quantity !== undefined 
             && Number(item.quantity) <= 0;
         
-        html += `<tr class="${rowClass}">`;
-        html += `<td>${item.site || ''}</td>`;
+        html += `<tr class="comparison-row ${rowClass}">`;
         
-        // NVL column - show recipe name (site) and barcode (resource_id)
-        html += '<td>';
-        html += `<div>${item.site_id || '<span class="empty-cell">N/A</span>'}</div>`;
+        // 1. Site
+        html += `<td class="site-cell"><strong>${escapeHtml(item.site || '')}</strong></td>`;
+        
+        // 2. NVL column - show site_id (recipe name), barcode, quantity, expiry
+        html += '<td class="material-cell">';
+        html += `<div class="site-id-text">${item.site_id ? escapeHtml(item.site_id) : '<span class="empty-cell">N/A</span>'}</div>`;
         if (item.site_barcode) {
             let barcodeClass = 'barcode-highlight';
             if (isEmptyQuantity) {
@@ -450,45 +495,52 @@ function displayComparison(result) {
             }
 
             // barcode
-            html += `<div class="${barcodeClass}">${item.site_barcode}</div>`;
+            html += `<div class="${barcodeClass}"><span class="material-symbols-outlined barcode-icon">qr_code_2</span>${escapeHtml(item.site_barcode)}</div>`;
 
-            // Số lượng
+            // Số lượng & HSD
             const quantityText = (item.quantity !== null && item.quantity !== undefined)
                 ? item.quantity
                 : 'N/A';
-            html += `<div class="barcode-meta">Số lượng: ${quantityText}</div>`;
-
-            // Thời hạn
             const expiryText = item.expiry_time
                 ? new Date(item.expiry_time).toLocaleString('vi-VN')
                 : 'N/A';
-            html += `<div class="barcode-meta${isExpired ? ' expired-text' : ''}">HSD: ${expiryText}</div>`;
+
+            html += `<div class="barcode-meta-row">`;
+            html += `<span class="meta-item"><span class="material-symbols-outlined">inventory_2</span> SL: <strong>${escapeHtml(String(quantityText))}</strong></span>`;
+            html += `<span class="meta-item${isExpired ? ' expired' : ''}"><span class="material-symbols-outlined">schedule</span> HSD: <strong>${escapeHtml(expiryText)}</strong>${isExpired ? ' <span class="badge-tag-expired">HẾT HẠN</span>' : ''}</span>`;
+            html += `</div>`;
         } else {
-            html += '<div class="empty-cell">N/A</div>';
+            html += '<div class="empty-cell">Chưa quét tem</div>';
         }
         html += '</td>';
         
-        // YAML column - only show site_id (name)
-        html += '<td>';
-        html += `<div>${item.recipe_name || '<span class="empty-cell">N/A</span>'}</div>`;
-        html += '</td>';
+        // 3. YAML column - only show recipe_name
+        html += `<td class="yaml-cell">${item.recipe_name ? escapeHtml(item.recipe_name) : '<span class="empty-cell">N/A</span>'}</td>`;
         
+        // 4. Status
+        html += '<td class="status-cell" style="text-align: center;">';
+        if (item.match) {
+            html += '<span class="status-pill status-match"><span class="material-symbols-outlined">check</span> KHỚP</span>';
+        } else {
+            html += '<span class="status-pill status-mismatch"><span class="material-symbols-outlined">close</span> LỆCH</span>';
+        }
+        html += '</td>';
+
         html += '</tr>';
     });
     
     html += '</tbody></table>';
     content.innerHTML = html;
+    modal.classList.remove('hidden');
     modal.classList.add('show');
-
-    speechBubble.show('💡Tip: Barcode màu Xanh là khớp, màu đỏ là không khớp, màu vàng là hết hạn, màu tím là số lượng hết', {
-            duration: 20000,
-            animation: 'bounce'
-        })
 }
 
 function closeComparisonModal() {
     const modal = document.getElementById('comparisonModal');
-    modal.classList.remove('show');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('show');
+    }
 }
 
 // Close modal when clicking outside
@@ -497,4 +549,4 @@ window.onclick = function(event) {
     if (event.target === modal) {
         closeComparisonModal();
     }
-}
+};
