@@ -1006,6 +1006,24 @@ function renderBulkResultTable(rows) {
     const tbody = document.getElementById('bulkResultTableBody');
     tbody.innerHTML = '';
 
+    if (!rows || rows.length === 0) {
+        const emptyTr = document.createElement('tr');
+        emptyTr.innerHTML = `
+            <td colspan="3" style="text-align: center; padding: 36px 16px;">
+                <div class="table-empty-state">
+                    <div class="empty-state-icon-wrapper">
+                        <span class="material-symbols-outlined empty-state-icon">search_off</span>
+                    </div>
+                    <div class="empty-state-title">Không tìm thấy kết quả</div>
+                    <div class="empty-state-desc">Không có dữ liệu Work Order nào phù hợp với từ khóa lọc.</div>
+                </div>
+            </td>
+        `;
+        tbody.appendChild(emptyTr);
+        document.getElementById('bulkResultCount').textContent = '0';
+        return;
+    }
+
     rows.forEach(row => {
         const [workOrder, crCount, mrCount] = row;
         const tr = document.createElement('tr');

@@ -1552,7 +1552,31 @@ function displayTable(result, columns) {
     thead.innerHTML = '';
     tbody.innerHTML = '';
 
-    // Table header
+    // Khi không có dữ liệu: Không hiển thị header và footer, chỉ hiển thị empty state
+    if (!result || result.length === 0) {
+        if (rowCount) rowCount.textContent = '0';
+        const emptyTr = document.createElement('tr');
+        const emptyTd = document.createElement('td');
+        emptyTd.colSpan = (columns && columns.length > 0) ? columns.length : 1;
+        emptyTd.style.textAlign = 'center';
+        emptyTd.style.padding = '56px 20px';
+        emptyTd.innerHTML = `
+            <div class="table-empty-state">
+                <div class="empty-state-icon-wrapper">
+                    <span class="material-symbols-outlined empty-state-icon">search_off</span>
+                </div>
+                <div class="empty-state-title">Không có dữ liệu hiển thị</div>
+                <div class="empty-state-desc">Không tìm thấy bản ghi nào khớp với điều kiện tra cứu hoặc dữ liệu dưới hệ thống rỗng.</div>
+            </div>
+        `;
+        emptyTr.appendChild(emptyTd);
+        tbody.appendChild(emptyTr);
+        updateVisibleRowCount();
+        updateTableStickyOffsets();
+        return;
+    }
+
+    // Table header (chỉ render khi có dữ liệu)
     if (columns && columns.length > 0) {
         const headerRow = document.createElement('tr');
         columns.forEach(col => {
@@ -1561,26 +1585,6 @@ function displayTable(result, columns) {
             headerRow.appendChild(th);
         });
         thead.appendChild(headerRow);
-    }
-
-    if (!result || result.length === 0) {
-        if (rowCount) rowCount.textContent = '0';
-        const emptyTr = document.createElement('tr');
-        const emptyTd = document.createElement('td');
-        emptyTd.colSpan = (columns && columns.length > 0) ? columns.length : 8;
-        emptyTd.style.textAlign = 'center';
-        emptyTd.style.padding = '48px 20px';
-        emptyTd.innerHTML = `
-            <div class="table-empty-state">
-                <span class="material-symbols-outlined empty-state-icon">search_off</span>
-                <div class="empty-state-title">Không có dữ liệu</div>
-            </div>
-        `;
-        emptyTr.appendChild(emptyTd);
-        tbody.appendChild(emptyTr);
-        updateVisibleRowCount();
-        updateTableStickyOffsets();
-        return;
     }
 
     // Table body
@@ -1650,7 +1654,7 @@ function clearTable() {
 
 function handleRowClick(e) {
     const row = e.target.closest('tr');
-    if (!row) return;
+    if (!row || row.querySelector('.table-empty-state') || row.classList.contains('skeleton-row')) return;
 
     // Remove previous selection
     document.querySelectorAll('#tableBody tr').forEach(r => r.classList.remove('selected'));
@@ -1672,7 +1676,7 @@ function handleRowClick(e) {
 
 function handleOutputRowClick(e) {
     const row = e.target.closest('tr');
-    if (!row) return;
+    if (!row || row.querySelector('.table-empty-state') || row.classList.contains('skeleton-row')) return;
 
     // Remove previous selection
     document.querySelectorAll('#outputBarcodeTableBody tr').forEach(r => r.classList.remove('selected'));
@@ -1694,7 +1698,7 @@ function handleOutputRowClick(e) {
 
 function handleRowDoubleClick(e) {
     const row = e.target.closest('tr');
-    if (!row) return;
+    if (!row || row.querySelector('.table-empty-state') || row.classList.contains('skeleton-row')) return;
 
     handleRowClick(e);
     showDetails();
@@ -1702,7 +1706,7 @@ function handleRowDoubleClick(e) {
 
 function handleOutputRowDoubleClick(e) {
     const row = e.target.closest('tr');
-    if (!row) return;
+    if (!row || row.querySelector('.table-empty-state') || row.classList.contains('skeleton-row')) return;
 
     handleOutputRowClick(e);
     showOutputDetails();
@@ -1719,7 +1723,7 @@ function handleContextMenuUnified(e, tableType = 'main') {
     e.preventDefault();
     
     const row = e.target.closest('tr');
-    if (!row) return;
+    if (!row || row.querySelector('.table-empty-state') || row.classList.contains('skeleton-row')) return;
 
     // Select row based on table type
     if (tableType === 'main') {
@@ -3257,6 +3261,31 @@ function renderOutputBarcodeTable(rows, columns) {
     thead.innerHTML = '';
     tbody.innerHTML = '';
 
+    // Khi không có dữ liệu: Không hiển thị header và footer, chỉ hiển thị empty state
+    if (!rows || rows.length === 0) {
+        if (rowCount) rowCount.textContent = '0';
+        const emptyTr = document.createElement('tr');
+        const emptyTd = document.createElement('td');
+        emptyTd.colSpan = (columns && columns.length > 0) ? columns.length : 1;
+        emptyTd.style.textAlign = 'center';
+        emptyTd.style.padding = '56px 20px';
+        emptyTd.innerHTML = `
+            <div class="table-empty-state">
+                <div class="empty-state-icon-wrapper">
+                    <span class="material-symbols-outlined empty-state-icon">inventory_2</span>
+                </div>
+                <div class="empty-state-title">Không có dữ liệu tem đầu ra</div>
+                <div class="empty-state-desc">Không tìm thấy tem quét ra nào thuộc phạm vi đơn điều động hoặc barcode này.</div>
+            </div>
+        `;
+        emptyTr.appendChild(emptyTd);
+        tbody.appendChild(emptyTr);
+        updateOutputVisibleRowCount();
+        updateTableStickyOffsets();
+        return;
+    }
+
+    // Table header (chỉ render khi có dữ liệu)
     if (columns && columns.length > 0) {
         const trHead = document.createElement('tr');
         columns.forEach(col => {
@@ -3265,26 +3294,6 @@ function renderOutputBarcodeTable(rows, columns) {
             trHead.appendChild(th);
         });
         thead.appendChild(trHead);
-    }
-
-    if (!rows || rows.length === 0) {
-        if (rowCount) rowCount.textContent = '0';
-        const emptyTr = document.createElement('tr');
-        const emptyTd = document.createElement('td');
-        emptyTd.colSpan = (columns && columns.length > 0) ? columns.length : 8;
-        emptyTd.style.textAlign = 'center';
-        emptyTd.style.padding = '40px 20px';
-        emptyTd.innerHTML = `
-            <div class="table-empty-state">
-                <span class="material-symbols-outlined empty-state-icon">search_off</span>
-                <div class="empty-state-title">Không có dữ liệu</div>
-            </div>
-        `;
-        emptyTr.appendChild(emptyTd);
-        tbody.appendChild(emptyTr);
-        updateOutputVisibleRowCount();
-        updateTableStickyOffsets();
-        return;
     }
 
     const truncateThreshold = 50;
@@ -3441,8 +3450,8 @@ function updateVisibleRowCount() {
     const count = hasEmptyState ? 0 : tbody.querySelectorAll('tr').length;
     rowCount.textContent = count;
 
-    // Ẩn toàn bộ table-footer nếu không có dòng và không có empty state
-    tableFooter.classList.toggle('hidden', count === 0 && !hasEmptyState);
+    // Ẩn table-footer khi không có dòng hoặc đang ở trạng thái rỗng
+    tableFooter.classList.toggle('hidden', count === 0 || !!hasEmptyState);
 }
 
 function updateOutputVisibleRowCount() {
@@ -3457,7 +3466,8 @@ function updateOutputVisibleRowCount() {
     rowCount.textContent = count;
 
     if (outputFooter) {
-        outputFooter.classList.toggle('hidden', count === 0 && !hasEmptyState);
+        // Ẩn output-footer khi không có dòng hoặc đang ở trạng thái rỗng
+        outputFooter.classList.toggle('hidden', count === 0 || !!hasEmptyState);
     }
 }
 
