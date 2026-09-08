@@ -29,14 +29,14 @@
         </button>
     </div>
 
-    <!-- Global Loading Indicator for Preloading SPA -->
-    <div id="spaPreloadBadge" class="spa-preload-badge">
-        <div class="spa-preload-header">
-            <div class="spa-preload-spinner"></div>
-            <div class="spa-preload-info">
-                <span class="spa-preload-title">Đang khởi tạo các phân hệ...</span>
-                <span class="spa-preload-counter" id="spaPreloadCounter">0/10</span>
-            </div>
+    <!-- Global Loading Toast Indicator for Preloading SPA -->
+    <div id="spaPreloadBadge" class="spa-preload-badge toast-item toast-info" role="status" aria-live="polite">
+        <div class="toast-icon" id="spaPreloadIconContainer">
+            <div class="spa-preload-spinner" id="spaPreloadSpinner"></div>
+        </div>
+        <div class="toast-content">
+            <div class="toast-title" id="spaPreloadTitle">Đang khởi tạo các phân hệ...</div>
+            <div class="toast-message" id="spaPreloadMessage">Đã tải <span id="spaPreloadCounter">0/10</span> phân hệ</div>
         </div>
         <div class="spa-preload-progress-track">
             <div class="spa-preload-progress-bar" id="spaPreloadProgressBar"></div>

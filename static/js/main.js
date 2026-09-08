@@ -308,33 +308,224 @@ function closeModal() {
     document.body.style.overflow = '';
 }
 
-// Replace alert/confirm functions
-function showAlert(message, type = 'info', onOk = null) {
-    const titles = {
-        'info': 'Thông tin',
-        'success': 'Thành công',
-        'error': 'Lỗi',
-        'warning': 'Cảnh báo'
-    };
+// ===== TOAST NOTIFICATION CONTROLLER (BOTTOM-RIGHT, 4 TYPES, SPRING PHYSICS, MAX 3) =====
+const Toast = {
+    DURATIONS: {
+        info: 4000,     // 4s
+        warning: 8000,  // 8s
+        success: 4000,  // 4s
+        error: 20000    // 20s
+    },
 
-    return showModal(
-        type,
-        titles[type] || 'Thông tin',
-        message,
-        [
-            {
-                text: 'OK',
-                class: 'custom-modal-btn-primary',
-                value: true
+    TITLES: {
+        info: 'Thông tin',
+        warning: 'Cảnh báo',
+        success: 'Thành công',
+        error: 'Lỗi'
+    },
+
+    ICONS: {
+        info: 'info',
+        warning: 'warning',
+        success: 'check_circle',
+        error: 'error'
+    },
+
+    init() {
+        return this.getContainer().container;
+    },
+
+    getContainer() {
+        let targetDoc = document;
+        try {
+            if (window.top && window.top.document) {
+                targetDoc = window.top.document;
             }
-        ]
-    ).then(result => {
-        if (typeof onOk === 'function') {
-            onOk();
+        } catch (e) {
+            targetDoc = document;
         }
-        return result;
-    });
+
+        let cont = targetDoc.getElementById('toastContainer');
+        if (!cont) {
+            cont = targetDoc.createElement('div');
+            cont.id = 'toastContainer';
+            targetDoc.body.appendChild(cont);
+        }
+        return { container: cont, doc: targetDoc };
+    },
+
+    show(titleOrMessage, messageOrType, type = 'info', customDuration = null) {
+        let title = '';
+        let message = '';
+        let toastType = 'info';
+
+        // Support flexible call patterns:
+        // 1. Toast.show('Title', 'Message', 'success', 4000)
+        // 2. Toast.show('Message only', 'warning')
+        // 3. Toast.show('error', 'Title', 'Message')
+        if (['info', 'warning', 'success', 'error'].includes(titleOrMessage)) {
+            toastType = titleOrMessage;
+            title = typeof messageOrType === 'string' ? messageOrType : (this.TITLES[toastType] || 'Thông báo');
+            message = typeof type === 'string' ? type : '';
+        } else if (['info', 'warning', 'success', 'error'].includes(messageOrType)) {
+            toastType = messageOrType;
+            message = String(titleOrMessage || '');
+            title = this.TITLES[toastType] || 'Thông tin';
+        } else if (['info', 'warning', 'success', 'error'].includes(type)) {
+            toastType = type;
+            title = String(titleOrMessage || this.TITLES[toastType]);
+            message = String(messageOrType || '');
+        } else {
+            toastType = 'info';
+            title = String(titleOrMessage || this.TITLES.info);
+            message = String(messageOrType || '');
+        }
+
+        const duration = (typeof customDuration === 'number' && customDuration > 0)
+            ? customDuration
+            : (this.DURATIONS[toastType] || 4000);
+
+        const { container, doc } = this.getContainer();
+        const iconName = this.ICONS[toastType] || 'info';
+
+        // Stacking limit: Maximum 3 toasts at any time (dismiss oldest top toast)
+        const activeToasts = container.querySelectorAll('.toast-item:not(.removing)');
+        if (activeToasts.length >= 3) {
+            for (let i = 0; i <= activeToasts.length - 3; i++) {
+                const oldToast = activeToasts[i];
+                oldToast.classList.add('removing');
+                setTimeout(() => {
+                    try { oldToast.remove(); } catch (e) {}
+                }, 150);
+            }
+        }
+
+        const toast = doc.createElement('div');
+        toast.className = `toast-item toast-${toastType}`;
+        toast.setAttribute('role', 'alert');
+        toast.setAttribute('aria-live', 'polite');
+        toast.title = 'Click để đóng thông báo';
+
+        toast.innerHTML = `
+            <span class="material-symbols-outlined toast-icon" aria-hidden="true">${iconName}</span>
+            <div class="toast-content">
+                <div class="toast-title">${title}</div>
+                <div class="toast-message">${message}</div>
+            </div>
+            <button class="toast-close" type="button" title="Đóng" aria-label="Đóng thông báo">
+                <svg class="close-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+            <div class="toast-progress" style="animation-duration: ${duration}ms;"></div>
+        `;
+
+        const progressBar = toast.querySelector('.toast-progress');
+        const closeBtn = toast.querySelector('.toast-close');
+
+        let timer = null;
+        let isDismissed = false;
+        let remainingTime = duration;
+        let lastStartTime = performance.now();
+
+        const dismiss = (fast = false) => {
+            if (isDismissed) return;
+            isDismissed = true;
+            if (timer) clearTimeout(timer);
+
+            toast.classList.add('removing');
+            if (fast) {
+                toast.style.animationDuration = '0.15s';
+            }
+            setTimeout(() => {
+                try { toast.remove(); } catch (e) {}
+            }, fast ? 150 : 280);
+        };
+
+        const startTimer = () => {
+            lastStartTime = performance.now();
+            if (progressBar) progressBar.style.animationPlayState = 'running';
+            timer = setTimeout(() => {
+                dismiss();
+            }, remainingTime);
+        };
+
+        const pauseTimer = () => {
+            if (timer) clearTimeout(timer);
+            const elapsed = performance.now() - lastStartTime;
+            remainingTime = Math.max(0, remainingTime - elapsed);
+            if (progressBar) progressBar.style.animationPlayState = 'paused';
+        };
+
+        // Start countdown timer
+        startTimer();
+
+        // Hover to pause auto-dismiss and progress bar
+        toast.addEventListener('mouseenter', pauseTimer);
+        toast.addEventListener('mouseleave', startTimer);
+
+        // Click anywhere to dismiss
+        toast.addEventListener('click', () => {
+            dismiss();
+        });
+
+        // Close button click
+        if (closeBtn) {
+            closeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                dismiss();
+            });
+        }
+
+        // Append new toast to the bottom (pushes older toasts upwards)
+        container.appendChild(toast);
+
+        return {
+            element: toast,
+            dismiss: dismiss
+        };
+    },
+
+    info(titleOrMsg, msg, duration) {
+        return this.show(titleOrMsg, msg, 'info', duration);
+    },
+    warning(titleOrMsg, msg, duration) {
+        return this.show(titleOrMsg, msg, 'warning', duration);
+    },
+    success(titleOrMsg, msg, duration) {
+        return this.show(titleOrMsg, msg, 'success', duration);
+    },
+    error(titleOrMsg, msg, duration) {
+        return this.show(titleOrMsg, msg, 'error', duration);
+    }
+};
+window.Toast = Toast;
+
+// Unified showAlert wrapper converting all alerts across the project to Toasts
+function showAlert(message, type = 'info', onOk = null) {
+    let finalType = 'info';
+    let finalMsg = '';
+    let finalTitle = null;
+
+    if (['info', 'warning', 'success', 'error'].includes(message)) {
+        finalType = message;
+        finalTitle = typeof type === 'string' ? type : null;
+        finalMsg = typeof onOk === 'string' ? onOk : (typeof type === 'string' ? type : '');
+    } else {
+        finalType = ['info', 'warning', 'success', 'error'].includes(type) ? type : 'info';
+        finalMsg = String(message || '');
+    }
+
+    Toast[finalType](finalTitle || Toast.TITLES[finalType] || 'Thông báo', finalMsg);
+
+    if (typeof onOk === 'function') {
+        setTimeout(onOk, 10);
+    }
+
+    return Promise.resolve(true);
 }
+window.showAlert = showAlert;
 
 function showConfirm(message, title = 'Xác nhận') {
     return showModal('warning', title, message, [
@@ -369,69 +560,6 @@ function showCountdownConfirm(type, title, message, seconds) {
         }, 1000);
     }, 0);
 }
-
-// ===== TOAST NOTIFICATION CONTROLLER =====
-const Toast = {
-    container: null,
-    init() {
-        if (!this.container) {
-            this.container = document.getElementById('toastContainer');
-            if (!this.container) {
-                this.container = document.createElement('div');
-                this.container.id = 'toastContainer';
-                document.body.appendChild(this.container);
-            }
-        }
-        return this.container;
-    },
-    show(title, message, type = 'info', duration = 4000) {
-        if (window !== window.top && window.top && window.top.Toast && typeof window.top.Toast.show === 'function') {
-            window.top.Toast.show(title, message, type, duration);
-            return;
-        }
-        const container = this.init();
-        const icons = {
-            success: 'check_circle',
-            error: 'error',
-            warning: 'warning',
-            info: 'info'
-        };
-        const iconName = icons[type] || 'info';
-
-        const toast = document.createElement('div');
-        toast.className = `toast-item toast-${type}`;
-        toast.innerHTML = `
-            <span class="material-symbols-outlined toast-icon">${iconName}</span>
-            <div class="toast-content">
-                <div class="toast-title">${title}</div>
-                <div class="toast-message">${message}</div>
-            </div>
-            <button class="toast-close" title="Đóng" aria-label="Đóng thông báo"><svg class="close-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
-            <div class="toast-progress" style="animation: toastProgress ${duration}ms linear forwards;"></div>
-        `;
-
-        const closeBtn = toast.querySelector('.toast-close');
-        let timer = null;
-        const dismiss = () => {
-            if (timer) clearTimeout(timer);
-            toast.classList.add('removing');
-            setTimeout(() => toast.remove(), 300);
-        };
-
-        closeBtn.addEventListener('click', dismiss);
-        timer = setTimeout(dismiss, duration);
-
-        toast.addEventListener('mouseenter', () => { if (timer) clearTimeout(timer); });
-        toast.addEventListener('mouseleave', () => { timer = setTimeout(dismiss, 1500); });
-
-        container.appendChild(toast);
-    },
-    success(title, message, duration) { this.show(title, message, 'success', duration); },
-    error(title, message, duration) { this.show(title, message, 'error', duration); },
-    warning(title, message, duration) { this.show(title, message, 'warning', duration); },
-    info(title, message, duration) { this.show(title, message, 'info', duration); }
-};
-window.Toast = Toast;
 
 // ===== INPUT CLEAR BUTTONS (x) & FLOATING LABELS TRACKER =====
 function initInputClearButtons() {
@@ -980,7 +1108,127 @@ document.querySelectorAll('.label[data-text]').forEach(label => {
 let departments = [];
 
 /**
- * Shared Global Department Cache & Request Deduplicator
+ * Check if an API response indicates Token Expiration / Unauthorized
+ */
+function isUnauthorizedResponse(status, result) {
+    if (status === 401) return true;
+    if (!result) return false;
+    if (result.code === 'UNAUTHORIZED') return true;
+    if (result.error) {
+        const msg = String(result.message || '').toLowerCase();
+        if (msg.includes('401') || msg.includes('unauthorized') || msg.includes('user not logged in') || msg.includes('token')) {
+            return true;
+        }
+    }
+    return false;
+}
+window.isUnauthorizedResponse = isUnauthorizedResponse;
+
+/**
+ * Show Full-Screen Lockout Modal when Token is Expired
+ */
+function showAuthExpiredModal(message) {
+    let topWin = window;
+    try {
+        topWin = window.top || window;
+    } catch (e) {
+        topWin = window;
+    }
+
+    if (topWin.__kd_auth_modal_shown) return;
+    topWin.__kd_auth_modal_shown = true;
+
+    try {
+        sessionStorage.clear();
+        localStorage.removeItem('kd_departments_cache');
+    } catch (e) {}
+
+    const topDoc = topWin.document;
+    const existingModal = topDoc.getElementById('kdAuthExpiredModal');
+    if (existingModal) existingModal.remove();
+
+    const modalOverlay = topDoc.createElement('div');
+    modalOverlay.id = 'kdAuthExpiredModal';
+    modalOverlay.className = 'kd-auth-expired-overlay';
+    modalOverlay.setAttribute('role', 'alertdialog');
+    modalOverlay.setAttribute('aria-modal', 'true');
+    modalOverlay.setAttribute('aria-labelledby', 'authModalTitle');
+    modalOverlay.setAttribute('aria-describedby', 'authModalMsg');
+
+    modalOverlay.innerHTML = `
+        <div class="kd-auth-expired-card">
+            <div class="kd-auth-expired-icon-wrap">
+                <span class="material-symbols-outlined kd-auth-expired-icon">lock_clock</span>
+            </div>
+            <div class="kd-auth-expired-title" id="authModalTitle">Phiên Đăng Nhập Hết Hạn</div>
+            <div class="kd-auth-expired-message" id="authModalMsg">
+                Phiên làm việc của bạn đã hết hạn. Vui lòng đăng nhập lại để tiếp tục sử dụng.
+            </div>
+            <div class="kd-auth-expired-actions">
+                <button type="button" class="kd-auth-expired-btn" id="kdAuthLoginRedirectBtn">
+                    <span class="material-symbols-outlined">login</span>
+                    Đăng nhập lại
+                </button>
+            </div>
+        </div>
+    `;
+
+    topDoc.body.appendChild(modalOverlay);
+    topDoc.body.style.overflow = 'hidden';
+
+    // Disable pointer events on all iframes in shell
+    const iframes = topDoc.querySelectorAll('iframe');
+    iframes.forEach(f => {
+        try {
+            f.style.pointerEvents = 'none';
+        } catch (e) {}
+    });
+
+    const redirectBtn = modalOverlay.querySelector('#kdAuthLoginRedirectBtn');
+    if (redirectBtn) {
+        setTimeout(() => redirectBtn.focus(), 50);
+        redirectBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            topWin.location.href = '/login';
+        });
+    }
+
+    // Lock down keyboard and click interactions completely
+    const keyBlocker = (e) => {
+        if (e.target === redirectBtn && (e.key === 'Enter' || e.key === ' ')) {
+            return;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        redirectBtn?.focus();
+        return false;
+    };
+
+    topWin.addEventListener('keydown', keyBlocker, true);
+    topWin.addEventListener('keyup', keyBlocker, true);
+    topWin.addEventListener('keypress', keyBlocker, true);
+
+    modalOverlay.addEventListener('click', (e) => {
+        if (e.target !== redirectBtn && !redirectBtn.contains(e.target)) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            redirectBtn?.focus();
+        }
+    }, true);
+
+    modalOverlay.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+    }, true);
+}
+window.showAuthExpiredModal = showAuthExpiredModal;
+if (window.top) window.top.showAuthExpiredModal = showAuthExpiredModal;
+
+/**
+ * Shared Global Department Cache & Single-Flight Request Deduplicator
  */
 async function getDepartments(forceRefresh = false) {
     let topWin = window;
@@ -988,6 +1236,10 @@ async function getDepartments(forceRefresh = false) {
         topWin = window.top || window;
     } catch (e) {
         topWin = window;
+    }
+
+    if (topWin.__kd_auth_modal_shown) {
+        return [];
     }
 
     if (!forceRefresh) {
@@ -1015,26 +1267,36 @@ async function getDepartments(forceRefresh = false) {
         // 3. Deduplicate concurrent in-flight requests across iframes
         if (topWin.__kd_departments_promise) {
             const depts = await topWin.__kd_departments_promise;
-            departments = depts;
-            window.departments = depts;
-            return depts;
+            departments = depts || [];
+            window.departments = departments;
+            return departments;
         }
     }
 
     topWin.__kd_departments_promise = (async () => {
         try {
             const response = await fetch('/api/departments');
-            const result = await response.json();
-            if (result.error && (result.code === 'UNAUTHORIZED' || response.status === 401)) {
-                await showAlert(
-                    'Phiên đăng nhập hết hạn, Vui lòng đăng nhập lại',
-                    'error'
-                );
-                topWin.location.href = '/login';
+            let result = null;
+            try {
+                result = await response.json();
+            } catch (e) {
+                result = { error: true, message: `HTTP ${response.status}` };
+            }
+
+            // Check if Token Expired / Unauthorized (401 or 500 with 401 in message)
+            if (isUnauthorizedResponse(response.status, result)) {
+                topWin.__kd_departments = [];
+                sessionStorage.removeItem('kd_departments_cache');
+                showAuthExpiredModal(result?.message);
                 return [];
             }
 
-            const items = result.data || [];
+            if (result && result.error) {
+                console.error('Error from /api/departments:', result.message);
+                return [];
+            }
+
+            const items = (result && result.data) || [];
             const depts = items.map(item => {
                 const idVal = item.departmentID || item.id || '';
                 return {
@@ -1043,16 +1305,22 @@ async function getDepartments(forceRefresh = false) {
                 };
             });
 
-            topWin.__kd_departments = depts;
-            departments = depts;
-            window.departments = depts;
-            try {
-                sessionStorage.setItem('kd_departments_cache', JSON.stringify(depts));
-            } catch (e) {}
+            if (depts.length > 0) {
+                topWin.__kd_departments = depts;
+                departments = depts;
+                window.departments = depts;
+                try {
+                    sessionStorage.setItem('kd_departments_cache', JSON.stringify(depts));
+                } catch (e) {}
+            }
 
             return depts;
         } catch (error) {
             console.error('Error loading departments:', error);
+            const errStr = String(error.message || error);
+            if (errStr.includes('401') || errStr.toLowerCase().includes('unauthorized')) {
+                showAuthExpiredModal(errStr);
+            }
             return [];
         } finally {
             topWin.__kd_departments_promise = null;
@@ -1060,9 +1328,9 @@ async function getDepartments(forceRefresh = false) {
     })();
 
     const result = await topWin.__kd_departments_promise;
-    departments = result;
-    window.departments = result;
-    return result;
+    departments = result || [];
+    window.departments = departments;
+    return departments;
 }
 
 window.getDepartments = getDepartments;
@@ -1203,11 +1471,15 @@ async function searchBarcode() {
         });
 
         const data = await response.json();
-        if (data.result) {
-            setTableData(data.result, data.columns, 'barcode');
+        if (data && Array.isArray(data.result)) {
+            setTableData(data.result, data.columns, 'barcode', `Không tìm thấy tem barcode nào với từ khóa "${keyword}"`);
+        } else {
+            setTableData([], data ? data.columns : [], 'barcode', `Không tìm thấy tem barcode nào với từ khóa "${keyword}"`);
         }
     } catch (error) {
         console.error('Error searching barcode:', error);
+        Toast.error('Lỗi', 'Lỗi kết nối khi tìm kiếm Barcode');
+        clearTable();
     }
 }
 
@@ -1229,11 +1501,15 @@ async function searchRecipes() {
         });
 
         const data = await response.json();
-        if (data.result) {
-            setTableData(data.result, data.columns, 'recipe');
+        if (data && Array.isArray(data.result)) {
+            setTableData(data.result, data.columns, 'recipe', `Không tìm thấy quy cách nào với từ khóa "${keyword}"`);
+        } else {
+            setTableData([], data ? data.columns : [], 'recipe', `Không tìm thấy quy cách nào với từ khóa "${keyword}"`);
         }
     } catch (error) {
         console.error('Error searching work order:', error);
+        Toast.error('Lỗi', 'Lỗi kết nối khi tìm kiếm Quy cách');
+        clearTable();
     }
 }
 
@@ -1255,11 +1531,15 @@ async function searchByFeedRecord() {
         });
 
         const data = await response.json();
-        if (data.result) {
-            setTableData(data.result, data.columns, 'barcode');
+        if (data && Array.isArray(data.result)) {
+            setTableData(data.result, data.columns, 'barcode', `Không tìm thấy liệu nạp nào với từ khóa "${keyword}"`);
+        } else {
+            setTableData([], data ? data.columns : [], 'barcode', `Không tìm thấy liệu nạp nào với từ khóa "${keyword}"`);
         }
     } catch (error) {
         console.error('Error searching by feed record:', error);
+        Toast.error('Lỗi', 'Lỗi kết nối khi tìm kiếm Liệu nạp');
+        clearTable();
     }
 }
 
@@ -1272,8 +1552,19 @@ function displayTable(result, columns) {
     thead.innerHTML = '';
     tbody.innerHTML = '';
 
+    // Table header
+    if (columns && columns.length > 0) {
+        const headerRow = document.createElement('tr');
+        columns.forEach(col => {
+            const th = document.createElement('th');
+            th.textContent = col;
+            headerRow.appendChild(th);
+        });
+        thead.appendChild(headerRow);
+    }
+
     if (!result || result.length === 0) {
-        rowCount.textContent = '0';
+        if (rowCount) rowCount.textContent = '0';
         const emptyTr = document.createElement('tr');
         const emptyTd = document.createElement('td');
         emptyTd.colSpan = (columns && columns.length > 0) ? columns.length : 8;
@@ -1288,17 +1579,9 @@ function displayTable(result, columns) {
         emptyTr.appendChild(emptyTd);
         tbody.appendChild(emptyTr);
         updateVisibleRowCount();
+        updateTableStickyOffsets();
         return;
     }
-
-    // Table header
-    const headerRow = document.createElement('tr');
-    columns.forEach(col => {
-        const th = document.createElement('th');
-        th.textContent = col;
-        headerRow.appendChild(th);
-    });
-    thead.appendChild(headerRow);
 
     // Table body
     const truncateThreshold = 50; // chỉ truncate nếu dài hơn ngưỡng này
@@ -1617,19 +1900,19 @@ function handleContextMenuAction(e) {
             openOutputTable('inputBarcode', rowData);
             break;
         case 'feedRecords':
-            showFeedRecords();
+            showFeedRecords(rowData);
             break;
         case 'checkScanBarcodeHistory':
-            fetchScanBarcodeHistoryByBarcode();
+            fetchScanBarcodeHistoryByBarcode(rowData);
             break;
         case 'checkBarcodeWorkOrder':
             openOutputTable('workOrderByBarcode', rowData);
             break;
         case 'checkBarcodeTransfer':
-            checkBarcodeTransfer();
+            checkBarcodeTransfer(rowData);
             break;
         case 'checkBarcodeExtendDateTime':
-            checkBarcodeExtendDateTime();
+            checkBarcodeExtendDateTime(rowData);
             break;
         case 'fetchOriginalInfo':
             openOutputTable('fetchOriginalInfoByBarcode', rowData);
@@ -1657,7 +1940,7 @@ function handleContextMenuAction(e) {
             openOutputTable('commitGitlabByRecipe', rowData);
             break;
         case 'fetchYamlDetails':
-            fetchYamlContent();
+            fetchYamlContent(rowData);
             break;
             
         // currentOutputTableType 
@@ -1803,145 +2086,170 @@ function enhanceContextMenu() {
     });
 }
 
-async function showFeedRecords() {
-    closeShowBarcodeWindow();
-    const material_oid = selectedRowData['id'];
+async function showFeedRecords(rowData = null) {
+    const dataObj = rowData || selectedRowData;
+    const material_oid = dataObj ? dataObj['id'] : null;
     if (!material_oid) {
-        await showAlert('Thiếu OID', 'error');
+        Toast.warning('Cảnh báo', 'Thiếu OID');
         return;
     }
 
-    const material_type = selectedRowData['product_type'];
+    const material_type = dataObj['product_type'];
     if (!material_type) {
-        await showAlert('Thiếu product_type', 'error');
+        Toast.warning('Cảnh báo', 'Thiếu product_type');
         return;
     }
 
-    if (material_type == "TIRE") {
-        await showAlert('Không quản lý quét tem từ Ép Vỏ qua QC', 'error');
+    if (material_type === "TIRE") {
+        Toast.warning('Thông báo', 'Không quản lý quét tem từ Ép Vỏ qua QC');
         return;
     }
 
-    feed_records_material_id = material_oid
+    feed_records_material_id = material_oid;
 
-    const data = await apiFetch('/api/barcodes/check-used-history', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ material_oid, material_type })
-    });
+    try {
+        const data = await apiFetch('/api/barcodes/check-used-history', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ material_oid, material_type })
+        });
 
-    if (Array.isArray(data.result) && data.result.length === 0) {
-        await showAlert("Barcode chưa quét tem lần nào", 'error');
-        return;
-    }
+        if (!data || !data.result || data.result.length === 0) {
+            Toast.warning('Không có dữ liệu', 'Barcode chưa quét tem lần nào');
+            clearOutputBarcodeTable();
+            return;
+        }
 
-    if (data.success) {
-        setTableData(data.result, data.columns, 'outputBarcodeByFeedRecords');
-    } else {
-        await showAlert(data.message, 'error');
+        if (data.success) {
+            setTableData(data.result, data.columns, 'outputBarcodeByFeedRecords');
+        } else {
+            Toast.error('Lỗi', data.message || 'Lỗi khi kiểm tra lịch sử sử dụng tem');
+        }
+    } catch (err) {
+        Toast.error('Lỗi', err.message || 'Lỗi kết nối');
     }
 }
 
-async function fetchWorkOrderByBarcode() {
-    const resource_id = selectedRowData['id'];
+async function fetchWorkOrderByBarcode(id = null, info = null) {
+    const resource_id = id || (selectedRowData ? selectedRowData['id'] : null);
     if (!resource_id) {
-        await showAlert('Chưa chọn hàng dữ liệu.', 'warning');
+        Toast.warning('Cảnh báo', 'Chưa chọn hàng dữ liệu.');
         return;
     }
 
     const payload = { resource_id };
 
-    let info_obj = selectedRowData['info'];
+    let info_obj = info || (selectedRowData ? selectedRowData['info'] : null);
     if (typeof info_obj === 'string') {
         try {
             info_obj = JSON.parse(info_obj);
         } catch {
-            return null;
+            info_obj = null;
         }
     }
 
-    const prod_info = info_obj.production_info;
-    if (!prod_info) return null;
+    const prod_info = info_obj ? info_obj.production_info : null;
+    if (!prod_info) {
+        renderOutputBarcodeTable([], []);
+        Toast.warning('Không có dữ liệu', 'Barcode không có thông tin sản xuất (production_info)');
+        return null;
+    }
 
     const station = prod_info.station;
     const production_time = prod_info.production_time;
     if (!station || !production_time) {
-        ;
-        clearTable();
+        renderOutputBarcodeTable([], []);
+        Toast.warning('Không có dữ liệu', 'Thiếu thông tin trạm hoặc ngày sản xuất trong Barcode');
         return;
     }
 
-    const vietNameDate = convertISOToVietNamDate(production_time)
+    const vietNameDate = convertISOToVietNamDate(production_time);
 
     payload.station = station;
     payload.fromDate = vietNameDate;
     payload.toDate = vietNameDate;
 
-    const data = await apiFetch('/api/barcodes/fetch-work-orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-    });
+    try {
+        const data = await apiFetch('/api/barcodes/fetch-work-orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
 
-    if (data.success) {
-        if (data.result && data.result.length > 0) {
-            outputBarcodeRawData = mapWorkOrderStatus(data.result, data.columns);
-            outputBarcodeColumns = data.columns;
+        if (data.success) {
+            if (data.result && data.result.length > 0) {
+                outputBarcodeRawData = mapWorkOrderStatus(data.result, data.columns);
+                outputBarcodeColumns = data.columns;
 
-            currentOutputTableType = 'workOrderOutputByBarcode'
-            renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
+                currentOutputTableType = 'workOrderOutputByBarcode';
+                renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
+                Toast.success('Thành công', `Tải thành công ${data.result.length} đơn điều động`);
+            } else {
+                renderOutputBarcodeTable([], data.columns || []);
+                Toast.warning('Không có dữ liệu', `Barcode không được in ra từ bất kỳ đơn điều động nào`);
+            }
         } else {
-            await showAlert(`Barcode không được in ra từ bất kỳ đơn điều động nào`, 'error');
+            Toast.error('Lỗi', data.message || 'Lỗi khi tải đơn điều động');
         }
-    } else {
-        await showAlert(data.message, 'error');
+    } catch (err) {
+        Toast.error('Lỗi', err.message || 'Lỗi kết nối khi tải đơn điều động');
     }
 }
 
-async function fetchInputBarcode(id, product_type) {
+async function fetchInputBarcode(id = null, product_type = null) {
+    const targetId = id || (selectedRowData ? selectedRowData['id'] : null);
+    const targetProductType = product_type || (selectedRowData ? selectedRowData['product_type'] : null);
+
+    if (!targetId) {
+        Toast.warning('Cảnh báo', 'Chưa chọn hàng dữ liệu.');
+        return;
+    }
+
     try {
         const data = await apiFetch('/api/barcodes/fetch-input-barcodes', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id, product_type })
+            body: JSON.stringify({ id: targetId, product_type: targetProductType })
         });
 
         if (data.success) {
-        if (data.result && data.result.length > 0) {
-            outputBarcodeRawData = data.result;
-            outputBarcodeColumns = data.columns;
+            if (data.result && data.result.length > 0) {
+                outputBarcodeRawData = data.result;
+                outputBarcodeColumns = data.columns;
 
-            currentOutputTableType = null;
-            renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
+                currentOutputTableType = null;
+                renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
+                Toast.success('Thành công', `Tải thành công ${data.result.length} tem đầu vào`);
+            } else {
+                renderOutputBarcodeTable([], data.columns || []);
+                Toast.warning('Không có dữ liệu', `Không tìm thấy tem đầu vào nào`);
+            }
         } else {
-            await showAlert(`Không tải được tem đầu vào`, 'error');
+            Toast.error('Lỗi', data.message || 'Lỗi khi tải tem đầu vào');
         }
-    } else {
-        await showAlert(data.message, 'error');
-    }
 
     } catch (err) {
-        showAlert('error', 'Lỗi', err.message);
+        Toast.error('Lỗi', err.message || 'Lỗi khi tải tem đầu vào');
     }
 }
 
 // ── STREAMING TASK PROGRESS CONTROLLER ──────────────────────────────────────
 let currentBarcodeEventSource = null;
 
-function fetchOutputBarcode() {
-    const resource_id = feed_records_material_id;
+function fetchOutputBarcode(workOrder = null) {
+    const resource_id = feed_records_material_id || (selectedRowData ? selectedRowData['id'] : null);
     if (!resource_id) {
-        showAlert('Thiếu Resource ID', 'error');
+        Toast.warning('Cảnh báo', 'Thiếu Resource ID');
         return;
     }
 
-    const work_order = selectedRowData['work_order'];
+    const work_order = workOrder || (selectedRowData ? selectedRowData['work_order'] : null);
     if (!work_order) {
-        showAlert('Thiếu Work Order / MES ID', 'error');
+        Toast.warning('Cảnh báo', 'Thiếu Work Order / MES ID');
         return;
     }
 
-    totalOutputBarcode = selectedRowData['total_barcode'];
+    totalOutputBarcode = (selectedRowData && selectedRowData['total_barcode']) ? selectedRowData['total_barcode'] : 0;
 
     showLoading();
 
@@ -1973,11 +2281,13 @@ function fetchOutputBarcode() {
                     outputBarcodeRawData = data.result;
                     outputBarcodeColumns = data.columns;
                     renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
+                    Toast.success('Thành công', `Tìm thấy ${data.result.length} tem đầu ra`);
                 } else {
-                    showAlert(data.message || 'Không tìm thấy tem đầu ra', 'info');
+                    renderOutputBarcodeTable([], data.columns || []);
+                    Toast.warning('Không có dữ liệu', data.message || 'Không tìm thấy tem đầu ra nào');
                 }
             } else if (data.status === 'failed') {
-                showAlert(data.message || 'Lỗi khi tìm kiếm tem đầu ra', 'error');
+                Toast.error('Lỗi', data.message || 'Lỗi khi tìm kiếm tem đầu ra');
             }
         } catch (err) {
             console.error('Lỗi phân tích dữ liệu SSE:', err);
@@ -1992,15 +2302,15 @@ function fetchOutputBarcode() {
             currentBarcodeEventSource = null;
         }
         hideLoading();
-        showAlert('Lỗi kết nối khi truyền dữ liệu tem đầu ra', 'error');
+        Toast.error('Lỗi', 'Lỗi kết nối khi truyền dữ liệu tem đầu ra');
     };
 }
 
-async function checkBarcodeTransfer() {
-    closeShowBarcodeWindow();
-    const resource_id = selectedRowData['id'];
+async function checkBarcodeTransfer(rowData = null) {
+    const dataObj = rowData || selectedRowData;
+    const resource_id = dataObj ? dataObj['id'] : null;
     if (!resource_id) {
-        await showAlert('Thiếu Resource ID', 'error');
+        Toast.warning('Cảnh báo', 'Thiếu Resource ID');
         return;
     }
 
@@ -2010,23 +2320,23 @@ async function checkBarcodeTransfer() {
         body: JSON.stringify({ resource_id })
     })
         .then(res => res.json())
-        .then(async data => {
+        .then(data => {
             if (data.success) {
-                await showAlert(data.message, 'info');
+                Toast.success('Thành công', data.message || 'Kiểm tra vận chuyển tem thành công');
             } else {
-                await showAlert(data.message || 'Không tìm thấy dữ liệu vận chuyển', 'info');
+                Toast.warning('Không có dữ liệu', data.message || 'Không tìm thấy dữ liệu vận chuyển');
             }
         })
-        .catch(async () => {
-            await showAlert('Lỗi khi kiểm tra vận chuyển tem', 'error');
+        .catch(() => {
+            Toast.error('Lỗi', 'Lỗi khi kiểm tra vận chuyển tem');
         });
 }
 
-async function checkBarcodeExtendDateTime() {
-    closeShowBarcodeWindow();
-    const resource_id = selectedRowData['id'];
+async function checkBarcodeExtendDateTime(rowData = null) {
+    const dataObj = rowData || selectedRowData;
+    const resource_id = dataObj ? dataObj['id'] : null;
     if (!resource_id) {
-        await showAlert('Thiếu Resource ID', 'error');
+        Toast.warning('Cảnh báo', 'Thiếu Resource ID');
         return;
     }
 
@@ -2036,32 +2346,32 @@ async function checkBarcodeExtendDateTime() {
         body: JSON.stringify({ resource_id })
     })
         .then(res => res.json())
-        .then(async data => {
+        .then(data => {
             if (data.success) {
-                await showAlert(data.message, 'info');
+                Toast.success('Thành công', data.message || 'Kiểm tra gia hạn thành công');
             } else {
-                await showAlert(data.message || 'Lỗi API', 'info');
+                Toast.warning('Không có dữ liệu', data.message || 'Không tìm thấy dữ liệu gia hạn');
             }
         })
-        .catch(async () => {
-            await showAlert('Lỗi khi kiểm tra số lần gia hạn của tem', 'error');
+        .catch(() => {
+            Toast.error('Lỗi', 'Lỗi khi kiểm tra số lần gia hạn của tem');
         });
 }
 
-async function fetchOriginalInfoByBarcode() {
-    const resource_id = selectedRowData['id'];
+async function fetchOriginalInfoByBarcode(id = null, product_type = null) {
+    const resource_id = id || (selectedRowData ? selectedRowData['id'] : null);
     if (!resource_id) {
-        await showAlert('Chưa chọn hàng dữ liệu.', 'warning');
+        Toast.warning('Cảnh báo', 'Chưa chọn hàng dữ liệu.');
         return;
     }
 
-    const product_type = selectedRowData['product_type'];
+    const prod_type = product_type || (selectedRowData ? selectedRowData['product_type'] : null);
 
     try {
         const data = await apiFetch('/api/barcodes/fetch-original-info', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ resource_id, product_type })
+            body: JSON.stringify({ resource_id, product_type: prod_type })
         });
 
         if (data.success && data.result && data.result.length > 0) {
@@ -2069,19 +2379,22 @@ async function fetchOriginalInfoByBarcode() {
             outputBarcodeColumns = data.columns;
             currentOutputTableType = null;
             renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
+            Toast.success('Thành công', `Tải thành công ${data.result.length} dòng thông tin gốc.`);
         } else {
-            await showAlert(data.message || 'Không tìm thấy thông tin gốc', 'info');
+            renderOutputBarcodeTable([], data.columns || []);
+            Toast.warning('Không có dữ liệu', (data && data.message) ? data.message : 'Không tìm thấy thông tin gốc');
         }
 
     } catch (err) {
-        await showAlert(err.message || 'Lỗi khi tải thông tin gốc', 'error');
+        Toast.error('Lỗi', err.message || 'Lỗi khi tải thông tin gốc');
     }
 }
 
-async function fetchPrde(type, rowData) {
-    const resource_id = rowData['id'];
+async function fetchPrde(type, rowData = null) {
+    const dataObj = rowData || selectedRowData;
+    const resource_id = dataObj ? dataObj['id'] : null;
     if (!resource_id) {
-        await showAlert('Chưa chọn hàng dữ liệu.', 'warning');
+        Toast.warning('Cảnh báo', 'Chưa chọn hàng dữ liệu.');
         return;
     }
 
@@ -2109,38 +2422,45 @@ async function fetchPrde(type, rowData) {
     clearOutputBarcodeTable();
     activeSearchContext = type;
 
-    const data = await apiFetch(urlMap[type], {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ resource_id })
-    });
+    try {
+        const data = await apiFetch(urlMap[type], {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ resource_id })
+        });
 
-    if (!data.success) {
-        await showAlert(data.message || `Không tải được dữ liệu ${type.toUpperCase()}`, 'error');
-        return;
+        if (!data || !data.success) {
+            Toast.error('Lỗi', (data && data.message) ? data.message : `Không tải được dữ liệu ${type.toUpperCase()}`);
+            return;
+        }
+
+        if (!data.result || data.result.length === 0) {
+            renderOutputBarcodeTable([], data.columns || []);
+            Toast.warning('Không có dữ liệu', `Không có dữ liệu ${type.toUpperCase()} cho barcode này`);
+            return;
+        }
+
+        outputBarcodeRawData = data.result;
+        outputBarcodeColumns = data.columns;
+        currentOutputTableType = null;
+        renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
+        Toast.success('Thành công', `Tải thành công ${data.result.length} dòng dữ liệu ${type.toUpperCase()}`);
+    } catch (err) {
+        Toast.error('Lỗi', err.message || `Lỗi khi tải dữ liệu ${type.toUpperCase()}`);
     }
-
-    if (!data.result || data.result.length === 0) {
-        await showAlert(`Không có dữ liệu ${type.toUpperCase()} cho barcode này`, 'info');
-        return;
-    }
-
-    outputBarcodeRawData = data.result;
-    outputBarcodeColumns = data.columns;
-    currentOutputTableType = null;
-    renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
 }
 
-async function fetchOutputBarcodeByWorkOrder(type, rowData) {
-    const work_order_id = rowData['work_order'];
+async function fetchOutputBarcodeByWorkOrder(type, rowData = null) {
+    const dataObj = rowData || selectedOutputRowData || selectedRowData;
+    const work_order_id = dataObj ? dataObj['work_order'] : null;
     if (!work_order_id) {
-        await showAlert('Chưa chọn hàng dữ liệu.', 'warning');
+        Toast.warning('Cảnh báo', 'Chưa chọn hàng dữ liệu.');
         return;
     }
 
-    const work_order_status = rowData['status'];
+    const work_order_status = dataObj ? dataObj['status'] : null;
     if (!work_order_status) {
-        await showAlert('Chưa chọn hàng dữ liệu.', 'warning');
+        Toast.warning('Cảnh báo', 'Chưa chọn hàng dữ liệu.');
         return;
     }
 
@@ -2155,52 +2475,65 @@ async function fetchOutputBarcodeByWorkOrder(type, rowData) {
         }
     }
 
-    const data = await apiFetch('/api/workorders/fetch-output-barcodes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ work_order_id, work_order_status })
-    });
+    try {
+        const data = await apiFetch('/api/workorders/fetch-output-barcodes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ work_order_id, work_order_status })
+        });
 
-    if (data.success) {
-        if (data.result && data.result.length > 0) {
-            outputBarcodeRawData = data.result;
-            outputBarcodeColumns = data.columns;
+        if (data.success) {
+            if (data.result && data.result.length > 0) {
+                outputBarcodeRawData = data.result;
+                outputBarcodeColumns = data.columns;
 
-            currentOutputTableType = null
-            renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
+                currentOutputTableType = null;
+                renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
+                Toast.success('Thành công', `Tải thành công ${data.result.length} tem đầu ra`);
+            } else {
+                renderOutputBarcodeTable([], data.columns || []);
+                Toast.warning('Không có dữ liệu', data.message || 'Không tìm thấy tem đầu ra nào');
+            }
         } else {
-            await showAlert(data.message || 'Không tìm thấy tem đầu ra', 'info');
+            Toast.error('Lỗi', data.message || 'Lỗi khi tải tem đầu ra');
         }
-    } else {
-        await showAlert(data.message, 'error');
+    } catch (err) {
+        Toast.error('Lỗi', err.message || 'Lỗi kết nối khi tải tem đầu ra');
     }
 }
 
-async function fetchCommitGitlabDetail(type, rowData) {
-    const commit_id = rowData['id'];
+async function fetchCommitGitlabDetail(type, rowData = null) {
+    const dataObj = rowData || selectedOutputRowData || selectedRowData;
+    const commit_id = dataObj ? dataObj['id'] : null;
     if (!commit_id) {
-        await showAlert('Chưa chọn hàng dữ liệu.', 'warning');
+        Toast.warning('Cảnh báo', 'Chưa chọn hàng dữ liệu.');
         return;
     }
 
-    const data = await apiFetch('/api/recipes/commit-gitlab/details', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ commit_id })
-    });
+    try {
+        const data = await apiFetch('/api/recipes/commit-gitlab/details', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ commit_id })
+        });
 
-    if (data.success) {
-        if (data.result && data.result.length > 0) {
-            outputBarcodeRawData = data.result;
-            outputBarcodeColumns = data.columns;
+        if (data.success) {
+            if (data.result && data.result.length > 0) {
+                outputBarcodeRawData = data.result;
+                outputBarcodeColumns = data.columns;
 
-            currentOutputTableType = null;
-            renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
+                currentOutputTableType = null;
+                renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
+                Toast.success('Thành công', `Tải thành công ${data.result.length} chi tiết commit`);
+            } else {
+                renderOutputBarcodeTable([], data.columns || []);
+                Toast.warning('Không có dữ liệu', data.message || 'Không tìm thấy chi tiết commit nào');
+            }
         } else {
-            await showAlert(data.message || 'Không tìm thấy chi tiết commit', 'info');
+            Toast.error('Lỗi', data.message || 'Lỗi khi tải chi tiết commit');
         }
-    } else {
-        await showAlert(data.message, 'error');
+    } catch (err) {
+        Toast.error('Lỗi', err.message || 'Lỗi kết nối khi tải chi tiết commit');
     }
 }
 
@@ -2505,87 +2838,111 @@ function showTransferModal() {
     document.getElementById('transferDate').valueAsDate = new Date();
 }
 
-async function fetchWorkOrderByRecipe() {
-    const recipe_id = selectedRowData['recipe_id'];
+async function fetchWorkOrderByRecipe(recipeId = null) {
+    const recipe_id = recipeId || (selectedRowData ? selectedRowData['recipe_id'] : null);
+    if (!recipe_id) {
+        Toast.warning('Cảnh báo', 'Chưa chọn hàng dữ liệu.');
+        return;
+    }
 
-    const data = await apiFetch('/api/recipes/fetch-work-orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recipe_id })
-    });
+    try {
+        const data = await apiFetch('/api/recipes/fetch-work-orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ recipe_id })
+        });
 
-    if (data.success) {
-        if (data.result && data.result.length > 0) {
-            outputBarcodeRawData = mapWorkOrderStatus(data.result, data.columns);
-            outputBarcodeColumns = data.columns;
+        if (data.success) {
+            if (data.result && data.result.length > 0) {
+                outputBarcodeRawData = mapWorkOrderStatus(data.result, data.columns);
+                outputBarcodeColumns = data.columns;
 
-            currentOutputTableType = 'workOrderOutputByRecipe';
-            renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
+                currentOutputTableType = 'workOrderOutputByRecipe';
+                renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
+                Toast.success('Thành công', `Tải thành công ${data.result.length} đơn điều động`);
+            } else {
+                renderOutputBarcodeTable([], data.columns || []);
+                Toast.warning('Không có dữ liệu', data.message || 'Không tìm thấy đơn điều động');
+            }
         } else {
-            await showAlert(data.message || 'Không tìm thấy đơn điều động', 'info');
+            Toast.error('Lỗi', data.message || 'Lỗi khi tải đơn điều động');
         }
-    } else {
-        await showAlert(data.message, 'error');
+    } catch (err) {
+        Toast.error('Lỗi', err.message || 'Lỗi kết nối khi tải đơn điều động');
     }
 }
 
-async function fetchCommitGitlabByRecipe() {
-    const recipe_id = selectedRowData['recipe_id'];
-    const product_type = selectedRowData['product_type'];
+async function fetchCommitGitlabByRecipe(recipeId = null, productType = null) {
+    const recipe_id = recipeId || (selectedRowData ? selectedRowData['recipe_id'] : null);
+    const product_type = productType || (selectedRowData ? selectedRowData['product_type'] : null);
+    if (!recipe_id || !product_type) {
+        Toast.warning('Cảnh báo', 'Chưa chọn hàng dữ liệu hoặc thiếu thông tin quy cách.');
+        return;
+    }
 
-    const data = await apiFetch('/api/recipes/fetch-commit-gitlab', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recipe_id, product_type })
-    });
+    try {
+        const data = await apiFetch('/api/recipes/fetch-commit-gitlab', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ recipe_id, product_type })
+        });
 
-    if (data.success) {
-        if (data.result && data.result.length > 0) {
-            outputBarcodeRawData = mapWorkOrderStatus(data.result, data.columns);
-            outputBarcodeColumns = data.columns;
+        if (data.success) {
+            if (data.result && data.result.length > 0) {
+                outputBarcodeRawData = mapWorkOrderStatus(data.result, data.columns);
+                outputBarcodeColumns = data.columns;
 
-            currentOutputTableType = 'commitDetailByRecipe';
-            renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
+                currentOutputTableType = 'commitDetailByRecipe';
+                renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
+                Toast.success('Thành công', `Tải thành công ${data.result.length} commit từ Gitlab`);
+            } else {
+                renderOutputBarcodeTable([], data.columns || []);
+                Toast.warning('Không có dữ liệu', data.message || 'Không tìm thấy Commit ở Gitlab nào!');
+            }
         } else {
-            await showAlert(data.message || 'Không tìm thấy Commit ở Gitlab nào!', 'info');
+            Toast.error('Lỗi', data.message || 'Lỗi khi tải Gitlab commit');
         }
-    } else {
-        await showAlert(data.message, 'error');
+    } catch (err) {
+        Toast.error('Lỗi', err.message || 'Lỗi kết nối khi tải Gitlab commit');
     }
 }
 
-async function fetchYamlContent() {
-    const recipe_id = selectedRowData['recipe_id'];
-    const product_type = selectedRowData['product_type'];
+async function fetchYamlContent(rowData = null) {
+    const dataObj = rowData || selectedRowData;
+    const recipe_id = dataObj ? dataObj['recipe_id'] : null;
+    const product_type = dataObj ? dataObj['product_type'] : null;
 
     if (!recipe_id || !product_type) {
-        await showAlert('Thiếu thông tin recipe_id hoặc product_type', 'error');
+        Toast.warning('Cảnh báo', 'Thiếu thông tin recipe_id hoặc product_type');
         return;
     }
 
-    const data = await apiFetch('/api/recipes/fetch-yaml-content', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recipe_id, product_type })
-    });
+    try {
+        const data = await apiFetch('/api/recipes/fetch-yaml-content', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ recipe_id, product_type })
+        });
 
-    if (!data.success) {
-        await showAlert(data.message || 'Không tải được nội dung yaml', 'error');
-        return;
+        if (!data || !data.success) {
+            Toast.error('Lỗi', (data && data.message) ? data.message : 'Không tải được nội dung yaml');
+            return;
+        }
+
+        Toast.success('Thành công', 'Đã tải nội dung YAML');
+        const modal = document.getElementById('detailsModal');
+        const body = modal.querySelector('.details-modal-body');
+        const titleEl = modal.querySelector('.details-modal-title');
+
+        if (titleEl) titleEl.textContent = `YAML: ${data.file_name || data.file_path}`;
+
+        const errors = detectYamlErrors(data.content);
+        body.innerHTML = renderYamlWithErrors(data.content, data.file_path, errors);
+        modal.classList.remove('hidden');
+        document.body.classList.add('modal-open');
+    } catch (err) {
+        Toast.error('Lỗi', err.message || 'Lỗi kết nối khi tải nội dung YAML');
     }
-
-    const modal = document.getElementById('detailsModal');
-    const body = modal.querySelector('.details-modal-body');
-    const titleEl = modal.querySelector('.details-modal-title');
-
-    if (titleEl) titleEl.textContent = `YAML: ${data.file_name || data.file_path}`;
-
-    const errors = detectYamlErrors(data.content);
-
-    body.innerHTML = renderYamlWithErrors(data.content, data.file_path, errors);
-
-    modal.classList.remove('hidden');
-    document.body.classList.add('modal-open');
 }
 
 /**
@@ -2826,10 +3183,9 @@ function filterOutputBarcode(keyword) {
     renderOutputBarcodeTable(filtered, outputBarcodeColumns);
 }
 
-function openOutputTable(type, rowData) {
-    // Nếu đang mở 1 loại khác → đóng trước
-    if (activeSearchContext && activeSearchContext !== type) {
-        closeShowBarcodeWindow();
+function openOutputTable(type, rowData = null) {
+    if (rowData) {
+        selectedRowData = rowData;
     }
 
     enterSingleRowMode();
@@ -2842,34 +3198,26 @@ function openOutputTable(type, rowData) {
     clearOutputBarcodeTable();
     const outputHeaderContentEl = document.getElementById('outputHeaderContent');
 
+    const dataObj = rowData || selectedRowData || {};
+
     if (type === 'inputBarcode') {
         if (outputHeaderContentEl) outputHeaderContentEl.textContent = 'Tem đầu vào';
-        fetchInputBarcode(rowData.id, rowData.product_type);
-    }
-
-    if (type === 'outputBarcodeByFeedRecords') {
+        fetchInputBarcode(dataObj.id, dataObj.product_type);
+    } else if (type === 'outputBarcodeByFeedRecords') {
         if (outputHeaderContentEl) outputHeaderContentEl.textContent = 'Tem đầu ra';
-        fetchOutputBarcode(rowData.work_order);
-    }
-
-    if (type === 'workOrderByRecipe') {
+        fetchOutputBarcode(dataObj.work_order);
+    } else if (type === 'workOrderByRecipe') {
         if (outputHeaderContentEl) outputHeaderContentEl.textContent = 'Đơn điều động theo quy cách';
-        fetchWorkOrderByRecipe(rowData.recipe_id);
-    }
-
-    if (type === 'commitGitlabByRecipe') {
+        fetchWorkOrderByRecipe(dataObj.recipe_id);
+    } else if (type === 'commitGitlabByRecipe') {
         if (outputHeaderContentEl) outputHeaderContentEl.textContent = 'Commit Gitlab theo quy cách';
-        fetchCommitGitlabByRecipe(rowData.recipe_id, rowData.product_type);
-    }
-
-    if (type === 'workOrderByBarcode') {
+        fetchCommitGitlabByRecipe(dataObj.recipe_id, dataObj.product_type);
+    } else if (type === 'workOrderByBarcode') {
         if (outputHeaderContentEl) outputHeaderContentEl.textContent = 'Đơn điều động theo barcode';
-        fetchWorkOrderByBarcode(rowData.id, rowData.info);
-    }
-
-    if (type === 'fetchOriginalInfoByBarcode') {
+        fetchWorkOrderByBarcode(dataObj.id, dataObj.info);
+    } else if (type === 'fetchOriginalInfoByBarcode') {
         if (outputHeaderContentEl) outputHeaderContentEl.textContent = 'Thông tin gốc của barcode';
-        fetchOriginalInfoByBarcode(rowData.id, rowData.product_type);
+        fetchOriginalInfoByBarcode(dataObj.id, dataObj.product_type);
     }
 }
 
@@ -2904,16 +3252,40 @@ function renderOutputBarcodeTable(rows, columns) {
     const tbody = document.querySelector('#outputBarcodeTable tbody');
     const rowCount = document.getElementById('outputRowCount');
 
+    if (!thead || !tbody) return;
+
     thead.innerHTML = '';
     tbody.innerHTML = '';
 
-    const trHead = document.createElement('tr');
-    columns.forEach(col => {
-        const th = document.createElement('th');
-        th.textContent = col;
-        trHead.appendChild(th);
-    });
-    thead.appendChild(trHead);
+    if (columns && columns.length > 0) {
+        const trHead = document.createElement('tr');
+        columns.forEach(col => {
+            const th = document.createElement('th');
+            th.textContent = col;
+            trHead.appendChild(th);
+        });
+        thead.appendChild(trHead);
+    }
+
+    if (!rows || rows.length === 0) {
+        if (rowCount) rowCount.textContent = '0';
+        const emptyTr = document.createElement('tr');
+        const emptyTd = document.createElement('td');
+        emptyTd.colSpan = (columns && columns.length > 0) ? columns.length : 8;
+        emptyTd.style.textAlign = 'center';
+        emptyTd.style.padding = '40px 20px';
+        emptyTd.innerHTML = `
+            <div class="table-empty-state">
+                <span class="material-symbols-outlined empty-state-icon">search_off</span>
+                <div class="empty-state-title">Không có dữ liệu</div>
+            </div>
+        `;
+        emptyTr.appendChild(emptyTd);
+        tbody.appendChild(emptyTr);
+        updateOutputVisibleRowCount();
+        updateTableStickyOffsets();
+        return;
+    }
 
     const truncateThreshold = 50;
     const displayLength = 45;
@@ -2941,8 +3313,6 @@ function renderOutputBarcodeTable(rows, columns) {
                 }
             }
 
-            console.log('cellValue length:', cellValue.length, '| value:', cellValue.substring(0, 30));
-
             if (cellValue.length > truncateThreshold) {
                 td.textContent = cellValue.substring(0, displayLength) + '...';
                 td.title = fullValue;
@@ -2959,11 +3329,8 @@ function renderOutputBarcodeTable(rows, columns) {
     });
 
     const count = rows.length;
-    rowCount.textContent = count;
-
-    if (count > totalOutputBarcode && totalOutputBarcode > 0) {
-        const dif = count - totalOutputBarcode;
-    }
+    if (rowCount) rowCount.textContent = count;
+    updateOutputVisibleRowCount();
     updateTableStickyOffsets();
 }
 
@@ -2999,12 +3366,18 @@ function updateClientSearchState(hasData = false) {
     }
 }
 
-function setTableData(result, columns, tableType = null) {
-    rawTableData = result;
-    rawTableColumns = columns;
+function setTableData(result, columns, tableType = null, customEmptyMsg = null, customSuccessMsg = null) {
+    rawTableData = result || [];
+    rawTableColumns = columns || [];
     currentTableType = tableType;
-    updateClientSearchState(true);
-    displayTable(result, columns);
+    updateClientSearchState(rawTableData.length > 0);
+    displayTable(rawTableData, rawTableColumns);
+
+    if (!rawTableData || rawTableData.length === 0) {
+        Toast.warning('Không có dữ liệu', customEmptyMsg || 'Không có dữ liệu');
+    } else {
+        Toast.success('Thành công', customSuccessMsg || `Tải thành công ${rawTableData.length.toLocaleString()} dòng dữ liệu`);
+    }
 }
 
 async function apiFetch(url, options = {}) {
@@ -3012,12 +3385,26 @@ async function apiFetch(url, options = {}) {
 
     try {
         const res = await fetch(url, options);
+        let data = null;
 
-        if (!res.ok) {
-            throw new Error(`HTTP error ${res.status}`);
+        try {
+            data = await res.json();
+        } catch (e) {
+            if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+            return null;
         }
 
-        return await res.json();
+        if (isUnauthorizedResponse(res.status, data)) {
+            showAuthExpiredModal(data ? data.message : null);
+            throw new Error(data ? data.message : 'Unauthorized');
+        }
+
+        if (!res.ok) {
+            const errMsg = (data && data.message) ? data.message : `HTTP error ${res.status}`;
+            throw new Error(errMsg);
+        }
+
+        return data;
     } finally {
         hideLoading();
     }
@@ -3050,11 +3437,28 @@ function updateVisibleRowCount() {
 
     if (!tbody || !tableFooter || !rowCount) return;
 
-    const count = tbody.querySelectorAll('tr').length;
+    const hasEmptyState = tbody.querySelector('.table-empty-state');
+    const count = hasEmptyState ? 0 : tbody.querySelectorAll('tr').length;
     rowCount.textContent = count;
 
-    // Ẩn toàn bộ table-footer nếu không có dòng
-    tableFooter.classList.toggle('hidden', count === 0);
+    // Ẩn toàn bộ table-footer nếu không có dòng và không có empty state
+    tableFooter.classList.toggle('hidden', count === 0 && !hasEmptyState);
+}
+
+function updateOutputVisibleRowCount() {
+    const tbody = document.getElementById('outputBarcodeTableBody') || document.querySelector('#outputBarcodeTable tbody');
+    const rowCount = document.getElementById('outputRowCount');
+    const outputFooter = document.querySelector('.output-footer');
+
+    if (!tbody || !rowCount) return;
+
+    const hasEmptyState = tbody.querySelector('.table-empty-state');
+    const count = hasEmptyState ? 0 : tbody.querySelectorAll('tr').length;
+    rowCount.textContent = count;
+
+    if (outputFooter) {
+        outputFooter.classList.toggle('hidden', count === 0 && !hasEmptyState);
+    }
 }
 
 document.addEventListener('click', function (e) {
@@ -3075,13 +3479,17 @@ async function handleExportExcel() {
     const tbody = document.getElementById('tableBody');
     if (!tbody) return;
 
-    const rows = tbody.querySelectorAll('tr');
-    if (rows.length === 0) return;
+    const rows = tbody.querySelectorAll('tr:not(.table-empty-state)');
+    if (rows.length === 0) {
+        Toast.warning('Cảnh báo', 'Không có dữ liệu để xuất file Excel.');
+        return;
+    }
 
     const confirmed = await showConfirm('Bạn có chắc chắn muốn xuất file Excel của dữ liệu trên?');
     if (!confirmed) return;
 
     exportTableToExcel();
+    Toast.success('Thành công', 'Xuất file Excel thành công!');
 }
 
 function exportTableToExcel() {
@@ -3110,8 +3518,11 @@ async function handleExportOutputBarcodeExcel() {
     const tbody = document.getElementById('outputBarcodeTableBody');
     if (!tbody) return;
 
-    const rows = tbody.querySelectorAll('tr');
-    if (rows.length === 0) return;
+    const rows = tbody.querySelectorAll('tr:not(.table-empty-state)');
+    if (rows.length === 0) {
+        Toast.warning('Cảnh báo', 'Không có dữ liệu để xuất file Excel.');
+        return;
+    }
 
     const confirmed = await showConfirm(
         'Bạn có chắc chắn muốn xuất file Excel của dữ liệu trên?'
@@ -3119,6 +3530,7 @@ async function handleExportOutputBarcodeExcel() {
     if (!confirmed) return;
 
     exportOutputBarcodeToExcel();
+    Toast.success('Thành công', 'Xuất file Excel thành công!');
 }
 
 function exportOutputBarcodeToExcel() {
@@ -3206,7 +3618,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function enterSingleRowMode() {
     const tbody = document.getElementById('tableBody');
-    if (!tbody || !selectedRow) return;
+    if (!tbody) return;
+
+    const mainTableContainer = document.querySelector('.table-container:not(.output-barcode)');
+    const isAlreadySingleRow = mainTableContainer && mainTableContainer.classList.contains('single-row-mode');
+
+    if (isAlreadySingleRow) {
+        return;
+    }
+
+    if (!selectedRow) return;
 
     // backup table lần đầu
     if (!originalTableHTML) {
@@ -3217,7 +3638,6 @@ function enterSingleRowMode() {
     tbody.innerHTML = '';
     tbody.appendChild(selectedRow);
 
-    const mainTableContainer = document.querySelector('.table-container:not(.output-barcode)');
     if (mainTableContainer) {
         mainTableContainer.classList.add('single-row-mode');
     }
@@ -3286,15 +3706,20 @@ function initDateRangePicker(type) {
         },
 
         onClose(selectedDates) {
-            // chưa chọn đủ range → reset
-            if (selectedDates.length !== 2) {
+            if (selectedDates.length === 1) {
+                const dateStr = formatDate(selectedDates[0]);
+                if (fromDateEl) fromDateEl.value = dateStr;
+                if (toDateEl) toDateEl.value = dateStr;
+                dateInput.value = dateStr;
+            } else if (selectedDates.length === 2) {
+                if (fromDateEl) fromDateEl.value = formatDate(selectedDates[0]);
+                if (toDateEl) toDateEl.value = formatDate(selectedDates[1]);
+            } else {
                 if (fromDateEl) fromDateEl.value = '';
                 if (toDateEl) toDateEl.value = '';
+                dateInput.value = '';
                 return;
             }
-
-            if (fromDateEl) fromDateEl.value = formatDate(selectedDates[0]);
-            if (toDateEl) toDateEl.value = formatDate(selectedDates[1]);
 
             if (type == 'scan_barcode_history') { checkAndSearchHistoryScanByStation(); }
             if (type == 'print_barcode_history') { checkAndSearchHistoryPrintByStation(); }
@@ -3365,47 +3790,63 @@ function convertISOToVietNamDate(isoString) {
     }).format(new Date(isoString));
 }
 
-async function getWorkOrderDetails() {
-    const work_order_id = selectedRowData['work_order'];
+async function getWorkOrderDetails(rowData = null) {
+    const dataObj = rowData || selectedRowData;
+    const work_order_id = dataObj ? dataObj['work_order'] : null;
     if (!work_order_id) {
-        await showAlert('Chưa chọn hàng dữ liệu.', 'warning');
+        Toast.warning('Cảnh báo', 'Chưa chọn hàng dữ liệu.');
         return;
     }
 
-    const data = await apiFetch('/api/work-orders/get-details', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ work_order_id })
-    });
+    try {
+        const data = await apiFetch('/api/work-orders/get-details', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ work_order_id })
+        });
 
-    if (data.success) {
-        setTableData(data.result, data.columns, null);
-    } else {
-        await showAlert(data.message, 'error');
+        if (data.success) {
+            if (data.result && data.result.length > 0) {
+                setTableData(data.result, data.columns, null);
+                Toast.success('Thành công', `Tải chi tiết đơn điều động thành công (${data.result.length} dòng)`);
+            } else {
+                setTableData([], data.columns || [], null);
+                Toast.warning('Không có dữ liệu', data.message || 'Không tìm thấy chi tiết đơn điều động');
+            }
+        } else {
+            Toast.error('Lỗi', data.message || 'Lỗi khi tải chi tiết đơn điều động');
+        }
+    } catch (err) {
+        Toast.error('Lỗi', err.message || 'Lỗi kết nối khi tải chi tiết đơn điều động');
     }
 }
 
-async function fetchScanBarcodeHistoryByBarcode() {
-    const resource_id = selectedRowData['id'];
+async function fetchScanBarcodeHistoryByBarcode(rowData = null) {
+    const dataObj = rowData || selectedRowData;
+    const resource_id = dataObj ? dataObj['id'] : null;
     if (!resource_id) {
-        await showAlert('Chưa chọn hàng dữ liệu.', 'warning');
+        Toast.warning('Cảnh báo', 'Chưa chọn hàng dữ liệu.');
         return;
     }
 
-    const data = await apiFetch('/api/barcodes/scan-in-station', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ resource_id })
-    });
+    try {
+        const data = await apiFetch('/api/barcodes/scan-in-station', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ resource_id })
+        });
 
-    if (Array.isArray(data.result) && data.result.length === 0) {
-        await showAlert(`Barcode ${resource_id} đang không được quét vào bất kỳ máy nào`, 'info');
-        return;
-    }
-
-    if (data.success) {
-        setTableData(data.result, data.columns, null);;
-    } else {
-        await showAlert(data.message, 'error');
+        if (data.success) {
+            if (Array.isArray(data.result) && data.result.length === 0) {
+                Toast.info('Thông báo', `Barcode ${resource_id} đang không được quét vào bất kỳ máy nào`);
+                return;
+            }
+            setTableData(data.result, data.columns, null);
+            Toast.success('Thành công', `Tải lịch sử quét thành công (${data.result.length} dòng)`);
+        } else {
+            Toast.error('Lỗi', data.message || 'Lỗi khi tải lịch sử quét barcode');
+        }
+    } catch (err) {
+        Toast.error('Lỗi', err.message || 'Lỗi kết nối khi tải lịch sử quét barcode');
     }
 }

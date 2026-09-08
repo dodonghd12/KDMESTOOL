@@ -1551,7 +1551,17 @@ def get_department_list():
         })
     
     except Exception as e:
-        # Fallback to existing cache even if expired
+        error_msg = str(e)
+        if (hasattr(e, 'response') and e.response is not None and e.response.status_code == 401) or '401' in error_msg or 'Unauthorized' in error_msg:
+            _DEPARTMENTS_CACHE['data'] = None
+            session.clear()
+            return jsonify({
+                'error': True,
+                'code': 'UNAUTHORIZED',
+                'message': error_msg
+            }), 401
+
+        # Fallback to existing cache even if expired for non-auth errors
         if _DEPARTMENTS_CACHE['data'] is not None:
             return jsonify({
                 'error': False,
@@ -1560,7 +1570,7 @@ def get_department_list():
         return jsonify({
             'error': True,
             'code': 'INTERNAL_ERROR',
-            'message': str(e)
+            'message': error_msg
         }), 500
 
 @app.route('/api/departments/stations', methods=['POST'])

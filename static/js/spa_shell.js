@@ -19,6 +19,11 @@
     let isAllPagesLoaded = false;
     window.__kd_all_pages_loaded = false;
 
+    // Prefetch departments once at top shell level so all child iframes share the same single-flight request
+    if (typeof window.getDepartments === 'function') {
+        window.getDepartments();
+    }
+
     function getNormalizedPath(pathname) {
         if (!pathname || pathname === '/') return '/main';
         return pathname.replace(/\/+$/, '');
@@ -101,9 +106,22 @@
         const counterEl = document.getElementById('spaPreloadCounter');
         const progressBar = document.getElementById('spaPreloadProgressBar');
         const badge = document.getElementById('spaPreloadBadge');
+        const titleEl = document.getElementById('spaPreloadTitle');
+        const msgEl = document.getElementById('spaPreloadMessage');
+        const iconContainer = document.getElementById('spaPreloadIconContainer');
 
         if (counterEl) counterEl.textContent = `${SPA_ROUTES.length}/${SPA_ROUTES.length}`;
         if (progressBar) progressBar.style.width = '100%';
+
+        if (badge) {
+            badge.classList.remove('toast-info');
+            badge.classList.add('toast-success');
+        }
+        if (titleEl) titleEl.textContent = 'Khởi tạo hoàn tất';
+        if (msgEl) msgEl.textContent = `Tất cả ${SPA_ROUTES.length} trang đã sẵn sàng`;
+        if (iconContainer) {
+            iconContainer.innerHTML = '<span class="material-symbols-outlined" style="color: #34d399; font-size: 22px;">check_circle</span>';
+        }
 
         // Notify and remove skeleton loading across all iframes
         const allFrames = document.querySelectorAll('.spa-view-frame');
@@ -117,14 +135,14 @@
             } catch (e) { }
         });
 
-        // Hide preload badge with smooth fade
+        // Hide preload toast with smooth spring out
         if (badge) {
             setTimeout(() => {
-                badge.classList.add('fade-out');
+                badge.classList.add('removing');
                 setTimeout(() => {
                     badge.style.display = 'none';
-                }, 450);
-            }, 600);
+                }, 350);
+            }, 1200);
         }
     }
 

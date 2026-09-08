@@ -53,10 +53,14 @@ async function searchSubstitutions() {
         });
         
         const data = await response.json();
-        if (data.result) {
-            setTableData(data.result, data.columns, null);
+        if (data && Array.isArray(data.result)) {
+            setTableData(data.result, data.columns, null, `Không tìm thấy NVL thay thế nào cho "${keyword}"`);
+        } else {
+            setTableData([], data ? data.columns : [], null, `Không tìm thấy NVL thay thế nào cho "${keyword}"`);
         }
     } catch (error) {
         console.error('Error searching barcode:', error);
+        Toast.error('Lỗi', 'Lỗi kết nối khi tìm kiếm NVL thay thế');
+        clearTable();
     }
 }

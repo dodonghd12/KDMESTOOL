@@ -71,6 +71,13 @@ async function fetchCollectRecords() {
     winxRecipeId     = data.recipe_id || '';
     winxAllCRRows    = data.collect_records || [];
 
+    if (!winxAllCRRows.length) {
+        Toast.warning('Không có dữ liệu', `Work Order "${wo}" không có Collect Record nào.`);
+        return;
+    }
+
+    Toast.success('Thành công', `Tải thành công ${winxAllCRRows.length} Collect Records.`);
+
     winxCRResourceOids = winxAllCRRows.map(r => r.resource_oid).filter(Boolean);
     await checkExistingMaterialResources();
 
@@ -464,7 +471,7 @@ async function runExecute() {
 
 async function downloadInsertMaterialLog() {
     if (!winxInsertRows.length) {
-        showAlert('Chưa có dữ liệu để export', 'warning');
+        Toast.warning('Cảnh báo', 'Chưa có dữ liệu để export');
         return;
     }
 
@@ -472,6 +479,7 @@ async function downloadInsertMaterialLog() {
     if (!confirmed) return;
 
     performDownloadInsertMaterialLog();
+    Toast.success('Thành công', `Xuất file log "${winxWorkOrderId}" thành công!`);
 }
 
 function performDownloadInsertMaterialLog() {
@@ -745,14 +753,14 @@ async function processSelectedExcelFile(file) {
 
     // Validate file type
     if (!/\.(xlsx|xls)$/i.test(file.name)) {
-        await showAlert('Chỉ chấp nhận file Excel (.xlsx hoặc .xls)', 'error');
+        Toast.error('Lỗi định dạng', 'Chỉ chấp nhận file Excel (.xlsx hoặc .xls)');
         resetDropzone();
         return;
     }
 
     // Validate max size (50MB)
     if (file.size > 50 * 1024 * 1024) {
-        await showAlert('Dung lượng file vượt quá giới hạn 50MB', 'error');
+        Toast.error('Lỗi dung lượng', 'Dung lượng file vượt quá giới hạn 50MB');
         resetDropzone();
         return;
     }
@@ -761,13 +769,13 @@ async function processSelectedExcelFile(file) {
     try {
         workOrderIds = await parseWorkOrderExcelFile(file);
     } catch (err) {
-        await showAlert(err.message || 'Lỗi khi đọc file Excel', 'error');
+        Toast.error('Lỗi đọc file', err.message || 'Lỗi khi đọc file Excel');
         resetDropzone();
         return;
     }
 
     if (!workOrderIds || !workOrderIds.length) {
-        await showAlert('Không tìm thấy dữ liệu hợp lệ trong cột work_order_list', 'warning');
+        Toast.warning('Không có dữ liệu', 'Không tìm thấy dữ liệu hợp lệ trong cột work_order_list');
         resetDropzone();
         return;
     }
@@ -844,6 +852,8 @@ function showDropzonePreview(file) {
     if (previewFileSize) {
         previewFileSize.textContent = formatBytes(file.size);
     }
+
+    Toast.success('Thành công', `Tải lên file "${file.name}" thành công!`);
 }
 
 function resetDropzone(e) {
@@ -880,7 +890,7 @@ async function executeUploadedBulkCheck(e) {
         e.stopPropagation();
     }
     if (!parsedWorkOrderIds || !parsedWorkOrderIds.length) {
-        await showAlert('Vui lòng tải lên file Excel chứa danh sách Work Order hợp lệ trước khi kiểm tra', 'warning');
+        Toast.warning('Cảnh báo', 'Vui lòng tải lên file Excel chứa danh sách Work Order hợp lệ trước khi kiểm tra');
         return;
     }
 
@@ -948,6 +958,7 @@ function downloadWorkOrderTemplate() {
     const ws = XLSX.utils.aoa_to_sheet([['work_order_list']]);
     XLSX.utils.book_append_sheet(wb, ws, 'Template');
     XLSX.writeFile(wb, 'template_work_order_list.xlsx');
+    Toast.success('Thành công', 'Đã tải xuống file mẫu Excel!');
 }
 
 async function runBulkCheckWorkOrders(workOrderIds) {
@@ -1311,10 +1322,6 @@ async function loadDepartments() {
                 return cachedDepartments;
             }
         }
-        const data = await apiFetch('/api/departments', { method: 'GET' });
-        if (data && !data.error && Array.isArray(data.data)) {
-            cachedDepartments = data.data;
-        }
     } catch (e) {
         console.error('Error loading departments:', e);
     }
@@ -1491,7 +1498,7 @@ function closeSingleInsertConfirmModal() {
 
 async function downloadSingleInsertMaterialLog() {
     if (!singleMRInsertRow) {
-        showAlert('Chưa có dữ liệu để export', 'warning');
+        Toast.warning('Cảnh báo', 'Chưa có dữ liệu để export');
         return;
     }
 
@@ -1519,6 +1526,7 @@ async function downloadSingleInsertMaterialLog() {
     XLSX.utils.book_append_sheet(wb, ws, 'InsertLog');
 
     XLSX.writeFile(wb, `log_material_resource_${singleMRInsertRow.id || 'new'}.xlsx`);
+    Toast.success('Thành công', 'Xuất file log thành công!');
 }
 
 async function executeSingleInsertMaterial() {

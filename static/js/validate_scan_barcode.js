@@ -325,13 +325,12 @@ async function searchWorkOrders(station) {
             body: JSON.stringify({station})
         });
         
-        if (Array.isArray(data.result) && data.result.length === 0) {
-            await showAlert(`Máy ${station} đang không có đơn điều động nào đang hoạt động`, 'error');
-            clearTable();
+        if (!data || !data.result || data.result.length === 0) {
+            setTableData([], data ? data.columns : [], null, `Máy ${station} đang không có đơn điều động nào đang hoạt động`);
             return;
         }
 
-        setTableData(data.result, data.columns, null);
+        setTableData(data.result, data.columns, null, null, `Tìm thấy ${data.result.length} đơn điều động`);
 
     } catch (error) {
         console.error('Error searching work orders:', error);
@@ -388,7 +387,7 @@ async function validateScanBarcode() {
     const station = selectedRowData ? (selectedRowData['station'] || '') : (document.getElementById('station')?.value || '');
     
     if (!recipeId || !station) {
-        alert('Thiếu thông tin recipe_id hoặc station');
+        showAlert('Thiếu thông tin recipe_id hoặc station', 'warning');
         return;
     }
     
@@ -403,11 +402,11 @@ async function validateScanBarcode() {
         if (data.success) {
             displayComparison(data.result, recipeId, station);
         } else {
-            alert(data.message || 'Có lỗi xảy ra');
+            showAlert(data.message || 'Có lỗi xảy ra', 'error');
         }
     } catch (error) {
         console.error('Error checking recipe:', error);
-        alert('Lỗi kết nối');
+        showAlert('Lỗi kết nối', 'error');
     }
 }
 

@@ -337,7 +337,7 @@ async function SearchHistoryPrintByStation(station, fromDate, toDate) {
         return;
     }
 
-    const payload = { station }
+    const payload = { station };
     
     if (fromDate && toDate) {
         payload.fromDate = fromDate;
@@ -348,19 +348,28 @@ async function SearchHistoryPrintByStation(station, fromDate, toDate) {
         showTableSkeleton(6, 5);
     }
 
-    const data = await apiFetch('/api/station/print-barcode-history', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-    });
+    try {
+        const data = await apiFetch('/api/station/print-barcode-history', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
 
-    if (Array.isArray(data.result) && data.result.length === 0) {
-        await showAlert(`Máy ${station} không có lịch sử in tem từ ${fromDate} đến ${toDate}`, 'error');
+        let dateMsg = '';
+        if (fromDate && toDate) {
+            dateMsg = fromDate === toDate ? ` trong ${fromDate}` : ` từ ${fromDate} đến ${toDate}`;
+        }
+
+        if (!data || !data.result || data.result.length === 0) {
+            setTableData([], data ? data.columns : [], null, `Máy ${station} không có lịch sử in tem${dateMsg}`);
+            return;
+        }
+
+        setTableData(data.result, data.columns, null, null, `Tìm thấy ${data.result.length} bản ghi lịch sử in tem`);
+    } catch (error) {
+        console.error('Error searching print barcode history:', error);
         clearTable();
-        return;
     }
-
-    setTableData(data.result, data.columns, null);
 }
 
 function formatDate(date) {

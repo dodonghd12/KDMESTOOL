@@ -317,13 +317,12 @@ async function searchStationConfigurations(station) {
             body: JSON.stringify({station})
         });
         
-        if (Array.isArray(data.result) && data.result.length === 0) {
-            await showAlert(`Máy ${station} chưa có thiết lập nào, cần phải thiết lập!`, 'error');
-            clearTable();
+        if (!data || !data.result || data.result.length === 0) {
+            setTableData([], data ? data.columns : [], null, `Máy ${station} chưa có thiết lập nào, cần phải thiết lập!`);
             return;
         }
 
-        setTableData(data.result, data.columns, null);
+        setTableData(data.result, data.columns, null, null, `Tìm thấy ${data.result.length} cấu hình máy`);
 
     } catch (error) {
         console.error('Error searching station configuration:', error);

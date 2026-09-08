@@ -69,20 +69,26 @@ async function queryReprintBarcode(fromDate, toDate) {
         showTableSkeleton(6, 5);
     }
 
-    const data = await apiFetch('/api/barcodes/get-reprint-list', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({from_date: fromDate, to_date: toDateExclusive})
-    });
+    try {
+        const data = await apiFetch('/api/barcodes/get-reprint-list', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({from_date: fromDate, to_date: toDateExclusive})
+        });
 
-    if (Array.isArray(data.result) && data.result.length === 0) {
-        await showAlert(`Không có tem in bù từ ${fromDate} đến ${toDate}`, 'error');
+        const dateRangeMsg = fromDate === toDate ? `trong ${fromDate}` : `từ ${fromDate} đến ${toDate}`;
+
+        if (!data || !data.result || data.result.length === 0) {
+            setTableData([], data ? data.columns : [], null, `Không có tem in bù ${dateRangeMsg}`);
+            return;
+        }
+
+        const mappedResult = mapReprintReason(data.result, data.columns);
+        setTableData(mappedResult, data.columns, null, null, `Tìm thấy ${mappedResult.length} tem in bù`);
+    } catch (error) {
+        console.error('Error querying reprint barcode:', error);
         clearTable();
-        return;
     }
-
-    const mappedResult = mapReprintReason(data.result, data.columns);
-    setTableData(mappedResult, data.columns, null);
 }
 
 function addOneDay(dateStr) {

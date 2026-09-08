@@ -40,10 +40,14 @@ async function fetchMesyncEvents() {
         });
 
         const data = await response.json();
-        if (data.result) {
-            setTableData(data.result, data.columns, null);
+        if (data && Array.isArray(data.result)) {
+            setTableData(data.result, data.columns, null, `Không tìm thấy sự kiện Mesync nào cho "${keyword}"`);
+        } else {
+            setTableData([], data ? data.columns : [], null, `Không tìm thấy sự kiện Mesync nào cho "${keyword}"`);
         }
     } catch (error) {
         console.error('Error fetching mesync events:', error);
+        Toast.error('Lỗi', 'Lỗi kết nối khi tìm kiếm Mesync');
+        clearTable();
     }
 }
