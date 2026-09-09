@@ -1470,7 +1470,17 @@ async function searchBarcode() {
             body: JSON.stringify({ keyword })
         });
 
-        const data = await response.json();
+        let data = null;
+        try {
+            data = await response.json();
+        } catch (e) {}
+
+        if (isUnauthorizedResponse(response.status, data)) {
+            showAuthExpiredModal(data ? data.message : null);
+            clearTable();
+            return;
+        }
+
         if (data && Array.isArray(data.result)) {
             setTableData(data.result, data.columns, 'barcode', `Không tìm thấy tem barcode nào với từ khóa "${keyword}"`);
         } else {
@@ -1500,7 +1510,17 @@ async function searchRecipes() {
             body: JSON.stringify({ keyword })
         });
 
-        const data = await response.json();
+        let data = null;
+        try {
+            data = await response.json();
+        } catch (e) {}
+
+        if (isUnauthorizedResponse(response.status, data)) {
+            showAuthExpiredModal(data ? data.message : null);
+            clearTable();
+            return;
+        }
+
         if (data && Array.isArray(data.result)) {
             setTableData(data.result, data.columns, 'recipe', `Không tìm thấy quy cách nào với từ khóa "${keyword}"`);
         } else {
@@ -1530,7 +1550,17 @@ async function searchByFeedRecord() {
             body: JSON.stringify({ keyword })
         });
 
-        const data = await response.json();
+        let data = null;
+        try {
+            data = await response.json();
+        } catch (e) {}
+
+        if (isUnauthorizedResponse(response.status, data)) {
+            showAuthExpiredModal(data ? data.message : null);
+            clearTable();
+            return;
+        }
+
         if (data && Array.isArray(data.result)) {
             setTableData(data.result, data.columns, 'barcode', `Không tìm thấy liệu nạp nào với từ khóa "${keyword}"`);
         } else {

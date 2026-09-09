@@ -52,7 +52,19 @@ async function searchSubstitutions() {
             body: JSON.stringify({keyword})
         });
         
-        const data = await response.json();
+        let data = null;
+        try {
+            data = await response.json();
+        } catch (e) {}
+
+        if (typeof isUnauthorizedResponse === 'function' && isUnauthorizedResponse(response.status, data)) {
+            if (typeof showAuthExpiredModal === 'function') {
+                showAuthExpiredModal(data ? data.message : null);
+            }
+            clearTable();
+            return;
+        }
+
         if (data && Array.isArray(data.result)) {
             setTableData(data.result, data.columns, null, `Không tìm thấy NVL thay thế nào cho "${keyword}"`);
         } else {

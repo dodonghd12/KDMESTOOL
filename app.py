@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for, Response # type: ignore
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, Response, make_response # type: ignore
 from flask_session import Session
 from decimal import Decimal
 import pytz # type: ignore
@@ -103,6 +103,27 @@ def log_api_requests():
         if user_ip:
             payload = extract_request_payload()
             write_api_log(api=request.path, user_ip=user_ip, payload=payload)
+
+@app.after_request
+def suppress_browser_auth_popup(response):
+    """
+    Remove WWW-Authenticate header from all responses to prevent the browser/OS
+    from showing the native HTTP Basic Auth prompt dialog on 401 Unauthorized.
+    """
+    response.headers.pop('WWW-Authenticate', None)
+    response.headers.pop('www-authenticate', None)
+    return response
+
+@app.errorhandler(401)
+def custom_401_handler(e):
+    response = make_response(jsonify({
+        'error': True,
+        'code': 'UNAUTHORIZED',
+        'message': 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
+    }), 401)
+    response.headers.pop('WWW-Authenticate', None)
+    response.headers.pop('www-authenticate', None)
+    return response
 
 @app.context_processor
 def inject_global_context():
@@ -1555,11 +1576,14 @@ def get_department_list():
         if (hasattr(e, 'response') and e.response is not None and e.response.status_code == 401) or '401' in error_msg or 'Unauthorized' in error_msg:
             _DEPARTMENTS_CACHE['data'] = None
             session.clear()
-            return jsonify({
+            resp = make_response(jsonify({
                 'error': True,
                 'code': 'UNAUTHORIZED',
-                'message': error_msg
-            }), 401
+                'message': 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
+            }), 401)
+            resp.headers.pop('WWW-Authenticate', None)
+            resp.headers.pop('www-authenticate', None)
+            return resp
 
         # Fallback to existing cache even if expired for non-auth errors
         if _DEPARTMENTS_CACHE['data'] is not None:

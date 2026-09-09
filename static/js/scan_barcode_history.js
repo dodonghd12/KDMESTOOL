@@ -271,8 +271,20 @@ async function loadStations(departmentOid) {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({department_oid: departmentOid})
         });
-        const data = await response.json();
-        stations = data.stations || [];
+
+        let data = null;
+        try {
+            data = await response.json();
+        } catch (e) {}
+
+        if (typeof isUnauthorizedResponse === 'function' && isUnauthorizedResponse(response.status, data)) {
+            if (typeof showAuthExpiredModal === 'function') {
+                showAuthExpiredModal(data ? data.message : null);
+            }
+            stations = [];
+            return;
+        }
+        stations = (data && data.stations) || [];
     } catch (error) {
         console.error('Error loading stations:', error);
         stations = [];
