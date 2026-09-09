@@ -5693,3 +5693,35 @@ body.theme-light .dropzone-success-tag {
     outline: 2px solid #f43f5e;
     outline-offset: 2px;
 }
+
+/* ===== SUB-FRAME VIEW STYLES (SPA VIEW FRAMES) ===== */
+body.is-spa-frame {
+    display: block !important;
+    overflow: hidden !important;
+    height: 100vh !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+}
+
+body.is-spa-frame #sidebar,
+body.is-spa-frame .sidebar,
+body.is-spa-frame .spaceship-animation-wrapper,
+body.is-spa-frame #pageTransitionOverlay {
+    display: none !important;
+}
+
+body.is-spa-frame .container {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
+    margin: 0 !important;
+    padding: 16px 20px !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+}
