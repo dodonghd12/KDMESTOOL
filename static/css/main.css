@@ -1,6 +1,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 :root {
+    --x: 50%;
+    --y: 50%;
+
     /* ══════════════════════════════════════════════════════════════════════
        1. PRIMITIVE COLOR PALETTE (RAW SCALES: 50 -> 1000)
        ══════════════════════════════════════════════════════════════════════ */
@@ -345,6 +348,43 @@ body.theme-light {
     --text-primary: var(--color-text-primary);
     --text-secondary: var(--color-text-secondary);
     --text-muted: var(--color-text-muted);
+}
+
+/* ===== CIRCULAR REVEAL THEME TRANSITION (VIEW TRANSITIONS API) ===== */
+:root {
+    --x: 50%;
+    --y: 50%;
+}
+
+@keyframes kd-reveal-in {
+    from {
+        clip-path: circle(0% at var(--x) var(--y));
+    }
+    to {
+        clip-path: circle(150% at var(--x) var(--y));
+    }
+}
+
+::view-transition-old(root) {
+    animation: none;
+    z-index: 1;
+}
+
+::view-transition-new(root) {
+    animation: kd-reveal-in 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    z-index: 2;
+}
+
+::view-transition-image-pair(root) {
+    isolation: isolate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    ::view-transition-group(*),
+    ::view-transition-old(*),
+    ::view-transition-new(*) {
+        animation: none !important;
+    }
 }
 
 /* ===== TOP-RIGHT QUICK ACTIONS TOOLBAR (THEME & DENSITY ICON BUTTONS) ===== */

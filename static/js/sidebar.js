@@ -69,10 +69,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function toggleTheme() {
+    let isThemeTransitioning = false;
+
+    function toggleTheme(event) {
+        if (isThemeTransitioning) return;
+
         const current = (localStorage.getItem(THEME_STORAGE_KEY) || 'dark') === 'light' ? 'light' : 'dark';
         const next = (current === 'dark') ? 'light' : 'dark';
-        localStorage.setItem(THEME_STORAGE_KEY, next);
 
         // Micro-interaction icon spin animation
         const themeQuickIcon = document.getElementById('themeQuickIcon');
@@ -82,8 +85,58 @@ document.addEventListener('DOMContentLoaded', () => {
             themeQuickIcon.classList.add('spin-toggle');
         }
 
-        applyTheme(next);
+        // 1. Detect exact origin coordinates (x, y) from click event or themeQuickBtn center
+        let x, y;
+        if (event && typeof event.clientX === 'number' && event.clientX > 0 && event.clientY > 0) {
+            x = Math.round(event.clientX);
+            y = Math.round(event.clientY);
+        } else {
+            const btn = document.getElementById('themeQuickBtn');
+            if (btn) {
+                const rect = btn.getBoundingClientRect();
+                x = Math.round(rect.left + rect.width / 2);
+                y = Math.round(rect.top + rect.height / 2);
+            } else {
+                x = window.innerWidth - 35;
+                y = 30;
+            }
+        }
+
+        document.documentElement.style.setProperty('--x', `${x}px`);
+        document.documentElement.style.setProperty('--y', `${y}px`);
+
+        const isReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (!document.startViewTransition || isReducedMotion) {
+            localStorage.setItem(THEME_STORAGE_KEY, next);
+            applyTheme(next);
+            return;
+        }
+
+        isThemeTransitioning = true;
+        try {
+            const transition = document.startViewTransition(() => {
+                localStorage.setItem(THEME_STORAGE_KEY, next);
+                applyTheme(next);
+            });
+
+            transition.ready.then(() => {
+                document.documentElement.style.setProperty('--x', `${x}px`);
+                document.documentElement.style.setProperty('--y', `${y}px`);
+            }).catch(() => {});
+
+            transition.finished.finally(() => {
+                isThemeTransitioning = false;
+            });
+        } catch (e) {
+            localStorage.setItem(THEME_STORAGE_KEY, next);
+            applyTheme(next);
+            isThemeTransitioning = false;
+        }
     }
+
+    // Expose functions globally
+    window.toggleTheme = toggleTheme;
+    window.applyTheme = applyTheme;
 
     // Khởi tạo trạng thái Theme từ localStorage (mặc định: dark)
     const savedTheme = localStorage.getItem(THEME_STORAGE_KEY) || 'dark';
@@ -210,10 +263,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    function bindThemeButton() {
+        const btn = document.getElementById('themeQuickBtn');
+        if (btn && !btn.__kd_bound) {
+            btn.__kd_bound = true;
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleTheme(e);
+            });
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', bindThemeButton);
+    } else {
+        bindThemeButton();
+    }
+
     document.addEventListener('click', (e) => {
-        // Theme Toggle Button
+        // Theme Toggle Button (fallback delegation)
         if (e.target.closest('#themeQuickBtn')) {
-            toggleTheme();
+            toggleTheme(e);
             return;
         }
 

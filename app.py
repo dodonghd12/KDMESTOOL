@@ -109,9 +109,12 @@ def suppress_browser_auth_popup(response):
     """
     Remove WWW-Authenticate header from all responses to prevent the browser/OS
     from showing the native HTTP Basic Auth prompt dialog on 401 Unauthorized.
+    Also enforce zero-caching on dynamic and static assets during active development.
     """
     response.headers.pop('WWW-Authenticate', None)
     response.headers.pop('www-authenticate', None)
+    if 'Cache-Control' not in response.headers:
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
     return response
 
 @app.errorhandler(401)
@@ -128,7 +131,7 @@ def custom_401_handler(e):
 @app.context_processor
 def inject_global_context():
     return {
-        'version': APP_VERSION,
+        'version': str(int(time.time())),
         'app_version': APP_VERSION
     }
 
