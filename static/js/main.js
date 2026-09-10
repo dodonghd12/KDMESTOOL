@@ -4170,11 +4170,56 @@ async function processOcrImageFile(file) {
     }
 }
 
-function copyOcrResultToClipboard() {
-    if (!lastOcrResultText) return;
+async function copyTextToClipboard(text) {
+    if (!text) return false;
+    // 1. Thử dùng Modern Clipboard API (khi ở HTTPS hoặc context cho phép)
+    if (navigator.clipboard && window.isSecureContext) {
+        try {
+            await navigator.clipboard.writeText(text);
+            return true;
+        } catch (_e) {
+            // Tiếp tục fallback nếu bị chặn quyền hoặc chạy trong iframe
+        }
+    }
 
-    navigator.clipboard.writeText(lastOcrResultText).then(() => {
-        const copyBtn = document.getElementById('ocrCopyBtn');
+    // 2. Fallback dùng textarea ẩn (hoạt động 100% trên HTTP mạng LAN, localhost và bên trong iframe)
+    try {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.top = '0';
+        textarea.style.left = '0';
+        textarea.style.width = '2em';
+        textarea.style.height = '2em';
+        textarea.style.padding = '0';
+        textarea.style.border = 'none';
+        textarea.style.outline = 'none';
+        textarea.style.boxShadow = 'none';
+        textarea.style.background = 'transparent';
+        textarea.style.opacity = '0';
+        textarea.setAttribute('readonly', '');
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        textarea.setSelectionRange(0, textarea.value.length);
+        const successful = document.execCommand('copy');
+        document.body.removeChild(textarea);
+        return successful;
+    } catch (err) {
+        console.error('execCommand copy error:', err);
+        return false;
+    }
+}
+
+async function copyOcrResultToClipboard() {
+    const textEl = document.getElementById('ocrResultText');
+    const textToCopy = (lastOcrResultText || (textEl ? textEl.textContent : '') || '').trim();
+    if (!textToCopy || textToCopy === '...') return;
+
+    const copyBtn = document.getElementById('ocrCopyBtn');
+    const success = await copyTextToClipboard(textToCopy);
+
+    if (success) {
         if (copyBtn) {
             copyBtn.classList.add('copied');
             const spanText = copyBtn.querySelector('span:not(.material-symbols-outlined)');
@@ -4186,13 +4231,16 @@ function copyOcrResultToClipboard() {
                 copyBtn.classList.remove('copied');
                 if (spanText) spanText.textContent = 'Copy';
                 if (icon) icon.textContent = 'content_copy';
-            }, 1800);
+            }, 2000);
         }
-        Toast.success('Đã sao chép', 'Đã copy nội dung nhận diện vào bộ nhớ tạm!');
-    }).catch(err => {
-        console.error('Failed to copy text: ', err);
-        Toast.error('Lỗi sao chép', 'Không thể sao chép văn bản');
-    });
+        if (typeof Toast !== 'undefined' && Toast.success) {
+            Toast.success('Đã sao chép', `Đã copy: ${textToCopy}`);
+        }
+    } else {
+        if (typeof Toast !== 'undefined' && Toast.error) {
+            Toast.error('Lỗi sao chép', 'Không thể sao chép văn bản vào bộ nhớ tạm');
+        }
+    }
 }
 
 function resetOcrDropzone(event) {
@@ -4215,4 +4263,5 @@ function resetOcrDropzone(event) {
 }
 window.handleOcrFileSelected = handleOcrFileSelected;
 window.resetOcrDropzone = resetOcrDropzone;
-window.initOcrDropzone = initOcrDropzone;
+window.initOcrDropzone = initOcrDropzone;
+window.copyOcrResultToClipboard = copyOcrResultToClipboard;

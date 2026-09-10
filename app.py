@@ -4015,18 +4015,136 @@ def magic_winx_insert_material_resource():
 # ==============================================================================
 # OCR IMAGE-TO-TEXT ENGINE (RAPIDOCR / PADDLEOCR ONNX AI ENGINE)
 # ==============================================================================
+# Tự động nạp thư viện AI OCR từ thư mục bundled ocr_libs (nếu có)
+import sys
+_current_dir = os.path.dirname(os.path.abspath(__file__))
+_ocr_libs_dir = os.path.join(_current_dir, 'ocr_libs')
+if os.path.exists(_ocr_libs_dir):
+    if _ocr_libs_dir not in sys.path:
+        sys.path.insert(0, _ocr_libs_dir)
+    # Thêm các thư mục DLL vào Search Path trên Windows (Python 3.8+)
+    if hasattr(os, 'add_dll_directory'):
+        for _sub in ['', 'onnxruntime', os.path.join('onnxruntime', 'capi'), 'cv2', 'numpy.libs', 'shapely.libs', 'PIL']:
+            _dll_p = os.path.join(_ocr_libs_dir, _sub) if _sub else _ocr_libs_dir
+            if os.path.isdir(_dll_p):
+                try:
+                    os.add_dll_directory(_dll_p)
+                except Exception:
+                    pass
+    # Đồng thời bổ sung vào biến môi trường PATH
+    _extra_paths = [_ocr_libs_dir, os.path.join(_ocr_libs_dir, 'onnxruntime', 'capi')]
+    os.environ["PATH"] = os.pathsep.join(_extra_paths) + os.pathsep + os.environ.get("PATH", "")
+
 rapid_ocr_engine = None
+_ocr_init_error = None
 try:
     from rapidocr_onnxruntime import RapidOCR
-    rapid_ocr_engine = RapidOCR()
+    rapid_ocr_engine = RapidOCR(Det_limit_type='max', Det_limit_side_len=960)
     print("[INFO] RapidOCR Engine initialized successfully.")
 except Exception as _ocr_init_err:
+    rapid_ocr_engine = None
+    import traceback
+    _ocr_init_error = f"{type(_ocr_init_err).__name__}: {_ocr_init_err}\n{traceback.format_exc()}"
     print(f"[WARN] RapidOCR initialization warning: {_ocr_init_err}")
+
+def clean_and_merge_ocr_results(result):
+    """
+    Sắp xếp các bounding boxes theo dòng ngang và tự động ghép / khử trùng lặp ký tự
+    giữa các mảnh text bị đứt đoạn trên cùng một dòng tem / mã barcode.
+    """
+    if not result:
+        return "", [], 0.0
+
+    boxes_with_text = []
+    for item in result:
+        if not item or len(item) < 2:
+            continue
+        box = item[0]
+        text = str(item[1]).strip()
+        score = float(item[2]) if len(item) > 2 else 1.0
+        if not text:
+            continue
+
+        xs = [p[0] for p in box]
+        ys = [p[1] for p in box]
+        min_x, max_x = min(xs), max(xs)
+        min_y, max_y = min(ys), max(ys)
+        center_y = (min_y + max_y) / 2.0
+        box_h = max_y - min_y
+        boxes_with_text.append({
+            'min_x': min_x, 'max_x': max_x,
+            'min_y': min_y, 'max_y': max_y,
+            'center_y': center_y, 'height': box_h,
+            'text': text, 'score': score
+        })
+
+    if not boxes_with_text:
+        return "", [], 0.0
+
+    avg_h = sum(b['height'] for b in boxes_with_text) / len(boxes_with_text)
+    line_thresh = max(15.0, avg_h * 0.6)
+
+    # Nhóm các box theo dòng ngang (Y-axis grouping)
+    boxes_with_text.sort(key=lambda b: b['center_y'])
+    lines = []
+    current_line = [boxes_with_text[0]]
+    for b in boxes_with_text[1:]:
+        line_avg_y = sum(x['center_y'] for x in current_line) / len(current_line)
+        if abs(b['center_y'] - line_avg_y) <= line_thresh:
+            current_line.append(b)
+        else:
+            lines.append(current_line)
+            current_line = [b]
+    if current_line:
+        lines.append(current_line)
+
+    final_lines = []
+    all_scores = [b['score'] for b in boxes_with_text]
+    for line_boxes in lines:
+        # Sắp xếp từ trái qua phải (X-axis)
+        line_boxes.sort(key=lambda b: b['min_x'])
+
+        merged_line = ""
+        prev_box = None
+        for b in line_boxes:
+            txt = b['text']
+            if not merged_line:
+                merged_line = txt
+            else:
+                # Khử trùng lặp ký tự giữa 2 box kề nhau (ví dụ 'E3T' và 'T7S7...' -> 'E3T7S7...')
+                overlap_len = 0
+                max_check = min(len(merged_line), len(txt), 4)
+                for k in range(max_check, 0, -1):
+                    if merged_line[-k:] == txt[:k]:
+                        overlap_len = k
+                        break
+
+                if overlap_len > 0:
+                    merged_line += txt[overlap_len:]
+                else:
+                    gap = b['min_x'] - (prev_box['max_x'] if prev_box else b['min_x'])
+                    char_w = (b['max_x'] - b['min_x']) / max(1, len(txt))
+                    if gap > char_w * 1.5:
+                        merged_line += " " + txt
+                    else:
+                        merged_line += txt
+            prev_box = b
+
+        final_lines.append(merged_line)
+
+    full_text = '\n'.join(final_lines)
+    avg_conf = sum(all_scores) / len(all_scores) if all_scores else 0.0
+    return full_text, final_lines, round(avg_conf, 3)
 
 @app.route('/api/ocr/recognize', methods=['POST'])
 def ocr_recognize():
     if rapid_ocr_engine is None:
-        return jsonify({'error': True, 'message': 'OCR Engine chưa được khởi tạo trên máy chủ'}), 503
+        return jsonify({
+            'success': False,
+            'engine_available': False,
+            'init_error': _ocr_init_error,
+            'message': f'AI OCR Engine chưa được khởi tạo: {_ocr_init_error}'
+        }), 200
 
     image_bytes = None
     if 'file' in request.files:
@@ -4046,7 +4164,7 @@ def ocr_recognize():
         image_bytes = request.data
 
     if not image_bytes:
-        return jsonify({'error': True, 'message': 'Không tìm thấy dữ liệu hình ảnh'}), 400
+        return jsonify({'success': False, 'error': True, 'message': 'Không tìm thấy dữ liệu hình ảnh'}), 400
 
     try:
         t0 = time.time()
@@ -4057,6 +4175,9 @@ def ocr_recognize():
         img = Image.open(io.BytesIO(image_bytes))
         if img.mode != 'RGB':
             img = img.convert('RGB')
+        # Tối ưu kích thước: Nếu ảnh quá lớn từ điện thoại/camera (>1280px), resize để tăng tốc độ nhận diện
+        if max(img.width, img.height) > 1280:
+            img.thumbnail((1280, 1280), Image.Resampling.LANCZOS)
         img_np = np.array(img)
 
         result, elapse = rapid_ocr_engine(img_np)
@@ -4065,37 +4186,25 @@ def ocr_recognize():
         if not result:
             return jsonify({
                 'success': True,
+                'engine_available': True,
                 'text': '',
                 'lines': [],
                 'message': 'Không tìm thấy ký tự trong hình ảnh',
                 'latency_ms': elapsed_ms
             })
 
-        lines = []
-        confidences = []
-        for item in result:
-            if isinstance(item, (list, tuple)) and len(item) >= 2:
-                text_str = str(item[1]).strip()
-                if text_str:
-                    lines.append(text_str)
-                    if len(item) >= 3:
-                        try:
-                            confidences.append(float(item[2]))
-                        except (ValueError, TypeError):
-                            pass
-
-        full_text = '\n'.join(lines)
-        avg_conf = sum(confidences) / len(confidences) if confidences else 0.0
+        full_text, lines, avg_conf = clean_and_merge_ocr_results(result)
 
         return jsonify({
             'success': True,
+            'engine_available': True,
             'text': full_text,
             'lines': lines,
-            'confidence': round(avg_conf, 3),
+            'confidence': avg_conf,
             'latency_ms': elapsed_ms
         })
     except Exception as e:
-        return jsonify({'error': True, 'message': f'Lỗi nhận diện OCR: {str(e)}'}), 500
+        return jsonify({'success': False, 'error': True, 'message': f'Lỗi nhận diện OCR: {str(e)}'}), 500
 
 @app.errorhandler(404)
 def page_not_found(e):
