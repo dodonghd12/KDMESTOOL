@@ -106,27 +106,31 @@ def log_api_requests():
 
 @app.after_request
 def suppress_browser_auth_popup(response):
-    """
-    Remove WWW-Authenticate header from all responses to prevent the browser/OS
-    from showing the native HTTP Basic Auth prompt dialog on 401 Unauthorized.
-    Also enforce zero-caching on dynamic and static assets during active development.
-    """
     response.headers.pop('WWW-Authenticate', None)
     response.headers.pop('www-authenticate', None)
+
     if 'Cache-Control' not in response.headers:
         response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
     return response
 
-@app.errorhandler(401)
-def custom_401_handler(e):
+def make_unauthorized_response(message='Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'):
+    session.clear()
     response = make_response(jsonify({
         'error': True,
         'code': 'UNAUTHORIZED',
-        'message': 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
-    }), 401)
+        'message': message
+    }), 403)
     response.headers.pop('WWW-Authenticate', None)
     response.headers.pop('www-authenticate', None)
     return response
+
+@app.errorhandler(401)
+def custom_401_handler(e):
+    return make_unauthorized_response()
+
+@app.errorhandler(403)
+def custom_403_handler(e):
+    return make_unauthorized_response()
 
 @app.context_processor
 def inject_global_context():
@@ -148,28 +152,23 @@ def index():
 def login():
     if request.method == 'POST':
 
-        #get user ip
         user_ip = get_client_ip()
 
-        # Get data from JSON (sent from JavaScript)
         if request.is_json:
             data = request.get_json()
             user_id = data.get('user_id', '').strip() if data else ''
             password = data.get('password', '').strip() if data else ''
         else:
-            # Fallback to form data
             user_id = request.form.get('user_id', '').strip()
             password = request.form.get('password', '').strip()
         
         if not user_id or not password:
             return jsonify({'success': False, 'message': 'Vui lòng nhập đầy đủ Tài khoản và mật khẩu.'})
         
-        # Validate tool availability
         tool_status = get_config_data("available")
         if tool_status and tool_status[0] == "N":
             return jsonify({'success': False, 'message': 'Tool không khả dụng ở thời điểm hiện tại'})
         
-        # Validate user
         url = "https://198.1.10.85:8810/api/user/login"
         headers = {
             "accept": "application/json",
@@ -189,16 +188,13 @@ def login():
                 session['user_token'] = response_data['data']['token']
                 session['user_ip'] = user_ip
                 
-                # Save cookies from response - build cookie string
                 cookie_parts = []
                 if response.cookies:
                     for cookie in response.cookies:
                         cookie_parts.append(f"{cookie.name}={cookie.value}")
                 
-                # Also check Set-Cookie headers
                 if 'Set-Cookie' in response.headers:
                     set_cookie = response.headers['Set-Cookie']
-                    # Extract cookie name=value from Set-Cookie header
                     if ';' in set_cookie:
                         cookie_parts.append(set_cookie.split(';')[0])
                     else:
@@ -207,7 +203,6 @@ def login():
                 if cookie_parts:
                     session['user_cookie_string'] = '; '.join(cookie_parts)
                     
-                # return jsonify({'result': dict(session)})
                 return jsonify({'success': True})
         except Exception as e:
             pass
@@ -224,7 +219,7 @@ def logout():
 @app.route('/api/check-auth', methods=['GET'])
 def check_auth():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
 
     return jsonify({'success': True})
 
@@ -282,28 +277,15 @@ def check_mesync():
 def station_configuration():
     return render_page_or_shell('station_configuration.html', '/station-configuration', 'Thiết lập máy')
 
-@app.route('/gitlab')
-def gitlab():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return redirect(url_for('login'))
-    return render_template('gitlab.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
-
 @app.route('/magic-winx')
 def magic_winx():
     return render_page_or_shell('magic_winx.html', '/magic-winx', 'Magic Winx')
-
-@app.route('/nes')
-def nes():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-    return render_template('nes.html', user_id=session.get('user_id'), user_ip=session.get('user_ip'), version=APP_VERSION)
-
 
 #========= API =========#
 @app.route('/api/barcodes', methods=['POST'])
 def search_barcode():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
     
     keyword = request.json.get('keyword', '').strip()
     if not keyword:
@@ -339,7 +321,7 @@ def search_barcode():
 @app.route('/api/recipes', methods=['POST'])
 def search_work_order():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
     
     keyword = request.json.get('keyword', '').strip()
     if not keyword:
@@ -395,7 +377,7 @@ def search_work_order():
 @app.route('/api/feed_records', methods=['POST'])
 def search_feed_record():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
     
     keyword = request.json.get('keyword', '').strip()
     if not keyword:
@@ -434,7 +416,7 @@ def search_feed_record():
 @app.route('/api/work-orders/get-details', methods=['POST'])
 def get_work_order_by_id():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
     
     work_order_id = request.json.get('work_order_id', '').strip()
     if not work_order_id:
@@ -470,7 +452,7 @@ def get_work_order_by_id():
 @app.route('/api/station/scan-barcode-history', methods=['POST'])
 def search_scan_barcode_history_by_station():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
     
     fromDate = request.json.get('fromDate', '').strip()
     toDate = request.json.get('toDate', '').strip()
@@ -589,7 +571,7 @@ def search_scan_barcode_history_by_station():
 @app.route('/api/station/print-barcode-history', methods=['POST'])
 def search_print_barcode_history_by_station():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
     
     fromDate = request.json.get('fromDate', '').strip()
     toDate = request.json.get('toDate', '').strip()
@@ -677,7 +659,7 @@ def search_print_barcode_history_by_station():
 @app.route('/api/barcodes/scan-in-station', methods=['POST'])
 def search_scan_barcode_history_by_barcode():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
     
     resource_id = request.json.get('resource_id', '').strip()
     if not resource_id:
@@ -754,7 +736,7 @@ def search_scan_barcode_history_by_barcode():
 @app.route('/api/barcodes/fetch-work-orders', methods=['POST'])
 def fetch_work_order_by_barcode():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
     
     fromDate = request.json.get('fromDate', '').strip()
     toDate = request.json.get('toDate', '').strip()
@@ -880,7 +862,7 @@ def get_input_barcode():
 @app.route('/api/barcodes/check-used-history', methods=['POST'])
 def get_used_history_by_barcode():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
 
     material_oid = request.json.get('material_oid')
     if not material_oid:
@@ -1029,7 +1011,7 @@ def get_used_history_by_barcode():
 @app.route('/api/workorders/fetch-output-barcodes', methods=['POST'])
 def fetch_output_barcode_by_work_order():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
 
     data = request.get_json() or {}
 
@@ -1194,7 +1176,7 @@ def run_output_barcode_query_task(task_id, resource_id, work_order):
 @app.route('/api/barcodes/fetch-output-barcodes', methods=['POST'])
 def get_output_barcode_by_barcode():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
     
     resource_id = str(request.json.get('resource_id') or '').strip()
     if not resource_id:
@@ -1237,7 +1219,7 @@ def get_output_barcode_by_barcode():
 @app.route('/api/barcodes/fetch-output-barcodes/status/<task_id>', methods=['GET'])
 def get_output_barcode_task_status(task_id):
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
 
     with tasks_lock:
         task = output_barcode_tasks.get(task_id)
@@ -1289,7 +1271,7 @@ def get_output_barcode_task_status(task_id):
 @app.route('/api/barcodes/fetch-output-barcodes/stream', methods=['GET'])
 def stream_output_barcodes():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
     
     resource_id = str(request.args.get('resource_id') or '').strip()
     work_order = str(request.args.get('work_order') or '').strip()
@@ -1409,7 +1391,7 @@ def stream_output_barcodes():
 @app.route('/api/barcodes/fetch-output-barcodes/cancel/<task_id>', methods=['POST'])
 def cancel_output_barcode_task(task_id):
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
 
     with tasks_lock:
         if task_id in output_barcode_tasks:
@@ -1420,7 +1402,7 @@ def cancel_output_barcode_task(task_id):
 @app.route('/api/barcodes/check-transfer', methods=['POST'])
 def check_barcode_transfer():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
 
     resource_id = request.json.get('resource_id')
     if not resource_id:
@@ -1463,7 +1445,7 @@ def check_barcode_transfer():
 @app.route('/api/barcodes/check-extend-date-count', methods=['POST'])
 def check_barcode_extend_time():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
 
     resource_id = request.json.get('resource_id')
     if not resource_id:
@@ -1539,11 +1521,7 @@ _STATIONS_CACHE_TTL = 600  # 10 minutes cache
 @app.route('/api/departments', methods=['GET'])
 def get_department_list():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({
-            'error': True,
-            'code': 'UNAUTHORIZED',
-            'message': 'User not logged in'
-        }), 401
+        return make_unauthorized_response('User not logged in')
     
     now = time.time()
     if _DEPARTMENTS_CACHE['data'] is not None and (now - _DEPARTMENTS_CACHE['timestamp'] < _DEPARTMENTS_CACHE['ttl']):
@@ -1576,17 +1554,9 @@ def get_department_list():
     
     except Exception as e:
         error_msg = str(e)
-        if (hasattr(e, 'response') and e.response is not None and e.response.status_code == 401) or '401' in error_msg or 'Unauthorized' in error_msg:
+        if (hasattr(e, 'response') and e.response is not None and e.response.status_code in [401, 403]) or '401' in error_msg or '403' in error_msg or 'Unauthorized' in error_msg:
             _DEPARTMENTS_CACHE['data'] = None
-            session.clear()
-            resp = make_response(jsonify({
-                'error': True,
-                'code': 'UNAUTHORIZED',
-                'message': 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
-            }), 401)
-            resp.headers.pop('WWW-Authenticate', None)
-            resp.headers.pop('www-authenticate', None)
-            return resp
+            return make_unauthorized_response('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.')
 
         # Fallback to existing cache even if expired for non-auth errors
         if _DEPARTMENTS_CACHE['data'] is not None:
@@ -1603,11 +1573,11 @@ def get_department_list():
 @app.route('/api/departments/stations', methods=['POST'])
 def get_station_list_by_department():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
     
     user_token = session.get('user_token')
     if not user_token:
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
     
     department_oid = request.json.get('department_oid', '').strip()
     if not department_oid:
@@ -1645,7 +1615,7 @@ def get_station_list_by_department():
 @app.route('/api/work-orders/get-active-list', methods=['POST'])
 def get_active_work_order_list():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
     
     station = request.json.get('station', '').strip()
     
@@ -1675,7 +1645,7 @@ def get_active_work_order_list():
 @app.route('/api/stations/validate-scan-barcode', methods=['POST'])
 def validate_scan_barcode_by_station():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
     
     recipe_id = request.json.get('recipe_id', '').strip()
     station = request.json.get('station', '').strip()
@@ -1836,7 +1806,7 @@ def validate_scan_barcode_by_station():
 @app.route('/api/barcodes/get-reprint-list', methods=['POST'])
 def get_reprint_barcode_list():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
 
     from_date = request.json.get('from_date', '').strip()
     to_date = request.json.get('to_date', '').strip()
@@ -1910,7 +1880,7 @@ def get_reprint_barcode_list():
 @app.route('/api/get-qc-data-by-date', methods=['POST'])
 def get_qc_data_by_date():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
 
     from_date  = request.json.get('fromDate', '').strip()
     to_date    = request.json.get('toDate', '').strip()
@@ -1961,7 +1931,7 @@ def get_qc_data_by_date():
 @app.route('/api/barcodes/get-substitutions-list', methods=['POST'])
 def search_substitutions():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
     
     keyword = request.json.get('keyword', '').strip()
     if not keyword:
@@ -1993,7 +1963,7 @@ def search_substitutions():
 @app.route('/api/recipes/fetch-work-orders', methods=['POST'])
 def fetch_work_order_by_recipe():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
     
     recipe_id = request.json.get('recipe_id')
     if not recipe_id:
@@ -2036,7 +2006,7 @@ def fetch_work_order_by_recipe():
 @app.route('/api/recipes/fetch-commit-gitlab', methods=['POST'])
 def fetch_commit_gitlab():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
     
     global gitlab_private_token
 
@@ -2166,7 +2136,7 @@ def fetch_commit_gitlab():
 @app.route('/api/recipes/commit-gitlab/details', methods=['POST'])
 def fetch_commit_gitlab_details():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
 
     global gitlab_private_token
 
@@ -2232,7 +2202,7 @@ def fetch_commit_gitlab_details():
 @app.route('/api/recipes/fetch-yaml-content', methods=['POST'])
 def fetch_yaml_content():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
 
     global gitlab_private_token
 
@@ -2313,7 +2283,7 @@ def fetch_yaml_content():
 @app.route('/api/barcodes/fetch-original-info', methods=['POST'])
 def fetch_original_info_by_barcode():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
 
     data = request.get_json() or {}
 
@@ -2398,7 +2368,7 @@ def fetch_original_info_by_barcode():
 @app.route('/api/mesync/get-mesync-inbox-events', methods=['POST'])
 def get_mesync_inbox_events():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
 
     keyword = request.json.get('keyword', '').strip()
     if not keyword:
@@ -2442,7 +2412,7 @@ def get_mesync_inbox_events():
 @app.route('/api/barcodes/get-station-configuration-list', methods=['POST'])
 def get_station_configuration_list():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
     
     station = request.json.get('station', '').strip()
     
@@ -2475,7 +2445,7 @@ def get_station_configuration_list():
 @app.route('/api/barcodes/get-prdeba', methods=['POST'])
 def get_prdeba():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
 
     resource_id = request.json.get('resource_id', '').strip()
     if not resource_id:
@@ -2527,7 +2497,7 @@ def get_prdeba():
 @app.route('/api/barcodes/get-prdebb', methods=['POST'])
 def get_prdebb():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
 
     resource_id = request.json.get('resource_id', '').strip()
     if not resource_id:
@@ -2565,7 +2535,7 @@ def get_prdebb():
 @app.route('/api/barcodes/get-prdebc', methods=['POST'])
 def get_prdebc():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
 
     resource_id = request.json.get('resource_id', '').strip()
     if not resource_id:
@@ -2613,7 +2583,7 @@ def get_prdebc():
 @app.route('/api/magic-winx/work-order/fetch-collect-records', methods=['POST'])
 def magic_winx_fetch_collect_records():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
 
     work_order_id = request.json.get('work_order_id', '').strip()
     if not work_order_id:
@@ -2688,7 +2658,7 @@ def magic_winx_fetch_collect_records():
 @app.route('/api/magic-winx/collect-record/material-resource-existed', methods=['POST'])
 def magic_winx_check_material_resource_existed():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
 
     data = request.get_json() or {}
     resource_ids = data.get('resource_ids', [])
@@ -2719,7 +2689,7 @@ def magic_winx_check_material_resource_existed():
 @app.route('/api/magic-winx/prepare-insert-data', methods=['POST'])
 def magic_winx_prepare():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
 
     data          = request.get_json() or {}
     work_order_id = data.get('work_order_id', '').strip()
@@ -2891,7 +2861,7 @@ def magic_winx_prepare():
 @app.route('/api/magic-winx/insert-material', methods=['POST'])
 def magic_winx_execute():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
 
     data        = request.get_json() or {}
 
@@ -3014,7 +2984,7 @@ def magic_winx_update():
        'user_token' not in session or \
        'user_ip' not in session:
 
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
 
     data = request.get_json() or {}
 
@@ -3212,11 +3182,7 @@ def magic_winx_magic():
        'user_token' not in session or \
        'user_ip' not in session:
 
-        return jsonify({
-            'success': False,
-            'api': API_NAME,
-            'message': f'{API_NAME} lỗi: Unauthorized'
-        }), 401
+        return make_unauthorized_response(f'{API_NAME} lỗi: Unauthorized')
 
     try:
         data = request.get_json() or {}
@@ -3333,7 +3299,7 @@ def magic_winx_magic():
 @app.route('/api/magic-winx/check-work-orders-bulk', methods=['POST'])
 def magic_winx_check_work_orders_bulk():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
 
     data = request.get_json() or {}
     work_order_ids = data.get('work_order_ids', [])
@@ -3470,7 +3436,7 @@ def magic_winx_check_work_orders_bulk():
 @app.route('/api/magic-winx/prepare-material-resource', methods=['POST'])
 def magic_winx_prepare_material_resource():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
 
     data = request.get_json() or {}
     raw_input = data.get('raw_input', '').strip()
@@ -3980,7 +3946,7 @@ def magic_winx_prepare_material_resource():
 @app.route('/api/magic-winx/insert-material-resource', methods=['POST'])
 def magic_winx_insert_material_resource():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+        return make_unauthorized_response()
 
     data = request.get_json() or {}
 
@@ -4045,6 +4011,91 @@ def magic_winx_insert_material_resource():
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'Lỗi khi Insert vào kvmes.material_resource: {str(e)}'})
+
+# ==============================================================================
+# OCR IMAGE-TO-TEXT ENGINE (RAPIDOCR / PADDLEOCR ONNX AI ENGINE)
+# ==============================================================================
+rapid_ocr_engine = None
+try:
+    from rapidocr_onnxruntime import RapidOCR
+    rapid_ocr_engine = RapidOCR()
+    print("[INFO] RapidOCR Engine initialized successfully.")
+except Exception as _ocr_init_err:
+    print(f"[WARN] RapidOCR initialization warning: {_ocr_init_err}")
+
+@app.route('/api/ocr/recognize', methods=['POST'])
+def ocr_recognize():
+    if rapid_ocr_engine is None:
+        return jsonify({'error': True, 'message': 'OCR Engine chưa được khởi tạo trên máy chủ'}), 503
+
+    image_bytes = None
+    if 'file' in request.files:
+        image_bytes = request.files['file'].read()
+    elif 'image' in request.files:
+        image_bytes = request.files['image'].read()
+    elif request.is_json:
+        data = request.get_json() or {}
+        b64_str = data.get('image', '')
+        if ',' in b64_str:
+            b64_str = b64_str.split(',', 1)[1]
+        try:
+            image_bytes = base64.b64decode(b64_str)
+        except Exception:
+            image_bytes = None
+    elif request.data:
+        image_bytes = request.data
+
+    if not image_bytes:
+        return jsonify({'error': True, 'message': 'Không tìm thấy dữ liệu hình ảnh'}), 400
+
+    try:
+        t0 = time.time()
+        import io
+        from PIL import Image
+        import numpy as np
+
+        img = Image.open(io.BytesIO(image_bytes))
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
+        img_np = np.array(img)
+
+        result, elapse = rapid_ocr_engine(img_np)
+        elapsed_ms = round((time.time() - t0) * 1000, 2)
+
+        if not result:
+            return jsonify({
+                'success': True,
+                'text': '',
+                'lines': [],
+                'message': 'Không tìm thấy ký tự trong hình ảnh',
+                'latency_ms': elapsed_ms
+            })
+
+        lines = []
+        confidences = []
+        for item in result:
+            if isinstance(item, (list, tuple)) and len(item) >= 2:
+                text_str = str(item[1]).strip()
+                if text_str:
+                    lines.append(text_str)
+                    if len(item) >= 3:
+                        try:
+                            confidences.append(float(item[2]))
+                        except (ValueError, TypeError):
+                            pass
+
+        full_text = '\n'.join(lines)
+        avg_conf = sum(confidences) / len(confidences) if confidences else 0.0
+
+        return jsonify({
+            'success': True,
+            'text': full_text,
+            'lines': lines,
+            'confidence': round(avg_conf, 3),
+            'latency_ms': elapsed_ms
+        })
+    except Exception as e:
+        return jsonify({'error': True, 'message': f'Lỗi nhận diện OCR: {str(e)}'}), 500
 
 @app.errorhandler(404)
 def page_not_found(e):

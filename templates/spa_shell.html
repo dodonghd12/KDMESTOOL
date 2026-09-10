@@ -60,6 +60,7 @@
     <script>
         window.initialRoutePath = '{{ initial_path or "/main" }}';
     </script>
+    <script src="{{ url_for('static', filename='vendor/tesseract.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/sidebar.js') }}?v={{ version }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}?v={{ version }}"></script>
     <script src="{{ url_for('static', filename='js/spa_shell.js') }}?v={{ version }}"></script>

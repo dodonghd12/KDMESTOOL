@@ -409,11 +409,22 @@ async function validateScanBarcode() {
             body: JSON.stringify({recipe_id: recipeId, station: station})
         });
         
-        const data = await response.json();
-        if (data.success) {
+        let data = null;
+        try {
+            data = await response.json();
+        } catch (e) {}
+
+        if (typeof isUnauthorizedResponse === 'function' && isUnauthorizedResponse(response.status, data)) {
+            if (typeof showAuthExpiredModal === 'function') {
+                showAuthExpiredModal(data ? data.message : null);
+            }
+            return;
+        }
+        
+        if (data && data.success) {
             displayComparison(data.result, recipeId, station);
         } else {
-            showAlert(data.message || 'Có lỗi xảy ra', 'error');
+            showAlert((data && data.message) || 'Có lỗi xảy ra', 'error');
         }
     } catch (error) {
         console.error('Error checking recipe:', error);

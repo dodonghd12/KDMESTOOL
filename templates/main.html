@@ -39,9 +39,56 @@
                     <label class="user-label">Lịch sử hao dùng / Feed Record</label>
                 </div>
             </div>
-            <div class="search-row">
+            <div class="search-row search-row-client">
                 <div class="input-wrapper">
                     <input placeholder="Tìm kiếm..." class="input" id="clientSearch" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text" aria-label="Tìm kiếm trong bảng">
+                </div>
+            </div>
+            <div class="search-row search-row-ocr">
+                <div class="ocr-dropzone" id="ocrDropzone" tabindex="0" role="button" aria-label="Kéo thả, dán ảnh (Ctrl+V) hoặc nhấp để nhận diện chữ" title="Nhấp chuột để chọn file ảnh | Nhấn Ctrl+V để dán ảnh bất kỳ lúc nào | Kéo thả ảnh vào đây">
+                    <input type="file" id="ocrFileInput" accept="image/*" style="display:none;" onchange="handleOcrFileSelected(event)">
+
+                    <!-- State 1: Chờ ảnh (Idle) -->
+                    <div class="ocr-state ocr-state-idle" id="ocrStateIdle">
+                        <div class="ocr-icon-wrap">
+                            <span class="material-symbols-outlined ocr-cloud-icon">document_scanner</span>
+                        </div>
+                        <div class="ocr-text-wrap">
+                            <span class="ocr-title">Image to Text</span>
+                            <span class="ocr-subtitle">Drop / Ctrl+V / Click to upload</span>
+                        </div>
+                    </div>
+
+                    <!-- State 2: Đang quét nhận diện chữ (Loading) -->
+                    <div class="ocr-state ocr-state-loading" id="ocrStateLoading" style="display:none;">
+                        <div class="ocr-loading-meta">
+                            <div class="ocr-loading-badge">
+                                <span class="material-symbols-outlined ocr-spin-icon">progress_activity</span>
+                            </div>
+                            <div class="ocr-loading-info">
+                                <span class="ocr-loading-name" id="ocrLoadingFileName">Đang đọc ảnh...</span>
+                                <span class="ocr-loading-desc" id="ocrLoadingStatus">Nhận diện ký tự OCR</span>
+                            </div>
+                            <span class="ocr-loading-pct" id="ocrLoadingPercent">0%</span>
+                        </div>
+                        <div class="ocr-progress-track">
+                            <div class="ocr-progress-bar" id="ocrProgressBar"></div>
+                        </div>
+                    </div>
+
+                    <!-- State 3: Preview kết quả đã nhận diện (Preview) -->
+                    <div class="ocr-state ocr-state-preview" id="ocrStatePreview" style="display:none;">
+                        <div class="ocr-result-box" id="ocrResultBox" title="Nhấp để sao chép nhanh">
+                            <span class="ocr-result-text" id="ocrResultText">...</span>
+                        </div>
+                        <button type="button" class="details-modal-copy ocr-copy-btn" id="ocrCopyBtn" title="Sao chép nội dung" aria-label="Sao chép văn bản đã nhận diện">
+                            <span class="material-symbols-outlined" aria-hidden="true">content_copy</span>
+                            <span>Copy</span>
+                        </button>
+                        <button type="button" class="ocr-remove-btn" id="ocrRemoveBtn" onclick="resetOcrDropzone(event)" title="Quét ảnh khác" aria-label="Xóa kết quả">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -123,6 +170,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <script src="{{ url_for('static', filename='vendor/tesseract.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 

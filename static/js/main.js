@@ -1111,21 +1111,22 @@ let departments = [];
  * Check if an API response indicates Token Expiration / Unauthorized
  */
 function isUnauthorizedResponse(status, result) {
-    if (status === 401) return true;
+    if (status === 401 || status === 403 || status === 419) return true;
     if (!result) return false;
-    if (result.code === 'UNAUTHORIZED') return true;
+    if (result.code === 'UNAUTHORIZED' || result.error === 'Unauthorized') return true;
     if (result.error) {
-        const msg = String(result.message || '').toLowerCase();
-        if (msg.includes('401') || msg.includes('unauthorized') || msg.includes('user not logged in') || msg.includes('token')) {
+        const msg = String(result.message || result.error || '').toLowerCase();
+        if (msg.includes('401') || msg.includes('403') || msg.includes('unauthorized') || msg.includes('user not logged in') || msg.includes('token') || msg.includes('hết hạn') || msg.includes('expired')) {
             return true;
         }
     }
     return false;
 }
 window.isUnauthorizedResponse = isUnauthorizedResponse;
+if (window.top) window.top.isUnauthorizedResponse = isUnauthorizedResponse;
 
 /**
- * Show Full-Screen Lockout Modal when Token is Expired
+ * Show Full-Screen Lockout Modal when Token is Expired with Auto-Redirect
  */
 function showAuthExpiredModal(message) {
     let topWin = window;
@@ -1147,6 +1148,8 @@ function showAuthExpiredModal(message) {
     const existingModal = topDoc.getElementById('kdAuthExpiredModal');
     if (existingModal) existingModal.remove();
 
+    let countdown = 3;
+
     const modalOverlay = topDoc.createElement('div');
     modalOverlay.id = 'kdAuthExpiredModal';
     modalOverlay.className = 'kd-auth-expired-overlay';
@@ -1155,6 +1158,8 @@ function showAuthExpiredModal(message) {
     modalOverlay.setAttribute('aria-labelledby', 'authModalTitle');
     modalOverlay.setAttribute('aria-describedby', 'authModalMsg');
 
+    const displayMsg = message || 'Phiên làm việc của bạn đã hết hạn. Vui lòng đăng nhập lại để tiếp tục sử dụng.';
+
     modalOverlay.innerHTML = `
         <div class="kd-auth-expired-card">
             <div class="kd-auth-expired-icon-wrap">
@@ -1162,12 +1167,15 @@ function showAuthExpiredModal(message) {
             </div>
             <div class="kd-auth-expired-title" id="authModalTitle">Phiên Đăng Nhập Hết Hạn</div>
             <div class="kd-auth-expired-message" id="authModalMsg">
-                Phiên làm việc của bạn đã hết hạn. Vui lòng đăng nhập lại để tiếp tục sử dụng.
+                ${displayMsg}<br>
+                <span style="display: inline-block; margin-top: 6px; font-size: 13px; color: var(--color-text-muted, #94a3b8);">
+                    Tự động chuyển về trang Đăng nhập sau <b id="kdAuthCountdown" style="color: #f43f5e; font-size: 15px;">${countdown}</b>s...
+                </span>
             </div>
             <div class="kd-auth-expired-actions">
                 <button type="button" class="kd-auth-expired-btn" id="kdAuthLoginRedirectBtn">
                     <span class="material-symbols-outlined">login</span>
-                    Đăng nhập lại
+                    Đăng nhập lại ngay
                 </button>
             </div>
         </div>
@@ -1185,14 +1193,29 @@ function showAuthExpiredModal(message) {
     });
 
     const redirectBtn = modalOverlay.querySelector('#kdAuthLoginRedirectBtn');
+    const countdownEl = modalOverlay.querySelector('#kdAuthCountdown');
+
+    const doRedirect = () => {
+        topWin.location.href = '/login';
+    };
+
     if (redirectBtn) {
         setTimeout(() => redirectBtn.focus(), 50);
         redirectBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            topWin.location.href = '/login';
+            doRedirect();
         });
     }
+
+    const timer = setInterval(() => {
+        countdown--;
+        if (countdownEl) countdownEl.textContent = countdown;
+        if (countdown <= 0) {
+            clearInterval(timer);
+            doRedirect();
+        }
+    }, 1000);
 
     // Lock down keyboard and click interactions completely
     const keyBlocker = (e) => {
@@ -2382,7 +2405,7 @@ async function checkBarcodeExtendDateTime(rowData = null) {
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                Toast.success('Thành công', data.message || 'Kiểm tra gia hạn thành công');
+                Toast.info('Thông báo', data.message || 'Kiểm tra gia hạn thành công');
             } else {
                 Toast.warning('Không có dữ liệu', data.message || 'Không tìm thấy dữ liệu gia hạn');
             }
@@ -3429,6 +3452,10 @@ async function apiFetch(url, options = {}) {
         try {
             data = await res.json();
         } catch (e) {
+            if (isUnauthorizedResponse(res.status, null)) {
+                showAuthExpiredModal();
+                throw new Error('Phiên đăng nhập đã hết hạn');
+            }
             if (!res.ok) throw new Error(`HTTP error ${res.status}`);
             return null;
         }
@@ -3633,6 +3660,8 @@ function formatDate(date) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    initOcrDropzone();
+
     const autoClearInputs = [
         '#clientSearch',
         '#department',
@@ -3890,3 +3919,300 @@ async function fetchScanBarcodeHistoryByBarcode(rowData = null) {
         Toast.error('Lỗi', err.message || 'Lỗi kết nối khi tải lịch sử quét barcode');
     }
 }
+
+// =========================================================================
+// OCR IMAGE-TO-TEXT DROPZONE CONTROLLER (PAGE MAIN)
+// =========================================================================
+let lastOcrResultText = '';
+
+function initOcrDropzone() {
+    const dropzone = document.getElementById('ocrDropzone');
+    const fileInput = document.getElementById('ocrFileInput');
+    if (!dropzone || !fileInput) return;
+
+    // 1. Single Click (1 click): Mở trực tiếp hộp thoại chọn file ảnh từ folder máy tính
+    dropzone.addEventListener('click', (e) => {
+        if (e.target.closest('#ocrCopyBtn') || e.target.closest('#ocrRemoveBtn') || e.target.closest('#ocrResultBox')) {
+            return;
+        }
+        if (dropzone.classList.contains('is-loading')) return;
+        fileInput.click();
+    });
+
+    // 2. Global Paste Handler: Khi trang web đang focus bất kỳ đâu, nếu user nhấn Ctrl+V ảnh -> OCR nhận luôn
+    document.addEventListener('paste', async (e) => {
+        const dropzoneEl = document.getElementById('ocrDropzone');
+        if (!dropzoneEl || dropzoneEl.classList.contains('is-loading')) return;
+
+        const clipboardData = e.clipboardData || window.clipboardData;
+        if (!clipboardData) return;
+
+        let imageFile = null;
+        const items = clipboardData.items;
+
+        if (items) {
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type && items[i].type.startsWith('image/')) {
+                    imageFile = items[i].getAsFile();
+                    break;
+                }
+            }
+        }
+
+        if (!imageFile && clipboardData.files && clipboardData.files.length > 0) {
+            for (let i = 0; i < clipboardData.files.length; i++) {
+                if (clipboardData.files[i].type.startsWith('image/')) {
+                    imageFile = clipboardData.files[i];
+                    break;
+                }
+            }
+        }
+
+        // Chỉ chặn sự kiện và xử lý khi clipboard thực sự có file hình ảnh
+        if (imageFile) {
+            e.preventDefault();
+            e.stopPropagation();
+            await processOcrImageFile(imageFile);
+        }
+    });
+
+    // Hỗ trợ phím Enter / Space khi đang focus dropzone
+    dropzone.addEventListener('keydown', (e) => {
+        if ((e.key === 'Enter' || e.key === ' ') && !dropzone.classList.contains('is-preview') && !dropzone.classList.contains('is-loading')) {
+            e.preventDefault();
+            fileInput.click();
+        }
+    });
+
+    // 3. Kéo thả file (Drag & Drop)
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropzone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (dropzone.classList.contains('is-loading')) return;
+            dropzone.classList.add('drag-over');
+        }, false);
+    });
+
+    ['dragleave', 'dragend'].forEach(eventName => {
+        dropzone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzone.classList.remove('drag-over');
+        }, false);
+    });
+
+    dropzone.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzone.classList.remove('drag-over');
+
+        const dt = e.dataTransfer;
+        if (dt && dt.files && dt.files.length > 0) {
+            const file = dt.files[0];
+            await processOcrImageFile(file);
+        }
+    }, false);
+
+    // 4. Nút Copy kết quả
+    const copyBtn = document.getElementById('ocrCopyBtn');
+    if (copyBtn) {
+        copyBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            copyOcrResultToClipboard();
+        });
+    }
+
+    // 5. Nhấp vào khung kết quả text -> Tự động copy
+    const resultBox = document.getElementById('ocrResultBox');
+    if (resultBox) {
+        resultBox.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            copyOcrResultToClipboard();
+        });
+    }
+}
+
+function handleOcrFileSelected(event) {
+    const file = event.target.files && event.target.files[0];
+    event.target.value = ''; // Reset input để cho phép chọn lại cùng 1 file
+    if (!file) return;
+    processOcrImageFile(file);
+}
+
+async function processOcrImageFile(file) {
+    const dropzone = document.getElementById('ocrDropzone');
+    if (!dropzone || !file) return;
+
+    // Kiểm tra định dạng file ảnh
+    const isImage = (file.type && file.type.startsWith('image/')) || /\.(png|jpe?g|webp|bmp|gif|tiff?|jfif|svg)$/i.test(file.name || '');
+    if (!isImage) {
+        Toast.error('Lỗi định dạng', 'Chỉ chấp nhận file hình ảnh (PNG, JPG, WEBP, BMP, v.v.)');
+        resetOcrDropzone();
+        return;
+    }
+
+    // Chuyển sang State Loading
+    dropzone.classList.remove('is-preview');
+    dropzone.classList.add('is-loading');
+
+    const loadingNameEl = document.getElementById('ocrLoadingFileName');
+    const statusEl = document.getElementById('ocrLoadingStatus');
+    const pctEl = document.getElementById('ocrLoadingPercent');
+    const barEl = document.getElementById('ocrProgressBar');
+
+    if (loadingNameEl) loadingNameEl.textContent = file.name || 'Ảnh chụp màn hình';
+    if (statusEl) statusEl.textContent = 'Khởi động AI OCR...';
+    if (pctEl) pctEl.textContent = '15%';
+    if (barEl) barEl.style.width = '15%';
+
+    // Thanh tiến trình mượt mà
+    let currentPct = 15;
+    const progressTimer = setInterval(() => {
+        if (currentPct < 90) {
+            currentPct += Math.max(1, Math.floor((90 - currentPct) / 5));
+            if (pctEl) pctEl.textContent = `${currentPct}%`;
+            if (barEl) barEl.style.width = `${currentPct}%`;
+        }
+    }, 120);
+
+    let rawText = '';
+
+    try {
+        // Stage 1: Thử giải mã mã vạch trực tiếp bằng native BarcodeDetector API (nếu trình duyệt hỗ trợ)
+        if ('BarcodeDetector' in window) {
+            try {
+                if (statusEl) statusEl.textContent = 'Đang quét Barcode...';
+                const detector = new BarcodeDetector({
+                    formats: ['code_128', 'code_39', 'code_93', 'ean_13', 'qr_code', 'data_matrix']
+                });
+                const imgBitmap = await createImageBitmap(file);
+                const barcodes = await detector.detect(imgBitmap);
+                if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
+                    rawText = barcodes[0].rawValue.trim();
+                }
+            } catch (_bcErr) {
+                console.log('[OCR] Native BarcodeDetector skipped, using Deep Learning OCR');
+            }
+        }
+
+        // Stage 2: Nếu chưa có barcode, gọi Server-side AI OCR (RapidOCR / PaddleOCR ONNX)
+        if (!rawText) {
+            if (statusEl) statusEl.textContent = 'Đang nhận diện ký tự AI...';
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const res = await fetch('/api/ocr/recognize', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                if (data && data.success && data.text) {
+                    rawText = data.text.trim();
+                }
+            }
+        }
+
+        // Stage 3: Fallback client-side Tesseract nếu Server không phản hồi
+        if (!rawText && typeof Tesseract !== 'undefined') {
+            if (statusEl) statusEl.textContent = 'Quét bổ trợ (Tesseract)...';
+            const result = await Tesseract.recognize(file, 'eng', {
+                logger: m => {
+                    if (m.status === 'recognizing text' && m.progress !== undefined) {
+                        const pct = Math.min(95, Math.round(m.progress * 100));
+                        if (pctEl) pctEl.textContent = `${pct}%`;
+                        if (barEl) barEl.style.width = `${pct}%`;
+                    }
+                }
+            });
+            if (result && result.data && result.data.text) {
+                // Lọc bỏ dòng nhiễu do sọc barcode
+                const lines = result.data.text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                if (lines.length > 0) {
+                    const sorted = lines.slice().sort((a, b) => b.replace(/[^A-Za-z0-9]/g, '').length - a.replace(/[^A-Za-z0-9]/g, '').length);
+                    rawText = sorted[0] || lines.join(' ');
+                }
+            }
+        }
+
+        clearInterval(progressTimer);
+        if (pctEl) pctEl.textContent = '100%';
+        if (barEl) barEl.style.width = '100%';
+
+        if (!rawText) {
+            Toast.warning('Không có ký tự', 'Không tìm thấy ký tự chữ hoặc số nào trong hình ảnh.');
+            resetOcrDropzone();
+            return;
+        }
+
+        lastOcrResultText = rawText;
+
+        // Chuyển sang State Preview
+        dropzone.classList.remove('is-loading');
+        dropzone.classList.add('is-preview');
+
+        const resultTextEl = document.getElementById('ocrResultText');
+        if (resultTextEl) {
+            resultTextEl.textContent = rawText;
+            resultTextEl.setAttribute('title', rawText);
+        }
+
+        Toast.success('Nhận diện thành công', `Đã nhận diện: ${rawText}`);
+    } catch (err) {
+        clearInterval(progressTimer);
+        console.error('OCR Processing Error:', err);
+        Toast.error('Lỗi nhận diện OCR', err.message || 'Không thể đọc ký tự từ hình ảnh');
+        resetOcrDropzone();
+    }
+}
+
+function copyOcrResultToClipboard() {
+    if (!lastOcrResultText) return;
+
+    navigator.clipboard.writeText(lastOcrResultText).then(() => {
+        const copyBtn = document.getElementById('ocrCopyBtn');
+        if (copyBtn) {
+            copyBtn.classList.add('copied');
+            const spanText = copyBtn.querySelector('span:not(.material-symbols-outlined)');
+            const icon = copyBtn.querySelector('.material-symbols-outlined');
+            if (spanText) spanText.textContent = 'Đã copy';
+            if (icon) icon.textContent = 'check';
+
+            setTimeout(() => {
+                copyBtn.classList.remove('copied');
+                if (spanText) spanText.textContent = 'Copy';
+                if (icon) icon.textContent = 'content_copy';
+            }, 1800);
+        }
+        Toast.success('Đã sao chép', 'Đã copy nội dung nhận diện vào bộ nhớ tạm!');
+    }).catch(err => {
+        console.error('Failed to copy text: ', err);
+        Toast.error('Lỗi sao chép', 'Không thể sao chép văn bản');
+    });
+}
+
+function resetOcrDropzone(event) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+
+    const dropzone = document.getElementById('ocrDropzone');
+    if (!dropzone) return;
+
+    dropzone.classList.remove('is-loading', 'is-preview', 'drag-over');
+
+    const resultTextEl = document.getElementById('ocrResultText');
+    if (resultTextEl) resultTextEl.textContent = '';
+    lastOcrResultText = '';
+
+    const fileInput = document.getElementById('ocrFileInput');
+    if (fileInput) fileInput.value = '';
+}
+window.handleOcrFileSelected = handleOcrFileSelected;
+window.resetOcrDropzone = resetOcrDropzone;
+window.initOcrDropzone = initOcrDropzone;
