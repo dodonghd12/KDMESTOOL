@@ -36,10 +36,15 @@
         if (currentRoutePath === route.path) return;
         currentRoutePath = route.path;
 
-        // 1. Toggle iframe active class
+        // 1. Toggle iframe active class & ensure src is loaded
         const allFrames = document.querySelectorAll('.spa-view-frame');
         allFrames.forEach(frame => {
             if (frame.id === route.frameId) {
+                // If this frame was lazy-deferred with data-src, load it immediately on demand
+                if (frame.dataset.src && (!frame.src || frame.src.endsWith('about:blank') || frame.src === window.location.href)) {
+                    frame.src = frame.dataset.src;
+                    frame.removeAttribute('data-src');
+                }
                 frame.classList.add('active');
                 try {
                     frame.contentWindow?.focus();
@@ -198,14 +203,29 @@
         allFrames.forEach(frame => {
             // If iframe is already loaded
             try {
-                if (frame.contentDocument && frame.contentDocument.readyState === 'complete') {
+                if (frame.contentDocument && frame.contentDocument.readyState === 'complete' && frame.src && !frame.src.endsWith('about:blank')) {
                     onFrameLoaded(frame.id);
                 }
             } catch (e) {}
 
             frame.addEventListener('load', () => {
-                onFrameLoaded(frame.id);
+                if (frame.src && !frame.src.endsWith('about:blank')) {
+                    onFrameLoaded(frame.id);
+                }
             });
+        });
+
+        // Staggered background preloading for deferred data-src iframes
+        const lazyFrames = Array.from(document.querySelectorAll('.spa-view-frame[data-src]'));
+        let staggerDelay = 120;
+        lazyFrames.forEach((frame) => {
+            setTimeout(() => {
+                if (frame.dataset.src && (!frame.src || frame.src.endsWith('about:blank') || frame.src === window.location.href)) {
+                    frame.src = frame.dataset.src;
+                    frame.removeAttribute('data-src');
+                }
+            }, staggerDelay);
+            staggerDelay += 260; // 260ms interval keeps server connection pool completely relaxed
         });
 
         // Listen for frame readiness messages

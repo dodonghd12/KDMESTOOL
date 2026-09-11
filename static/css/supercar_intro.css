@@ -43,13 +43,45 @@
     pointer-events: none;
     display: flex;
     flex-direction: column;
-    justify-content: flex-end;
+    justify-content: space-between;
     padding: 28px 36px;
     box-sizing: border-box;
     font-family: 'Plus Jakarta Sans', var(--font-mono, 'Segoe UI', monospace);
     color: #e2e8f0;
     z-index: 10;
     transition: opacity 0.5s ease;
+}
+
+.hud-top-bar {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.hud-skip-hint {
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.45);
+    letter-spacing: 0.5px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(6, 10, 18, 0.4);
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(8px);
+}
+
+.hud-key-badge {
+    padding: 1px 6px;
+    background: rgba(0, 240, 255, 0.12);
+    border: 1px solid rgba(0, 240, 255, 0.3);
+    border-radius: 4px;
+    font-family: var(--font-mono, monospace);
+    font-size: 10px;
+    font-weight: 700;
+    color: #00f0ff;
 }
 
 /* ── HUD Bottom Telemetry ── */

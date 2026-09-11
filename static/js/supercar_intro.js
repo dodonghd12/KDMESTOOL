@@ -17,11 +17,11 @@
         entranceDuration: 0.85,
         zoomDuration: 0.65,
         burnoutDuration: 1.25,
-        smokeCoverDuration: 0.75,
+        smokeCoverDuration: 0.70,
         dissipateDuration: 0.50,
         carScale: 0.245,
-        maxSmokeParticles: 95,
-        maxSparks: 15,
+        maxSmokeParticles: 110,
+        maxSparks: 18,
         maxSkidMarks: 35
     };
 
@@ -30,6 +30,7 @@
     let height = window.innerHeight;
     let animFrameId = null;
     let startTime = null;
+    let allLoadedTimestamp = null;
     let isFinished = false;
     let isAllPreloaded = false;
     let preloadedCount = 0;
@@ -296,29 +297,39 @@
         targetCtx.lineWidth = 3.2;
         targetCtx.stroke(LAMBO_PATHS.sideVent);
 
-        // 4. FRONT LED PROJECTOR HEADLIGHT (AT THE FRONT NOSE, LEFT SIDE X=65, Y=630)
+        // 4. FRONT DUAL-PROJECTOR LED HEADLIGHT (AT THE FRONT NOSE, LEFT SIDE X=65, Y=630)
         targetCtx.save();
         targetCtx.fillStyle = '#ffffff';
         targetCtx.shadowColor = '#00f0ff';
-        targetCtx.shadowBlur = 24;
+        targetCtx.shadowBlur = 28;
         targetCtx.beginPath();
-        targetCtx.ellipse(65, 630, 22, 10, -0.2, 0, Math.PI * 2);
+        targetCtx.ellipse(65, 630, 24, 11, -0.18, 0, Math.PI * 2);
         targetCtx.fill();
         targetCtx.restore();
 
         // Volumetric Light Cone piercing forward towards the LEFT
         targetCtx.save();
-        const beamGrad = targetCtx.createRadialGradient(65, 630, 15, -700, 680, 950);
-        beamGrad.addColorStop(0, 'rgba(0, 240, 255, 0.55)');
-        beamGrad.addColorStop(0.35, 'rgba(0, 180, 255, 0.16)');
+        const beamGrad = targetCtx.createRadialGradient(65, 630, 20, -750, 680, 980);
+        beamGrad.addColorStop(0, 'rgba(0, 240, 255, 0.60)');
+        beamGrad.addColorStop(0.35, 'rgba(0, 180, 255, 0.18)');
         beamGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
         targetCtx.fillStyle = beamGrad;
         targetCtx.beginPath();
         targetCtx.moveTo(65, 620);
-        targetCtx.lineTo(-900, 480);
-        targetCtx.lineTo(-980, 920);
-        targetCtx.lineTo(65, 645);
+        targetCtx.lineTo(-920, 480);
+        targetCtx.lineTo(-1020, 930);
+        targetCtx.lineTo(65, 646);
         targetCtx.closePath();
+        targetCtx.fill();
+
+        // Asphalt Specular Reflection illuminated by headlight beam
+        const groundBeam = targetCtx.createRadialGradient(-350, 774, 50, -350, 774, 600);
+        groundBeam.addColorStop(0, 'rgba(0, 240, 255, 0.28)');
+        groundBeam.addColorStop(0.6, 'rgba(0, 150, 255, 0.08)');
+        groundBeam.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        targetCtx.fillStyle = groundBeam;
+        targetCtx.beginPath();
+        targetCtx.ellipse(-350, 775, 620, 45, 0, 0, Math.PI * 2);
         targetCtx.fill();
         targetCtx.restore();
 
@@ -326,7 +337,7 @@
         targetCtx.save();
         targetCtx.fillStyle = '#ff0055';
         targetCtx.shadowColor = '#ff0055';
-        targetCtx.shadowBlur = 20;
+        targetCtx.shadowBlur = 22;
         targetCtx.fill(LAMBO_PATHS.rearLight);
         targetCtx.restore();
 
@@ -572,7 +583,7 @@
                 if (spk) spk.spawn(rearWheelContactX, rearWheelContactY);
             }
 
-            updateHud('Tăng tốc vòng tua (Burnout)...', 45 + Math.floor(p * 25));
+            updateHud('Tăng tốc loading...', 45 + Math.floor(p * 25));
         } else if (elapsed < t3) {
             // Phase 3: Intense Burnout on REAR Wheel, Skid Marks, Micro-Camera Shake
             scene.phase = 'burnout';
@@ -582,80 +593,102 @@
             scene.cameraX = width * 0.48 + 144;
             scene.cameraY = scene.groundY - 35;
 
-            // Micro camera shake from engine torque
-            scene.shakeX = (Math.random() - 0.5) * 2.6 * p;
-            scene.shakeY = (Math.random() - 0.5) * 1.8 * p;
+            // Engine torque micro camera shake
+            scene.shakeX = (Math.random() - 0.5) * 2.8 * p;
+            scene.shakeY = (Math.random() - 0.5) * 2.0 * p;
 
-            scene.wheelSpinSpeed = 105;
+            scene.wheelSpinSpeed = 110;
             scene.wheelAngle -= scene.wheelSpinSpeed * dt * 20;
             scene.rotorHeat = Math.min(1.0, 0.5 + p * 0.5);
 
             // Lay down rubber skid marks extending behind the rear tire (to the right)
-            if (skidMarks.length < CONFIG.maxSkidMarks && Math.random() < 0.45) {
-                skidMarks.push(new SkidMark(rearWheelContactX + skidMarks.length * 6, rearWheelContactY, 0.75));
+            if (skidMarks.length < CONFIG.maxSkidMarks && Math.random() < 0.5) {
+                skidMarks.push(new SkidMark(rearWheelContactX + skidMarks.length * 6, rearWheelContactY, 0.8));
             }
 
             // High-density realistic white tire smoke thrown backwards to the RIGHT and upwards
-            const burstCount = 6;
+            const burstCount = 7;
             for (let k = 0; k < burstCount; k++) {
                 const s = getFreeSmoke();
                 if (s) {
-                    const tint = Math.random() > 0.8 ? 'cyan_lit' : 'white';
+                    const tint = Math.random() > 0.82 ? 'cyan_lit' : 'white';
                     s.spawn(
-                        rearWheelContactX + (Math.random() - 0.5) * 14,
-                        rearWheelContactY - 2, // EXACT tire-ground contact
-                        15 + Math.random() * 25, // Tangential velocity throws smoke backwards to the RIGHT
+                        rearWheelContactX + (Math.random() - 0.5) * 16,
+                        rearWheelContactY - 2, // EXACT tire-tarmac contact patch
+                        16 + Math.random() * 26, // Tangential velocity throws smoke backwards to the RIGHT
                         -6 - Math.random() * 16, // Thermal plume billows upwards
-                        190 + Math.random() * 190,
-                        1.8 + Math.random() * 0.8,
+                        200 + Math.random() * 200,
+                        1.85 + Math.random() * 0.85,
                         tint
                     );
                 }
             }
 
             // Friction sparks (thrown backwards)
-            if (Math.random() < 0.35) {
+            if (Math.random() < 0.38) {
                 const spk = getFreeSpark();
                 if (spk) spk.spawn(rearWheelContactX, rearWheelContactY);
             }
 
-            scene.smokeDensity = Math.min(1.0, p * 1.4);
-            updateHud('Ma sát cao độ // Đang nạp KDMES...', 70 + Math.floor(p * 20));
-        } else if (elapsed < t4) {
-            // Phase 4: Screen Fully Covered in Volumetric Smoke
+            scene.smokeDensity = Math.min(1.0, p * 1.45);
+            updateHud('Đang nạp KDMES...', 70 + Math.floor(p * 20));
+        } else {
+            // Phase 4: Screen Fully Covered in Volumetric Smoke - PERSISTS UNTIL ALL 10 PRELOADED
             scene.phase = 'covered';
-            const p = (elapsed - t3) / CONFIG.smokeCoverDuration;
             scene.smokeDensity = 1.0;
 
-            // Spawn ambient billowing clouds
-            if (Math.random() < 0.7) {
+            // Continuously spawn rich billowing smoke clouds across the screen to keep it dynamically churning
+            if (Math.random() < 0.88) {
+                const s = getFreeSmoke();
+                if (s) {
+                    const spawnX = (Math.random() * width * 1.3) - (width * 0.15);
+                    const spawnY = (Math.random() * height * 0.85) + (height * 0.15);
+                    const tint = Math.random() > 0.8 ? 'cyan_lit' : 'white';
+                    s.spawn(
+                        spawnX,
+                        spawnY,
+                        (Math.random() - 0.5) * 8 + 2.5, // gentle rightward/upward atmospheric drift
+                        -3.5 - Math.random() * 8.5,
+                        290 + Math.random() * 240,
+                        2.4 + Math.random() * 0.8,
+                        tint
+                    );
+                }
+            }
+
+            // Also keep tire contact area churning with localized dense smoke
+            if (Math.random() < 0.55) {
                 const s = getFreeSmoke();
                 if (s) {
                     s.spawn(
-                        rearWheelContactX + (Math.random() - 0.5) * 200,
-                        rearWheelContactY - 80 + (Math.random() - 0.5) * 100,
-                        (Math.random() - 0.5) * 8,
-                        -4 - Math.random() * 8,
-                        280 + Math.random() * 200,
-                        1.8,
+                        rearWheelContactX + (Math.random() - 0.5) * 80,
+                        rearWheelContactY - 20 + (Math.random() - 0.5) * 40,
+                        8 + Math.random() * 16,
+                        -4 - Math.random() * 10,
+                        230 + Math.random() * 190,
+                        2.0,
                         'white'
                     );
                 }
             }
 
-            updateHud('Hệ thống sẵn sàng // Đang mở Dashboard...', 90 + Math.floor(p * 10));
+            if (isAllPreloaded) {
+                if (!allLoadedTimestamp) {
+                    allLoadedTimestamp = elapsed;
+                }
+                updateHud('Đang mở Main...', 100);
 
-            // If 10 views loaded early, transition smoothly
-            if (isAllPreloaded && p > 0.35) {
-                finishIntro();
-                return;
-            }
-        } else {
-            // Phase 5: Smooth Transition & Reveal
-            scene.phase = 'dissipate';
-            if (!isFinished) {
-                finishIntro();
-                return;
+                // Hold for 0.4s after 100% so user sees full completion, then dissipate cleanly
+                if (elapsed - allLoadedTimestamp >= 0.4) {
+                    scene.phase = 'dissipate';
+                    if (!isFinished) {
+                        finishIntro();
+                        return;
+                    }
+                }
+            } else {
+                const dynamicPct = Math.min(99, Math.max(70, Math.floor((preloadedCount / totalPages) * 100)));
+                updateHud('Đang nạp 10 trang KDMES...', dynamicPct);
             }
         }
 
@@ -710,8 +743,15 @@
         if (pctEl) pctEl.textContent = cappedPct + '%';
         if (barEl) barEl.style.width = cappedPct + '%';
         if (rpmEl) {
-            const rpm = scene.phase === 'burnout' ? (8900 + Math.floor(Math.random() * 400)) : (scene.phase === 'zoom' ? 4600 : 1200);
-            rpmEl.textContent = rpm + ' RPM';
+            let rpm = 1200;
+            if (scene.phase === 'burnout') {
+                rpm = 8900 + Math.floor(Math.random() * 400);
+            } else if (scene.phase === 'zoom') {
+                rpm = 4800 + Math.floor(Math.random() * 200);
+            } else if (scene.phase === 'covered') {
+                rpm = isAllPreloaded ? 1000 : (3400 + Math.floor(Math.random() * 350));
+            }
+            rpmEl.textContent = isAllPreloaded ? 'READY' : (rpm + ' RPM');
         }
         if (descEl) {
             descEl.textContent = 'Đã nạp ' + preloadedCount + '/' + totalPages + ' phân hệ SPA Shell';
@@ -732,7 +772,7 @@
                 }
                 overlay.style.display = 'none';
                 overlay.remove();
-            }, 600);
+            }, 550);
         }
 
         window.__kd_intro_finished = true;
@@ -746,7 +786,7 @@
             canvas.width = width;
             canvas.height = height;
         }
-        scene.groundY = height * 0.65;
+        scene.groundY = height * 0.64;
         scene.carY = scene.groundY; // Bottom of tire is anchored exactly to groundY
         scene.cameraX = width / 2;
         scene.cameraY = height / 2;
@@ -756,6 +796,10 @@
         const overlay = document.getElementById('supercarIntroOverlay');
         canvas = document.getElementById('supercarCanvas');
         if (!overlay || !canvas) return;
+
+        // Prevent double init
+        if (overlay.__kd_initialized) return;
+        overlay.__kd_initialized = true;
 
         ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
         handleResize();
@@ -773,12 +817,12 @@
             }
         });
 
-        // Safety fallback timer: auto-close after 4.8s max
+        // Safety fallback timer: auto-close after 12s max if network hangs
         setTimeout(() => {
             if (!isFinished) finishIntro();
-        }, 4800);
+        }, 12000);
 
-        // Start 60fps RAF loop
+        // Start 60fps RAF loop immediately
         animFrameId = requestAnimationFrame(render);
     }
 
@@ -788,7 +832,7 @@
         onProgress: function (loaded, total) {
             preloadedCount = loaded;
             const pct = Math.floor((loaded / total) * 100);
-            updateHud('Đang khởi tạo các phân hệ...', pct);
+            updateHud('Đang khởi tạo các trang...', pct);
             if (loaded >= total) {
                 isAllPreloaded = true;
             }
@@ -796,12 +840,15 @@
         onAllLoaded: function () {
             isAllPreloaded = true;
             preloadedCount = totalPages;
-            updateHud('Tất cả 10 phân hệ đã sẵn sàng', 100);
+            updateHud('Tất cả các trang đã sẵn sàng', 100);
         },
         skip: finishIntro
     };
 
-    if (document.readyState === 'loading') {
+    // ── EXECUTE IMMEDIATELY ON PARSE IF ELEMENT EXISTS (0ms DELAY) ──
+    if (document.getElementById('supercarIntroOverlay')) {
+        init();
+    } else if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {
         init();
