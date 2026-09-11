@@ -754,7 +754,7 @@
             rpmEl.textContent = isAllPreloaded ? 'READY' : (rpm + ' RPM');
         }
         if (descEl) {
-            descEl.textContent = 'Đã nạp ' + preloadedCount + '/' + totalPages + ' phân hệ SPA Shell';
+            descEl.textContent = 'Đã load ' + preloadedCount + '/' + totalPages + ' trang';
         }
     }
 
