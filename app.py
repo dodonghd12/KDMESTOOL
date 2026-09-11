@@ -4015,37 +4015,45 @@ def magic_winx_insert_material_resource():
 # ==============================================================================
 # OCR IMAGE-TO-TEXT ENGINE (RAPIDOCR / PADDLEOCR ONNX AI ENGINE)
 # ==============================================================================
-# Tự động nạp thư viện AI OCR từ thư mục bundled ocr_libs (nếu có)
 import sys
 _current_dir = os.path.dirname(os.path.abspath(__file__))
 _ocr_libs_dir = os.path.join(_current_dir, 'ocr_libs')
-if os.path.exists(_ocr_libs_dir):
-    if _ocr_libs_dir not in sys.path:
-        sys.path.insert(0, _ocr_libs_dir)
-    # Thêm các thư mục DLL vào Search Path trên Windows (Python 3.8+)
-    if hasattr(os, 'add_dll_directory'):
-        for _sub in ['', 'onnxruntime', os.path.join('onnxruntime', 'capi'), 'cv2', 'numpy.libs', 'shapely.libs', 'PIL']:
-            _dll_p = os.path.join(_ocr_libs_dir, _sub) if _sub else _ocr_libs_dir
-            if os.path.isdir(_dll_p):
-                try:
-                    os.add_dll_directory(_dll_p)
-                except Exception:
-                    pass
-    # Đồng thời bổ sung vào biến môi trường PATH
-    _extra_paths = [_ocr_libs_dir, os.path.join(_ocr_libs_dir, 'onnxruntime', 'capi')]
-    os.environ["PATH"] = os.pathsep.join(_extra_paths) + os.pathsep + os.environ.get("PATH", "")
 
 rapid_ocr_engine = None
 _ocr_init_error = None
+
+# Bước 1: Thử nạp RapidOCR trực tiếp từ môi trường Python hiện tại (Local site-packages)
 try:
     from rapidocr_onnxruntime import RapidOCR
     rapid_ocr_engine = RapidOCR(Det_limit_type='max', Det_limit_side_len=960)
-    print("[INFO] RapidOCR Engine initialized successfully.")
-except Exception as _ocr_init_err:
-    rapid_ocr_engine = None
-    import traceback
-    _ocr_init_error = f"{type(_ocr_init_err).__name__}: {_ocr_init_err}\n{traceback.format_exc()}"
-    print(f"[WARN] RapidOCR initialization warning: {_ocr_init_err}")
+    print("[INFO] RapidOCR Engine initialized successfully from system packages.")
+except Exception as _sys_err:
+    # Bước 2: Nếu chưa có trong hệ thống (như trên Server 9.245), nạp từ thư mục bundled ocr_libs
+    if os.path.exists(_ocr_libs_dir):
+        if _ocr_libs_dir not in sys.path:
+            sys.path.insert(0, _ocr_libs_dir)
+        if hasattr(os, 'add_dll_directory'):
+            for _sub in ['', 'onnxruntime', os.path.join('onnxruntime', 'capi'), 'cv2', 'numpy.libs', 'shapely.libs', 'PIL']:
+                _dll_p = os.path.join(_ocr_libs_dir, _sub) if _sub else _ocr_libs_dir
+                if os.path.isdir(_dll_p):
+                    try:
+                        os.add_dll_directory(_dll_p)
+                    except Exception:
+                        pass
+        _extra_paths = [_ocr_libs_dir, os.path.join(_ocr_libs_dir, 'onnxruntime', 'capi')]
+        os.environ["PATH"] = os.pathsep.join(_extra_paths) + os.pathsep + os.environ.get("PATH", "")
+        try:
+            from rapidocr_onnxruntime import RapidOCR
+            rapid_ocr_engine = RapidOCR(Det_limit_type='max', Det_limit_side_len=960)
+            print("[INFO] RapidOCR Engine initialized successfully from bundled ocr_libs.")
+        except Exception as _ocr_init_err:
+            rapid_ocr_engine = None
+            import traceback
+            _ocr_init_error = f"{type(_ocr_init_err).__name__}: {_ocr_init_err}\n{traceback.format_exc()}"
+            print(f"[WARN] RapidOCR initialization warning: {_ocr_init_err}")
+    else:
+        rapid_ocr_engine = None
+        _ocr_init_error = str(_sys_err)
 
 def clean_and_merge_ocr_results(result):
     """
@@ -4130,7 +4138,10 @@ def clean_and_merge_ocr_results(result):
                         merged_line += txt
             prev_box = b
 
-        final_lines.append(merged_line)
+        # Loại bỏ các ký tự đặc biệt (*, #, $, @, etc.), chỉ giữ lại ký tự chữ cái và chữ số
+        cleaned_line = re.sub(r'[^A-Za-z0-9]', '', merged_line)
+        if cleaned_line:
+            final_lines.append(cleaned_line)
 
     full_text = '\n'.join(final_lines)
     avg_conf = sum(all_scores) / len(all_scores) if all_scores else 0.0
@@ -4208,6 +4219,10 @@ def ocr_recognize():
 
 @app.errorhandler(404)
 def page_not_found(e):
+    if request.path.endswith('.map'):
+        return ('', 204)
+    if request.path.startswith('/api/'):
+        return jsonify({'error': True, 'message': 'API endpoint not found'}), 404
     return render_template('404.html'), 404
    
 if __name__ == '__main__':

@@ -3939,7 +3939,7 @@ function initOcrDropzone() {
         fileInput.click();
     });
 
-    // 2. Global Paste Handler: Khi trang web đang focus bất kỳ đâu, nếu user nhấn Ctrl+V ảnh -> OCR nhận luôn
+    // 2. Global Paste Handler: Khi trang web đang focus bất kỳ đâu hoặc đang focus vào input #barcode
     document.addEventListener('paste', async (e) => {
         const dropzoneEl = document.getElementById('ocrDropzone');
         if (!dropzoneEl || dropzoneEl.classList.contains('is-loading')) return;
@@ -3972,9 +3972,42 @@ function initOcrDropzone() {
         if (imageFile) {
             e.preventDefault();
             e.stopPropagation();
-            await processOcrImageFile(imageFile);
+
+            // Bắt lấy input đang được focus (ví dụ ô Tem / Barcode #barcode)
+            const activeEl = document.activeElement;
+            const targetInput = (e.target && e.target.tagName === 'INPUT')
+                ? e.target
+                : (activeEl && activeEl.tagName === 'INPUT' ? activeEl : null);
+
+            await processOcrImageFile(imageFile, targetInput);
         }
     });
+
+    // Hỗ trợ kéo thả ảnh trực tiếp vào ô input #barcode
+    const barcodeInputEl = document.getElementById('barcode');
+    if (barcodeInputEl) {
+        ['dragenter', 'dragover'].forEach(eventName => {
+            barcodeInputEl.addEventListener(eventName, (e) => {
+                if (e.dataTransfer && e.dataTransfer.types && Array.from(e.dataTransfer.types).includes('Files')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+            });
+        });
+
+        barcodeInputEl.addEventListener('drop', async (e) => {
+            const dt = e.dataTransfer;
+            if (dt && dt.files && dt.files.length > 0) {
+                const file = dt.files[0];
+                const isImage = (file.type && file.type.startsWith('image/')) || /\.(png|jpe?g|webp|bmp|gif|tiff?|jfif|svg)$/i.test(file.name || '');
+                if (isImage) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    await processOcrImageFile(file, barcodeInputEl);
+                }
+            }
+        });
+    }
 
     // Hỗ trợ phím Enter / Space khi đang focus dropzone
     dropzone.addEventListener('keydown', (e) => {
@@ -4042,7 +4075,7 @@ function handleOcrFileSelected(event) {
     processOcrImageFile(file);
 }
 
-async function processOcrImageFile(file) {
+async function processOcrImageFile(file, targetInput = null) {
     const dropzone = document.getElementById('ocrDropzone');
     if (!dropzone || !file) return;
 
@@ -4143,6 +4176,11 @@ async function processOcrImageFile(file) {
         if (pctEl) pctEl.textContent = '100%';
         if (barEl) barEl.style.width = '100%';
 
+        // Loại bỏ toàn bộ ký tự đặc biệt (*, #, $, @, etc.), chỉ giữ lại ký tự chữ cái và chữ số
+        if (rawText) {
+            rawText = rawText.replace(/[^a-zA-Z0-9]/g, '').trim();
+        }
+
         if (!rawText) {
             Toast.warning('Không có ký tự', 'Không tìm thấy ký tự chữ hoặc số nào trong hình ảnh.');
             resetOcrDropzone();
@@ -4159,6 +4197,16 @@ async function processOcrImageFile(file) {
         if (resultTextEl) {
             resultTextEl.textContent = rawText;
             resultTextEl.setAttribute('title', rawText);
+        }
+
+        // Điền tự động vào input đang được focus (ví dụ #barcode) nếu có
+        const barcodeEl = document.getElementById('barcode');
+        const fillTarget = targetInput || (barcodeEl && barcodeEl === document.activeElement ? barcodeEl : null);
+
+        if (fillTarget) {
+            fillTarget.value = rawText.toUpperCase();
+            fillTarget.dispatchEvent(new Event('input', { bubbles: true }));
+            fillTarget.focus();
         }
 
         Toast.success('Nhận diện thành công', `Đã nhận diện: ${rawText}`);
