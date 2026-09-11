@@ -35,8 +35,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ══════════════════════════════════════════════════════════════════════
     // 1. THEME MODE MANAGEMENT (DARK MODE DEFAULT / LIGHT MODE)
+    // Dynamic View Transitions with Expanding Circular Ripple & Button 4
     // ══════════════════════════════════════════════════════════════════════
     const THEME_STORAGE_KEY = 'kd_theme';
+    const THEME_STYLE_ID = 'theme-transition-styles';
+
+    function updateThemeTransitionStyles(css) {
+        let styleElement = document.getElementById(THEME_STYLE_ID);
+        if (!styleElement) {
+            styleElement = document.createElement('style');
+            styleElement.id = THEME_STYLE_ID;
+            document.head.appendChild(styleElement);
+        }
+        styleElement.textContent = css;
+    }
 
     function applyTheme(theme, notifyIframes = true) {
         const isLight = (theme === 'light');
@@ -44,16 +56,13 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.classList.toggle('theme-light', isLight);
 
         const themeQuickBtn = document.getElementById('themeQuickBtn');
-        const themeQuickIcon = document.getElementById('themeQuickIcon');
-
-        if (themeQuickIcon) {
-            // Khi đang Sáng, hiện icon Mặt Trăng (dark_mode) để chuyển sang Tối
-            // Khi đang Tối, hiện icon Mặt Trời (light_mode) để chuyển sang Sáng
-            themeQuickIcon.textContent = isLight ? 'dark_mode' : 'light_mode';
-        }
         if (themeQuickBtn) {
             themeQuickBtn.setAttribute(
                 'aria-label',
+                isLight ? 'Chuyển sang Giao diện Tối' : 'Chuyển sang Giao diện Sáng'
+            );
+            themeQuickBtn.setAttribute(
+                'title',
                 isLight ? 'Chuyển sang Giao diện Tối' : 'Chuyển sang Giao diện Sáng'
             );
         }
@@ -69,24 +78,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    let isThemeTransitioning = false;
-
     function toggleTheme(event) {
-        if (isThemeTransitioning) return;
-
         const current = (localStorage.getItem(THEME_STORAGE_KEY) || 'dark') === 'light' ? 'light' : 'dark';
         const next = (current === 'dark') ? 'light' : 'dark';
 
-        // Micro-interaction icon spin animation
-        const themeQuickIcon = document.getElementById('themeQuickIcon');
-        if (themeQuickIcon) {
-            themeQuickIcon.classList.remove('spin-toggle');
-            void themeQuickIcon.offsetWidth;
-            themeQuickIcon.classList.add('spin-toggle');
-        }
-
-        // 1. Detect exact origin coordinates (x, y) from click event or themeQuickBtn center
-        let x, y;
+        // 1. Tính toán toạ độ gốc (x, y) chính xác từ vị trí click chuột hoặc tâm nút bấm
+        let x = window.innerWidth - 36;
+        let y = 30;
         if (event && typeof event.clientX === 'number' && event.clientX > 0 && event.clientY > 0) {
             x = Math.round(event.clientX);
             y = Math.round(event.clientY);
@@ -96,41 +94,55 @@ document.addEventListener('DOMContentLoaded', () => {
                 const rect = btn.getBoundingClientRect();
                 x = Math.round(rect.left + rect.width / 2);
                 y = Math.round(rect.top + rect.height / 2);
-            } else {
-                x = window.innerWidth - 35;
-                y = 30;
             }
         }
 
-        document.documentElement.style.setProperty('--x', `${x}px`);
-        document.documentElement.style.setProperty('--y', `${y}px`);
+        // 2. Tính bán kính cực đại để hình tròn che phủ toàn bộ 4 góc màn hình
+        const maxRadius = Math.hypot(
+            Math.max(x, window.innerWidth - x),
+            Math.max(y, window.innerHeight - y)
+        );
+
+        // 3. Khởi tạo Dynamic View Transition CSS Animation
+        const transitionCss = `
+            ::view-transition-group(root) {
+                animation-duration: 0.65s;
+                animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+            }
+            ::view-transition-old(root) {
+                animation: none;
+                z-index: 1;
+            }
+            ::view-transition-new(root) {
+                animation: theme-ripple-expand 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+                z-index: 9999;
+            }
+            @keyframes theme-ripple-expand {
+                0% {
+                    clip-path: circle(0px at ${x}px ${y}px);
+                }
+                100% {
+                    clip-path: circle(${maxRadius}px at ${x}px ${y}px);
+                }
+            }
+        `;
+        updateThemeTransitionStyles(transitionCss);
 
         const isReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        if (!document.startViewTransition || isReducedMotion) {
+        const switchThemeAction = () => {
             localStorage.setItem(THEME_STORAGE_KEY, next);
             applyTheme(next);
+        };
+
+        if (!document.startViewTransition || isReducedMotion) {
+            switchThemeAction();
             return;
         }
 
-        isThemeTransitioning = true;
         try {
-            const transition = document.startViewTransition(() => {
-                localStorage.setItem(THEME_STORAGE_KEY, next);
-                applyTheme(next);
-            });
-
-            transition.ready.then(() => {
-                document.documentElement.style.setProperty('--x', `${x}px`);
-                document.documentElement.style.setProperty('--y', `${y}px`);
-            }).catch(() => {});
-
-            transition.finished.finally(() => {
-                isThemeTransitioning = false;
-            });
+            document.startViewTransition(switchThemeAction);
         } catch (e) {
-            localStorage.setItem(THEME_STORAGE_KEY, next);
-            applyTheme(next);
-            isThemeTransitioning = false;
+            switchThemeAction();
         }
     }
 
