@@ -2,6 +2,7 @@
    KDMES TOOL - MODERN CYBERPUNK GLASSMORPHISM LOGIN
    ========================================================================== */
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap');
+@import url('smooth_input.css');
 
 *, *::before, *::after {
     margin: 0;
