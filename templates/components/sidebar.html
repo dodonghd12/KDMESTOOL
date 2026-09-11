@@ -155,51 +155,6 @@
     </div>
 </nav>
 
-<!-- Custom Modal -->
-<div id="customModal" class="custom-modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalMessage">
-    <div class="custom-modal-content">
-        <div id="modalIcon" class="custom-modal-icon" aria-hidden="true"></div>
-        <div id="modalTitle" class="custom-modal-title"></div>
-        <div id="modalMessage" class="custom-modal-message"></div>
-        <div id="modalFooter" class="custom-modal-footer"></div>
-    </div>
-</div>
-
-<!-- Details Modal -->
-<div id="detailsModal" class="details-modal hidden" role="dialog" aria-modal="true" aria-labelledby="detailsModalTitle">
-    <div class="details-modal-content">
-        <div class="details-modal-header">
-            <div class="details-modal-title-wrap">
-                <span class="material-symbols-outlined details-modal-icon" aria-hidden="true">data_object</span>
-                <span class="details-modal-title" id="detailsModalTitle">Chi tiết dữ liệu</span>
-            </div>
-            <div class="details-modal-header-actions">
-                <button class="details-modal-copy" id="copyDetailsBtn" title="Sao chép dữ liệu" aria-label="Sao chép toàn bộ dữ liệu chi tiết" type="button">
-                    <span class="material-symbols-outlined" aria-hidden="true">content_copy</span>
-                    <span>Sao chép</span>
-                </button>
-                <button class="details-modal-close" title="Đóng" aria-label="Đóng hộp thoại chi tiết" type="button"><svg class="close-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
-            </div>
-        </div>
-        <div class="details-modal-body-wrapper">
-            <pre class="details-modal-body"></pre>
-        </div>
-    </div>
-</div>
-
-<div class="api-loading" id="apiLoading" style="display:none;" role="status" aria-live="polite" aria-label="Đang gọi API xử lý dữ liệu">
-    <div class="loader">
-        <p>loading</p>
-        <div class="words">
-            <span class="word">buttons</span>
-            <span class="word">table</span>
-            <span class="word">data</span>
-            <span class="word">components</span>
-            <span class="word">buttons</span>
-        </div>
-    </div>
-</div>
-
 <script>
     const userId = '{{ user_id }}';
     const userIp = '{{ user_ip }}';

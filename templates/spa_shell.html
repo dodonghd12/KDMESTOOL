@@ -124,6 +124,8 @@
         <iframe id="view-magic-winx" class="spa-view-frame {% if initial_path == '/magic-winx' %}active{% endif %}" {% if initial_path == '/magic-winx' %}src="{{ url_for('magic_winx', frame='1') }}"{% else %}data-src="{{ url_for('magic_winx', frame='1') }}"{% endif %} title="Magic Winx"></iframe>
     </main>
 
+    {% include "components/shared_modals.html" %}
+
     <script>
         window.initialRoutePath = '{{ initial_path or "/main" }}';
     </script>
