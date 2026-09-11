@@ -1,0 +1,183 @@
+/* ==========================================================================
+   SUPERCAR BURNOUT & VOLUMETRIC SMOKE SCREEN INTRO LOADER (60FPS+ AAA)
+   Cyberpunk Factory Pro Theme — KDMES TOOL
+   ========================================================================== */
+
+#supercarIntroOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 2147483647;
+    background: #060911;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.55s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.55s;
+    will-change: opacity, visibility;
+}
+
+#supercarIntroOverlay.fade-out {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+
+#supercarCanvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    image-rendering: -webkit-optimize-contrast;
+}
+
+/* ── HUD Telemetry Overlay ── */
+.supercar-hud {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 28px 36px;
+    box-sizing: border-box;
+    font-family: 'Plus Jakarta Sans', var(--font-mono, 'Segoe UI', monospace);
+    color: #e2e8f0;
+    z-index: 10;
+    transition: opacity 0.5s ease;
+}
+
+/* ── HUD Bottom Telemetry ── */
+.hud-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 24px;
+    background: linear-gradient(180deg, rgba(6, 10, 18, 0) 0%, rgba(6, 10, 18, 0.65) 100%);
+    padding-top: 20px;
+}
+
+.hud-telemetry-left {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 360px;
+}
+
+.hud-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: #00f0ff;
+    text-transform: uppercase;
+}
+
+.hud-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #00f0ff;
+    box-shadow: 0 0 10px #00f0ff;
+    animation: hudPulse 1.2s infinite alternate ease-in-out;
+}
+
+@keyframes hudPulse {
+    0% { transform: scale(0.8); opacity: 0.5; }
+    100% { transform: scale(1.3); opacity: 1; filter: drop-shadow(0 0 6px #00f0ff); }
+}
+
+.hud-desc {
+    font-size: 12px;
+    color: #94a3b8;
+    line-height: 1.5;
+}
+
+.hud-telemetry-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+    min-width: 240px;
+}
+
+.hud-counter-wrap {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.hud-counter-pct {
+    font-size: 28px;
+    font-weight: 900;
+    color: #ffffff;
+    font-family: var(--font-mono, monospace);
+    letter-spacing: -0.5px;
+    text-shadow: 0 0 16px rgba(0, 240, 255, 0.6);
+}
+
+.hud-counter-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #00f0ff;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.hud-progress-track {
+    width: 240px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 999px;
+    overflow: hidden;
+    position: relative;
+    border: 1px solid rgba(0, 240, 255, 0.2);
+}
+
+.hud-progress-bar {
+    width: 0%;
+    height: 100%;
+    background: linear-gradient(90deg, #00f0ff 0%, #00ff88 100%);
+    box-shadow: 0 0 12px #00f0ff;
+    border-radius: 999px;
+    transition: width 0.3s ease-out;
+}
+
+.hud-rpm-meter {
+    font-family: var(--font-mono, monospace);
+    font-size: 11px;
+    color: #64748b;
+    letter-spacing: 1.5px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.hud-rpm-val {
+    color: #00ff88;
+    font-weight: 800;
+}
+
+@media (max-width: 768px) {
+    .supercar-hud {
+        padding: 20px 24px;
+    }
+    .hud-bottom {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .hud-telemetry-right {
+        align-items: flex-start;
+        min-width: 100%;
+    }
+    .hud-progress-track {
+        width: 100%;
+    }
+}

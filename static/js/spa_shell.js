@@ -144,6 +144,11 @@
                 }, 350);
             }, 1200);
         }
+
+        // Notify Supercar Intro overlay
+        if (window.SupercarIntro && typeof window.SupercarIntro.onAllLoaded === 'function') {
+            window.SupercarIntro.onAllLoaded();
+        }
     }
 
     function initPreloadTracker() {
@@ -178,6 +183,11 @@
             if (progressBar) {
                 const percent = Math.min(100, Math.round((loadedCount / total) * 100));
                 progressBar.style.width = `${percent}%`;
+            }
+
+            // Đồng bộ tiến trình với Supercar Intro Overlay
+            if (window.SupercarIntro && typeof window.SupercarIntro.onProgress === 'function') {
+                window.SupercarIntro.onProgress(loadedCount, total);
             }
 
             if (loadedCount >= total) {

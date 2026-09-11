@@ -7,6 +7,7 @@
     <title>{{ page_title }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v={{ version }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}?v={{ version }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/supercar_intro.css') }}?v={{ version }}">
 
     <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
     <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
@@ -17,6 +18,35 @@
 </head>
 
 <body class="spa-shell-body">
+    <!-- Cinematic Supercar Burnout & Volumetric Smoke Screen Intro Overlay (60fps+) -->
+    <div id="supercarIntroOverlay" role="dialog" aria-modal="true" aria-label="Khởi động hệ thống KDMES">
+        <canvas id="supercarCanvas"></canvas>
+        <div class="supercar-hud">
+            <div class="hud-bottom">
+                <div class="hud-telemetry-left">
+                    <div class="hud-status-badge">
+                        <span class="hud-status-dot"></span>
+                        <span id="hudIntroStatus">Khởi động KDMES...</span>
+                    </div>
+                    <div class="hud-desc" id="hudIntroDesc">Đang nạp 10 trang KDMES</div>
+                    <div class="hud-rpm-meter">
+                        <span>TACHOMETER:</span>
+                        <span class="hud-rpm-val" id="hudIntroRpm">1200 RPM</span>
+                    </div>
+                </div>
+                <div class="hud-telemetry-right">
+                    <div class="hud-counter-wrap">
+                        <span class="hud-counter-pct" id="hudIntroPct">0%</span>
+                        <span class="hud-counter-label">INITIALIZED</span>
+                    </div>
+                    <div class="hud-progress-track">
+                        <div class="hud-progress-bar" id="hudIntroProgressBar"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     {% include "components/sidebar.html" %}
 
     <!-- Top-Right Quick Actions Toolbar (Density & Theme Icon Buttons) -->
@@ -61,6 +91,7 @@
         window.initialRoutePath = '{{ initial_path or "/main" }}';
     </script>
     <script src="{{ url_for('static', filename='vendor/tesseract.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/supercar_intro.js') }}?v={{ version }}"></script>
     <script src="{{ url_for('static', filename='js/sidebar.js') }}?v={{ version }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}?v={{ version }}"></script>
     <script src="{{ url_for('static', filename='js/spa_shell.js') }}?v={{ version }}"></script>
