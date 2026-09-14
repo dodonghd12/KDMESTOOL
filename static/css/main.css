@@ -3347,63 +3347,321 @@ body.modal-open {
     overflow: hidden;
 }
 
-/* ===== YAML VIEWER ===== */
-.yaml-viewer {
+/* ===== YAML VIEWER (CYBERPUNK PRO COMPACT REDESIGN) ===== */
+.details-modal-body.details-modal-body-yaml {
+    padding: 0 !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+    white-space: normal !important;
+}
+
+.yaml-container {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+    background: var(--color-bg-canvas);
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+    white-space: normal;
+}
+
+/* 1. Unified Top Toolbar */
+.yaml-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 12px;
+    background: var(--color-bg-surface);
+    border-bottom: 1px solid var(--color-border-glass);
+    gap: 10px;
+    flex-wrap: nowrap;
+    min-height: 38px;
+    flex-shrink: 0;
+    z-index: 5;
+}
+
+.yaml-path-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex: 1;
+}
+
+.yaml-path-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    color: var(--cyan-300);
+    background: rgba(34, 211, 238, 0.08);
+    border: 1px solid rgba(34, 211, 238, 0.2);
+    padding: 2px 8px;
+    border-radius: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.yaml-path-badge .material-symbols-outlined {
+    font-size: 14px;
+    opacity: 0.85;
+}
+
+.yaml-toolbar-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.yaml-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+    white-space: nowrap;
     font-family: var(--font-stack);
-    font-size: var(--font-size-sm);
-    line-height: 0.3;
+    border: none;
+    cursor: default;
+}
+
+.yaml-status-badge.has-error {
+    background: var(--color-feedback-error-bg);
+    border: 1px solid var(--color-feedback-error-border);
+    color: var(--rose-400);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.yaml-status-badge.has-error:hover {
+    background: rgba(244, 63, 94, 0.22);
+}
+
+.yaml-status-badge.is-ok {
+    background: var(--color-feedback-success-bg);
+    border: 1px solid var(--color-feedback-success-border);
+    color: var(--emerald-400);
+}
+
+.yaml-drawer-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--color-interactive-bg);
+    border: 1px solid var(--color-border-glass);
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.yaml-drawer-toggle-btn:hover {
+    background: var(--color-interactive-bg-hover);
+    color: var(--color-text-primary);
+}
+
+.yaml-drawer-toggle-btn .arrow-icon {
+    font-size: 14px;
+    transition: transform 0.25s ease;
+}
+
+.yaml-drawer-toggle-btn.expanded .arrow-icon {
+    transform: rotate(180deg);
+}
+
+/* 2. Compact Collapsible Error Drawer */
+.yaml-error-drawer {
+    background: var(--color-bg-surface-elevated, #111827);
+    border-bottom: 1.5px solid var(--color-feedback-error-border);
+    padding: 8px 12px;
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+    flex-shrink: 0;
+    animation: yamlDrawerSlide 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+}
+
+.yaml-error-drawer.show {
+    display: flex;
+}
+
+@keyframes yamlDrawerSlide {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.yaml-drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+    color: var(--rose-400);
+}
+
+.yaml-drawer-close {
+    background: none;
+    border: none;
+    color: var(--color-text-muted, #64748b);
+    font-size: 12px;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+}
+.yaml-drawer-close:hover {
+    color: var(--rose-400);
+    background: rgba(244, 63, 94, 0.15);
+}
+
+.yaml-drawer-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 140px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+}
+
+.yaml-error-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: rgba(244, 63, 94, 0.08);
+    border: 1px solid rgba(244, 63, 94, 0.15);
+    font-size: var(--font-size-xs);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.yaml-error-item:hover {
+    background: rgba(244, 63, 94, 0.18);
+    border-color: var(--color-feedback-error-border);
+}
+
+.yaml-error-line-tag {
+    background: var(--rose-500);
+    color: var(--color-text-inverse, #fff);
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 10.5px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.yaml-error-text {
+    color: var(--rose-300);
+    flex: 1;
+    font-size: var(--font-size-xs);
+}
+
+.yaml-jump-icon {
+    font-size: 13px !important;
+    color: var(--color-text-muted, #64748b);
+    opacity: 0.6;
+    flex-shrink: 0;
+}
+
+.yaml-error-item:hover .yaml-jump-icon {
+    color: var(--rose-400);
+    opacity: 1;
+}
+
+.yaml-valid-keys-bar {
+    font-size: 11px;
+    color: var(--color-text-muted, #94a3b8);
+    padding: 3px 6px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    border: 1px dashed var(--color-border-glass);
+}
+
+.yaml-valid-keys-bar .tag {
+    color: var(--cyan-400);
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+/* 3. YAML Code Lines & Scroll Container (Tight Monospace Layout) */
+.yaml-code-scroll {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: auto;
+    padding: 4px 0;
+    font-family: var(--font-mono);
+    font-size: var(--font-size-sm, 13px);
+    line-height: 1.35;
+    white-space: normal;
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border-interactive) var(--color-bg-canvas);
 }
 
 .yaml-line {
     display: flex;
-    align-items: flex-start;
+    align-items: baseline;
+    padding: 1.5px 12px;
     white-space: pre;
-    padding: 1px 4px;
     min-width: max-content;
-    border: 1.5px solid transparent;
-    border-radius: 3px;
-    margin: 1px 0;
-    gap: 8px;
+    border-left: 3px solid transparent;
+    transition: background 0.15s;
+    scroll-margin-top: 15px;
+    line-height: 1.35;
+    font-size: 13px;
 }
 
 .yaml-line:hover {
     background: var(--color-interactive-bg-hover);
 }
 
-/* ===== DÒNG LỖI - viền đỏ ===== */
 .yaml-line-error {
-    border: 1.5px solid var(--rose-500) !important;
-    background: var(--color-feedback-error-bg) !important;
-    border-radius: 4px;
-    position: relative;
+    background: rgba(244, 63, 94, 0.09) !important;
+    border-left: 3px solid var(--rose-500) !important;
 }
 
 .yaml-line-error:hover {
-    background: var(--color-feedback-error-bg) !important;
+    background: rgba(244, 63, 94, 0.16) !important;
 }
 
 .yaml-line-num {
     color: var(--slate-500);
     user-select: none;
-    flex-shrink: 0;
-    min-width: 36px;
+    min-width: 38px;
     text-align: right;
-    padding-right: 8px;
+    padding-right: 10px;
     border-right: 1px solid var(--color-border-glass);
+    margin-right: 8px;
     font-size: var(--font-size-xs);
+}
+
+.yaml-line-error .yaml-line-num {
+    color: var(--rose-400);
+    font-weight: 700;
 }
 
 .yaml-line-content {
     flex: 1;
     color: var(--color-text-secondary);
-}
-
-.yaml-error-icon {
-    flex-shrink: 0;
-    color: var(--rose-500);
-    font-size: var(--font-size-sm);
-    cursor: help;
-    padding-left: 4px;
 }
 
 .yaml-key {
@@ -3412,7 +3670,9 @@ body.modal-open {
 }
 
 .yaml-key-error {
-    color: var(--rose-300) !important;
+    color: var(--rose-400) !important;
+    text-decoration: underline wavy var(--rose-500);
+    font-weight: 600;
 }
 
 .yaml-comment {
@@ -3420,61 +3680,23 @@ body.modal-open {
     font-style: italic;
 }
 
-.yaml-list-item {
-    color: var(--amber-400);
-}
-
-/* ===== ERROR SUMMARY ===== */
-.yaml-error-summary {
-    background: var(--color-feedback-error-bg);
-    border: 1.5px solid var(--color-feedback-error-border);
-    border-radius: 8px;
-    padding: 12px 16px;
-    margin-bottom: 12px;
-}
-
-.yaml-error-summary-title {
-    color: var(--rose-300);
-    font-weight: bold;
-    font-size: var(--font-size-md);
-    margin-bottom: 8px;
-}
-
-.yaml-error-summary-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    margin-bottom: 6px;
-    font-size: var(--font-size-sm);
-    color: var(--rose-300);
-    flex-wrap: wrap;
-}
-
-.yaml-error-line-badge {
-    background: var(--rose-500);
-    color: var(--color-text-inverse);
-    padding: 1px 7px;
-    border-radius: 10px;
-    font-size: var(--font-size-xs);
-    font-weight: bold;
-    white-space: nowrap;
+.yaml-line-icon {
+    margin-left: 8px;
+    color: var(--rose-400);
+    font-size: 12px;
+    cursor: help;
     flex-shrink: 0;
 }
 
-.yaml-error-summary-text {
-    color: var(--rose-300);
-    line-height: 1.4;
+/* Flash pulse animation when jumped to line */
+@keyframes yamlLinePulseGlow {
+    0% { background: rgba(34, 211, 238, 0.4); }
+    40% { background: rgba(244, 63, 94, 0.3); }
+    100% { background: rgba(244, 63, 94, 0.09); }
 }
 
-.yaml-ok-summary {
-    background: var(--color-feedback-success-bg);
-    border: 1.5px solid var(--color-feedback-success-border);
-    border-radius: 8px;
-    padding: 10px 16px;
-    margin-bottom: 12px;
-    color: var(--color-feedback-success-text);
-    font-weight: bold;
-    font-size: var(--font-size-base);
+.yaml-line-pulse {
+    animation: yamlLinePulseGlow 1.6s ease-out;
 }
 
 /* ===== MODERN GLASS COMPARISON MODAL ===== */

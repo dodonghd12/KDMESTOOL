@@ -2204,6 +2204,74 @@ def fetch_commit_gitlab_details():
     except Exception as e:
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
 
+_label_config_cache = {
+    'timestamp': 0,
+    'data': None
+}
+
+def get_label_config_data():
+    global _label_config_cache, gitlab_private_token
+    now = time.time()
+    if _label_config_cache['data'] and (now - _label_config_cache['timestamp'] < 300):
+        return _label_config_cache['data']
+
+    project_id = 113
+    encoded_path = 'yamls%2Flabel-config.yml'
+    ref = 'master'
+    file_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/files/{encoded_path}?ref={ref}'
+    headers = {'PRIVATE-TOKEN': gitlab_private_token}
+
+    try:
+        response = requests.get(file_url, headers=headers, verify=False, timeout=15)
+        if response.ok:
+            data = response.json()
+            content_b64 = data.get('content', '')
+            if content_b64:
+                content_decoded = base64.b64decode(content_b64).decode('utf-8')
+                parsed_yaml = yaml.safe_load(content_decoded)
+                product_types = []
+                config_map = {}
+                keys_by_product_type = {}
+                if isinstance(parsed_yaml, list):
+                    for item in parsed_yaml:
+                        if not isinstance(item, dict):
+                            continue
+                        ptype = item.get('product-type')
+                        if ptype:
+                            product_types.append(ptype)
+                            configs = item.get('configs', {})
+                            req_labels = configs.get('required-labels', []) if isinstance(configs, dict) else []
+                            rows = []
+                            keys = []
+                            for lbl in req_labels:
+                                if isinstance(lbl, dict):
+                                    key = lbl.get('key', '')
+                                    langs = lbl.get('languages', {}) if isinstance(lbl.get('languages'), dict) else {}
+                                    if key:
+                                        keys.append(key)
+                                    if key or langs:
+                                        rows.append([
+                                            key,
+                                            langs.get('VI') or langs.get('VN') or '',
+                                            langs.get('CN') or '',
+                                            langs.get('TW') or '',
+                                            langs.get('EN') or '',
+                                            langs.get('ID') or ''
+                                        ])
+                            config_map[ptype] = rows
+                            keys_by_product_type[ptype] = keys
+                result = {
+                    'product_types': product_types,
+                    'config_map': config_map,
+                    'keys_by_product_type': keys_by_product_type
+                }
+                _label_config_cache['timestamp'] = now
+                _label_config_cache['data'] = result
+                return result
+    except Exception as e:
+        print(f"Error fetching label config data: {e}")
+    return _label_config_cache['data'] or {'product_types': [], 'config_map': {}, 'keys_by_product_type': {}}
+
 @app.route('/api/recipes/fetch-yaml-content', methods=['POST'])
 def fetch_yaml_content():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
@@ -2272,12 +2340,34 @@ def fetch_yaml_content():
 
         content_decoded = base64.b64decode(content_b64).decode('utf-8')
 
+        # Detect product_type from YAML content if present
+        actual_product_type = product_type
+        pt_match = re.search(r'^\s*product-type\s*:\s*([^\s#\r\n]+)', content_decoded, re.MULTILINE)
+        if pt_match:
+            detected_pt = pt_match.group(1).strip('\'"')
+            if detected_pt:
+                actual_product_type = detected_pt
+
+        label_config_data = get_label_config_data()
+        keys_map = label_config_data.get('keys_by_product_type', {})
+        
+        label_keys = keys_map.get(actual_product_type)
+        if label_keys is None:
+            label_keys = keys_map.get(actual_product_type.upper(), [])
+            if label_keys:
+                actual_product_type = actual_product_type.upper()
+            else:
+                label_keys = []
+
         return jsonify({
             'success': True,
             'content': content_decoded,
             'file_path': path,
             'file_name': file_data.get('file_name', ''),
             'last_commit_id': file_data.get('last_commit_id', ''),
+            'product_type': actual_product_type,
+            'label_config_keys': label_keys,
+            'all_label_config_keys': keys_map
         })
 
     except requests.RequestException as e:
@@ -2289,6 +2379,8 @@ def fetch_yaml_content():
 def fetch_label_config():
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return make_unauthorized_response()
+
+    global _label_config_cache, gitlab_private_token
 
     project_id = 113
     encoded_path = 'yamls%2Flabel-config.yml'
@@ -2331,6 +2423,7 @@ def fetch_label_config():
 
         product_types = []
         config_map = {}
+        keys_by_product_type = {}
 
         if isinstance(parsed_yaml, list):
             for item in parsed_yaml:
@@ -2342,10 +2435,13 @@ def fetch_label_config():
                     configs = item.get('configs', {})
                     req_labels = configs.get('required-labels', []) if isinstance(configs, dict) else []
                     rows = []
+                    keys = []
                     for lbl in req_labels:
                         if isinstance(lbl, dict):
                             key = lbl.get('key', '')
                             langs = lbl.get('languages', {}) if isinstance(lbl.get('languages'), dict) else {}
+                            if key:
+                                keys.append(key)
                             if key or langs:
                                 rows.append([
                                     key,
@@ -2356,11 +2452,21 @@ def fetch_label_config():
                                     langs.get('ID') or ''
                                 ])
                     config_map[ptype] = rows
+                    keys_by_product_type[ptype] = keys
+
+        # Update cache
+        _label_config_cache['timestamp'] = time.time()
+        _label_config_cache['data'] = {
+            'product_types': product_types,
+            'config_map': config_map,
+            'keys_by_product_type': keys_by_product_type
+        }
 
         return jsonify({
             'success': True,
             'product_types': product_types,
             'config_map': config_map,
+            'keys_by_product_type': keys_by_product_type,
             'columns': ['key', 'VN', 'CN', 'TW', 'EN', 'ID']
         })
 

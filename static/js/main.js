@@ -2767,8 +2767,8 @@ async function copyDetailsData() {
     if (!modalBody) return;
 
     try {
-        // Lấy text content (đã được format JSON)
-        const textToCopy = modalBody.textContent;
+        // Lấy raw content nếu có (khi xem YAML) hoặc text content mặc định
+        const textToCopy = window._currentRawYamlContent || modalBody.textContent;
         
         // Copy vào clipboard
         await navigator.clipboard.writeText(textToCopy);
@@ -2794,7 +2794,7 @@ async function copyDetailsData() {
         
         // Fallback: tạo textarea tạm để copy
         const textarea = document.createElement('textarea');
-        textarea.value = modalBody.textContent;
+        textarea.value = window._currentRawYamlContent || modalBody.textContent;
         textarea.style.position = 'fixed';
         textarea.style.opacity = '0';
         document.body.appendChild(textarea);
@@ -2861,7 +2861,14 @@ function formatJSON(json) {
 
 function closeDetailsModal() {
     const modal = document.getElementById('detailsModal');
-    modal.classList.add('hidden');
+    if (modal) {
+        modal.classList.add('hidden');
+        const body = modal.querySelector('.details-modal-body');
+        if (body) {
+            body.classList.remove('details-modal-body-yaml');
+        }
+    }
+    window._currentRawYamlContent = null;
     document.body.classList.remove('modal-open');
 }
 
@@ -2993,8 +3000,16 @@ async function fetchYamlContent(rowData = null) {
 
         if (titleEl) titleEl.textContent = `YAML: ${data.file_name || data.file_path}`;
 
-        const errors = detectYamlErrors(data.content);
-        body.innerHTML = renderYamlWithErrors(data.content, data.file_path, errors);
+        // Lưu raw content để nút copy trong header chép chính xác raw YAML
+        window._currentRawYamlContent = data.content;
+
+        const resolvedProductType = data.product_type || product_type;
+        const labelConfigKeys = data.label_config_keys || (data.all_label_config_keys ? data.all_label_config_keys[resolvedProductType] : null) || [];
+
+        const errors = detectYamlErrors(data.content, resolvedProductType, labelConfigKeys, data.all_label_config_keys);
+        
+        body.classList.add('details-modal-body-yaml');
+        body.innerHTML = renderYamlWithErrors(data.content, data.file_path, errors, resolvedProductType, labelConfigKeys);
         modal.classList.remove('hidden');
         document.body.classList.add('modal-open');
     } catch (err) {
@@ -3003,11 +3018,74 @@ async function fetchYamlContent(rowData = null) {
 }
 
 /**
- * Phát hiện lỗi trong nội dung YAML dựa theo các pattern lỗi thực tế từ pipeline
+ * Trích xuất key từ 1 dòng trong section note của YAML
+ * Hỗ trợ các định dạng:
+ * - "key: value" # comment
+ * - 'key: value'
+ * - key: value
+ * - "key"
+ * @param {string} line
+ * @returns {string|null}
+ */
+function extractNoteKey(line) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith('-')) return null;
+    let content = trimmed.substring(1).trim();
+    if (!content) return null;
+
+    const quoteMatch = content.match(/^"([^"]*)"|^'([^']*)'/);
+    if (quoteMatch) {
+        const inner = quoteMatch[1] !== undefined ? quoteMatch[1] : quoteMatch[2];
+        const colonIdx = inner.indexOf(':');
+        if (colonIdx !== -1) {
+            return inner.substring(0, colonIdx).trim();
+        }
+        return inner.trim();
+    } else {
+        const hashIdx = content.indexOf('#');
+        if (hashIdx !== -1) {
+            content = content.substring(0, hashIdx).trim();
+        }
+        const colonIdx = content.indexOf(':');
+        if (colonIdx !== -1) {
+            return content.substring(0, colonIdx).trim();
+        }
+        return content.trim();
+    }
+}
+
+/**
+ * Tìm gợi ý key gần đúng khi có lỗi sai định dạng (ví dụ bead-sequence vs bead_sequence)
+ * @param {string} key 
+ * @param {Array<string>} validKeys 
+ * @returns {string|null}
+ */
+function findCloseLabelKeyMatch(key, validKeys) {
+    if (!key || !validKeys || !validKeys.length) return null;
+    const normalize = s => s.toLowerCase().replace(/[\s\-_/]/g, '');
+    const normalizedKey = normalize(key);
+    for (const vk of validKeys) {
+        if (normalize(vk) === normalizedKey) {
+            return vk;
+        }
+    }
+    for (const vk of validKeys) {
+        if (vk.toLowerCase() === key.toLowerCase()) {
+            return vk;
+        }
+    }
+    return null;
+}
+
+/**
+ * Phát hiện lỗi trong nội dung YAML dựa theo các pattern lỗi thực tế từ pipeline & label-config
  * @param {string} content - Nội dung YAML raw
+ * @param {string} productType - Loại sản phẩm (ví dụ BEAD, CARCASS_PLY, ...)
+ * @param {Array<string>} labelConfigKeys - Danh sách key hợp lệ từ label-config.yml
+ * @param {Object} allConfigKeysMap - Toàn bộ map key theo product-type (tùy chọn)
  * @returns {Array} - Mảng { lineIndex, type, message }
  */
-function detectYamlErrors(content) {
+function detectYamlErrors(content, productType = null, labelConfigKeys = null, allConfigKeysMap = null) {
     const lines = content.split('\n');
     const errors = [];
 
@@ -3020,6 +3098,23 @@ function detectYamlErrors(content) {
         'COLOR_LINE_RIGHT_1', 'COLOR_LINE_RIGHT_2', 'COLOR_LINE_RIGHT_3', 'COLOR_LINE_RIGHT_4',
         'MARKING'
     ]);
+
+    // Trích xuất product-type từ YAML nếu chưa có
+    let resolvedPt = productType;
+    if (!resolvedPt) {
+        const ptMatch = content.match(/^\s*product-type\s*:\s*([^\s#\r\n]+)/m) || content.match(/^\s*product_type\s*:\s*([^\s#\r\n]+)/m);
+        if (ptMatch) {
+            resolvedPt = ptMatch[1].replace(/['"]/g, '').trim();
+        }
+    }
+
+    // Lấy danh sách keys hợp lệ từ label-config
+    let validKeys = labelConfigKeys;
+    if ((!validKeys || validKeys.length === 0) && allConfigKeysMap && resolvedPt) {
+        validKeys = allConfigKeysMap[resolvedPt] || allConfigKeysMap[resolvedPt.toUpperCase()] || [];
+    }
+
+    const validLabelKeySet = (validKeys && validKeys.length > 0) ? new Set(validKeys) : null;
 
     let insideControls = false;
     let insideTools    = false;
@@ -3047,6 +3142,27 @@ function detectYamlErrors(content) {
             indentStack.push({ indent, type: key });
         }
 
+        // 1. Kiểm tra các key trong version.note theo label-config
+        const isInNote = indentStack.some(s => s.type === 'note');
+        if (isInNote && trimmed.startsWith('-') && validLabelKeySet) {
+            const noteKey = extractNoteKey(line);
+            if (noteKey && !validLabelKeySet.has(noteKey)) {
+                const suggestion = findCloseLabelKeyMatch(noteKey, validKeys);
+                let msg = '';
+                if (suggestion) {
+                    msg = `Key "${noteKey}" trong note không đúng định dạng cho ${resolvedPt || 'sản phẩm'} — Gợi ý: "${suggestion}"`;
+                } else {
+                    msg = `Key "${noteKey}" trong note không thuộc cấu hình ${resolvedPt || 'sản phẩm'}`;
+                }
+                errors.push({
+                    lineIndex: i,
+                    type: 'note_label_config_key',
+                    message: msg
+                });
+            }
+        }
+
+        // 2. Kiểm tra controls.value
         if (/^\s*value\s*:/.test(line)) {
             const isInControls = indentStack.some(s => s.type === 'controls');
             const isInSteps    = indentStack.some(s => s.type === 'steps');
@@ -3076,6 +3192,7 @@ function detectYamlErrors(content) {
             }
         }
 
+        // 3. Kiểm tra tools.type
         if (/^\s*type\s*:/.test(line)) {
             const isInTools = indentStack.some(s => s.type === 'tools');
             if (isInTools) {
@@ -3092,6 +3209,7 @@ function detectYamlErrors(content) {
             }
         }
 
+        // 4. Kiểm tra tools.ID
         if (/^\s*ID\s*:/.test(line)) {
             const isInTools = indentStack.some(s => s.type === 'tools');
             if (isInTools) {
@@ -3112,7 +3230,17 @@ function detectYamlErrors(content) {
     return errors;
 }
 
-function renderYamlWithErrors(content, filePath, errors) {
+/**
+ * Render giao diện xem nội dung YAML gọn gàng, hiện đại (Cyberpunk Pro)
+ * Tích hợp thanh công cụ rút gọn, pill nhảy trực tiếp đến dòng lỗi, và drawer chi tiết có thể thu phóng
+ * @param {string} content - Raw YAML string
+ * @param {string} filePath - Đường dẫn file trên GitLab
+ * @param {Array} errors - Danh sách { lineIndex, type, message }
+ * @param {string} productType - Loại sản phẩm (ví dụ BEAD)
+ * @param {Array} validKeys - Danh sách key hợp lệ theo quy cách
+ * @returns {string} HTML markup
+ */
+function renderYamlWithErrors(content, filePath, errors, productType = '', validKeys = []) {
     const errorLines = new Set(errors.map(e => e.lineIndex));
     const errorMap   = {};
     errors.forEach(e => {
@@ -3121,54 +3249,74 @@ function renderYamlWithErrors(content, filePath, errors) {
     });
 
     const lines = content.split('\n');
+    const hasErrors = errors.length > 0;
 
-    let summaryHtml = '';
-    if (errors.length > 0) {
-        const errorItems = errors.map(e =>
-            `<div class="yaml-error-summary-item">
-                <span class="yaml-error-line-badge">Dòng ${e.lineIndex + 1}</span>
-                <span class="yaml-error-summary-text">${escapeHtml(e.message)}</span>
-            </div>`
-        ).join('');
+    // Drawer chi tiết (thu gọn mặc định)
+    let drawerHtml = '';
+    if (hasErrors) {
+        const drawerItems = errors.map(e => {
+            const lineNum = e.lineIndex + 1;
+            return `<div class="yaml-error-item" onclick="jumpToYamlLine(${e.lineIndex})" title="Nhảy tới dòng ${lineNum}">` +
+                `<span class="yaml-error-line-tag">Dòng ${lineNum}</span>` +
+                `<span class="yaml-error-text">${escapeHtml(e.message)}</span>` +
+                `<span class="material-symbols-outlined yaml-jump-icon" aria-hidden="true">arrow_forward</span>` +
+            `</div>`;
+        }).join('');
 
-        summaryHtml = `
-            <div class="yaml-error-summary">
-                <div class="yaml-error-summary-title">
-                    ⚠️ Phát hiện ${errors.length} lỗi tiềm ẩn
-                </div>
-                ${errorItems}
-            </div>
-        `;
-    } else {
-        summaryHtml = `
-            <div class="yaml-ok-summary">
-                ✅ Không phát hiện lỗi trong file YAML
-            </div>
-        `;
+        let validKeysHtml = '';
+        if (validKeys && validKeys.length > 0) {
+            validKeysHtml = `<div class="yaml-valid-keys-bar">` +
+                `<span class="tag">📋 Quy cách ${escapeHtml(productType || 'sản phẩm')} chấp nhận:</span>` +
+                `<span>${escapeHtml(validKeys.join(', '))}</span>` +
+            `</div>`;
+        }
+
+        drawerHtml = `<div class="yaml-error-drawer" id="yamlErrorDrawer">` +
+            `<div class="yaml-drawer-header">` +
+                `<span>⚠️ Danh sách ${errors.length} cảnh báo / lỗi tiềm ẩn:</span>` +
+                `<button class="yaml-drawer-close" onclick="toggleYamlDrawer()" title="Thu gọn danh sách lỗi" type="button">✕</button>` +
+            `</div>` +
+            `<div class="yaml-drawer-list">${drawerItems}</div>` +
+            `${validKeysHtml}` +
+        `</div>`;
     }
 
-    const fileInfoHtml = `
-        <div class="diff-file-info" style="margin-bottom:8px;">
-            <span class="diff-file-path">${escapeHtml(filePath)}</span>
-        </div>
-        ${summaryHtml}
-    `;
+    // Status Badge & Toggle Button (gọn gàng, không bị tràn toolbar)
+    const statusBadgeHtml = hasErrors
+        ? `<button class="yaml-status-badge has-error" onclick="toggleYamlDrawer()" title="Bấm để xem chi tiết ${errors.length} lỗi" type="button">⚠️ ${errors.length} lỗi</button>`
+        : `<span class="yaml-status-badge is-ok">✓ Hợp lệ (0 lỗi)</span>`;
 
-    let html = '<div class="yaml-viewer">';
+    const toggleBtnHtml = hasErrors
+        ? `<button class="yaml-drawer-toggle-btn" id="toggleDrawerBtn" onclick="toggleYamlDrawer()" title="Xem/thu gọn chi tiết danh sách lỗi" type="button">` +
+            `<span>Chi tiết</span>` +
+            `<span class="material-symbols-outlined arrow-icon" aria-hidden="true">expand_more</span>` +
+          `</button>`
+        : '';
 
-    lines.forEach((line, i) => {
+    const toolbarHtml = `<div class="yaml-toolbar">` +
+        `<div class="yaml-path-wrapper">` +
+            `<span class="yaml-path-badge" title="${escapeHtml(filePath)}">` +
+                `<span class="material-symbols-outlined" aria-hidden="true">description</span>` +
+                `${escapeHtml(filePath)}` +
+            `</span>` +
+        `</div>` +
+        `<div class="yaml-toolbar-status">${statusBadgeHtml}${toggleBtnHtml}</div>` +
+    `</div>`;
+
+    // Code lines không có khoảng trắng thừa giữa các thẻ div
+    const linesHtml = lines.map((line, i) => {
         const escaped   = escapeHtml(line);
         const isError   = errorLines.has(i);
         const errorMsgs = errorMap[i] || [];
 
         let lineClass  = 'yaml-line';
-        let extraAttrs = '';
+        let extraAttrs = `id="yaml-line-${i}"`;
         let tooltip    = '';
 
         if (isError) {
             lineClass  += ' yaml-line-error';
             tooltip     = errorMsgs.join(' | ');
-            extraAttrs  = `title="${escapeHtml(tooltip)}"`;
+            extraAttrs += ` title="${escapeHtml(tooltip)}"`;
         }
 
         let displayLine = escaped;
@@ -3187,19 +3335,31 @@ function renderYamlWithErrors(content, filePath, errors) {
 
         const lineNum = String(i + 1).padStart(4, ' ');
 
-        html += `
-            <div class="${lineClass}" ${extraAttrs}>
-                <span class="yaml-line-num">${lineNum}</span>
-                <span class="yaml-line-content">${displayLine}</span>
-                ${isError ? '<span class="yaml-error-icon" title="' + escapeHtml(tooltip) + '">⚠</span>' : ''}
-            </div>
-        `;
-    });
+        return `<div class="${lineClass}" ${extraAttrs}><span class="yaml-line-num">${lineNum}</span><span class="yaml-line-content">${displayLine}</span>${isError ? '<span class="yaml-line-icon" title="' + escapeHtml(tooltip) + '">⚠</span>' : ''}</div>`;
+    }).join('');
 
-    html += '</div>';
+    const codeHtml = `<div class="yaml-code-scroll" id="yamlCodeScroll">${linesHtml}</div>`;
 
-    return fileInfoHtml + html;
+    return `<div class="yaml-container">${toolbarHtml}${drawerHtml}${codeHtml}</div>`;
 }
+
+// Global functions for interactive YAML viewer
+window.toggleYamlDrawer = function() {
+    const drawer = document.getElementById('yamlErrorDrawer');
+    const btn = document.getElementById('toggleDrawerBtn');
+    if (!drawer) return;
+    drawer.classList.toggle('show');
+    if (btn) btn.classList.toggle('expanded');
+};
+
+window.jumpToYamlLine = function(lineIdx) {
+    const el = document.getElementById('yaml-line-' + lineIdx);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.remove('yaml-line-pulse');
+    void el.offsetWidth; // trigger reflow
+    el.classList.add('yaml-line-pulse');
+};
 
 function filterClientResult(keyword) {
     if (['inputBarcode', 'outputBarcodeByFeedRecords', 'workOrderByRecipe', 'commitGitlabByRecipe', 'workOrderByBarcode', 'outputByBarcode', 'outputByRecipe', 'commitDetailByRecipe'].includes(activeSearchContext)) {
@@ -4312,4 +4472,4 @@ function resetOcrDropzone(event) {
 window.handleOcrFileSelected = handleOcrFileSelected;
 window.resetOcrDropzone = resetOcrDropzone;
 window.initOcrDropzone = initOcrDropzone;
-window.copyOcrResultToClipboard = copyOcrResultToClipboard;
+window.copyOcrResultToClipboard = copyOcrResultToClipboard;
