@@ -15,6 +15,7 @@ from typing import Optional
 from db_execute import (execute_pg_select_query, execute_pg_update_query)
 from db_connections import (connect_pg_db, connect_pg_db_dev)
 import threading
+from concurrent.futures import ThreadPoolExecutor
 import time
 import uuid
 
@@ -2368,6 +2369,341 @@ def fetch_yaml_content():
             'product_type': actual_product_type,
             'label_config_keys': label_keys,
             'all_label_config_keys': keys_map
+        })
+
+    except requests.RequestException as e:
+        return jsonify({'success': False, 'message': f'Lỗi kết nối GitLab: {str(e)}'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
+
+@app.route('/api/recipes/search-actions-commit', methods=['POST'])
+def search_actions_commit():
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+        return make_unauthorized_response()
+
+    global gitlab_private_token
+    token = gitlab_private_token or os.environ.get('GITLAB_PRIVATE_TOKEN', '')
+
+    recipe_id = request.json.get('recipe_id', '').strip()
+    product_type = request.json.get('product_type', '').strip()
+
+    if not recipe_id:
+        return jsonify({'success': False, 'message': 'Thiếu thông tin recipe_id'})
+
+    CBK = {
+        'BEAD', 'BEAD_AND_BEAD_FILLER_PREASSEMBLY', 'BEAD_WIRE', 'BEAD_FILLER',
+        'CARCASS_PLY', 'CAP_PLY', 'CHAFER', 'INNER_LINER', 'PLY',
+        'SIDEWALL', 'SQUEEZE', 'STEEL_BELT', 'STEEL_WIRE', 'TREAD'
+    }
+
+    if product_type == 'GREEN_TIRE':
+        project_id = 133
+    elif product_type == 'TIRE':
+        project_id = 134
+    elif product_type in CBK:
+        project_id = 135
+    else:
+        project_id = 135
+
+    headers = {
+        'PRIVATE-TOKEN': token
+    }
+
+    clean_recipe_id = recipe_id.replace('.yaml', '').strip()
+
+    try:
+        # Step 1: Concurrently discover actual file path via Blob Search AND fetch latest recent pages of actions.yaml
+        def get_blob_info():
+            try:
+                search_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/search'
+                res = requests.get(search_url, headers=headers, params={'scope': 'blobs', 'search': clean_recipe_id}, verify=False, timeout=8)
+                if res.ok:
+                    data = res.json()
+                    if data and isinstance(data, list):
+                        path = data[0].get('path', '')
+                        if path:
+                            return (path, os.path.basename(path))
+            except Exception as e:
+                print(f"Error searching blob for {clean_recipe_id}: {e}")
+            return (None, None)
+
+        def get_recent_page(page_num):
+            try:
+                commits_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits'
+                params = {
+                    'path': 'actions.yaml',
+                    'page': page_num,
+                    'per_page': 100
+                }
+                res = requests.get(commits_url, headers=headers, params=params, verify=False, timeout=12)
+                if res.status_code in [401, 403]:
+                    return {'auth_error': True}
+                if res.ok:
+                    commits_list = res.json()
+                    if isinstance(commits_list, list):
+                        return {'commits': commits_list}
+            except Exception as e:
+                print(f"Error fetching page {page_num} on actions.yaml: {e}")
+            return {'commits': []}
+
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            fut_blob = executor.submit(get_blob_info)
+            fut_p1 = executor.submit(get_recent_page, 1)
+            fut_p2 = executor.submit(get_recent_page, 2)
+            
+            recipe_file_path, actual_filename = fut_blob.result()
+            res_p1 = fut_p1.result()
+            res_p2 = fut_p2.result()
+
+        if res_p1.get('auth_error') or res_p2.get('auth_error'):
+            return jsonify({'success': False, 'message': 'Lỗi xác thực GitLab Token, vui lòng kiểm tra'})
+
+        # Build search candidate set for matching diff lines in actions.yaml
+        search_candidates = {clean_recipe_id.lower()}
+        sanitized_id = re.sub(r'[:\\/*?"<>| ]', '_', clean_recipe_id)
+        search_candidates.add(sanitized_id.lower())
+
+        if actual_filename:
+            search_candidates.add(actual_filename.lower())
+            stem = os.path.splitext(actual_filename)[0]
+            search_candidates.add(stem.lower())
+
+        # Step 2: Date-Anchoring via GitLab Blame on the recipe YAML file
+        # This allows jumping directly to the exact dates this recipe was touched in GitLab history
+        recipe_dates = []
+        if recipe_file_path:
+            try:
+                encoded_path = recipe_file_path.replace('/', '%2F')
+                blame_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/files/{encoded_path}/blame'
+                blame_res = requests.get(blame_url, headers=headers, params={'ref': 'master'}, verify=False, timeout=10)
+                if blame_res.ok:
+                    blame_data = blame_res.json()
+                    seen_cids = set()
+                    for b in blame_data:
+                        c = b.get('commit', {})
+                        cid = c.get('id')
+                        if cid and cid not in seen_cids:
+                            seen_cids.add(cid)
+                            dt_str = c.get('authored_date') or c.get('committed_date')
+                            if dt_str:
+                                recipe_dates.append(dt_str)
+            except Exception as e:
+                print(f"Error getting blame dates for {recipe_file_path}: {e}")
+
+        # Step 3: Concurrently fetch actions.yaml commits for each anchored date window
+        actions_commits_map = {}
+        for c in (res_p1.get('commits', []) + res_p2.get('commits', [])):
+            if c.get('id'):
+                actions_commits_map[c.get('id')] = c
+
+        def fetch_actions_window(dt_iso):
+            try:
+                clean_iso = dt_iso.split('.')[0].replace('Z', '').split('+')[0]
+                dt = datetime.fromisoformat(clean_iso)
+                since_dt = (dt - timedelta(days=2)).strftime('%Y-%m-%dT00:00:00Z')
+                until_dt = (dt + timedelta(days=2)).strftime('%Y-%m-%dT23:59:59Z')
+                
+                url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits'
+                params = {'path': 'actions.yaml', 'since': since_dt, 'until': until_dt, 'per_page': 100}
+                res = requests.get(url, headers=headers, params=params, verify=False, timeout=10)
+                if res.ok:
+                    return res.json()
+            except Exception as e:
+                print(f"Error fetching window for date {dt_iso}: {e}")
+            return []
+
+        if recipe_dates:
+            with ThreadPoolExecutor(max_workers=min(len(recipe_dates), 8)) as executor:
+                for clist in executor.map(fetch_actions_window, recipe_dates):
+                    if clist and isinstance(clist, list):
+                        for c in clist:
+                            cid = c.get('id')
+                            if cid:
+                                actions_commits_map[cid] = c
+
+        all_candidate_commits = list(actions_commits_map.values())
+        if not all_candidate_commits:
+            return jsonify({'success': False, 'message': 'Không tìm thấy commit nào của actions.yaml'})
+
+        # Sort candidate commits in reverse chronological order
+        all_candidate_commits.sort(key=lambda x: x.get('authored_date') or x.get('committed_date') or '', reverse=True)
+
+        # Step 4: Concurrently scan diffs of candidate commits - ONLY matching ADDED lines (starting with '+')
+        def check_diff(commit_item):
+            cid = commit_item.get('id')
+            if not cid:
+                return None
+            try:
+                diff_res = requests.get(
+                    f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits/{cid}/diff',
+                    headers=headers,
+                    verify=False,
+                    timeout=8
+                )
+                if diff_res.ok:
+                    diff_items = diff_res.json()
+                    for d in diff_items:
+                        diff_text = d.get('diff', '')
+                        has_add = False
+                        for line in diff_text.split('\n'):
+                            # Only check lines added with '+' (ignore '-' removals or '+++' headers)
+                            if line.startswith('+') and not line.startswith('+++'):
+                                line_lower = line.lower()
+                                for cand in search_candidates:
+                                    if cand in line_lower:
+                                        has_add = True
+                                        break
+                                if has_add:
+                                    break
+                        if has_add:
+                            return (commit_item, d, 'add')
+            except Exception:
+                pass
+            return None
+
+        matched_commits = []
+        with ThreadPoolExecutor(max_workers=20) as executor:
+            for r in executor.map(check_diff, all_candidate_commits):
+                if r:
+                    matched_commits.append(r)
+
+        if not matched_commits:
+            return jsonify({
+                'success': False,
+                'message': f'Không tìm thấy commit thêm mới (add) của {clean_recipe_id} trong lịch sử actions.yaml'
+            })
+
+        # Step 5: Concurrently fetch Merge Request & Pipeline details for all matched commits
+        def fetch_pipeline(sha):
+            if not sha:
+                return None
+            try:
+                c_res = requests.get(
+                    f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits/{sha}',
+                    headers=headers,
+                    verify=False,
+                    timeout=8
+                )
+                if c_res.ok:
+                    cdata = c_res.json()
+                    last_p = cdata.get('last_pipeline')
+                    status = cdata.get('status') or (last_p.get('status') if last_p else None)
+                    web_url = last_p.get('web_url') if last_p else None
+                    pid = last_p.get('id') if last_p else None
+                    return {
+                        'id': pid,
+                        'status': status,
+                        'web_url': web_url
+                    }
+            except Exception as e:
+                print(f"Error fetching pipeline for commit {sha}: {e}")
+            return None
+
+        def fetch_mr_and_pipeline_details(item):
+            c_item, d_item, m_type = item
+            cid = c_item.get('id')
+            mr_obj = None
+            try:
+                mr_res = requests.get(
+                    f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits/{cid}/merge_requests',
+                    headers=headers,
+                    verify=False,
+                    timeout=10
+                )
+                if mr_res.ok:
+                    mrs = mr_res.json()
+                    if mrs and isinstance(mrs, list) and len(mrs) > 0:
+                        mr_obj = mrs[0]
+            except Exception as e:
+                print(f"Error fetching MR for commit {cid}: {e}")
+
+            edit_sha = mr_obj.get('sha') if (mr_obj and mr_obj.get('sha')) else cid
+            merge_sha = mr_obj.get('merge_commit_sha') if mr_obj else None
+
+            pipe_edit = None
+            pipe_merge = None
+            with ThreadPoolExecutor(max_workers=2) as sub_exec:
+                f_edit = sub_exec.submit(fetch_pipeline, edit_sha)
+                f_merge = sub_exec.submit(fetch_pipeline, merge_sha)
+                pipe_edit = f_edit.result()
+                pipe_merge = f_merge.result()
+
+            return (c_item, d_item, m_type, mr_obj, pipe_edit, pipe_merge)
+
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            full_matches = list(executor.map(fetch_mr_and_pipeline_details, matched_commits))
+
+        project_web_base = 'https://gitlabce.kenda.com.tw/tc/recipes/kitting' if project_id == 135 else f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}'
+
+        matches_data = []
+        for matched_commit, matched_diff, match_type, mr_info, pipe_edit, pipe_merge in full_matches:
+            edit_sha = mr_info.get('sha') if (mr_info and mr_info.get('sha')) else matched_commit.get('id', '')
+            edit_short = edit_sha[:8] if edit_sha else ''
+            author_name = (mr_info.get('author', {}).get('name') if (mr_info and mr_info.get('author')) else matched_commit.get('author_name', ''))
+            author_username = (mr_info.get('author', {}).get('username') if (mr_info and mr_info.get('author')) else '')
+            source_branch = mr_info.get('source_branch', '') if mr_info else ''
+            target_branch = mr_info.get('target_branch', 'master') if mr_info else 'master'
+
+            merge_sha = mr_info.get('merge_commit_sha', '') if mr_info else ''
+            merge_short = merge_sha[:8] if merge_sha else ''
+            merged_at = convert_iso_datetime(mr_info.get('merged_at', '')) if (mr_info and mr_info.get('merged_at')) else ''
+            merged_by = (mr_info.get('merged_by', {}).get('name') if (mr_info and mr_info.get('merged_by')) else '')
+
+            matches_data.append({
+                'match_type': match_type,
+                'commit_edit': {
+                    'id': edit_sha,
+                    'short_id': edit_short,
+                    'title': mr_info.get('title') if mr_info else matched_commit.get('title', ''),
+                    'message': matched_commit.get('message', ''),
+                    'source_branch': source_branch,
+                    'target_branch': target_branch,
+                    'author_name': author_name,
+                    'author_username': author_username,
+                    'authored_date': convert_iso_datetime(matched_commit.get('authored_date', '')) if matched_commit.get('authored_date') else '',
+                    'web_url': f"{project_web_base}/-/commit/{edit_sha}" if edit_sha else '',
+                    'pipeline': pipe_edit
+                },
+                'commit_merge': {
+                    'id': merge_sha,
+                    'short_id': merge_short,
+                    'merged_at': merged_at,
+                    'merged_by': merged_by,
+                    'web_url': f"{project_web_base}/-/commit/{merge_sha}" if merge_sha else '',
+                    'pipeline': pipe_merge
+                },
+                'merge_request': {
+                    'id': mr_info.get('id'),
+                    'iid': mr_info.get('iid'),
+                    'title': mr_info.get('title', ''),
+                    'state': mr_info.get('state', ''),
+                    'web_url': mr_info.get('web_url', ''),
+                    'created_at': convert_iso_datetime(mr_info.get('created_at', '')) if mr_info.get('created_at') else '',
+                    'updated_at': convert_iso_datetime(mr_info.get('updated_at', '')) if mr_info.get('updated_at') else '',
+                } if mr_info else None,
+                'diff': matched_diff.get('diff', '') if matched_diff else '',
+                'diff_file': matched_diff.get('new_path', 'actions.yaml') if matched_diff else 'actions.yaml'
+            })
+
+        primary = matches_data[0]
+        result_data = {
+            'recipe_id': clean_recipe_id,
+            'actual_filename': actual_filename or f'{clean_recipe_id}.yaml',
+            'search_candidates': list(search_candidates),
+            'project_id': project_id,
+            'match_type': primary['match_type'],
+            'commit_edit': primary['commit_edit'],
+            'commit_merge': primary['commit_merge'],
+            'merge_request': primary['merge_request'],
+            'diff': primary['diff'],
+            'diff_file': primary['diff_file'],
+            'matches': matches_data,
+            'total_matches_found': len(matches_data)
+        }
+
+        return jsonify({
+            'success': True,
+            'result': result_data
         })
 
     except requests.RequestException as e:

@@ -864,6 +864,7 @@ function enhanceContextMenu() {
         'outputBarcodeByFeedRecords': 'output',
         'searchWorkOrderByRecipe': 'assignment',
         'searchCommitGitlabByRecipe': 'source',
+        'searchActionsCommitByRecipe': 'alt_route',
         'fetchYamlDetails': 'code',
         'outputByBarcode': 'qr_code_2',
         'outputByRecipe': 'qr_code_2',
@@ -1869,6 +1870,7 @@ function updateContextMenu() {
         'recipe': [
             'searchWorkOrderByRecipe',
             'searchCommitGitlabByRecipe',
+            'searchActionsCommitByRecipe',
             'fetchYamlDetails'
         ],
         'outputBarcodeByFeedRecords': [
@@ -1995,6 +1997,9 @@ function handleContextMenuAction(e) {
             break;
         case 'searchCommitGitlabByRecipe':
             openOutputTable('commitGitlabByRecipe', rowData);
+            break;
+        case 'searchActionsCommitByRecipe':
+            fetchActionsCommitByRecipe(rowData);
             break;
         case 'fetchYamlDetails':
             fetchYamlContent(rowData);
@@ -2612,9 +2617,9 @@ function initDetailsModal() {
         copyDetailsData(event);
     });
 
-    // click ra ngoài modal-content => đóng
+    // click ra ngoài modal-content => đóng (chỉ đóng khi click trực tiếp backdrop)
     modal.addEventListener('click', e => {
-        if (!content.contains(e.target)) {
+        if (e.target === modal) {
             closeDetailsModal();
         }
     });
@@ -2672,6 +2677,9 @@ function showOutputDetails() {
 function showDetailsModal(data) {
     const modal = document.getElementById('detailsModal');
     if (!modal) return;
+
+    const copyBtn = document.getElementById('copyDetailsBtn');
+    if (copyBtn) copyBtn.style.display = '';
 
     const body = modal.querySelector('.details-modal-body');
     if (!body) return;
@@ -2865,7 +2873,11 @@ function closeDetailsModal() {
         modal.classList.add('hidden');
         const body = modal.querySelector('.details-modal-body');
         if (body) {
-            body.classList.remove('details-modal-body-yaml');
+            body.classList.remove('details-modal-body-yaml', 'details-modal-body-actions');
+        }
+        const copyBtn = document.getElementById('copyDetailsBtn');
+        if (copyBtn) {
+            copyBtn.style.display = '';
         }
     }
     window._currentRawYamlContent = null;
@@ -2995,6 +3007,9 @@ async function fetchYamlContent(rowData = null) {
 
         Toast.success('Thành công', 'Đã tải nội dung YAML');
         const modal = document.getElementById('detailsModal');
+        const copyBtn = document.getElementById('copyDetailsBtn');
+        if (copyBtn) copyBtn.style.display = 'none';
+
         const body = modal.querySelector('.details-modal-body');
         const titleEl = modal.querySelector('.details-modal-title');
 
@@ -3016,6 +3031,594 @@ async function fetchYamlContent(rowData = null) {
         Toast.error('Lỗi', err.message || 'Lỗi kết nối khi tải nội dung YAML');
     }
 }
+
+/**
+ * Tìm và hiển thị Commit liên quan đến actions.yaml của quy cách:
+ * - Commit 1: Edit actions.yaml trên nhánh (source branch)
+ * - Commit 2: Merge commit vào master
+ * - Thông tin Merge Request và Diff chi tiết
+ * - Hỗ trợ đa phiên bản (Multi-matches Version Tabs)
+ * @param {Object} rowData 
+ */
+async function fetchActionsCommitByRecipe(rowData = null) {
+    const dataObj = rowData || selectedRowData;
+    const recipe_id = dataObj ? dataObj['recipe_id'] : null;
+    const product_type = dataObj ? dataObj['product_type'] : null;
+
+    if (!recipe_id) {
+        Toast.warning('Cảnh báo', 'Thiếu thông tin recipe_id');
+        return;
+    }
+
+    try {
+        const data = await apiFetch('/api/recipes/search-actions-commit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ recipe_id, product_type })
+        });
+
+        if (!data || !data.success) {
+            Toast.error('Lỗi', (data && data.message) ? data.message : 'Không tìm thấy commit actions.yaml');
+            return;
+        }
+
+        const result = data.result;
+        Toast.success('Thành công', `Đã tìm thấy ${result.total_matches_found || 1} commit actions.yaml cho quy cách ${result.recipe_id}`);
+
+        const modal = document.getElementById('detailsModal');
+        if (!modal) return;
+
+        const copyBtn = document.getElementById('copyDetailsBtn');
+        if (copyBtn) copyBtn.style.display = 'none';
+
+        const body = modal.querySelector('.details-modal-body');
+        const titleEl = modal.querySelector('.details-modal-title');
+
+        if (titleEl) {
+            if (result.actual_filename && result.actual_filename !== result.recipe_id + '.yaml' && result.actual_filename !== result.recipe_id) {
+                titleEl.textContent = `Actions Commit: ${result.recipe_id} (${result.actual_filename})`;
+            } else {
+                titleEl.textContent = `Actions Commit: ${result.recipe_id}`;
+            }
+        }
+
+        // Lưu dữ liệu toàn cục để hỗ trợ chuyển đổi giữa các version match
+        window._currentActionsCommitData = result;
+        window._currentActionsCommitIndex = 0;
+        window._actionsDiffShowFull = false;
+
+        // Cập nhật nội dung sao chép toàn bộ
+        updateActionsCommitCopyReport(result, 0);
+
+        body.classList.remove('details-modal-body-yaml');
+        body.classList.add('details-modal-body-actions');
+        body.innerHTML = renderActionsCommitModal(result, 0);
+
+        modal.classList.remove('hidden');
+        document.body.classList.add('modal-open');
+
+    } catch (err) {
+        Toast.error('Lỗi', err.message || 'Lỗi kết nối khi tìm kiếm commit actions.yaml');
+    }
+}
+
+/**
+ * Render Pipeline Status Badge kèm liên kết trực tiếp sang GitLab Pipeline
+ * @param {Object} [pipeline]
+ * @returns {string} HTML markup
+ */
+function renderPipelineBadge(pipeline) {
+    if (!pipeline || !pipeline.status) {
+        return `<span class="pipeline-badge pipeline-na" title="Chưa có pipeline hoặc không tìm thấy"><span class="material-symbols-outlined pipeline-icon">remove</span><span>Không có</span></span>`;
+    }
+    const status = (pipeline.status || '').toLowerCase();
+    let statusClass = 'pipeline-na';
+    let icon = 'help_outline';
+    let text = pipeline.status;
+
+    if (status === 'success' || status === 'passed') {
+        statusClass = 'pipeline-passed';
+        icon = 'check_circle';
+        text = 'Passed';
+    } else if (status === 'failed') {
+        statusClass = 'pipeline-failed';
+        icon = 'cancel';
+        text = 'Failed';
+    } else if (status === 'running') {
+        statusClass = 'pipeline-running';
+        icon = 'progress_activity';
+        text = 'Running';
+    } else if (status === 'pending' || status === 'waiting_for_resource') {
+        statusClass = 'pipeline-pending';
+        icon = 'hourglass_empty';
+        text = 'Pending';
+    } else if (status === 'canceled' || status === 'cancelled') {
+        statusClass = 'pipeline-canceled';
+        icon = 'block';
+        text = 'Canceled';
+    } else if (status === 'skipped') {
+        statusClass = 'pipeline-skipped';
+        icon = 'fast_forward';
+        text = 'Skipped';
+    } else if (status === 'manual') {
+        statusClass = 'pipeline-manual';
+        icon = 'play_circle';
+        text = 'Manual';
+    }
+
+    const idText = pipeline.id ? ` #${pipeline.id}` : '';
+    const contentHtml = `<span class="material-symbols-outlined pipeline-icon ${status === 'running' ? 'spin' : ''}">${icon}</span><span>${escapeHtml(text)}${idText}</span>`;
+
+    if (pipeline.web_url) {
+        return `<a href="${escapeHtml(pipeline.web_url)}" target="_blank" rel="noopener noreferrer" class="pipeline-badge ${statusClass} pipeline-link" title="Mở GitLab Pipeline #${pipeline.id || ''}">${contentHtml}<span class="material-symbols-outlined pipeline-open-icon">open_in_new</span></a>`;
+    }
+    return `<span class="pipeline-badge ${statusClass}">${contentHtml}</span>`;
+}
+
+/**
+ * Cập nhật nội dung văn bản sao chép cho nút Copy ở Details Modal Header
+ */
+function updateActionsCommitCopyReport(result, activeIndex = 0) {
+    const matches = result.matches && result.matches.length > 0 ? result.matches : [result];
+    const item = matches[activeIndex] || matches[0];
+
+    let copyReport = `=== KẾT QUẢ KIỂM TRA ACTIONS.YAML ===\n` +
+        `Quy cách: ${result.recipe_id}\n` +
+        `File GitLab: ${result.actual_filename || (result.recipe_id + '.yaml')}\n` +
+        `Phiên bản: Lần ${matches.length - activeIndex}/${matches.length} (Thêm mới)\n`;
+
+    if (item.merge_request) {
+        copyReport += `Merge Request: !${item.merge_request.iid} - ${item.merge_request.title} (${(item.merge_request.state || 'merged').toUpperCase()})\n` +
+            `URL MR: ${item.merge_request.web_url}\n`;
+    }
+
+    copyReport += `\n1. Commit trên nhánh (Patch Branch):\n` +
+        `   - Commit SHA: ${item.commit_edit.id}\n` +
+        `   - Tên nhánh: ${item.commit_edit.source_branch || 'N/A'}\n` +
+        `   - Pipeline: ${item.commit_edit.pipeline ? (item.commit_edit.pipeline.status || 'N/A').toUpperCase() + (item.commit_edit.pipeline.web_url ? ` (${item.commit_edit.pipeline.web_url})` : '') : 'N/A'}\n` +
+        `   - Người tạo: ${item.commit_edit.author_name || 'N/A'}\n` +
+        `   - Thời gian: ${item.commit_edit.authored_date || 'N/A'}\n` +
+        `   - URL: ${item.commit_edit.web_url || 'N/A'}\n`;
+
+    copyReport += `\n2. Commit Merge vào master:\n` +
+        `   - Merge SHA: ${item.commit_merge.id || 'N/A'}\n` +
+        `   - Pipeline: ${item.commit_merge.pipeline ? (item.commit_merge.pipeline.status || 'N/A').toUpperCase() + (item.commit_merge.pipeline.web_url ? ` (${item.commit_merge.pipeline.web_url})` : '') : 'N/A'}\n` +
+        `   - Người merge: ${item.commit_merge.merged_by || 'N/A'}\n` +
+        `   - Thời gian merge: ${item.commit_merge.merged_at || 'N/A'}\n` +
+        `   - URL: ${item.commit_merge.web_url || 'N/A'}\n`;
+
+    if (item.diff) {
+        copyReport += `\n=== DIFF ACTIONS.YAML ===\n${item.diff}\n`;
+    }
+
+    window._currentRawYamlContent = copyReport;
+}
+
+/**
+ * Render nội dung các dòng diff của actions.yaml, tự động thu gọn các dòng không liên quan
+ * @param {string} diffText
+ * @param {string[]} candidates
+ * @param {boolean} showFull
+ * @returns {{ html: string, hasFolded: boolean, totalLines: number, hiddenCount: number }}
+ */
+function buildActionsDiffLinesHtml(diffText, candidates, showFull = false) {
+    if (!diffText) {
+        return {
+            html: '<div class="diff-line diff-unchanged" style="padding: 12px 14px; justify-content: center; color: var(--color-text-muted);">Không có nội dung diff</div>',
+            hasFolded: false,
+            totalLines: 0,
+            hiddenCount: 0
+        };
+    }
+
+    const rawLines = diffText.split('\n');
+    const totalLines = rawLines.length;
+
+    const parsed = rawLines.map((line, idx) => {
+        const lineLower = line.toLowerCase();
+        const isTarget = line.startsWith('+') && candidates.some(cand => lineLower.includes(cand.toLowerCase()));
+        const isHunk = line.startsWith('@@');
+        const isAdd = line.startsWith('+');
+        const isDel = line.startsWith('-');
+        return { index: idx, line, isTarget, isHunk, isAdd, isDel };
+    });
+
+    const targetIndices = parsed.filter(p => p.isTarget).map(p => p.index);
+    let keptIndices = new Set();
+
+    if (showFull || targetIndices.length === 0 || totalLines <= 8) {
+        // Hiện tất cả khi được yêu cầu, hoặc khi không có target hoặc diff quá ngắn
+        parsed.forEach(p => keptIndices.add(p.index));
+    } else {
+        // Chế độ thu gọn thông minh: Giữ dòng target + 2 dòng trước/sau + hunk header gần nhất + header đầu file nếu gần
+        targetIndices.forEach(tIdx => {
+            const start = Math.max(0, tIdx - 2);
+            const end = Math.min(totalLines - 1, tIdx + 2);
+            for (let i = start; i <= end; i++) keptIndices.add(i);
+
+            if (tIdx <= 5) {
+                for (let i = 0; i <= tIdx; i++) keptIndices.add(i);
+            }
+
+            for (let i = tIdx; i >= 0; i--) {
+                if (parsed[i].isHunk) {
+                    keptIndices.add(i);
+                    break;
+                }
+            }
+        });
+
+        // Hợp nhất các khoảng trống nhỏ (<= 2 dòng) để tránh bị chia vụn
+        const sorted = Array.from(keptIndices).sort((a, b) => a - b);
+        for (let i = 0; i < sorted.length - 1; i++) {
+            const gap = sorted[i+1] - sorted[i] - 1;
+            if (gap > 0 && gap <= 2) {
+                for (let fill = sorted[i] + 1; fill < sorted[i+1]; fill++) {
+                    keptIndices.add(fill);
+                }
+            }
+        }
+    }
+
+    const sortedKept = Array.from(keptIndices).sort((a, b) => a - b);
+    const hiddenCount = totalLines - sortedKept.length;
+    const hasFolded = hiddenCount > 0;
+
+    let html = '';
+    let prev = -1;
+
+    for (const kIdx of sortedKept) {
+        if (prev !== -1 && kIdx - prev > 1) {
+            const count = kIdx - prev - 1;
+            html += `
+                <div class="diff-line diff-folded" onclick="toggleActionsDiffFullView(event)" title="Nhấp để xem toàn bộ ${totalLines} dòng">
+                    <span class="diff-sign">⋯</span>
+                    <span class="diff-line-code">
+                        <span class="diff-folded-content">
+                            <span>... (${count} dòng khác bị ẩn) ...</span>
+                            <span class="diff-folded-badge">Nhấp để mở rộng</span>
+                        </span>
+                    </span>
+                </div>
+            `;
+        } else if (prev === -1 && kIdx > 0) {
+            const count = kIdx;
+            html += `
+                <div class="diff-line diff-folded" onclick="toggleActionsDiffFullView(event)" title="Nhấp để xem toàn bộ ${totalLines} dòng">
+                    <span class="diff-sign">⋯</span>
+                    <span class="diff-line-code">
+                        <span class="diff-folded-content">
+                            <span>... (${count} dòng trước đó bị ẩn) ...</span>
+                            <span class="diff-folded-badge">Nhấp để mở rộng</span>
+                        </span>
+                    </span>
+                </div>
+            `;
+        }
+
+        const item = parsed[kIdx];
+        const line = item.line;
+        const escaped = escapeHtml(line);
+        let lineClass = 'diff-line';
+        let lineSign = ' ';
+
+        if (item.isHunk) {
+            lineClass += ' diff-hunk';
+            lineSign = '@';
+        } else if (item.isAdd) {
+            lineClass += ' diff-added';
+            lineSign = '+';
+        } else if (item.isDel) {
+            lineClass += ' diff-removed';
+            lineSign = '-';
+        } else {
+            lineClass += ' diff-unchanged';
+        }
+
+        if (item.isTarget) {
+            lineClass += ' diff-line-target';
+        }
+
+        const textOnly = (line.startsWith('+') || line.startsWith('-')) ? escaped.substring(1) : escaped;
+        const targetBadge = item.isTarget ? '<span class="diff-target-badge">MATCH</span>' : '';
+
+        html += `<div class="${lineClass}"><span class="diff-sign">${lineSign}</span><span class="diff-line-code">${textOnly}</span>${targetBadge}</div>`;
+        prev = kIdx;
+    }
+
+    if (prev !== -1 && prev < totalLines - 1) {
+        const count = totalLines - 1 - prev;
+        html += `
+            <div class="diff-line diff-folded" onclick="toggleActionsDiffFullView(event)" title="Nhấp để xem toàn bộ ${totalLines} dòng">
+                <span class="diff-sign">⋯</span>
+                <span class="diff-line-code">
+                    <span class="diff-folded-content">
+                        <span>... (${count} dòng sau đó bị ẩn) ...</span>
+                        <span class="diff-folded-badge">Nhấp để mở rộng</span>
+                    </span>
+                </span>
+            </div>
+        `;
+    }
+
+    return { html, hasFolded, totalLines, hiddenCount };
+}
+
+/**
+ * Render giao diện hiển thị thông tin commit actions.yaml và Diff trực quan
+ * @param {Object} result 
+ * @param {number} activeIndex 
+ * @returns {string} HTML markup
+ */
+function renderActionsCommitModal(result, activeIndex = 0) {
+    const matches = result.matches && result.matches.length > 0 ? result.matches : [result];
+    const activeMatch = matches[activeIndex] || matches[0];
+
+    const edit = activeMatch.commit_edit || {};
+    const merge = activeMatch.commit_merge || {};
+    const mr = activeMatch.merge_request;
+    const diff = activeMatch.diff || '';
+    const recipeId = result.recipe_id || '';
+    const candidates = (result.search_candidates && result.search_candidates.length > 0)
+        ? result.search_candidates
+        : [recipeId, result.actual_filename].filter(Boolean);
+
+    // Version Tabs Selector (chỉ hiển thị khi có từ 2 phiên bản match trở lên)
+    let versionTabsHtml = '';
+    if (matches.length > 1) {
+        const tabsList = matches.map((m, idx) => {
+            const isAct = idx === activeIndex;
+            const timeDate = m.commit_edit.authored_date ? m.commit_edit.authored_date.split(' ')[0] : '';
+            const verNum = matches.length - idx;
+            const label = `Lần ${verNum}${timeDate ? ` (${timeDate})` : ''}`;
+            const badgeText = idx === 0 ? '<span class="tab-badge-new">Mới nhất</span>' : '<span class="tab-badge-add">+Thêm</span>';
+            return `<button type="button" class="actions-version-tab ${isAct ? 'active' : ''}" onclick="switchActionsCommitVersion(${idx}, event)"><span>${escapeHtml(label)}</span>${badgeText}</button>`;
+        }).join('');
+
+        versionTabsHtml = `<div class="actions-version-tabs-bar"><span class="tabs-label">Lịch sử khớp (${matches.length}):</span><div class="actions-version-tabs">${tabsList}</div></div>`;
+    }
+
+    // Diff Lines Processing with Smart Fold
+    const showFull = !!window._actionsDiffShowFull;
+    const diffResult = buildActionsDiffLinesHtml(diff, candidates, showFull);
+    const diffLinesHtml = diffResult.html;
+
+    let diffToggleBtnHtml = '';
+    if (diffResult.totalLines > 8) {
+        if (showFull) {
+            diffToggleBtnHtml = `
+                <button type="button" class="diff-toggle-view-btn active" onclick="toggleActionsDiffFullView(event)" title="Thu gọn chỉ xem dòng khớp và ngữ cảnh">
+                    <span class="material-symbols-outlined">unfold_less</span>
+                    <span>Thu gọn</span>
+                </button>
+            `;
+        } else if (diffResult.hasFolded) {
+            diffToggleBtnHtml = `
+                <button type="button" class="diff-toggle-view-btn" onclick="toggleActionsDiffFullView(event)" title="Mở rộng toàn bộ ${diffResult.totalLines} dòng diff">
+                    <span class="material-symbols-outlined">unfold_more</span>
+                    <span>Hiện tất cả (${diffResult.totalLines} dòng)</span>
+                </button>
+            `;
+        }
+    }
+
+    return `
+        <div class="actions-commit-container">
+            <!-- Version Switcher Tabs (rendered if multiple matches exist) -->
+            ${versionTabsHtml}
+
+            <!-- 2 Main Commit Cards Grid -->
+            <div class="actions-commit-cards-grid" id="actionsCommitCardsGrid">
+                <!-- Card 1: Commit on Patch Branch -->
+                <div class="actions-commit-card patch-card">
+                    <div class="actions-card-header">
+                        <div class="card-badge patch-badge">
+                            <span class="material-symbols-outlined">fork_right</span>
+                            <span>1. Commit trên nhánh (Patch Branch)</span>
+                        </div>
+                        ${edit.web_url ? `
+                            <a href="${escapeHtml(edit.web_url)}" target="_blank" rel="noopener noreferrer" class="gitlab-link-btn" title="Xem commit trên GitLab">
+                                <span>GitLab</span>
+                                <span class="material-symbols-outlined">open_in_new</span>
+                            </a>
+                        ` : ''}
+                    </div>
+                    <div class="actions-card-body">
+                        <div class="actions-info-row">
+                            <span class="actions-info-label">Commit SHA:</span>
+                            <div class="actions-info-val-wrap">
+                                <code class="commit-sha" title="${escapeHtml(edit.id || '')}">${escapeHtml(edit.short_id || (edit.id ? edit.id.substring(0,8) : 'N/A'))}</code>
+                                ${edit.id ? `
+                                    <button type="button" class="btn-copy-mini" onclick="copyCommitValue('${escapeHtml(edit.id)}', this)" title="Sao chép Full SHA">
+                                        <span class="material-symbols-outlined">content_copy</span>
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </div>
+
+                        <div class="actions-info-row">
+                            <span class="actions-info-label">Tên nhánh:</span>
+                            <div class="actions-info-val-wrap">
+                                <code class="branch-name" title="${escapeHtml(edit.source_branch || 'N/A')}">${escapeHtml(edit.source_branch || 'N/A')}</code>
+                                ${edit.source_branch ? `
+                                    <button type="button" class="btn-copy-mini" onclick="copyCommitValue('${escapeHtml(edit.source_branch)}', this)" title="Sao chép tên nhánh">
+                                        <span class="material-symbols-outlined">content_copy</span>
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </div>
+
+                        <div class="actions-info-row">
+                            <span class="actions-info-label">Pipeline:</span>
+                            <div class="actions-info-val-wrap">
+                                ${renderPipelineBadge(edit.pipeline)}
+                            </div>
+                        </div>
+
+                        <div class="actions-info-row">
+                            <span class="actions-info-label">Người tạo:</span>
+                            <div class="actions-info-val-wrap">
+                                <span class="author-val"><span class="material-symbols-outlined user-icon">person</span><span>${escapeHtml(edit.author_name || edit.author_username || 'N/A')}</span></span>
+                            </div>
+                        </div>
+
+                        <div class="actions-info-row">
+                            <span class="actions-info-label">Thời gian tạo:</span>
+                            <div class="actions-info-val-wrap">
+                                <span class="time-val"><span class="material-symbols-outlined time-icon">schedule</span><span>${escapeHtml(edit.authored_date || 'N/A')}</span></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 2: Merge Commit on Master -->
+                <div class="actions-commit-card merge-card">
+                    <div class="actions-card-header">
+                        <div class="card-badge merge-badge">
+                            <span class="material-symbols-outlined">merge</span>
+                            <span>2. Commit Merge vào master</span>
+                        </div>
+                        ${merge.web_url ? `
+                            <a href="${escapeHtml(merge.web_url)}" target="_blank" rel="noopener noreferrer" class="gitlab-link-btn" title="Xem merge commit trên GitLab">
+                                <span>GitLab</span>
+                                <span class="material-symbols-outlined">open_in_new</span>
+                            </a>
+                        ` : ''}
+                    </div>
+                    <div class="actions-card-body">
+                        <div class="actions-info-row">
+                            <span class="actions-info-label">Merge SHA:</span>
+                            <div class="actions-info-val-wrap">
+                                <code class="commit-sha" title="${escapeHtml(merge.id || '')}">${escapeHtml(merge.short_id || (merge.id ? merge.id.substring(0,8) : 'N/A'))}</code>
+                                ${merge.id ? `
+                                    <button type="button" class="btn-copy-mini" onclick="copyCommitValue('${escapeHtml(merge.id)}', this)" title="Sao chép Full SHA">
+                                        <span class="material-symbols-outlined">content_copy</span>
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </div>
+
+                        <div class="actions-info-row">
+                            <span class="actions-info-label">Nhánh đích:</span>
+                            <div class="actions-info-val-wrap">
+                                <span class="target-branch-pill">master</span>
+                            </div>
+                        </div>
+
+                        <div class="actions-info-row">
+                            <span class="actions-info-label">Pipeline:</span>
+                            <div class="actions-info-val-wrap">
+                                ${renderPipelineBadge(merge.pipeline)}
+                            </div>
+                        </div>
+
+                        <div class="actions-info-row">
+                            <span class="actions-info-label">Người Merge:</span>
+                            <div class="actions-info-val-wrap">
+                                <span class="author-val"><span class="material-symbols-outlined user-icon">verified_user</span><span>${escapeHtml(merge.merged_by || 'N/A')}</span></span>
+                            </div>
+                        </div>
+
+                        <div class="actions-info-row">
+                            <span class="actions-info-label">Thời gian Merge:</span>
+                            <div class="actions-info-val-wrap">
+                                <span class="time-val"><span class="material-symbols-outlined time-icon">event_available</span><span>${escapeHtml(merge.merged_at || 'N/A')}</span></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Diff Section of actions.yaml for selected version -->
+            <div class="actions-diff-section" id="actionsDiffSection">
+                <div class="diff-section-header">
+                    <div class="diff-section-title">
+                        <span class="material-symbols-outlined">difference</span>
+                        <span>Thay đổi trong file actions.yaml (Diff)</span>
+                    </div>
+                    <div class="diff-header-actions">
+                        ${diffToggleBtnHtml}
+                        ${mr && mr.web_url ? `
+                            <a href="${escapeHtml(mr.web_url)}" target="_blank" rel="noopener noreferrer" class="mr-link-pill" title="Mở Merge Request trên GitLab">
+                                <span class="material-symbols-outlined mr-mini-icon">call_merge</span>
+                                <span class="mr-mini-text">MR !${escapeHtml(String(mr.iid))}</span>
+                                <span class="mr-mini-state ${escapeHtml(mr.state || 'merged')}">${escapeHtml((mr.state || 'merged').toUpperCase())}</span>
+                                <span class="material-symbols-outlined open-mini">open_in_new</span>
+                            </a>
+                        ` : ''}
+                    </div>
+                </div>
+                <div class="actions-diff-viewer" id="actionsDiffViewer">
+                    ${diffLinesHtml}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Chuyển đổi giữa chế độ xem rút gọn (chỉ dòng match + ngữ cảnh) và toàn bộ các dòng diff
+ * @param {Event} [event]
+ */
+window.toggleActionsDiffFullView = function(event) {
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+    window._actionsDiffShowFull = !window._actionsDiffShowFull;
+    if (!window._currentActionsCommitData) return;
+    const modal = document.getElementById('detailsModal');
+    if (!modal) return;
+    const body = modal.querySelector('.details-modal-body');
+    if (!body) return;
+
+    body.innerHTML = renderActionsCommitModal(window._currentActionsCommitData, window._currentActionsCommitIndex || 0);
+};
+
+/**
+ * Chuyển đổi giữa các phiên bản commit match của quy cách
+ * @param {number} index 
+ * @param {Event} [event]
+ */
+window.switchActionsCommitVersion = function(index, event) {
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+    if (!window._currentActionsCommitData) return;
+    const modal = document.getElementById('detailsModal');
+    if (!modal) return;
+    const body = modal.querySelector('.details-modal-body');
+    if (!body) return;
+
+    window._currentActionsCommitIndex = index;
+    updateActionsCommitCopyReport(window._currentActionsCommitData, index);
+    body.innerHTML = renderActionsCommitModal(window._currentActionsCommitData, index);
+};
+
+// Global copy helper with instant UI feedback for Actions Commit modal
+window.copyCommitValue = async function(text, btnElement) {
+    if (!text) return;
+    const success = await copyTextToClipboard(text);
+    if (success) {
+        if (btnElement) {
+            const icon = btnElement.querySelector('.material-symbols-outlined');
+            if (icon) {
+                const oldText = icon.textContent;
+                icon.textContent = 'check';
+                btnElement.classList.add('copied');
+                setTimeout(() => {
+                    icon.textContent = oldText;
+                    btnElement.classList.remove('copied');
+                }, 1500);
+            }
+        }
+        if (typeof Toast !== 'undefined' && Toast.success) {
+            const preview = text.length > 25 ? text.substring(0, 25) + '...' : text;
+            Toast.success('Đã sao chép', `Đã copy: ${preview}`);
+        }
+    }
+};
 
 /**
  * Trích xuất key từ 1 dòng trong section note của YAML
