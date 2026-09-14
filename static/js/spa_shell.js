@@ -12,6 +12,7 @@
         { path: '/check-qc-data', frameId: 'view-check-qc-data', title: 'Check QC Data' },
         { path: '/check-mesync', frameId: 'view-check-mesync', title: 'Check Mesync' },
         { path: '/station-configuration', frameId: 'view-station-configuration', title: 'Thiết lập máy' },
+        { path: '/label-config', frameId: 'view-label-config', title: 'Thông số kỹ thuật' },
         { path: '/magic-winx', frameId: 'view-magic-winx', title: 'Magic Winx' }
     ];
 

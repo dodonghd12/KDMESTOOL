@@ -631,7 +631,7 @@
             }
 
             scene.smokeDensity = Math.min(1.0, p * 1.45);
-            updateHud('Đang nạp KDMES...', 70 + Math.floor(p * 20));
+            updateHud('Đang tải KDMES Tool...', 70 + Math.floor(p * 20));
         } else {
             // Phase 4: Screen Fully Covered in Volumetric Smoke - PERSISTS UNTIL ALL 10 PRELOADED
             scene.phase = 'covered';
@@ -688,7 +688,7 @@
                 }
             } else {
                 const dynamicPct = Math.min(99, Math.max(70, Math.floor((preloadedCount / totalPages) * 100)));
-                updateHud('Đang nạp 10 trang KDMES...', dynamicPct);
+                updateHud('Đang tải ' + totalPages + ' trang KDMES...', dynamicPct);
             }
         }
 
@@ -754,7 +754,7 @@
             rpmEl.textContent = isAllPreloaded ? 'READY' : (rpm + ' RPM');
         }
         if (descEl) {
-            descEl.textContent = 'Đã load ' + preloadedCount + '/' + totalPages + ' trang';
+            descEl.textContent = 'Đã tải ' + preloadedCount + '/' + totalPages + ' trang';
         }
     }
 

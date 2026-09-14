@@ -32,7 +32,7 @@
                         <span class="hud-status-dot"></span>
                         <span id="hudIntroStatus">Khởi động KDMES...</span>
                     </div>
-                    <div class="hud-desc" id="hudIntroDesc">Đang nạp 10 trang KDMES</div>
+                    <div class="hud-desc" id="hudIntroDesc">Đang tải 11 trang KDMES</div>
                     <div class="hud-rpm-meter">
                         <span>TACHOMETER:</span>
                         <span class="hud-rpm-val" id="hudIntroRpm">1200 RPM</span>
@@ -102,8 +102,8 @@
             <div class="spa-preload-spinner" id="spaPreloadSpinner"></div>
         </div>
         <div class="toast-content">
-            <div class="toast-title" id="spaPreloadTitle">Đang khởi tạo các trang...</div>
-            <div class="toast-message" id="spaPreloadMessage">Đã tải <span id="spaPreloadCounter">0/10</span> trang</div>
+            <div class="toast-title" id="spaPreloadTitle">Đang tải KDMES Tool...</div>
+            <div class="toast-message" id="spaPreloadMessage">Đã tải <span id="spaPreloadCounter">0/11</span> trang</div>
         </div>
         <div class="spa-preload-progress-track">
             <div class="spa-preload-progress-bar" id="spaPreloadProgressBar"></div>
@@ -111,7 +111,7 @@
     </div>
 
     <main id="spaViewport" class="spa-viewport">
-        <!-- Preloaded Isolated Views (Active Route loads first, remaining 9 frames stagger-loaded in background) -->
+        <!-- Preloaded Isolated Views (Active Route loads first, remaining 10 frames stagger-loaded in background) -->
         <iframe id="view-main" class="spa-view-frame {% if initial_path == '/main' or not initial_path %}active{% endif %}" {% if initial_path == '/main' or not initial_path %}src="{{ url_for('main', frame='1') }}"{% else %}data-src="{{ url_for('main', frame='1') }}"{% endif %} title="Main"></iframe>
         <iframe id="view-scan-barcode-history" class="spa-view-frame {% if initial_path == '/scan-barcode-history' %}active{% endif %}" {% if initial_path == '/scan-barcode-history' %}src="{{ url_for('scan_barcode_history', frame='1') }}"{% else %}data-src="{{ url_for('scan_barcode_history', frame='1') }}"{% endif %} title="Lịch sử quét tem theo Máy"></iframe>
         <iframe id="view-print-barcode-history" class="spa-view-frame {% if initial_path == '/print-barcode-history' %}active{% endif %}" {% if initial_path == '/print-barcode-history' %}src="{{ url_for('print_barcode_history', frame='1') }}"{% else %}data-src="{{ url_for('print_barcode_history', frame='1') }}"{% endif %} title="Lịch sử in tem theo Máy"></iframe>
@@ -121,6 +121,7 @@
         <iframe id="view-check-qc-data" class="spa-view-frame {% if initial_path == '/check-qc-data' %}active{% endif %}" {% if initial_path == '/check-qc-data' %}src="{{ url_for('check_qc_data', frame='1') }}"{% else %}data-src="{{ url_for('check_qc_data', frame='1') }}"{% endif %} title="Check QC Data"></iframe>
         <iframe id="view-check-mesync" class="spa-view-frame {% if initial_path == '/check-mesync' %}active{% endif %}" {% if initial_path == '/check-mesync' %}src="{{ url_for('check_mesync', frame='1') }}"{% else %}data-src="{{ url_for('check_mesync', frame='1') }}"{% endif %} title="Check Mesync"></iframe>
         <iframe id="view-station-configuration" class="spa-view-frame {% if initial_path == '/station-configuration' %}active{% endif %}" {% if initial_path == '/station-configuration' %}src="{{ url_for('station_configuration', frame='1') }}"{% else %}data-src="{{ url_for('station_configuration', frame='1') }}"{% endif %} title="Thiết lập máy"></iframe>
+        <iframe id="view-label-config" class="spa-view-frame {% if initial_path == '/label-config' %}active{% endif %}" {% if initial_path == '/label-config' %}src="{{ url_for('label_config', frame='1') }}"{% else %}data-src="{{ url_for('label_config', frame='1') }}"{% endif %} title="Thông số kỹ thuật"></iframe>
         <iframe id="view-magic-winx" class="spa-view-frame {% if initial_path == '/magic-winx' %}active{% endif %}" {% if initial_path == '/magic-winx' %}src="{{ url_for('magic_winx', frame='1') }}"{% else %}data-src="{{ url_for('magic_winx', frame='1') }}"{% endif %} title="Magic Winx"></iframe>
     </main>
 

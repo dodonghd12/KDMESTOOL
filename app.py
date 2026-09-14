@@ -7,6 +7,7 @@ import requests # type: ignore
 import json
 import os
 import base64
+import yaml
 from datetime import datetime, timezone, timedelta
 import ast
 import re
@@ -276,6 +277,10 @@ def check_mesync():
 @app.route('/station-configuration')
 def station_configuration():
     return render_page_or_shell('station_configuration.html', '/station-configuration', 'Thiết lập máy')
+
+@app.route('/label-config')
+def label_config():
+    return render_page_or_shell('label_config.html', '/label-config', 'Thông số kỹ thuật')
 
 @app.route('/magic-winx')
 def magic_winx():
@@ -2279,6 +2284,98 @@ def fetch_yaml_content():
         return jsonify({'success': False, 'message': f'Lỗi kết nối GitLab: {str(e)}'})
     except Exception as e:
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
+
+@app.route('/api/label-config/fetch', methods=['GET', 'POST'])
+def fetch_label_config():
+    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+        return make_unauthorized_response()
+
+    project_id = 113
+    encoded_path = 'yamls%2Flabel-config.yml'
+    ref = 'master'
+    file_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/files/{encoded_path}?ref={ref}'
+
+    headers = {
+        'PRIVATE-TOKEN': gitlab_private_token
+    }
+
+    try:
+        response = requests.get(file_url, headers=headers, verify=False, timeout=15)
+        
+        # Check authentication error
+        if response.status_code in [401, 403]:
+            return jsonify({
+                'success': False,
+                'error_type': 'auth',
+                'message': 'Lỗi gitlab token, vui lòng kiểm tra'
+            }), 200
+
+        if not response.ok:
+            return jsonify({
+                'success': False,
+                'error_type': 'gitlab',
+                'message': f'Lỗi gitlab (HTTP {response.status_code})'
+            }), 200
+
+        data = response.json()
+        content_b64 = data.get('content', '')
+        if not content_b64:
+            return jsonify({
+                'success': False,
+                'error_type': 'gitlab',
+                'message': 'Lỗi gitlab (File rỗng)'
+            }), 200
+
+        content_decoded = base64.b64decode(content_b64).decode('utf-8')
+        parsed_yaml = yaml.safe_load(content_decoded)
+
+        product_types = []
+        config_map = {}
+
+        if isinstance(parsed_yaml, list):
+            for item in parsed_yaml:
+                if not isinstance(item, dict):
+                    continue
+                ptype = item.get('product-type')
+                if ptype:
+                    product_types.append(ptype)
+                    configs = item.get('configs', {})
+                    req_labels = configs.get('required-labels', []) if isinstance(configs, dict) else []
+                    rows = []
+                    for lbl in req_labels:
+                        if isinstance(lbl, dict):
+                            key = lbl.get('key', '')
+                            langs = lbl.get('languages', {}) if isinstance(lbl.get('languages'), dict) else {}
+                            if key or langs:
+                                rows.append([
+                                    key,
+                                    langs.get('VI') or langs.get('VN') or '',
+                                    langs.get('CN') or '',
+                                    langs.get('TW') or '',
+                                    langs.get('EN') or '',
+                                    langs.get('ID') or ''
+                                ])
+                    config_map[ptype] = rows
+
+        return jsonify({
+            'success': True,
+            'product_types': product_types,
+            'config_map': config_map,
+            'columns': ['key', 'VN', 'CN', 'TW', 'EN', 'ID']
+        })
+
+    except requests.exceptions.RequestException as e:
+        return jsonify({
+            'success': False,
+            'error_type': 'gitlab',
+            'message': f'Lỗi gitlab ({str(e)})'
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error_type': 'gitlab',
+            'message': f'Lỗi gitlab: {str(e)}'
+        }), 200
     
 @app.route('/api/barcodes/fetch-original-info', methods=['POST'])
 def fetch_original_info_by_barcode():
