@@ -867,8 +867,7 @@ function enhanceContextMenu() {
         'searchActionsCommitByRecipe': 'alt_route',
         'fetchYamlDetails': 'code',
         'outputByBarcode': 'qr_code_2',
-        'outputByRecipe': 'qr_code_2',
-        'commitDetailByRecipe': 'history_edu'
+        'outputByRecipe': 'qr_code_2'
     };
 
     document.querySelectorAll('.context-menu-item').forEach(item => {
@@ -1890,8 +1889,7 @@ function updateContextMenu() {
 function updateOutputContextMenu() {
     const menuConfig = {
         'workOrderOutputByBarcode': ['outputByBarcode'],
-        'workOrderOutputByRecipe': ['outputByRecipe'],
-        'commitDetailByRecipe': ['commitDetailByRecipe']
+        'workOrderOutputByRecipe': ['outputByRecipe']
     };
 
     const allowedActions = menuConfig[currentOutputTableType] || [];
@@ -1948,7 +1946,7 @@ function handleContextMenuAction(e) {
     const action = e.target.dataset.action;
       
     // Xác định sử dụng data từ table nào
-    const isOutputTable = ['outputByBarcode', 'outputByRecipe', 'commitDetailByRecipe'].includes(action);
+    const isOutputTable = ['outputByBarcode', 'outputByRecipe'].includes(action);
     const rowData = isOutputTable ? selectedOutputRowData : selectedRowData;
     
     if (!rowData) return;
@@ -2011,9 +2009,6 @@ function handleContextMenuAction(e) {
             break;
         case 'outputByRecipe':
             fetchOutputBarcodeByWorkOrder('outputByRecipe', rowData);
-            break;
-        case 'commitDetailByRecipe':
-            fetchCommitGitlabDetail('commitDetailByRecipe', rowData);
             break;
     }
 
@@ -2679,17 +2674,95 @@ function showDetailsModal(data) {
     if (!modal) return;
 
     const copyBtn = document.getElementById('copyDetailsBtn');
-    if (copyBtn) copyBtn.style.display = '';
-
     const body = modal.querySelector('.details-modal-body');
+    const titleEl = modal.querySelector('.details-modal-title');
+    const content = modal.querySelector('.details-modal-content');
     if (!body) return;
 
-    if (data.hasOwnProperty('diff') && data['diff']) {
+    // Remove previous modal body modifiers
+    body.classList.remove('details-modal-body-yaml', 'details-modal-body-actions', 'details-modal-body-diff');
+
+    const isCommitRow = data.hasOwnProperty('diff') || (data.hasOwnProperty('id') && data.hasOwnProperty('message') && (data.hasOwnProperty('authored_date') || data.hasOwnProperty('committed_date')));
+    if (isCommitRow) {
+        const recipeId = selectedRowData?.recipe_id || (data['new_path'] || data['old_path'] || '').split('/').pop().replace(/\.ya?ml$/, '') || 'QUY CÁCH';
+        if (titleEl) {
+            titleEl.textContent = `GITLAB COMMIT (${recipeId})`;
+        }
+        if (copyBtn) copyBtn.style.display = 'none';
+        if (content) content.classList.add('details-modal-diff-wide');
+        body.classList.add('details-modal-body-diff');
+        window._currentRawYamlContent = data['diff'] || '';
         body.innerHTML = renderDiffViewer(data);
+
+        // 2D Scroll Synchronization: Horizontal (scrollLeft) AND Vertical (scrollTop)
+        const leftPane = modal.querySelector('#diffPaneLeft');
+        const rightPane = modal.querySelector('#diffPaneRight');
+        const gutter = modal.querySelector('#diffGutter');
+
+        if (leftPane && rightPane) {
+            let isSyncing = false;
+
+            const syncScroll = (source, targets, syncX = true, syncY = true) => {
+                if (isSyncing) return;
+                isSyncing = true;
+                try {
+                    targets.forEach(target => {
+                        if (!target) return;
+                        if (syncX && target.scrollLeft !== undefined && source.scrollLeft !== undefined) {
+                            target.scrollLeft = source.scrollLeft;
+                        }
+                        if (syncY && target.scrollTop !== undefined && source.scrollTop !== undefined) {
+                            target.scrollTop = source.scrollTop;
+                        }
+                    });
+                } finally {
+                    isSyncing = false;
+                }
+            };
+
+            leftPane.onscroll = () => {
+                syncScroll(leftPane, [rightPane, gutter], true, true);
+            };
+
+            rightPane.onscroll = () => {
+                syncScroll(rightPane, [leftPane, gutter], true, true);
+            };
+
+            if (gutter) {
+                gutter.onwheel = (e) => {
+                    if (rightPane) {
+                        rightPane.scrollTop += e.deltaY;
+                        e.preventDefault();
+                    }
+                };
+            }
+        } else if (rightPane) {
+            // Single pane mode (New File commit)
+            rightPane.onscroll = () => {
+                if (gutter) {
+                    gutter.scrollTop = rightPane.scrollTop;
+                }
+            };
+
+            if (gutter) {
+                gutter.onwheel = (e) => {
+                    rightPane.scrollTop += e.deltaY;
+                    e.preventDefault();
+                };
+            }
+        }
+
         modal.classList.remove('hidden');
         document.body.classList.add('modal-open');
         return;
     }
+
+    if (content) content.classList.remove('details-modal-diff-wide');
+    if (copyBtn) copyBtn.style.display = '';
+    if (titleEl) {
+        titleEl.textContent = 'Chi tiết dữ liệu';
+    }
+    window._currentRawYamlContent = null;
 
     const processedData = {};
     for (const [key, value] of Object.entries(data)) {
@@ -2719,41 +2792,244 @@ function showDetailsModal(data) {
     document.body.classList.add('modal-open');
 }
 
+function parseSideBySideDiff(diffText) {
+    if (!diffText || !diffText.trim()) return [];
+
+    const lines = diffText.split(/\r?\n/);
+    const result = [];
+
+    let currentOldLine = 1;
+    let currentNewLine = 1;
+
+    let removedBuffer = [];
+    let addedBuffer = [];
+
+    function flushBuffers() {
+        const count = Math.max(removedBuffer.length, addedBuffer.length);
+        for (let i = 0; i < count; i++) {
+            const left = i < removedBuffer.length ? removedBuffer[i] : null;
+            const right = i < addedBuffer.length ? addedBuffer[i] : null;
+
+            result.push({
+                type: 'split-row',
+                left: left ? {
+                    lineNum: left.lineNum,
+                    sign: '-',
+                    content: left.content,
+                    type: 'removed'
+                } : {
+                    lineNum: '',
+                    sign: '',
+                    content: '',
+                    type: 'empty'
+                },
+                right: right ? {
+                    lineNum: right.lineNum,
+                    sign: '+',
+                    content: right.content,
+                    type: 'added'
+                } : {
+                    lineNum: '',
+                    sign: '',
+                    content: '',
+                    type: 'empty'
+                }
+            });
+        }
+        removedBuffer = [];
+        addedBuffer = [];
+    }
+
+    for (let line of lines) {
+        if (line.startsWith('@@')) {
+            flushBuffers();
+            const match = line.match(/@@\s+-(\d+)(?:,(\d+))?\s+\+(\d+)(?:,(\d+))?\s+@@/);
+            if (match) {
+                currentOldLine = parseInt(match[1], 10);
+                currentNewLine = parseInt(match[3], 10);
+            }
+            result.push({
+                type: 'hunk',
+                content: line
+            });
+            continue;
+        }
+
+        if (line.startsWith('-')) {
+            removedBuffer.push({
+                lineNum: currentOldLine++,
+                content: line.substring(1)
+            });
+        } else if (line.startsWith('+')) {
+            addedBuffer.push({
+                lineNum: currentNewLine++,
+                content: line.substring(1)
+            });
+        } else {
+            flushBuffers();
+            const text = line.startsWith(' ') ? line.substring(1) : line;
+            result.push({
+                type: 'split-row',
+                left: {
+                    lineNum: currentOldLine++,
+                    sign: ' ',
+                    content: text,
+                    type: 'unchanged'
+                },
+                right: {
+                    lineNum: currentNewLine++,
+                    sign: ' ',
+                    content: text,
+                    type: 'unchanged'
+                }
+            });
+        }
+    }
+
+    flushBuffers();
+    return result;
+}
+
 function renderDiffViewer(data) {
-    const diffText = data['diff'] || '';
+    const diffText = (data['diff'] || '').trim();
     const newPath = data['new_path'] || '';
     const oldPath = data['old_path'] || '';
     const isNewFile = data['new_file'] === 'true' || data['new_file'] === true;
     const isRenamed = data['renamed_file'] === 'true' || data['renamed_file'] === true;
     const isDeleted = data['deleted_file'] === 'true' || data['deleted_file'] === true;
 
-    let fileInfoHtml = `
-        <div class="diff-file-info">
-            <span class="diff-file-path">${newPath}</span>
-            ${isNewFile ? '<span class="diff-badge diff-badge-new">New File</span>' : ''}
-            ${isRenamed ? `<span class="diff-badge diff-badge-renamed">Renamed from: ${oldPath}</span>` : ''}
-            ${isDeleted ? '<span class="diff-badge diff-badge-deleted">Deleted</span>' : ''}
+    const message = (data['message'] || '').trim();
+    const firstLineMessage = message.split('\n')[0] || 'No commit message';
+    const author = data['author_name'] || '';
+    const date = data['authored_date'] || data['committed_date'] || '';
+    const commitId = data['id'] || '';
+    const commitWebUrl = data['web_url'] || (commitId ? `https://gitlabce.kenda.com.tw/tc/recipes/kitting/-/commit/${commitId}` : '#');
+
+    let headerHtml = `
+        <div class="diff-compact-header">
+            <div class="diff-header-top">
+                <div class="diff-commit-title" title="${escapeHtml(message)}">${escapeHtml(firstLineMessage)}</div>
+                ${commitId ? `<a class="diff-meta-sha-link" href="${escapeHtml(commitWebUrl)}" target="_blank" rel="noopener noreferrer" title="Nhấp để mở commit trên GitLab (Full SHA: ${escapeHtml(commitId)})"><span class="material-symbols-outlined">commit</span> ${escapeHtml(String(commitId).substring(0, 8))} <span class="diff-link-icon">↗</span></a>` : ''}
+            </div>
+            <div class="diff-header-bottom">
+                <div class="diff-file-tag" title="${escapeHtml(newPath || oldPath)}">
+                    <span class="material-symbols-outlined">description</span>
+                    <span class="diff-file-path-text">${escapeHtml(newPath || oldPath)}</span>
+                    ${isNewFile ? '<span class="diff-badge diff-badge-new">New File</span>' : ''}
+                    ${isRenamed ? `<span class="diff-badge diff-badge-renamed">Renamed</span>` : ''}
+                    ${isDeleted ? '<span class="diff-badge diff-badge-deleted">Deleted</span>' : ''}
+                </div>
+                <div class="diff-meta-info">
+                    ${author ? `<span class="diff-meta-tag"><span class="material-symbols-outlined">person</span> ${escapeHtml(author)}</span>` : ''}
+                    ${date ? `<span class="diff-meta-tag"><span class="material-symbols-outlined">schedule</span> ${escapeHtml(date)}</span>` : ''}
+                </div>
+            </div>
         </div>
     `;
 
-    const lines = diffText.split('\n');
-    let diffHtml = '<div class="diff-viewer">';
+    let diffHtml = '';
+    if (!diffText) {
+        diffHtml = `
+            <div class="diff-viewer diff-viewer-empty">
+                <div class="diff-empty-notice">
+                    <span class="material-symbols-outlined">info</span>
+                    <span>Không phát hiện thay đổi nội dung nào trong tệp này tại commit đã chọn.</span>
+                </div>
+            </div>
+        `;
+    } else {
+        const parsed = parseSideBySideDiff(diffText);
+        const hasRemovedLines = parsed.some(item => item.type === 'split-row' && item.left.type === 'removed');
+        const hasAddedLines = parsed.some(item => item.type === 'split-row' && item.right.type === 'added');
+        const isSingleNewFile = isNewFile || (!hasRemovedLines && hasAddedLines);
 
-    lines.forEach(line => {
-        if (line.startsWith('@@')) {
-            diffHtml += `<div class="diff-line diff-hunk">${escapeHtml(line)}</div>`;
-        } else if (line.startsWith('+')) {
-            diffHtml += `<div class="diff-line diff-added"><span class="diff-sign">+</span>${escapeHtml(line.substring(1))}</div>`;
-        } else if (line.startsWith('-')) {
-            diffHtml += `<div class="diff-line diff-removed"><span class="diff-sign">-</span>${escapeHtml(line.substring(1))}</div>`;
+        let gutterRows = '';
+        let leftRows = '';
+        let rightRows = '';
+
+        if (isSingleNewFile) {
+            // Trường hợp commit thêm mới file hoàn toàn: chỉ hiển thị 1 pane duy nhất bên phải chiếm trọn 100% chiều rộng
+            parsed.forEach(item => {
+                if (item.type === 'hunk') {
+                    gutterRows += `<div class="diff-gutter-num hunk-num">@@</div>`;
+                    rightRows += `<div class="diff-line-row hunk"><span class="diff-sign"> </span><span class="diff-line-text">${escapeHtml(item.content)}</span></div>`;
+                } else if (item.type === 'split-row') {
+                    const lineNum = item.right.lineNum || item.left.lineNum || '';
+                    gutterRows += `<div class="diff-gutter-num">${lineNum}</div>`;
+                    const rightContent = item.right.type !== 'empty'
+                        ? `<span class="diff-sign">${escapeHtml(item.right.sign)}</span><span class="diff-line-text">${escapeHtml(item.right.content)}</span>`
+                        : (item.left.type !== 'empty' ? `<span class="diff-sign">+</span><span class="diff-line-text">${escapeHtml(item.left.content)}</span>` : '');
+                    rightRows += `<div class="diff-line-row added">${rightContent}</div>`;
+                }
+            });
+
+            diffHtml = `
+                <div class="diff-split-container diff-single-new-mode">
+                    <div class="diff-split-gutter-col" id="diffGutter">
+                        <div class="diff-gutter-inner" id="diffGutterInner">
+                            ${gutterRows}
+                        </div>
+                    </div>
+                    <div class="diff-split-panes-wrapper">
+                        <div class="diff-split-pane-half diff-pane-right diff-pane-full" id="diffPaneRight">
+                            <div class="diff-pane-inner-table">
+                                ${rightRows}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
         } else {
-            diffHtml += `<div class="diff-line diff-unchanged"><span class="diff-sign"> </span>${escapeHtml(line)}</div>`;
+            // Trường hợp chỉnh sửa (Modify): hiển thị Side-by-Side Split 2 Pane trái/phải
+            parsed.forEach(item => {
+                if (item.type === 'hunk') {
+                    gutterRows += `<div class="diff-gutter-num hunk-num">@@</div>`;
+                    leftRows += `<div class="diff-line-row hunk"><span class="diff-sign"> </span><span class="diff-line-text">${escapeHtml(item.content)}</span></div>`;
+                    rightRows += `<div class="diff-line-row hunk"><span class="diff-sign"> </span><span class="diff-line-text"></span></div>`;
+                } else if (item.type === 'split-row') {
+                    const lineNum = item.left.lineNum || item.right.lineNum || '';
+                    const leftClass = item.left.type;
+                    const rightClass = item.right.type;
+
+                    gutterRows += `<div class="diff-gutter-num">${lineNum}</div>`;
+
+                    const leftContent = item.left.type !== 'empty' 
+                        ? `<span class="diff-sign">${escapeHtml(item.left.sign)}</span><span class="diff-line-text">${escapeHtml(item.left.content)}</span>` 
+                        : '';
+                    leftRows += `<div class="diff-line-row ${leftClass}">${leftContent}</div>`;
+
+                    const rightContent = item.right.type !== 'empty' 
+                        ? `<span class="diff-sign">${escapeHtml(item.right.sign)}</span><span class="diff-line-text">${escapeHtml(item.right.content)}</span>` 
+                        : '';
+                    rightRows += `<div class="diff-line-row ${rightClass}">${rightContent}</div>`;
+                }
+            });
+
+            diffHtml = `
+                <div class="diff-split-container">
+                    <div class="diff-split-gutter-col" id="diffGutter">
+                        <div class="diff-gutter-inner" id="diffGutterInner">
+                            ${gutterRows}
+                        </div>
+                    </div>
+                    <div class="diff-split-panes-wrapper">
+                        <div class="diff-split-pane-half diff-pane-left" id="diffPaneLeft">
+                            <div class="diff-pane-inner-table">
+                                ${leftRows}
+                            </div>
+                        </div>
+                        <div class="diff-split-pane-half diff-pane-right" id="diffPaneRight">
+                            <div class="diff-pane-inner-table">
+                                ${rightRows}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
         }
-    });
+    }
 
-    diffHtml += '</div>';
-
-    return fileInfoHtml + diffHtml;
+    return headerHtml + diffHtml;
 }
 
 function escapeHtml(text) {
@@ -2871,9 +3147,13 @@ function closeDetailsModal() {
     const modal = document.getElementById('detailsModal');
     if (modal) {
         modal.classList.add('hidden');
+        const content = modal.querySelector('.details-modal-content');
+        if (content) {
+            content.classList.remove('details-modal-diff-wide');
+        }
         const body = modal.querySelector('.details-modal-body');
         if (body) {
-            body.classList.remove('details-modal-body-yaml', 'details-modal-body-actions');
+            body.classList.remove('details-modal-body-yaml', 'details-modal-body-actions', 'details-modal-body-diff');
         }
         const copyBtn = document.getElementById('copyDetailsBtn');
         if (copyBtn) {
@@ -2968,7 +3248,7 @@ async function fetchCommitGitlabByRecipe(recipeId = null, productType = null) {
                 outputBarcodeRawData = mapWorkOrderStatus(data.result, data.columns);
                 outputBarcodeColumns = data.columns;
 
-                currentOutputTableType = 'commitDetailByRecipe';
+                currentOutputTableType = null;
                 renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
                 Toast.success('Thành công', `Tải thành công ${data.result.length} commit từ Gitlab`);
             } else {
@@ -4077,6 +4357,8 @@ function renderOutputBarcodeTable(rows, columns) {
     thead.innerHTML = '';
     tbody.innerHTML = '';
 
+    const hiddenColumns = ['diff', 'new_path', 'old_path', 'new_file', 'renamed_file', 'deleted_file', 'a_mode', 'b_mode', 'web_url'];
+
     // Khi không có dữ liệu: Không hiển thị header và footer, chỉ hiển thị empty state
     if (!rows || rows.length === 0) {
         if (rowCount) rowCount.textContent = '0';
@@ -4107,6 +4389,9 @@ function renderOutputBarcodeTable(rows, columns) {
         columns.forEach(col => {
             const th = document.createElement('th');
             th.textContent = col;
+            if (hiddenColumns.includes(col)) {
+                th.style.display = 'none';
+            }
             trHead.appendChild(th);
         });
         thead.appendChild(trHead);
@@ -4117,8 +4402,12 @@ function renderOutputBarcodeTable(rows, columns) {
 
     rows.forEach(row => {
         const tr = document.createElement('tr');
-        row.forEach(val => {
+        row.forEach((val, valIdx) => {
             const td = document.createElement('td');
+            const colName = (columns && columns.length > valIdx) ? columns[valIdx] : null;
+            if (colName && hiddenColumns.includes(colName)) {
+                td.style.display = 'none';
+            }
 
             let cellValue = '';
             let fullValue = '';
@@ -4368,6 +4657,13 @@ function exportOutputBarcodeToExcel() {
     if (!table) return;
 
     const cloneTable = table.cloneNode(true);
+
+    // Remove hidden columns from export
+    cloneTable.querySelectorAll('th, td').forEach(el => {
+        if (el.style.display === 'none') {
+            el.remove();
+        }
+    });
 
     cloneTable.querySelectorAll('td[data-full-value]').forEach(td => {
         td.textContent = td.dataset.fullValue;

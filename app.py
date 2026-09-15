@@ -16,6 +16,7 @@ from db_execute import (execute_pg_select_query, execute_pg_update_query)
 from db_connections import (connect_pg_db, connect_pg_db_dev)
 import threading
 from concurrent.futures import ThreadPoolExecutor
+import difflib
 import time
 import uuid
 
@@ -2051,17 +2052,25 @@ def fetch_commit_gitlab():
             'search': recipe_id
         }
 
-        search_response = requests.get(search_url, headers=headers, params=search_params, verify=False)
+        search_response = requests.get(search_url, headers=headers, params=search_params, verify=False, timeout=20)
         search_response.raise_for_status()
         search_data = search_response.json()
 
         if not search_data:
-            return jsonify({'success': False, 'message': 'Không tìm thấy file yaml ở gitlab'})
+            return jsonify({'success': False, 'message': f'Không tìm thấy file YAML cho quy cách {recipe_id} trên GitLab'})
 
-        # Get file path from first result
-        path = search_data[0].get('path', '')
+        # Find best matching file path
+        path = None
+        for item in search_data:
+            item_path = item.get('path', '')
+            if recipe_id in item_path:
+                path = item_path
+                break
         if not path:
-            return jsonify({'success': False, 'message': 'Không tìm thấy path của file yaml'})
+            path = search_data[0].get('path', '')
+
+        if not path:
+            return jsonify({'success': False, 'message': 'Không tìm thấy path của file YAML'})
 
         # Step 2: URL-encode the path (replace / with %2F)
         encoded_path = path.replace('/', '%2F')
@@ -2070,30 +2079,127 @@ def fetch_commit_gitlab():
         blame_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/files/{encoded_path}/blame'
         blame_params = {'ref': 'master'}
 
-        blame_response = requests.get(blame_url, headers=headers, params=blame_params, verify=False)
+        blame_response = requests.get(blame_url, headers=headers, params=blame_params, verify=False, timeout=20)
         blame_response.raise_for_status()
         blame_data = blame_response.json()
 
-        if not blame_data:
-            return jsonify({'success': False, 'message': 'Không tìm thấy lịch sử commit'})
+        seen_commit_ids = set()
+        commits = []
 
-        # Step 4: Extract unique commits (deduplicate by commit id)
+        if isinstance(blame_data, list):
+            for blame_entry in blame_data:
+                commit = blame_entry.get('commit', {})
+                commit_id = commit.get('id', '')
+                if commit_id and commit_id not in seen_commit_ids:
+                    seen_commit_ids.add(commit_id)
+                    commits.append(commit)
+
+        # Fallback to commits endpoint if blame was empty
+        if not commits:
+            commits_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits'
+            commits_resp = requests.get(commits_url, headers=headers, params={'path': path, 'ref_name': 'master', 'per_page': 50}, verify=False, timeout=20)
+            if commits_resp.status_code == 200:
+                commits = commits_resp.json()
+
+        if not commits:
+            return jsonify({'success': False, 'message': 'Không tìm thấy lịch sử commit nào cho quy cách này'})
+
+        # Step 4: Concurrently fetch diff for each commit, filtering specifically for this file
+        def fetch_commit_file_diff(commit_item):
+            cid = commit_item.get('id', '')
+            if not cid:
+                return commit_item, {}
+            
+            # Tier 1: Check commit diff endpoint
+            diff_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits/{cid}/diff'
+            try:
+                diff_resp = requests.get(diff_url, headers=headers, params={'per_page': 100}, verify=False, timeout=12)
+                if diff_resp.status_code == 200:
+                    diff_data = diff_resp.json()
+                    if isinstance(diff_data, list):
+                        for d in diff_data:
+                            new_p = d.get('new_path', '')
+                            old_p = d.get('old_path', '')
+                            if new_p == path or old_p == path or new_p.endswith('/' + recipe_id + '.yaml') or old_p.endswith('/' + recipe_id + '.yaml') or new_p.endswith(recipe_id + '.yaml'):
+                                return commit_item, d
+            except Exception:
+                pass
+
+            # Tier 2: Fallback for giant commits or commits where file was not on page 1
+            try:
+                parent_ids = commit_item.get('parent_ids')
+                if parent_ids is None:
+                    c_info = requests.get(f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits/{cid}', headers=headers, verify=False, timeout=10).json()
+                    parent_ids = c_info.get('parent_ids', [])
+
+                parent_id = parent_ids[0] if parent_ids else None
+                raw_file_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/files/{encoded_path}/raw'
+
+                cur_resp = requests.get(raw_file_url, headers=headers, params={'ref': cid}, verify=False, timeout=12)
+                cur_text = cur_resp.text if cur_resp.status_code == 200 else ''
+
+                parent_text = ''
+                parent_status = 404
+                if parent_id:
+                    parent_resp = requests.get(raw_file_url, headers=headers, params={'ref': parent_id}, verify=False, timeout=12)
+                    parent_status = parent_resp.status_code
+                    if parent_status == 200:
+                        parent_text = parent_resp.text
+
+                is_new = (parent_status == 404 and cur_resp.status_code == 200)
+                is_deleted = (cur_resp.status_code == 404)
+
+                cur_lines = cur_text.splitlines(keepends=True)
+                parent_lines = parent_text.splitlines(keepends=True)
+
+                diff_gen = difflib.unified_diff(
+                    parent_lines,
+                    cur_lines,
+                    fromfile=f"a/{path}",
+                    tofile=f"b/{path}",
+                    n=3
+                )
+                diff_lines = list(diff_gen)
+                unified_lines = [l for l in diff_lines if not (l.startswith('---') or l.startswith('+++'))]
+                diff_str = "".join(unified_lines).rstrip('\n')
+
+                return commit_item, {
+                    'diff': diff_str,
+                    'new_path': path,
+                    'old_path': path,
+                    'new_file': is_new,
+                    'renamed_file': False,
+                    'deleted_file': is_deleted
+                }
+            except Exception:
+                return commit_item, {
+                    'diff': '',
+                    'new_path': path,
+                    'old_path': path,
+                    'new_file': False,
+                    'renamed_file': False,
+                    'deleted_file': False
+                }
+
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            commit_diff_results = list(executor.map(fetch_commit_file_diff, commits))
+
+        project_web_base = 'https://gitlabce.kenda.com.tw/tc/recipes/kitting' if project_id == 135 else (
+            'https://gitlabce.kenda.com.tw/tc/recipes/green_tire' if project_id == 133 else (
+                'https://gitlabce.kenda.com.tw/tc/recipes/tire' if project_id == 134 else f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}'
+            )
+        )
+
         column_names = [
             'message', 'authored_date', 'author_name', 'author_email', 
-            'committed_date', 'committer_name', 'committer_email', 'id'
+            'committed_date', 'committer_name', 'committer_email', 'id',
+            'diff', 'new_path', 'old_path', 'new_file', 'renamed_file', 'deleted_file', 'web_url'
         ]
 
-        seen_commit_ids = set()
         result = []
-
-        for blame_entry in blame_data:
-            commit = blame_entry.get('commit', {})
-            commit_id = commit.get('id', '')
-
-            if commit_id in seen_commit_ids:
-                continue
-            seen_commit_ids.add(commit_id)
-
+        for commit, file_diff in commit_diff_results:
+            cid = commit.get('id', '')
+            commit_web_url = commit.get('web_url', '') or (f'{project_web_base}/-/commit/{cid}' if cid else '')
             row = [
                 commit.get('message', ''),
                 commit.get('authored_date', ''),
@@ -2102,7 +2208,14 @@ def fetch_commit_gitlab():
                 commit.get('committed_date', ''),
                 commit.get('committer_name', ''),
                 commit.get('committer_email', ''),
-                commit_id,
+                cid,
+                file_diff.get('diff', ''),
+                file_diff.get('new_path', path),
+                file_diff.get('old_path', path),
+                file_diff.get('new_file', False),
+                file_diff.get('renamed_file', False),
+                file_diff.get('deleted_file', False),
+                commit_web_url
             ]
             result.append(row)
 
@@ -2124,7 +2237,9 @@ def fetch_commit_gitlab():
             return jsonify({
                 'success': True,
                 'result': serialized_result,
-                'columns': column_names
+                'columns': column_names,
+                'file_path': path,
+                'recipe_id': recipe_id
             })
         else:
             return jsonify({
@@ -2161,7 +2276,7 @@ def fetch_commit_gitlab_details():
     try:
         diff_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits/{commit_id}/diff'
 
-        diff_response = requests.get(diff_url, headers=headers, verify=False)
+        diff_response = requests.get(diff_url, headers=headers, params={'per_page': 100}, verify=False, timeout=20)
         diff_response.raise_for_status()
         diff_data = diff_response.json()
 
