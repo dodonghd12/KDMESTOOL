@@ -10,9 +10,9 @@
     <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
 
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome/css/all.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/flatpickr/flatpickr.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/material-symbols/material-symbols.css') }}">
 </head>
 <body class="{% if is_frame %}is-spa-frame{% endif %} app-loading-state">
     {% if not is_frame %}{% include "components/sidebar.html" %}{% endif %}
@@ -58,7 +58,7 @@
 
     {% include "components/shared_modals.html" %}
 
-    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <script src="{{ url_for('static', filename='vendor/xlsx/xlsx.full.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/smooth_input.js') }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     <script src="{{ url_for('static', filename='js/check_mesync.js') }}"></script>

@@ -2905,11 +2905,51 @@ function renderDiffViewer(data) {
     const commitId = data['id'] || '';
     const commitWebUrl = data['web_url'] || (commitId ? `https://gitlabce.kenda.com.tw/tc/recipes/kitting/-/commit/${commitId}` : '#');
 
+    const rawStatus = (data['pipeline_status'] || data['status'] || '').toLowerCase();
+    const pipelineId = data['pipeline_id'] || '';
+    const pipelineWebUrl = data['pipeline_web_url'] || '';
+
+    let statusClass = 'dot-na';
+    let statusText = 'Không có';
+    if (rawStatus === 'success' || rawStatus === 'passed') {
+        statusClass = 'dot-passed';
+        statusText = 'Passed';
+    } else if (rawStatus === 'failed') {
+        statusClass = 'dot-failed';
+        statusText = 'Failed';
+    } else if (rawStatus === 'running') {
+        statusClass = 'dot-running';
+        statusText = 'Running';
+    } else if (rawStatus === 'pending' || rawStatus === 'waiting_for_resource' || rawStatus === 'created') {
+        statusClass = 'dot-pending';
+        statusText = 'Pending';
+    } else if (rawStatus === 'canceled' || rawStatus === 'cancelled') {
+        statusClass = 'dot-canceled';
+        statusText = 'Canceled';
+    } else if (rawStatus === 'skipped') {
+        statusClass = 'dot-skipped';
+        statusText = 'Skipped';
+    } else if (rawStatus === 'manual') {
+        statusClass = 'dot-manual';
+        statusText = 'Manual';
+    }
+
+    const idTooltip = pipelineId ? ` #${pipelineId}` : '';
+    let pipelineDotHtml = '';
+    if (pipelineWebUrl) {
+        pipelineDotHtml = `<a class="pipeline-status-dot ${statusClass}" href="${escapeHtml(pipelineWebUrl)}" target="_blank" rel="noopener noreferrer" title="Pipeline: ${escapeHtml(statusText)}${escapeHtml(idTooltip)} (Nhấp để mở)"></a>`;
+    } else {
+        pipelineDotHtml = `<span class="pipeline-status-dot ${statusClass}" title="Pipeline: ${escapeHtml(statusText)}${escapeHtml(idTooltip)}"></span>`;
+    }
+
     let headerHtml = `
         <div class="diff-compact-header">
             <div class="diff-header-top">
                 <div class="diff-commit-title" title="${escapeHtml(message)}">${escapeHtml(firstLineMessage)}</div>
-                ${commitId ? `<a class="diff-meta-sha-link" href="${escapeHtml(commitWebUrl)}" target="_blank" rel="noopener noreferrer" title="Nhấp để mở commit trên GitLab (Full SHA: ${escapeHtml(commitId)})"><span class="material-symbols-outlined">commit</span> ${escapeHtml(String(commitId).substring(0, 8))} <span class="diff-link-icon">↗</span></a>` : ''}
+                <div class="diff-header-meta-group">
+                    ${pipelineDotHtml}
+                    ${commitId ? `<a class="diff-meta-sha-link" href="${escapeHtml(commitWebUrl)}" target="_blank" rel="noopener noreferrer" title="Nhấp để mở commit trên GitLab (Full SHA: ${escapeHtml(commitId)})"><span class="material-symbols-outlined">commit</span> ${escapeHtml(String(commitId).substring(0, 8))} <span class="diff-link-icon">↗</span></a>` : ''}
+                </div>
             </div>
             <div class="diff-header-bottom">
                 <div class="diff-file-tag" title="${escapeHtml(newPath || oldPath)}">

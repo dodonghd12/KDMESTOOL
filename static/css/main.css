@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import url('../vendor/google-fonts/google-fonts.css');
+@import url('../vendor/material-symbols/material-symbols.css');
 @import url('smooth_input.css');
 
 :root {
@@ -3115,6 +3116,84 @@ tbody tr:has(.table-empty-state):hover td {
     align-items: center;
     justify-content: space-between;
     gap: 12px;
+}
+
+.diff-header-meta-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.pipeline-status-dot {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    cursor: default;
+    position: relative;
+}
+
+a.pipeline-status-dot {
+    cursor: pointer;
+}
+
+a.pipeline-status-dot:hover {
+    transform: scale(1.35);
+}
+
+.pipeline-status-dot.dot-passed {
+    background: #34d399;
+    box-shadow: 0 0 8px rgba(52, 211, 153, 0.7);
+}
+
+.pipeline-status-dot.dot-failed {
+    background: #f87171;
+    box-shadow: 0 0 8px rgba(248, 113, 113, 0.75);
+}
+
+.pipeline-status-dot.dot-running {
+    background: #38bdf8;
+    box-shadow: 0 0 8px rgba(56, 189, 248, 0.75);
+    animation: pipeline-pulse 1.4s infinite ease-in-out;
+}
+
+.pipeline-status-dot.dot-pending {
+    background: #fbbf24;
+    box-shadow: 0 0 8px rgba(251, 191, 36, 0.6);
+}
+
+.pipeline-status-dot.dot-canceled {
+    background: #94a3b8;
+    box-shadow: 0 0 4px rgba(148, 163, 184, 0.4);
+}
+
+.pipeline-status-dot.dot-skipped,
+.pipeline-status-dot.dot-manual {
+    background: #64748b;
+    box-shadow: 0 0 4px rgba(100, 116, 139, 0.4);
+}
+
+.pipeline-status-dot.dot-na {
+    background: #475569;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+@keyframes pipeline-pulse {
+    0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.7);
+    }
+    70% {
+        transform: scale(1.15);
+        box-shadow: 0 0 0 5px rgba(56, 189, 248, 0);
+    }
+    100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(56, 189, 248, 0);
+    }
 }
 
 .diff-commit-title {

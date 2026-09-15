@@ -2104,12 +2104,29 @@ def fetch_commit_gitlab():
         if not commits:
             return jsonify({'success': False, 'message': 'Không tìm thấy lịch sử commit nào cho quy cách này'})
 
-        # Step 4: Concurrently fetch diff for each commit, filtering specifically for this file
+        # Step 4: Concurrently fetch diff and pipeline info for each commit, filtering specifically for this file
         def fetch_commit_file_diff(commit_item):
             cid = commit_item.get('id', '')
             if not cid:
-                return commit_item, {}
+                return commit_item, {}, {}
             
+            # Fetch commit info for pipeline status, parent_ids, etc.
+            commit_detail = {}
+            try:
+                c_info_resp = requests.get(f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits/{cid}', headers=headers, verify=False, timeout=10)
+                if c_info_resp.status_code == 200:
+                    commit_detail = c_info_resp.json()
+            except Exception:
+                pass
+
+            last_pipe = commit_detail.get('last_pipeline') or {}
+            p_status = commit_detail.get('status') or last_pipe.get('status') or commit_item.get('status') or 'none'
+            pipeline_info = {
+                'status': p_status,
+                'id': last_pipe.get('id'),
+                'web_url': last_pipe.get('web_url', '')
+            }
+
             # Tier 1: Check commit diff endpoint
             diff_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits/{cid}/diff'
             try:
@@ -2121,7 +2138,7 @@ def fetch_commit_gitlab():
                             new_p = d.get('new_path', '')
                             old_p = d.get('old_path', '')
                             if new_p == path or old_p == path or new_p.endswith('/' + recipe_id + '.yaml') or old_p.endswith('/' + recipe_id + '.yaml') or new_p.endswith(recipe_id + '.yaml'):
-                                return commit_item, d
+                                return commit_item, d, pipeline_info
             except Exception:
                 pass
 
@@ -2129,8 +2146,10 @@ def fetch_commit_gitlab():
             try:
                 parent_ids = commit_item.get('parent_ids')
                 if parent_ids is None:
-                    c_info = requests.get(f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits/{cid}', headers=headers, verify=False, timeout=10).json()
-                    parent_ids = c_info.get('parent_ids', [])
+                    parent_ids = commit_detail.get('parent_ids', [])
+                    if parent_ids is None:
+                        c_info = requests.get(f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits/{cid}', headers=headers, verify=False, timeout=10).json()
+                        parent_ids = c_info.get('parent_ids', [])
 
                 parent_id = parent_ids[0] if parent_ids else None
                 raw_file_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/files/{encoded_path}/raw'
@@ -2170,7 +2189,7 @@ def fetch_commit_gitlab():
                     'new_file': is_new,
                     'renamed_file': False,
                     'deleted_file': is_deleted
-                }
+                }, pipeline_info
             except Exception:
                 return commit_item, {
                     'diff': '',
@@ -2179,7 +2198,7 @@ def fetch_commit_gitlab():
                     'new_file': False,
                     'renamed_file': False,
                     'deleted_file': False
-                }
+                }, pipeline_info
 
         with ThreadPoolExecutor(max_workers=10) as executor:
             commit_diff_results = list(executor.map(fetch_commit_file_diff, commits))
@@ -2193,11 +2212,17 @@ def fetch_commit_gitlab():
         column_names = [
             'message', 'authored_date', 'author_name', 'author_email', 
             'committed_date', 'committer_name', 'committer_email', 'id',
-            'diff', 'new_path', 'old_path', 'new_file', 'renamed_file', 'deleted_file', 'web_url'
+            'diff', 'new_path', 'old_path', 'new_file', 'renamed_file', 'deleted_file', 'web_url',
+            'pipeline_status', 'pipeline_id', 'pipeline_web_url'
         ]
 
         result = []
-        for commit, file_diff in commit_diff_results:
+        for item in commit_diff_results:
+            if len(item) == 3:
+                commit, file_diff, pipe_info = item
+            else:
+                commit, file_diff = item[0], item[1]
+                pipe_info = {}
             cid = commit.get('id', '')
             commit_web_url = commit.get('web_url', '') or (f'{project_web_base}/-/commit/{cid}' if cid else '')
             row = [
@@ -2215,7 +2240,10 @@ def fetch_commit_gitlab():
                 file_diff.get('new_file', False),
                 file_diff.get('renamed_file', False),
                 file_diff.get('deleted_file', False),
-                commit_web_url
+                commit_web_url,
+                pipe_info.get('status', 'none') or 'none',
+                pipe_info.get('id'),
+                pipe_info.get('web_url', '') or ''
             ]
             result.append(row)
 
