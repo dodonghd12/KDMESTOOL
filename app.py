@@ -2075,31 +2075,31 @@ def fetch_commit_gitlab():
         # Step 2: URL-encode the path (replace / with %2F)
         encoded_path = path.replace('/', '%2F')
 
-        # Step 3: Fetch blame (commit history) for the file
-        blame_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/files/{encoded_path}/blame'
-        blame_params = {'ref': 'master'}
-
-        blame_response = requests.get(blame_url, headers=headers, params=blame_params, verify=False, timeout=20)
-        blame_response.raise_for_status()
-        blame_data = blame_response.json()
-
-        seen_commit_ids = set()
+        # Step 3: Fetch complete commit history for the file path
+        commits_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits'
+        commits_resp = requests.get(commits_url, headers=headers, params={'path': path, 'ref_name': 'master', 'per_page': 100}, verify=False, timeout=20)
         commits = []
+        if commits_resp.status_code == 200 and isinstance(commits_resp.json(), list):
+            commits = commits_resp.json()
 
-        if isinstance(blame_data, list):
-            for blame_entry in blame_data:
-                commit = blame_entry.get('commit', {})
-                commit_id = commit.get('id', '')
-                if commit_id and commit_id not in seen_commit_ids:
-                    seen_commit_ids.add(commit_id)
-                    commits.append(commit)
-
-        # Fallback to commits endpoint if blame was empty
+        # Fallback to blame if commits endpoint returned empty
         if not commits:
-            commits_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits'
-            commits_resp = requests.get(commits_url, headers=headers, params={'path': path, 'ref_name': 'master', 'per_page': 50}, verify=False, timeout=20)
-            if commits_resp.status_code == 200:
-                commits = commits_resp.json()
+            try:
+                blame_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/files/{encoded_path}/blame'
+                blame_params = {'ref': 'master'}
+                blame_response = requests.get(blame_url, headers=headers, params=blame_params, verify=False, timeout=20)
+                if blame_response.ok:
+                    blame_data = blame_response.json()
+                    seen_commit_ids = set()
+                    if isinstance(blame_data, list):
+                        for blame_entry in blame_data:
+                            commit = blame_entry.get('commit', {})
+                            commit_id = commit.get('id', '')
+                            if commit_id and commit_id not in seen_commit_ids:
+                                seen_commit_ids.add(commit_id)
+                                commits.append(commit)
+            except Exception as e:
+                print(f"Error fallback blame: {e}")
 
         if not commits:
             return jsonify({'success': False, 'message': 'Không tìm thấy lịch sử commit nào cho quy cách này'})
@@ -2611,27 +2611,42 @@ def search_actions_commit():
             stem = os.path.splitext(actual_filename)[0]
             search_candidates.add(stem.lower())
 
-        # Step 2: Date-Anchoring via GitLab Blame on the recipe YAML file
-        # This allows jumping directly to the exact dates this recipe was touched in GitLab history
+        # Step 2: Date-Anchoring via Recipe File Commit History (+ fallback Blame)
+        # Fetch all commits that ever touched this recipe file across its entire history
         recipe_dates = []
+        recipe_commits = []
         if recipe_file_path:
             try:
-                encoded_path = recipe_file_path.replace('/', '%2F')
-                blame_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/files/{encoded_path}/blame'
-                blame_res = requests.get(blame_url, headers=headers, params={'ref': 'master'}, verify=False, timeout=10)
-                if blame_res.ok:
-                    blame_data = blame_res.json()
-                    seen_cids = set()
-                    for b in blame_data:
-                        c = b.get('commit', {})
-                        cid = c.get('id')
-                        if cid and cid not in seen_cids:
-                            seen_cids.add(cid)
-                            dt_str = c.get('authored_date') or c.get('committed_date')
-                            if dt_str:
-                                recipe_dates.append(dt_str)
+                file_commits_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits'
+                r_fc = requests.get(file_commits_url, headers=headers, params={'path': recipe_file_path, 'per_page': 100}, verify=False, timeout=10)
+                if r_fc.ok and isinstance(r_fc.json(), list):
+                    recipe_commits = r_fc.json()
+                    for c in recipe_commits:
+                        dt_str = c.get('authored_date') or c.get('committed_date')
+                        if dt_str:
+                            recipe_dates.append(dt_str)
             except Exception as e:
-                print(f"Error getting blame dates for {recipe_file_path}: {e}")
+                print(f"Error getting file commits for {recipe_file_path}: {e}")
+
+            # Fallback to blame if commits list was empty
+            if not recipe_dates:
+                try:
+                    encoded_path = recipe_file_path.replace('/', '%2F')
+                    blame_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/files/{encoded_path}/blame'
+                    blame_res = requests.get(blame_url, headers=headers, params={'ref': 'master'}, verify=False, timeout=10)
+                    if blame_res.ok:
+                        blame_data = blame_res.json()
+                        seen_cids = set()
+                        for b in blame_data:
+                            c = b.get('commit', {})
+                            cid = c.get('id')
+                            if cid and cid not in seen_cids:
+                                seen_cids.add(cid)
+                                dt_str = c.get('authored_date') or c.get('committed_date')
+                                if dt_str:
+                                    recipe_dates.append(dt_str)
+                except Exception as e:
+                    print(f"Error getting blame dates for {recipe_file_path}: {e}")
 
         # Step 3: Concurrently fetch actions.yaml commits for each anchored date window
         actions_commits_map = {}
@@ -2639,25 +2654,39 @@ def search_actions_commit():
             if c.get('id'):
                 actions_commits_map[c.get('id')] = c
 
-        def fetch_actions_window(dt_iso):
+        recipe_dts = []
+        for d in recipe_dates:
+            clean_iso = d.split('.')[0].replace('Z', '').split('+')[0]
             try:
-                clean_iso = dt_iso.split('.')[0].replace('Z', '').split('+')[0]
-                dt = datetime.fromisoformat(clean_iso)
-                since_dt = (dt - timedelta(days=2)).strftime('%Y-%m-%dT00:00:00Z')
-                until_dt = (dt + timedelta(days=2)).strftime('%Y-%m-%dT23:59:59Z')
-                
+                recipe_dts.append(datetime.fromisoformat(clean_iso))
+            except Exception:
+                pass
+
+        seen_windows = set()
+        window_list = []
+        for dt in recipe_dts:
+            since_dt = (dt - timedelta(days=1)).strftime('%Y-%m-%dT00:00:00Z')
+            until_dt = (dt + timedelta(days=1)).strftime('%Y-%m-%dT23:59:59Z')
+            wkey = (since_dt[:10], until_dt[:10])
+            if wkey not in seen_windows:
+                seen_windows.add(wkey)
+                window_list.append((since_dt, until_dt))
+
+        def fetch_actions_window(w):
+            since_dt, until_dt = w
+            try:
                 url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits'
                 params = {'path': 'actions.yaml', 'since': since_dt, 'until': until_dt, 'per_page': 100}
                 res = requests.get(url, headers=headers, params=params, verify=False, timeout=10)
                 if res.ok:
                     return res.json()
             except Exception as e:
-                print(f"Error fetching window for date {dt_iso}: {e}")
+                print(f"Error fetching window {since_dt} - {until_dt}: {e}")
             return []
 
-        if recipe_dates:
-            with ThreadPoolExecutor(max_workers=min(len(recipe_dates), 8)) as executor:
-                for clist in executor.map(fetch_actions_window, recipe_dates):
+        if window_list:
+            with ThreadPoolExecutor(max_workers=min(len(window_list), 20)) as executor:
+                for clist in executor.map(fetch_actions_window, window_list):
                     if clist and isinstance(clist, list):
                         for c in clist:
                             cid = c.get('id')
@@ -2668,8 +2697,19 @@ def search_actions_commit():
         if not all_candidate_commits:
             return jsonify({'success': False, 'message': 'Không tìm thấy commit nào của actions.yaml'})
 
-        # Sort candidate commits in reverse chronological order
-        all_candidate_commits.sort(key=lambda x: x.get('authored_date') or x.get('committed_date') or '', reverse=True)
+        # Sort candidate commits by distance to nearest recipe commit date for optimal scanning order
+        def get_min_dist(c):
+            dt_str = c.get('authored_date') or c.get('committed_date')
+            if not dt_str or not recipe_dts:
+                return 0
+            clean_iso = dt_str.split('.')[0].replace('Z', '').split('+')[0]
+            try:
+                c_dt = datetime.fromisoformat(clean_iso)
+                return min(abs((c_dt - r_dt).total_seconds()) for r_dt in recipe_dts)
+            except Exception:
+                return 999999999
+
+        all_candidate_commits.sort(key=get_min_dist)
 
         # Step 4: Concurrently scan diffs of candidate commits - ONLY matching ADDED lines (starting with '+')
         def check_diff(commit_item):
@@ -2705,7 +2745,7 @@ def search_actions_commit():
             return None
 
         matched_commits = []
-        with ThreadPoolExecutor(max_workers=20) as executor:
+        with ThreadPoolExecutor(max_workers=30) as executor:
             for r in executor.map(check_diff, all_candidate_commits):
                 if r:
                     matched_commits.append(r)
@@ -2775,6 +2815,13 @@ def search_actions_commit():
 
         with ThreadPoolExecutor(max_workers=10) as executor:
             full_matches = list(executor.map(fetch_mr_and_pipeline_details, matched_commits))
+
+        # Sort matched results in reverse chronological order (newest commit first)
+        def get_commit_datetime_sort_key(item):
+            c_item = item[0]
+            return c_item.get('authored_date') or c_item.get('committed_date') or ''
+
+        full_matches.sort(key=get_commit_datetime_sort_key, reverse=True)
 
         project_web_base = 'https://gitlabce.kenda.com.tw/tc/recipes/kitting' if project_id == 135 else f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}'
 
@@ -4701,41 +4748,51 @@ import sys
 _current_dir = os.path.dirname(os.path.abspath(__file__))
 _ocr_libs_dir = os.path.join(_current_dir, 'ocr_libs')
 
-rapid_ocr_engine = None
+_rapid_ocr_engine = None
 _ocr_init_error = None
+_ocr_lock = threading.Lock()
 
-# Bước 1: Thử nạp RapidOCR trực tiếp từ môi trường Python hiện tại (Local site-packages)
-try:
-    from rapidocr_onnxruntime import RapidOCR
-    rapid_ocr_engine = RapidOCR(Det_limit_type='max', Det_limit_side_len=960)
-    print("[INFO] RapidOCR Engine initialized successfully from system packages.")
-except Exception as _sys_err:
-    # Bước 2: Nếu chưa có trong hệ thống (như trên Server 9.245), nạp từ thư mục bundled ocr_libs
-    if os.path.exists(_ocr_libs_dir):
-        if _ocr_libs_dir not in sys.path:
-            sys.path.insert(0, _ocr_libs_dir)
-        if hasattr(os, 'add_dll_directory'):
-            for _sub in ['', 'onnxruntime', os.path.join('onnxruntime', 'capi'), 'cv2', 'numpy.libs', 'shapely.libs', 'PIL']:
-                _dll_p = os.path.join(_ocr_libs_dir, _sub) if _sub else _ocr_libs_dir
-                if os.path.isdir(_dll_p):
-                    try:
-                        os.add_dll_directory(_dll_p)
-                    except Exception:
-                        pass
-        _extra_paths = [_ocr_libs_dir, os.path.join(_ocr_libs_dir, 'onnxruntime', 'capi')]
-        os.environ["PATH"] = os.pathsep.join(_extra_paths) + os.pathsep + os.environ.get("PATH", "")
+def get_rapid_ocr_engine():
+    global _rapid_ocr_engine, _ocr_init_error
+    if _rapid_ocr_engine is not None:
+        return _rapid_ocr_engine, None
+    with _ocr_lock:
+        if _rapid_ocr_engine is not None:
+            return _rapid_ocr_engine, None
         try:
             from rapidocr_onnxruntime import RapidOCR
-            rapid_ocr_engine = RapidOCR(Det_limit_type='max', Det_limit_side_len=960)
-            print("[INFO] RapidOCR Engine initialized successfully from bundled ocr_libs.")
-        except Exception as _ocr_init_err:
-            rapid_ocr_engine = None
-            import traceback
-            _ocr_init_error = f"{type(_ocr_init_err).__name__}: {_ocr_init_err}\n{traceback.format_exc()}"
-            print(f"[WARN] RapidOCR initialization warning: {_ocr_init_err}")
-    else:
-        rapid_ocr_engine = None
-        _ocr_init_error = str(_sys_err)
+            _rapid_ocr_engine = RapidOCR(Det_limit_type='max', Det_limit_side_len=960)
+            print("[INFO] RapidOCR Engine initialized successfully from system packages.")
+            return _rapid_ocr_engine, None
+        except Exception as _sys_err:
+            if os.path.exists(_ocr_libs_dir):
+                if _ocr_libs_dir not in sys.path:
+                    sys.path.insert(0, _ocr_libs_dir)
+                if hasattr(os, 'add_dll_directory'):
+                    for _sub in ['', 'onnxruntime', os.path.join('onnxruntime', 'capi'), 'cv2', 'numpy.libs', 'shapely.libs', 'PIL']:
+                        _dll_p = os.path.join(_ocr_libs_dir, _sub) if _sub else _ocr_libs_dir
+                        if os.path.isdir(_dll_p):
+                            try:
+                                os.add_dll_directory(_dll_p)
+                            except Exception:
+                                pass
+                _extra_paths = [_ocr_libs_dir, os.path.join(_ocr_libs_dir, 'onnxruntime', 'capi')]
+                os.environ["PATH"] = os.pathsep.join(_extra_paths) + os.pathsep + os.environ.get("PATH", "")
+                try:
+                    from rapidocr_onnxruntime import RapidOCR
+                    _rapid_ocr_engine = RapidOCR(Det_limit_type='max', Det_limit_side_len=960)
+                    print("[INFO] RapidOCR Engine initialized successfully from bundled ocr_libs.")
+                    return _rapid_ocr_engine, None
+                except Exception as _ocr_init_err:
+                    _rapid_ocr_engine = None
+                    import traceback
+                    _ocr_init_error = f"{type(_ocr_init_err).__name__}: {_ocr_init_err}\n{traceback.format_exc()}"
+                    print(f"[WARN] RapidOCR initialization warning: {_ocr_init_err}")
+                    return None, _ocr_init_error
+            else:
+                _rapid_ocr_engine = None
+                _ocr_init_error = str(_sys_err)
+                return None, _ocr_init_error
 
 def clean_and_merge_ocr_results(result):
     """
@@ -4831,12 +4888,13 @@ def clean_and_merge_ocr_results(result):
 
 @app.route('/api/ocr/recognize', methods=['POST'])
 def ocr_recognize():
-    if rapid_ocr_engine is None:
+    engine, init_err = get_rapid_ocr_engine()
+    if engine is None:
         return jsonify({
             'success': False,
             'engine_available': False,
-            'init_error': _ocr_init_error,
-            'message': f'AI OCR Engine chưa được khởi tạo: {_ocr_init_error}'
+            'init_error': init_err,
+            'message': f'AI OCR Engine chưa được khởi tạo: {init_err}'
         }), 200
 
     image_bytes = None
@@ -4873,7 +4931,7 @@ def ocr_recognize():
             img.thumbnail((1280, 1280), Image.Resampling.LANCZOS)
         img_np = np.array(img)
 
-        result, elapse = rapid_ocr_engine(img_np)
+        result, elapse = engine(img_np)
         elapsed_ms = round((time.time() - t0) * 1000, 2)
 
         if not result:
