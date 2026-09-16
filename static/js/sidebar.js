@@ -1,3 +1,121 @@
+// ===== CUSTOM MODAL CONTROLLER (SHARED ACROSS ALL PAGES) =====
+function showModal(type, title, message, buttons = []) {
+    let targetDoc = document;
+    let modal = targetDoc.getElementById('customModal');
+    if (!modal && window.top && window.top.document) {
+        modal = window.top.document.getElementById('customModal');
+        if (modal) targetDoc = window.top.document;
+    }
+    if (!modal) return Promise.resolve(false);
+
+    const content = modal.querySelector('.custom-modal-content');
+    const icon = targetDoc.getElementById('modalIcon');
+    const titleEl = targetDoc.getElementById('modalTitle');
+    const messageEl = targetDoc.getElementById('modalMessage');
+    const footer = targetDoc.getElementById('modalFooter');
+
+    const validTypes = ['info', 'success', 'error', 'warning'];
+    const currentType = validTypes.includes(type) ? type : 'info';
+
+    if (content) {
+        content.className = 'custom-modal-content type-' + currentType;
+    }
+
+    if (icon) {
+        icon.className = 'custom-modal-icon ' + currentType;
+        const icons = {
+            'info': '<span class="material-symbols-outlined">info</span>',
+            'success': '<span class="material-symbols-outlined">check_circle</span>',
+            'error': '<span class="material-symbols-outlined">error</span>',
+            'warning': '<span class="material-symbols-outlined">warning</span>'
+        };
+        icon.innerHTML = icons[currentType] || '<span class="material-symbols-outlined">info</span>';
+    }
+
+    if (titleEl) titleEl.textContent = title;
+    if (messageEl) {
+        messageEl.textContent = message;
+        messageEl.style.whiteSpace = 'pre-line';
+    }
+
+    if (footer) {
+        footer.innerHTML = '';
+        buttons.forEach(btn => {
+            const button = targetDoc.createElement('button');
+            button.className = 'custom-modal-btn ' + (btn.class || 'custom-modal-btn-primary');
+            button.textContent = btn.text;
+            footer.appendChild(button);
+        });
+    }
+
+    modal.classList.add('show');
+    targetDoc.body.style.overflow = 'hidden';
+
+    setTimeout(() => {
+        if (footer) {
+            const primaryBtn = footer.querySelector('.custom-modal-btn-primary') || footer.firstElementChild;
+            if (primaryBtn) primaryBtn.focus();
+        }
+    }, 40);
+
+    return new Promise((resolve) => {
+        if (!footer) {
+            resolve(true);
+            return;
+        }
+        buttons.forEach((btn, index) => {
+            const button = footer.children[index];
+            if (button) {
+                button.onclick = () => {
+                    closeModal();
+                    resolve(btn.value !== false);
+                };
+            }
+        });
+    });
+}
+
+function closeModal() {
+    let targetDoc = document;
+    let modal = targetDoc.getElementById('customModal');
+    if (!modal && window.top && window.top.document) {
+        modal = window.top.document.getElementById('customModal');
+        if (modal) targetDoc = window.top.document;
+    }
+    if (modal) {
+        modal.classList.remove('show');
+    }
+    targetDoc.body.style.overflow = '';
+}
+
+function showConfirm(message, title = 'Xác nhận') {
+    return showModal('warning', title, message, [
+        { text: 'Hủy', class: 'custom-modal-btn-secondary', value: false },
+        { text: 'OK', class: 'custom-modal-btn-primary', value: true }
+    ]);
+}
+
+window.showModal = showModal;
+window.closeModal = closeModal;
+window.showConfirm = showConfirm;
+
+async function handleLogout() {
+    const confirmed = await showConfirm('Bạn có chắc chắn muốn đăng xuất?');
+    if (!confirmed) return;
+
+    try {
+        const response = await fetch('/logout', { method: 'POST' });
+        const data = await response.json();
+        if (data && data.success) {
+            (window.top || window).location.href = '/login';
+        }
+    } catch (error) {
+        console.error('Logout error:', error);
+        (window.top || window).location.href = '/login';
+    }
+}
+window.handleLogout = handleLogout;
+
 document.addEventListener('DOMContentLoaded', () => {
     const sidebar = document.getElementById('sidebar');
     if (!sidebar) return;

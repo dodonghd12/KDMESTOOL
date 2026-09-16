@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, Response, make_response # type: ignore
 from flask_session import Session
 from decimal import Decimal
+from functools import wraps
 import pytz # type: ignore
 import urllib3 # type: ignore
 import requests # type: ignore
@@ -67,14 +68,106 @@ def get_client_ip():
 from db_execute import (
     execute_pg_select_query
 )
-from utils import (
-    APP_VERSION, 
-    convert_iso_datetime, 
-    convert_timestamp, 
-    get_config_data,
-    write_api_log,
-    API_LOG_FILE_PATH
-)
+
+# --- Core Application Constants & Helpers ---
+APP_VERSION = "2.0.0"
+VN_TZ = timezone(timedelta(hours=7))
+API_LOG_FILE_PATH = r"\\198.1.10.2\Vitinh\Thu\QUAN TRONG KHONG XOA\log_kd_mes_tool.txt"
+
+_config_cache = None
+_config_date_modified = None
+
+def convert_iso_datetime(value):
+    if not value:
+        return value
+    try:
+        from dateutil import parser
+        dt = parser.isoparse(value)
+        if dt.tzinfo:
+            dt = dt.astimezone(VN_TZ)
+        return dt.strftime('%Y-%m-%d %H:%M:%S')
+    except Exception:
+        return value
+
+def convert_timestamp(data, column_names=None, target_columns=None):
+    def convert_single(value):
+        if not value or not isinstance(value, (int, float)):
+            return value
+        ts = int(value)
+        if ts > 1e18:
+            ts = ts / 1e9
+        elif ts > 1e15:
+            ts = ts / 1e6
+        elif ts > 1e12:
+            ts = ts / 1e3
+        dt = datetime.fromtimestamp(ts, VN_TZ)
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
+
+    if column_names is None:
+        return convert_single(data)
+
+    new_result = []
+    for row in data:
+        row_list = list(row)
+        for col in (target_columns or []):
+            if col in column_names:
+                idx = column_names.index(col)
+                row_list[idx] = convert_single(row_list[idx])
+        new_result.append(tuple(row_list))
+    return new_result
+
+def get_config_data(key):
+    global _config_cache, _config_date_modified
+    encoded_path = "XFwxOTguMS4xMC4yXFZpdGluaFxUaHVcUVVBTiBUUk9ORyBLSE9ORyBYT0FcY29uZmlnLmpzb24="
+    config_path = base64.b64decode(encoded_path).decode("utf-8")
+    
+    if not os.path.exists(config_path):
+        _config_cache = {}
+        return []
+
+    try:
+        mtime = os.path.getmtime(config_path)
+        if _config_cache is None or mtime != _config_date_modified:
+            with open(config_path, "r", encoding='utf-8') as f:
+                _config_cache = json.load(f)
+            _config_date_modified = mtime
+    except Exception:
+        _config_cache = {}
+
+    return _config_cache.get(key, []) if _config_cache else []
+
+def _append_api_log_entry(log_line: str):
+    try:
+        dir_path = os.path.dirname(API_LOG_FILE_PATH)
+        if dir_path and not os.path.exists(dir_path):
+            os.makedirs(dir_path, exist_ok=True)
+        with open(API_LOG_FILE_PATH, 'a', encoding='utf-8') as f:
+            f.write(log_line + '\n')
+    except Exception as e:
+        print(f"[API_LOG_ERROR] Lỗi khi ghi file log: {e}", file=sys.stderr)
+
+def write_api_log(api: str, user_ip: str, payload=None):
+    try:
+        now_str = datetime.now(VN_TZ).strftime("%Y-%m-%d %H:%M:%S")
+        safe_payload = payload
+        if safe_payload is None:
+            safe_payload = {}
+        elif isinstance(safe_payload, dict):
+            if 'password' in safe_payload:
+                safe_payload = dict(safe_payload)
+                safe_payload['password'] = '******'
+
+        log_obj = {
+            "api": api or "",
+            "user_ip": user_ip or "",
+            "execution_time": now_str,
+            "payload": safe_payload
+        }
+        log_line = json.dumps(log_obj, ensure_ascii=False, default=str)
+        threading.Thread(target=_append_api_log_entry, args=(log_line,), daemon=True).start()
+    except Exception as e:
+        print(f"[API_LOG_ERROR] {e}", file=sys.stderr)
+
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -126,6 +219,31 @@ def make_unauthorized_response(message='Phiên đăng nhập đã hết hạn. V
     response.headers.pop('WWW-Authenticate', None)
     response.headers.pop('www-authenticate', None)
     return response
+
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+            return make_unauthorized_response()
+        return f(*args, **kwargs)
+    return decorated_function
+
+CBK_PRODUCT_TYPES = {
+    'BEAD', 'BEAD_AND_BEAD_FILLER_PREASSEMBLY', 'BEAD_WIRE', 'BEAD_FILLER',
+    'CARCASS_PLY', 'CAP_PLY', 'CHAFER', 'INNER_LINER', 'PLY',
+    'SIDEWALL', 'SQUEEZE', 'STEEL_BELT', 'STEEL_WIRE', 'TREAD'
+}
+
+def get_gitlab_project_id(product_type: str, default_id: int = 136) -> int:
+    pt = (product_type or '').strip().upper()
+    if pt == 'GREEN_TIRE':
+        return 133
+    elif pt == 'TIRE':
+        return 134
+    elif pt in CBK_PRODUCT_TYPES:
+        return 135
+    return default_id
 
 @app.errorhandler(401)
 def custom_401_handler(e):
@@ -220,9 +338,8 @@ def logout():
     return jsonify({'success': True})
 
 @app.route('/api/check-auth', methods=['GET'])
+@login_required
 def check_auth():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
 
     return jsonify({'success': True})
 
@@ -290,9 +407,8 @@ def magic_winx():
 
 #========= API =========#
 @app.route('/api/barcodes', methods=['POST'])
+@login_required
 def search_barcode():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
     
     keyword = request.json.get('keyword', '').strip()
     if not keyword:
@@ -326,9 +442,8 @@ def search_barcode():
         })
 
 @app.route('/api/recipes', methods=['POST'])
+@login_required
 def search_work_order():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
     
     keyword = request.json.get('keyword', '').strip()
     if not keyword:
@@ -382,9 +497,8 @@ def search_work_order():
         })
 
 @app.route('/api/feed_records', methods=['POST'])
+@login_required
 def search_feed_record():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
     
     keyword = request.json.get('keyword', '').strip()
     if not keyword:
@@ -421,9 +535,8 @@ def search_feed_record():
         })
     
 @app.route('/api/work-orders/get-details', methods=['POST'])
+@login_required
 def get_work_order_by_id():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
     
     work_order_id = request.json.get('work_order_id', '').strip()
     if not work_order_id:
@@ -457,9 +570,8 @@ def get_work_order_by_id():
         })
 
 @app.route('/api/station/scan-barcode-history', methods=['POST'])
+@login_required
 def search_scan_barcode_history_by_station():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
     
     fromDate = request.json.get('fromDate', '').strip()
     toDate = request.json.get('toDate', '').strip()
@@ -576,9 +688,8 @@ def search_scan_barcode_history_by_station():
         })
 
 @app.route('/api/station/print-barcode-history', methods=['POST'])
+@login_required
 def search_print_barcode_history_by_station():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
     
     fromDate = request.json.get('fromDate', '').strip()
     toDate = request.json.get('toDate', '').strip()
@@ -664,9 +775,8 @@ def search_print_barcode_history_by_station():
         })
  
 @app.route('/api/barcodes/scan-in-station', methods=['POST'])
+@login_required
 def search_scan_barcode_history_by_barcode():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
     
     resource_id = request.json.get('resource_id', '').strip()
     if not resource_id:
@@ -741,9 +851,8 @@ def search_scan_barcode_history_by_barcode():
         })
     
 @app.route('/api/barcodes/fetch-work-orders', methods=['POST'])
+@login_required
 def fetch_work_order_by_barcode():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
     
     fromDate = request.json.get('fromDate', '').strip()
     toDate = request.json.get('toDate', '').strip()
@@ -867,9 +976,8 @@ def get_input_barcode():
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
 
 @app.route('/api/barcodes/check-used-history', methods=['POST'])
+@login_required
 def get_used_history_by_barcode():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
 
     material_oid = request.json.get('material_oid')
     if not material_oid:
@@ -1016,9 +1124,8 @@ def get_used_history_by_barcode():
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
 
 @app.route('/api/workorders/fetch-output-barcodes', methods=['POST'])
+@login_required
 def fetch_output_barcode_by_work_order():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
 
     data = request.get_json() or {}
 
@@ -1181,9 +1288,8 @@ def run_output_barcode_query_task(task_id, resource_id, work_order):
                 })
 
 @app.route('/api/barcodes/fetch-output-barcodes', methods=['POST'])
+@login_required
 def get_output_barcode_by_barcode():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
     
     resource_id = str(request.json.get('resource_id') or '').strip()
     if not resource_id:
@@ -1224,9 +1330,8 @@ def get_output_barcode_by_barcode():
     })
 
 @app.route('/api/barcodes/fetch-output-barcodes/status/<task_id>', methods=['GET'])
+@login_required
 def get_output_barcode_task_status(task_id):
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
 
     with tasks_lock:
         task = output_barcode_tasks.get(task_id)
@@ -1276,9 +1381,8 @@ def get_output_barcode_task_status(task_id):
         })
 
 @app.route('/api/barcodes/fetch-output-barcodes/stream', methods=['GET'])
+@login_required
 def stream_output_barcodes():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
     
     resource_id = str(request.args.get('resource_id') or '').strip()
     work_order = str(request.args.get('work_order') or '').strip()
@@ -1396,9 +1500,8 @@ def stream_output_barcodes():
     return response
 
 @app.route('/api/barcodes/fetch-output-barcodes/cancel/<task_id>', methods=['POST'])
+@login_required
 def cancel_output_barcode_task(task_id):
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
 
     with tasks_lock:
         if task_id in output_barcode_tasks:
@@ -1407,9 +1510,8 @@ def cancel_output_barcode_task(task_id):
     return jsonify({'success': True, 'message': 'Đã hủy truy vấn'})
 
 @app.route('/api/barcodes/check-transfer', methods=['POST'])
+@login_required
 def check_barcode_transfer():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
 
     resource_id = request.json.get('resource_id')
     if not resource_id:
@@ -1450,9 +1552,8 @@ def check_barcode_transfer():
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
 
 @app.route('/api/barcodes/check-extend-date-count', methods=['POST'])
+@login_required
 def check_barcode_extend_time():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
 
     resource_id = request.json.get('resource_id')
     if not resource_id:
@@ -1526,9 +1627,8 @@ _STATIONS_CACHE = {}  # {department_oid: {'data': [...], 'timestamp': ...}}
 _STATIONS_CACHE_TTL = 600  # 10 minutes cache
 
 @app.route('/api/departments', methods=['GET'])
+@login_required
 def get_department_list():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response('User not logged in')
     
     now = time.time()
     if _DEPARTMENTS_CACHE['data'] is not None and (now - _DEPARTMENTS_CACHE['timestamp'] < _DEPARTMENTS_CACHE['ttl']):
@@ -1578,9 +1678,8 @@ def get_department_list():
         }), 500
 
 @app.route('/api/departments/stations', methods=['POST'])
+@login_required
 def get_station_list_by_department():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
     
     user_token = session.get('user_token')
     if not user_token:
@@ -1620,9 +1719,8 @@ def get_station_list_by_department():
         return jsonify({'stations': [], 'error': str(e)})
 
 @app.route('/api/work-orders/get-active-list', methods=['POST'])
+@login_required
 def get_active_work_order_list():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
     
     station = request.json.get('station', '').strip()
     
@@ -1650,9 +1748,8 @@ def get_active_work_order_list():
         return jsonify({'result': [], 'columns': [], 'error': str(e)})
 
 @app.route('/api/stations/validate-scan-barcode', methods=['POST'])
+@login_required
 def validate_scan_barcode_by_station():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
     
     recipe_id = request.json.get('recipe_id', '').strip()
     station = request.json.get('station', '').strip()
@@ -1811,9 +1908,8 @@ def validate_scan_barcode_by_station():
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
     
 @app.route('/api/barcodes/get-reprint-list', methods=['POST'])
+@login_required
 def get_reprint_barcode_list():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
 
     from_date = request.json.get('from_date', '').strip()
     to_date = request.json.get('to_date', '').strip()
@@ -1885,9 +1981,8 @@ def get_reprint_barcode_list():
         }), 500
 
 @app.route('/api/get-qc-data-by-date', methods=['POST'])
+@login_required
 def get_qc_data_by_date():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
 
     from_date  = request.json.get('fromDate', '').strip()
     to_date    = request.json.get('toDate', '').strip()
@@ -1936,9 +2031,8 @@ def get_qc_data_by_date():
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
     
 @app.route('/api/barcodes/get-substitutions-list', methods=['POST'])
+@login_required
 def search_substitutions():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
     
     keyword = request.json.get('keyword', '').strip()
     if not keyword:
@@ -1968,9 +2062,8 @@ def search_substitutions():
         })
     
 @app.route('/api/recipes/fetch-work-orders', methods=['POST'])
+@login_required
 def fetch_work_order_by_recipe():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
     
     recipe_id = request.json.get('recipe_id')
     if not recipe_id:
@@ -2011,9 +2104,8 @@ def fetch_work_order_by_recipe():
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
 
 @app.route('/api/recipes/fetch-commit-gitlab', methods=['POST'])
+@login_required
 def fetch_commit_gitlab():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
     
     global gitlab_private_token
 
@@ -2023,20 +2115,7 @@ def fetch_commit_gitlab():
     if not recipe_id or not product_type:
         return jsonify({'success': False, 'message': 'Thiếu recipe_id hoặc product_type'})
 
-    CBK = {
-        'BEAD', 'BEAD_AND_BEAD_FILLER_PREASSEMBLY', 'BEAD_WIRE', 'BEAD_FILLER',
-        'CARCASS_PLY', 'CAP_PLY', 'CHAFER', 'INNER_LINER', 'PLY',
-        'SIDEWALL', 'SQUEEZE', 'STEEL_BELT', 'STEEL_WIRE', 'TREAD'
-    }
-
-    if product_type == 'GREEN_TIRE':
-        project_id = 133
-    elif product_type == 'TIRE':
-        project_id = 134
-    elif product_type in CBK:
-        project_id = 135
-    else:
-        project_id = 136
+    project_id = get_gitlab_project_id(product_type)
 
     session['current_gitlab_project_id'] = project_id
 
@@ -2283,9 +2362,8 @@ def fetch_commit_gitlab():
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
 
 @app.route('/api/recipes/commit-gitlab/details', methods=['POST'])
+@login_required
 def fetch_commit_gitlab_details():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
 
     global gitlab_private_token
 
@@ -2417,9 +2495,8 @@ def get_label_config_data():
     return _label_config_cache['data'] or {'product_types': [], 'config_map': {}, 'keys_by_product_type': {}}
 
 @app.route('/api/recipes/fetch-yaml-content', methods=['POST'])
+@login_required
 def fetch_yaml_content():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
 
     global gitlab_private_token
 
@@ -2429,20 +2506,7 @@ def fetch_yaml_content():
     if not recipe_id or not product_type:
         return jsonify({'success': False, 'message': 'Thiếu recipe_id hoặc product_type'})
 
-    CBK = {
-        'BEAD', 'BEAD_AND_BEAD_FILLER_PREASSEMBLY', 'BEAD_WIRE', 'BEAD_FILLER',
-        'CARCASS_PLY', 'CAP_PLY', 'CHAFER', 'INNER_LINER', 'PLY',
-        'SIDEWALL', 'SQUEEZE', 'STEEL_BELT', 'STEEL_WIRE', 'TREAD'
-    }
-
-    if product_type == 'GREEN_TIRE':
-        project_id = 133
-    elif product_type == 'TIRE':
-        project_id = 134
-    elif product_type in CBK:
-        project_id = 135
-    else:
-        project_id = 136
+    project_id = get_gitlab_project_id(product_type)
 
     headers = {
         'PRIVATE-TOKEN': gitlab_private_token
@@ -2520,9 +2584,8 @@ def fetch_yaml_content():
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
 
 @app.route('/api/recipes/search-actions-commit', methods=['POST'])
+@login_required
 def search_actions_commit():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
 
     global gitlab_private_token
     token = gitlab_private_token or os.environ.get('GITLAB_PRIVATE_TOKEN', '')
@@ -2533,20 +2596,7 @@ def search_actions_commit():
     if not recipe_id:
         return jsonify({'success': False, 'message': 'Thiếu thông tin recipe_id'})
 
-    CBK = {
-        'BEAD', 'BEAD_AND_BEAD_FILLER_PREASSEMBLY', 'BEAD_WIRE', 'BEAD_FILLER',
-        'CARCASS_PLY', 'CAP_PLY', 'CHAFER', 'INNER_LINER', 'PLY',
-        'SIDEWALL', 'SQUEEZE', 'STEEL_BELT', 'STEEL_WIRE', 'TREAD'
-    }
-
-    if product_type == 'GREEN_TIRE':
-        project_id = 133
-    elif product_type == 'TIRE':
-        project_id = 134
-    elif product_type in CBK:
-        project_id = 135
-    else:
-        project_id = 135
+    project_id = get_gitlab_project_id(product_type)
 
     headers = {
         'PRIVATE-TOKEN': token
@@ -2902,9 +2952,8 @@ def search_actions_commit():
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
 
 @app.route('/api/label-config/fetch', methods=['GET', 'POST'])
+@login_required
 def fetch_label_config():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
 
     global _label_config_cache, gitlab_private_token
 
@@ -3010,9 +3059,8 @@ def fetch_label_config():
         }), 200
     
 @app.route('/api/barcodes/fetch-original-info', methods=['POST'])
+@login_required
 def fetch_original_info_by_barcode():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
 
     data = request.get_json() or {}
 
@@ -3095,9 +3143,8 @@ def fetch_original_info_by_barcode():
         })
     
 @app.route('/api/mesync/get-mesync-inbox-events', methods=['POST'])
+@login_required
 def get_mesync_inbox_events():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
 
     keyword = request.json.get('keyword', '').strip()
     if not keyword:
@@ -3139,9 +3186,8 @@ def get_mesync_inbox_events():
         })
 
 @app.route('/api/barcodes/get-station-configuration-list', methods=['POST'])
+@login_required
 def get_station_configuration_list():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
     
     station = request.json.get('station', '').strip()
     
@@ -3172,9 +3218,8 @@ def get_station_configuration_list():
         })
 
 @app.route('/api/barcodes/get-prdeba', methods=['POST'])
+@login_required
 def get_prdeba():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
 
     resource_id = request.json.get('resource_id', '').strip()
     if not resource_id:
@@ -3224,9 +3269,8 @@ def get_prdeba():
 
 
 @app.route('/api/barcodes/get-prdebb', methods=['POST'])
+@login_required
 def get_prdebb():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
 
     resource_id = request.json.get('resource_id', '').strip()
     if not resource_id:
@@ -3262,9 +3306,8 @@ def get_prdebb():
 
 
 @app.route('/api/barcodes/get-prdebc', methods=['POST'])
+@login_required
 def get_prdebc():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
 
     resource_id = request.json.get('resource_id', '').strip()
     if not resource_id:
@@ -3310,9 +3353,8 @@ def get_prdebc():
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
 
 @app.route('/api/magic-winx/work-order/fetch-collect-records', methods=['POST'])
+@login_required
 def magic_winx_fetch_collect_records():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
 
     work_order_id = request.json.get('work_order_id', '').strip()
     if not work_order_id:
@@ -3385,9 +3427,8 @@ def magic_winx_fetch_collect_records():
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
 
 @app.route('/api/magic-winx/collect-record/material-resource-existed', methods=['POST'])
+@login_required
 def magic_winx_check_material_resource_existed():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
 
     data = request.get_json() or {}
     resource_ids = data.get('resource_ids', [])
@@ -3416,9 +3457,8 @@ def magic_winx_check_material_resource_existed():
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
     
 @app.route('/api/magic-winx/prepare-insert-data', methods=['POST'])
+@login_required
 def magic_winx_prepare():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
 
     data          = request.get_json() or {}
     work_order_id = data.get('work_order_id', '').strip()
@@ -3588,9 +3628,8 @@ def magic_winx_prepare():
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
 
 @app.route('/api/magic-winx/insert-material', methods=['POST'])
+@login_required
 def magic_winx_execute():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
 
     data        = request.get_json() or {}
 
@@ -3708,12 +3747,8 @@ def magic_winx_execute():
         return jsonify({'success': False, 'message': f'Lỗi kết nối DB: {str(e)}'})
     
 @app.route('/api/magic-winx/update-feed-record-material', methods=['POST'])
+@login_required
 def magic_winx_update():
-    if 'user_id' not in session or \
-       'user_token' not in session or \
-       'user_ip' not in session:
-
-        return make_unauthorized_response()
 
     data = request.get_json() or {}
 
@@ -3904,14 +3939,9 @@ def magic_winx_update():
         })
 
 @app.route('/api/magic-winx/update-green-tire-quantity', methods=['POST'])
+@login_required
 def magic_winx_magic():
 
-    API_NAME = 'API Update GREEN TIRE quantity'
-    if 'user_id' not in session or \
-       'user_token' not in session or \
-       'user_ip' not in session:
-
-        return make_unauthorized_response(f'{API_NAME} lỗi: Unauthorized')
 
     try:
         data = request.get_json() or {}
@@ -4026,9 +4056,8 @@ def magic_winx_magic():
         })
 
 @app.route('/api/magic-winx/check-work-orders-bulk', methods=['POST'])
+@login_required
 def magic_winx_check_work_orders_bulk():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
 
     data = request.get_json() or {}
     work_order_ids = data.get('work_order_ids', [])
@@ -4163,9 +4192,8 @@ def magic_winx_check_work_orders_bulk():
     })
 
 @app.route('/api/magic-winx/prepare-material-resource', methods=['POST'])
+@login_required
 def magic_winx_prepare_material_resource():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
 
     data = request.get_json() or {}
     raw_input = data.get('raw_input', '').strip()
@@ -4673,9 +4701,8 @@ def magic_winx_prepare_material_resource():
         return jsonify({'success': False, 'message': f'Lỗi thực thi: {str(e)}'})
 
 @app.route('/api/magic-winx/insert-material-resource', methods=['POST'])
+@login_required
 def magic_winx_insert_material_resource():
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return make_unauthorized_response()
 
     data = request.get_json() or {}
 
