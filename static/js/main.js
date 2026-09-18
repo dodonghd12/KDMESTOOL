@@ -4467,31 +4467,35 @@ function detectYamlErrors(content, productType = null, labelConfigKeys = null, a
             }
         }
 
-        // 2. Kiểm tra controls.value
-        if (/^\s*value\s*:/.test(line)) {
-            const isInControls = indentStack.some(s => s.type === 'controls');
-            const isInSteps    = indentStack.some(s => s.type === 'steps');
-
-            if (isInControls && isInSteps) {
-                const valueStr = line.split(':').slice(1).join(':').trim();
-
-                const isPlainNumber = /^-?\d+(\.\d+)?$/.test(valueStr);
-                const isPlainString = /^['"]\w.*['"]$/.test(valueStr) && !/center/.test(valueStr);
-                const isEmpty       = valueStr === '' || valueStr === 'null' || valueStr === '~';
-
-                let nextNonEmpty = '';
-                for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
-                    const t = lines[j].trim();
-                    if (t) { nextNonEmpty = t; break; }
+        // 2. Kiểm tra controls: Chỉ kiểm tra nếu không có dữ liệu thì bắt buộc phải khai báo controls: []
+        if (/^\s*controls\s*:/.test(line)) {
+            const afterColon = line.split(':')[1].trim();
+            if (afterColon === '[]') {
+                // Hợp lệ: controls: [] khi không có dữ liệu
+            } else if (afterColon === 'null' || afterColon === '~') {
+                errors.push({
+                    lineIndex: i,
+                    type: 'controls_empty',
+                    message: "controls: Khóa controls không có dữ liệu, bắt buộc phải khai báo là 'controls: []'"
+                });
+            } else if (afterColon === '' || afterColon.startsWith('#')) {
+                // Kiểm tra xem các dòng tiếp theo có nội dung con (thụt lề sâu hơn) hay không
+                const currentLineIndent = line.length - line.trimStart().length;
+                let hasChildren = false;
+                for (let j = i + 1; j < lines.length; j++) {
+                    const nextTrimmed = lines[j].trimStart();
+                    if (!nextTrimmed || nextTrimmed.startsWith('#')) continue;
+                    const nextIndent = lines[j].length - nextTrimmed.length;
+                    if (nextIndent > currentLineIndent) {
+                        hasChildren = true;
+                    }
+                    break;
                 }
-
-                const hasCenter = nextNonEmpty.startsWith('center:') || nextNonEmpty.startsWith('center ');
-
-                if (isPlainNumber || isEmpty || (valueStr !== '' && !hasCenter && !valueStr.startsWith('{'))) {
+                if (!hasChildren) {
                     errors.push({
                         lineIndex: i,
-                        type: 'controls_value',
-                        message: 'value: 需符合至少一種結構（anyOf）— Chỉ hỗ trợ cấu trúc center value'
+                        type: 'controls_empty',
+                        message: "controls: Khóa controls không có dữ liệu, bắt buộc phải khai báo là 'controls: []'"
                     });
                 }
             }

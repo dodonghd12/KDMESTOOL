@@ -4139,8 +4139,7 @@ def magic_winx_update():
 @app.route('/api/magic-winx/update-green-tire-quantity', methods=['POST'])
 @login_required
 def magic_winx_magic():
-
-
+    API_NAME = 'update-green-tire-quantity'
     try:
         data = request.get_json() or {}
         ids = data.get('ids', [])

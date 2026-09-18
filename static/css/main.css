@@ -220,10 +220,10 @@
     --table-footer-px: 16px;
     --btn-export-w: 114px;
     --btn-export-h: 30px;
-    --table-container-single-min-h: 145px;
-    --table-container-single-max-h: 170px;
-    --table-scroll-single-min-h: 85px;
-    --table-scroll-single-max-h: 98px;
+    --table-container-single-min-h: 180px;
+    --table-container-single-max-h: 215px;
+    --table-scroll-single-min-h: 88px;
+    --table-scroll-single-max-h: 108px;
 }
 
 /* 1. COMPACT MODE (~40px) */
@@ -241,10 +241,10 @@ body.density-compact,
     --table-footer-px: 12px;
     --btn-export-w: 104px;
     --btn-export-h: 26px;
-    --table-container-single-min-h: 115px;
-    --table-container-single-max-h: 130px;
-    --table-scroll-single-min-h: 58px;
-    --table-scroll-single-max-h: 70px;
+    --table-container-single-min-h: 145px;
+    --table-container-single-max-h: 170px;
+    --table-scroll-single-min-h: 65px;
+    --table-scroll-single-max-h: 80px;
 }
 
 /* 2. DEFAULT MODE (~48px) */
@@ -262,10 +262,10 @@ body.density-default,
     --table-footer-px: 16px;
     --btn-export-w: 114px;
     --btn-export-h: 30px;
-    --table-container-single-min-h: 145px;
-    --table-container-single-max-h: 170px;
-    --table-scroll-single-min-h: 85px;
-    --table-scroll-single-max-h: 98px;
+    --table-container-single-min-h: 180px;
+    --table-container-single-max-h: 215px;
+    --table-scroll-single-min-h: 88px;
+    --table-scroll-single-max-h: 108px;
 }
 
 /* 3. COMFORTABLE MODE (~56px) */
@@ -283,10 +283,10 @@ body.density-comfortable,
     --table-footer-px: 18px;
     --btn-export-w: 122px;
     --btn-export-h: 34px;
-    --table-container-single-min-h: 165px;
-    --table-container-single-max-h: 195px;
-    --table-scroll-single-min-h: 105px;
-    --table-scroll-single-max-h: 120px;
+    --table-container-single-min-h: 210px;
+    --table-container-single-max-h: 250px;
+    --table-scroll-single-min-h: 110px;
+    --table-scroll-single-max-h: 132px;
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -2819,6 +2819,13 @@ body.theme-light .empty-state-icon-wrapper::after {
     max-height: var(--table-scroll-single-max-h) !important;
     overflow-x: auto;
     overflow-y: auto;
+}
+
+#outputContainer.single-row-mode .output-footer {
+    flex: 0 0 auto !important;
+    position: relative;
+    z-index: 10;
+    margin-top: auto;
 }
 
 /* Secondary Output Table (Sub Output) */
