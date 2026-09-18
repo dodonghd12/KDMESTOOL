@@ -218,7 +218,7 @@
 
         // Staggered background preloading for deferred data-src iframes
         const lazyFrames = Array.from(document.querySelectorAll('.spa-view-frame[data-src]'));
-        let staggerDelay = 120;
+        let staggerDelay = 80;
         lazyFrames.forEach((frame) => {
             setTimeout(() => {
                 if (frame.dataset.src && (!frame.src || frame.src.endsWith('about:blank') || frame.src === window.location.href)) {
@@ -226,7 +226,7 @@
                     frame.removeAttribute('data-src');
                 }
             }, staggerDelay);
-            staggerDelay += 260; // 260ms interval keeps server connection pool completely relaxed
+            staggerDelay += 90; // Gentle 90ms interval with cached assets finishes all frames in < 1s
         });
 
         // Listen for frame readiness messages
@@ -236,12 +236,12 @@
             }
         });
 
-        // Safety fallback timer: in case an iframe takes too long, complete after 8 seconds
+        // Safety fallback timer: in case an iframe takes too long, complete after 3.2 seconds
         setTimeout(() => {
             if (!isAllPagesLoaded) {
                 completeSpaPreloading();
             }
-        }, 8000);
+        }, 3200);
     }
 
     function initSpaNavigation() {

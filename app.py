@@ -372,6 +372,7 @@ from db_execute import (
 
 # --- Core Application Constants & Helpers ---
 APP_VERSION = "2.0.0"
+ASSET_VERSION = str(int(time.time()))
 VN_TZ = timezone(timedelta(hours=7))
 API_LOG_FILE_PATH = r"\\198.1.10.2\Vitinh\Thu\QUAN TRONG KHONG XOA\log_kd_mes_tool.txt"
 
@@ -506,8 +507,13 @@ def suppress_browser_auth_popup(response):
     response.headers.pop('WWW-Authenticate', None)
     response.headers.pop('www-authenticate', None)
 
-    if 'Cache-Control' not in response.headers:
+    if request.path.startswith('/static/'):
+        response.headers['Cache-Control'] = 'public, max-age=2592000, immutable'
+    elif request.path.startswith('/api/'):
         response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    else:
+        if 'Cache-Control' not in response.headers:
+            response.headers['Cache-Control'] = 'no-cache, must-revalidate'
     return response
 
 def make_unauthorized_response(message='Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'):
@@ -557,7 +563,7 @@ def custom_403_handler(e):
 @app.context_processor
 def inject_global_context():
     return {
-        'version': str(int(time.time())),
+        'version': ASSET_VERSION,
         'app_version': APP_VERSION
     }
 

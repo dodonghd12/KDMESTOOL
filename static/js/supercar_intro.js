@@ -672,14 +672,14 @@
                 }
             }
 
-            if (isAllPreloaded) {
+            if (isAllPreloaded || elapsed >= (t3 + CONFIG.smokeCoverDuration + 0.35)) {
                 if (!allLoadedTimestamp) {
                     allLoadedTimestamp = elapsed;
                 }
                 updateHud('Đang mở Main...', 100);
 
-                // Hold for 0.4s after 100% so user sees full completion, then dissipate cleanly
-                if (elapsed - allLoadedTimestamp >= 0.4) {
+                // Hold for 0.35s after 100% so user sees full completion, then dissipate cleanly
+                if (elapsed - allLoadedTimestamp >= 0.35 || elapsed >= (t3 + CONFIG.smokeCoverDuration + 0.6)) {
                     scene.phase = 'dissipate';
                     if (!isFinished) {
                         finishIntro();
@@ -818,10 +818,10 @@
             }
         });
 
-        // Safety fallback timer: auto-close after 12s max if network hangs
+        // Safety fallback timer: auto-close after 4.5s max if network hangs
         setTimeout(() => {
             if (!isFinished) finishIntro();
-        }, 12000);
+        }, 4500);
 
         // Start 60fps RAF loop immediately
         animFrameId = requestAnimationFrame(render);
