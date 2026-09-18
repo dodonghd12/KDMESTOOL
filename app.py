@@ -20,9 +20,309 @@ from concurrent.futures import ThreadPoolExecutor
 import difflib
 import time
 import uuid
+from urllib3.util.retry import Retry
+from requests.adapters import HTTPAdapter
 
-gitlab_private_token = os.environ.get('GITLAB_PRIVATE_TOKEN', '')
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+_gitlab_session = None
+_gitlab_session_lock = threading.Lock()
+_recipe_path_cache = {}
+_recipe_cache_lock = threading.Lock()
+
+_actions_diff_cache = {}
+_actions_diff_lock = threading.Lock()
+_raw_actions_cache = {}
+_raw_actions_lock = threading.Lock()
+_actions_mr_cache = {}
+_actions_mr_lock = threading.Lock()
+_actions_pipeline_cache = {}
+_actions_pipeline_lock = threading.Lock()
+
+_label_config_cache = {'timestamp': 0, 'data': None}
+_label_config_lock = threading.Lock()
+
+def validate_actions_yaml_content(content: str, recipe_id: str) -> dict:
+    """
+    Kiểm tra tính hợp lệ về cú pháp và cấu trúc thụt lề của file actions.yaml.
+    Quy tắc:
+    - recipe:
+        files: (bắt buộc thụt lề 2 khoảng trắng dưới recipe:)
+          - <tên_file.yaml>
+    """
+    result = {
+        'is_valid': True,
+        'has_indent_error': False,
+        'errors': [],
+        'parsed_recipe_files': []
+    }
+
+    if not content or not content.strip():
+        result['is_valid'] = False
+        result['errors'].append('Nội dung actions.yaml rỗng')
+        return result
+
+    # 1. Parse YAML với PyYAML
+    parsed_yaml = None
+    try:
+        parsed_yaml = yaml.safe_load(content)
+    except Exception as e:
+        result['is_valid'] = False
+        result['errors'].append(f'Lỗi cú pháp YAML (YAML Syntax Error): {str(e)}')
+
+    # 2. Phân tích cấu trúc YAML
+    if isinstance(parsed_yaml, dict):
+        recipe_block = parsed_yaml.get('recipe')
+        root_files = parsed_yaml.get('files')
+
+        if root_files is not None and (recipe_block is None or not isinstance(recipe_block, dict) or 'files' not in recipe_block):
+            result['is_valid'] = False
+            result['has_indent_error'] = True
+            result['errors'].append("Khóa 'files:' đang nằm ở cấp ngoài cùng (root) thay vì thụt lề 2 khoảng trắng dưới 'recipe:'")
+
+        if isinstance(recipe_block, dict):
+            r_files = recipe_block.get('files', [])
+            if isinstance(r_files, list):
+                result['parsed_recipe_files'] = [str(f) for f in r_files]
+        elif recipe_block is None and 'recipe' in parsed_yaml:
+            result['is_valid'] = False
+            result['has_indent_error'] = True
+            result['errors'].append("Khối 'recipe:' bị rỗng (None) do các khóa con (như 'files:') không được thụt lề vào trong")
+
+    # 3. Quét từng dòng kiểm tra thụt lề chính xác của 'files:' sau 'recipe:'
+    lines = content.splitlines()
+    in_recipe_section = False
+    for idx, line in enumerate(lines):
+        stripped = line.strip()
+        if not stripped or stripped.startswith('#'):
+            continue
+
+        if line.startswith('recipe:'):
+            in_recipe_section = True
+            continue
+
+        if in_recipe_section:
+            if not line.startswith(' ') and not line.startswith('\t'):
+                if stripped.startswith('files:'):
+                    result['is_valid'] = False
+                    result['has_indent_error'] = True
+                    err_msg = f"Dòng {idx + 1}: 'files:' không được thụt lề 2 khoảng trắng dưới 'recipe:' (Đang ở lề ngoài cùng)"
+                    if err_msg not in result['errors']:
+                        result['errors'].append(err_msg)
+                in_recipe_section = False
+            else:
+                if stripped.startswith('files:'):
+                    indent_len = len(line) - len(line.lstrip(' '))
+                    if indent_len < 2:
+                        result['is_valid'] = False
+                        result['has_indent_error'] = True
+                        err_msg = f"Dòng {idx + 1}: 'files:' thụt lề không đúng ({indent_len} space thay vì tối thiểu 2 spaces)"
+                        if err_msg not in result['errors']:
+                            result['errors'].append(err_msg)
+
+    # 4. Kiểm tra xem recipe_id có trong files hay không
+    clean_rec = recipe_id.replace('.yaml', '').strip().lower()
+    found_in_recipe_files = False
+    for rf in result.get('parsed_recipe_files', []):
+        if clean_rec in rf.lower():
+            found_in_recipe_files = True
+            break
+
+    if result['is_valid'] and not found_in_recipe_files and result['parsed_recipe_files']:
+        result['errors'].append(f"Không tìm thấy tên quy cách '{recipe_id}' trong danh sách files của 'recipe:'")
+
+    if result['errors']:
+        result['is_valid'] = False
+
+    return result
+
+def get_gitlab_token():
+    token = os.environ.get('GITLAB_PRIVATE_TOKEN', '').strip()
+    if token:
+        return token
+
+    # Check candidate paths for .env
+    candidate_paths = [
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env'),
+        os.path.join(os.getcwd(), '.env'),
+        r'E:\KV2_Services\KDMES\MATERIALMANAGEMENT_PUBLISH\.env',
+        r'\\198.1.9.245\KV2_Services\KDMES\MATERIALMANAGEMENT_PUBLISH\.env'
+    ]
+    for env_path in candidate_paths:
+        if os.path.exists(env_path):
+            try:
+                with open(env_path, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        line = line.strip()
+                        if line.startswith('GITLAB_PRIVATE_TOKEN='):
+                            val = line.split('=', 1)[1].strip().strip('"\'')
+                            if val:
+                                os.environ['GITLAB_PRIVATE_TOKEN'] = val
+                                return val
+            except Exception:
+                pass
+
+    return os.environ.get('GITLAB_PRIVATE_TOKEN', '')
+
+gitlab_private_token = get_gitlab_token()
+
+def get_gitlab_session():
+    global _gitlab_session
+    if _gitlab_session is None:
+        with _gitlab_session_lock:
+            if _gitlab_session is None:
+                token = get_gitlab_token()
+                s = requests.Session()
+                retries = Retry(total=2, backoff_factor=0.2, status_forcelist=[500, 502, 503, 504])
+                adapter = HTTPAdapter(pool_connections=50, pool_maxsize=50, max_retries=retries)
+                s.mount('https://', adapter)
+                s.mount('http://', adapter)
+                s.headers.update({
+                    'PRIVATE-TOKEN': token,
+                    'User-Agent': 'KDMESTOOL-Client/1.0'
+                })
+                s.verify = False
+                _gitlab_session = s
+    else:
+        token = get_gitlab_token()
+        if token and _gitlab_session.headers.get('PRIVATE-TOKEN') != token:
+            _gitlab_session.headers['PRIVATE-TOKEN'] = token
+    return _gitlab_session
+
+def get_label_config_data(force_refresh: bool = False) -> dict:
+    global _label_config_cache
+    now = time.time()
+    with _label_config_lock:
+        if not force_refresh and _label_config_cache.get('data') and (now - _label_config_cache.get('timestamp', 0) < 600):
+            return _label_config_cache['data']
+
+    s = get_gitlab_session()
+    project_id = 113
+    encoded_path = 'yamls%2Flabel-config.yml'
+    ref = 'master'
+
+    content_raw = ''
+    try:
+        raw_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/files/{encoded_path}/raw'
+        r = s.get(raw_url, params={'ref': ref}, timeout=8)
+        if r.status_code == 200:
+            content_raw = r.text
+        elif r.status_code in [401, 403]:
+            return {'auth_error': True}
+        else:
+            file_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/files/{encoded_path}'
+            r2 = s.get(file_url, params={'ref': ref}, timeout=8)
+            if r2.status_code in [401, 403]:
+                return {'auth_error': True}
+            if r2.ok:
+                c_b64 = r2.json().get('content', '')
+                if c_b64:
+                    content_raw = base64.b64decode(c_b64).decode('utf-8')
+    except Exception as e:
+        print(f"Error fetching label-config: {e}")
+
+    if not content_raw:
+        with _label_config_lock:
+            return _label_config_cache.get('data') or {'product_types': [], 'config_map': {}, 'keys_by_product_type': {}}
+
+    try:
+        parsed_yaml = yaml.safe_load(content_raw)
+        product_types = []
+        config_map = {}
+        keys_by_product_type = {}
+
+        if isinstance(parsed_yaml, list):
+            for item in parsed_yaml:
+                if not isinstance(item, dict):
+                    continue
+                ptype = item.get('product-type')
+                if ptype:
+                    product_types.append(ptype)
+                    configs = item.get('configs', {})
+                    req_labels = configs.get('required-labels', []) if isinstance(configs, dict) else []
+                    rows = []
+                    keys = []
+                    for lbl in req_labels:
+                        if isinstance(lbl, dict):
+                            key = lbl.get('key', '')
+                            langs = lbl.get('languages', {}) if isinstance(lbl.get('languages'), dict) else {}
+                            if key:
+                                keys.append(key)
+                            if key or langs:
+                                rows.append([
+                                    key,
+                                    langs.get('VI') or langs.get('VN') or '',
+                                    langs.get('CN') or '',
+                                    langs.get('TW') or '',
+                                    langs.get('EN') or '',
+                                    langs.get('ID') or ''
+                                ])
+                    config_map[ptype] = rows
+                    keys_by_product_type[ptype] = keys
+
+        data = {
+            'product_types': product_types,
+            'config_map': config_map,
+            'keys_by_product_type': keys_by_product_type
+        }
+        with _label_config_lock:
+            _label_config_cache['timestamp'] = now
+            _label_config_cache['data'] = data
+        return data
+    except Exception as e:
+        print(f"Error parsing label-config yaml: {e}")
+        return {'product_types': [], 'config_map': {}, 'keys_by_product_type': {}}
+
+def resolve_recipe_path(project_id: int, recipe_id: str, product_type: str = '') -> Optional[str]:
+    cache_key = (project_id, recipe_id)
+    with _recipe_cache_lock:
+        if cache_key in _recipe_path_cache:
+            return _recipe_path_cache[cache_key]
+
+    s = get_gitlab_session()
+    clean_id = recipe_id.replace('.yaml', '').strip()
+    
+    # 1. Direct candidate path checks
+    candidate_paths = []
+    if product_type:
+        pt_folder = product_type.lower().replace(' ', '_').replace('-', '_')
+        for prefix in [f'yamls/{pt_folder}/KV/KV2', f'yamls/{pt_folder}/KV', f'yamls/{pt_folder}']:
+            candidate_paths.append(f'{prefix}/{clean_id}.yaml')
+            candidate_paths.append(f'{prefix}/{clean_id}')
+    candidate_paths.append(f'yamls/{clean_id}.yaml')
+
+    for cand in candidate_paths:
+        try:
+            enc = cand.replace('/', '%2F')
+            head_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/files/{enc}'
+            r = s.head(head_url, params={'ref': 'master'}, timeout=3)
+            if r.status_code == 200:
+                with _recipe_cache_lock:
+                    _recipe_path_cache[cache_key] = cand
+                return cand
+        except Exception:
+            pass
+
+    # 2. Fallback to blob search if direct guessing didn't match
+    try:
+        search_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/search'
+        res = s.get(search_url, params={'scope': 'blobs', 'search': clean_id}, timeout=15)
+        if res.ok:
+            data = res.json()
+            if data and isinstance(data, list):
+                for item in data:
+                    item_path = item.get('path', '')
+                    if clean_id in item_path:
+                        with _recipe_cache_lock:
+                            _recipe_path_cache[cache_key] = item_path
+                        return item_path
+                fallback_path = data[0].get('path', '')
+                if fallback_path:
+                    with _recipe_cache_lock:
+                        _recipe_path_cache[cache_key] = fallback_path
+                    return fallback_path
+    except Exception:
+        pass
+
+    return None
 
 def json_serial_fallback(obj):
     if isinstance(obj, Decimal):
@@ -65,6 +365,7 @@ def get_client_ip():
     
     return request.remote_addr
 
+from db_connections import connect_pg_db
 from db_execute import (
     execute_pg_select_query
 )
@@ -782,15 +1083,32 @@ def search_scan_barcode_history_by_barcode():
     if not resource_id:
         return jsonify({'result': [], 'columns': []})
     
-    params = [f"%{resource_id}%"]
-
     query = """
+        WITH target_sites AS MATERIALIZED (
+            SELECT
+                sc.station,
+                sc.name AS site,
+                sc.updated_at AS scan_at,
+                sc.content
+            FROM kvmes.site_contents sc
+            JOIN kvmes.site s 
+              ON s.station = sc.station AND s.name = sc.name AND s.index = sc.index
+            WHERE (sc.content->'slot'->'material'->>'resource_id') = %s
+              AND NOT EXISTS (
+                  SELECT 1 
+                  FROM kvmes.site_contents newer
+                  WHERE newer.station = sc.station 
+                    AND newer.name = sc.name 
+                    AND newer.index = sc.index 
+                    AND newer.updated_at > sc.updated_at
+              )
+        )
         SELECT *
         FROM (
             SELECT DISTINCT ON (rpd.oid)
-                sv.station              AS station,
-                sv.name                 AS site,
-                sv.updated_at           AS scan_at,
+                ts.station              AS station,
+                ts.site                 AS site,
+                ts.scan_at              AS scan_at,
 
                 wo.id                   AS work_order_id,
                 wo.status               AS work_order_status,
@@ -799,41 +1117,34 @@ def search_scan_barcode_history_by_barcode():
                 rpd.recipe_id,
                 rpd.product_id,
                 rpd.product_type
-            FROM kvmes.site_view sv
+            FROM target_sites ts
+            JOIN kvmes.work_order wo
+                ON wo.station = ts.station
+               AND wo.status <> 3
             JOIN kvmes.recipe_process_definition rpd
-            ON EXISTS (
+                ON rpd.recipe_id = wo.recipe_id
+            WHERE EXISTS (
                     SELECT 1
                     FROM jsonb_array_elements(rpd.configs::jsonb) cfg
-                    WHERE cfg->'stations' ? sv.station
+                    WHERE cfg->'stations' ? ts.station
                 )
-            AND EXISTS (
+              AND EXISTS (
                     SELECT 1
                     FROM jsonb_array_elements(rpd.configs::jsonb) cfg
                     CROSS JOIN jsonb_array_elements(cfg->'steps') step
                     CROSS JOIN jsonb_array_elements(step->'materials') mat
-                    WHERE mat->>'name'
-                        = sv.content->'slot'->'material'->'material'->>'id'
-                    AND mat->>'site'
-                        = sv.name
+                    WHERE mat->>'name' = ts.content->'slot'->'material'->'material'->>'id'
+                      AND mat->>'site' = ts.site
                 )
-
-            LEFT JOIN kvmes.work_order wo
-            ON wo.recipe_id = rpd.recipe_id
-            AND wo.station   = sv.station
-
-            WHERE sv.content->'slot'->'material'->>'resource_id' LIKE %s
-            AND wo.id IS NOT NULL
-            AND wo.status <> 3
-
             ORDER BY
                 rpd.oid,
                 wo.updated_at DESC,
-                sv.updated_at DESC
+                ts.scan_at DESC
         ) sub
         ORDER BY scan_at DESC;
     """
 
-    result, column_names = execute_pg_select_query(query, tuple(params))
+    result, column_names = execute_pg_select_query(query, (resource_id,))
     if result:
         convert_columns = ["scan_at"]
         result = convert_timestamp(result, column_names, convert_columns)
@@ -859,13 +1170,13 @@ def fetch_work_order_by_barcode():
     resource_id = request.json.get('resource_id', '').strip()
 
     station = request.json.get('station', '').strip()
-    if not station:
+    if not station or not resource_id:
         return jsonify({'result': [], 'columns': []})
     
     params = [resource_id]
     
     query = """
-        SELECT
+        SELECT DISTINCT
             wo.id                  AS work_order,
             wo.recipe_id,
             wo.status,
@@ -880,18 +1191,17 @@ def fetch_work_order_by_barcode():
             wo.reserved_sequence,
             wo.process_name,
             wo.process_type
-        FROM kvmes.work_order wo
-        WHERE EXISTS (
-            SELECT 1
-            FROM kvmes.collect_record cr
-            JOIN kvmes.material_resource mr ON mr.oid = cr.resource_oid
-                AND mr.id = %s
-            WHERE TRIM(cr.work_order) = TRIM(wo.id)
-        """
+        FROM kvmes.material_resource mr
+        JOIN kvmes.collect_record cr 
+            ON cr.resource_oid = mr.oid
+        JOIN kvmes.work_order wo 
+            ON wo.id = TRIM(cr.work_order)::character(20)
+        WHERE mr.id = %s
+    """
     if station:
         query += """
-                AND cr.station LIKE %s
-            """
+            AND cr.station LIKE %s
+        """
         params.append(f"%{station}%")
 
     if fromDate and toDate:
@@ -906,13 +1216,8 @@ def fetch_work_order_by_barcode():
                     + (cr.created_at / 1e9) * interval '1 second'
                 ) AT TIME ZONE 'Asia/Ho_Chi_Minh'
                 < %s::date + INTERVAL '1 day'
-            """
-        
-        params.extend([fromDate, toDate])
-    
-    query += """
-            )
         """
+        params.extend([fromDate, toDate])
     
     result, column_names = execute_pg_select_query(query, tuple(params))
     if result:
@@ -943,10 +1248,10 @@ def get_input_barcode():
     try:
         query = """
             SELECT
+                fr_elem->>'resource_id'            AS barcode,
+                fr_elem->>'product_id'             AS product_id,
                 m_elem->'site'->>'name'            AS site_name,
                 fr_elem->>'quantity'               AS quantity,
-                fr_elem->>'product_id'             AS product_id,
-                fr_elem->>'resource_id'            AS resource_id,
                 m_elem->>'station'                 AS station
             FROM kvmes.material_resource mr
             JOIN kvmes.feed_record fr
@@ -978,7 +1283,6 @@ def get_input_barcode():
 @app.route('/api/barcodes/check-used-history', methods=['POST'])
 @login_required
 def get_used_history_by_barcode():
-
     material_oid = request.json.get('material_oid')
     if not material_oid:
         return jsonify({'success': False, 'message': 'Thiếu material_oid'})
@@ -990,135 +1294,183 @@ def get_used_history_by_barcode():
     if material_type == "TIRE":
         return jsonify({'error': 'Không quản lý quét tem từ Ép Vỏ qua QC'}), 400
 
+    columns = [
+        'work_order',
+        'recipe_id',
+        'station',
+        'reserved_date',
+        'consumption',
+        'total_barcode',
+        'total_fail_barcode',
+        'total_consumption'
+    ]
+
     try:
-        query = """
-        WITH params AS (
-            SELECT
-                %s::text AS resource_id,
-                %s::text AS product_type
-        ),
-        target_material AS (
-            SELECT mr.product_id
-            FROM params p
-            JOIN kvmes.material_resource mr
-                ON mr.id = p.resource_id
-            AND mr.product_type = p.product_type
-        ),
-        target_recipes AS (
-            SELECT
-                rpd.recipe_id,
-                MAX((material_elem->'value'->>'mid')::numeric) AS consumption
-            FROM kvmes.recipe_process_definition rpd
-            CROSS JOIN target_material tm
-            CROSS JOIN LATERAL jsonb_array_elements(rpd.configs::jsonb) cfg
-            CROSS JOIN LATERAL jsonb_array_elements(cfg->'steps') step
-            CROSS JOIN LATERAL jsonb_array_elements(step->'materials') material_elem
-            WHERE material_elem->>'name' = tm.product_id
-            GROUP BY rpd.recipe_id
-        ),
-        target_work_orders AS (
-            SELECT
-                wo.id AS work_order_id,
-                wo.recipe_id,
-                wo.station,
-                wo.reserved_date,
-                tr.consumption
-            FROM target_recipes tr
-            JOIN kvmes.work_order wo ON wo.recipe_id = tr.recipe_id
-        ),
-        candidate_batches AS (
-            SELECT
-                b.work_order,
-                b.status,
-                b.records_id,
-                two.recipe_id,
-                two.station,
-                two.reserved_date,
-                two.consumption
-            FROM target_work_orders two
-            JOIN kvmes.batch b ON TRIM(b.work_order) = TRIM(two.work_order_id)
-        ),
-        matched_batches AS (
-            SELECT
-                cb.work_order,
-                cb.recipe_id,
-                cb.station,
-                cb.reserved_date,
-                cb.consumption,
-                cb.status,
-                cb.records_id
-            FROM candidate_batches cb, params p
-            WHERE EXISTS (
-                SELECT 1
+        conn = connect_pg_db()
+        if not conn:
+            return jsonify({'success': False, 'message': 'Không thể kết nối đến cơ sở dữ liệu'})
+        
+        try:
+            cursor = conn.cursor()
+
+            # 1. Get product_id from material_resource
+            cursor.execute("""
+                SELECT product_id 
+                FROM kvmes.material_resource 
+                WHERE id = %s AND product_type = %s
+            """, (material_oid, material_type))
+            mr_row = cursor.fetchone()
+            if not mr_row:
+                return jsonify({'success': True, 'result': [], 'columns': columns})
+            
+            product_id = mr_row[0]
+
+            # 2. Get recipe_ids using this product_id
+            cursor.execute("""
+                SELECT DISTINCT rpd.recipe_id
+                FROM kvmes.recipe_process_definition rpd
+                CROSS JOIN LATERAL jsonb_array_elements(rpd.configs::jsonb) cfg
+                CROSS JOIN LATERAL jsonb_array_elements(cfg->'steps') step
+                CROSS JOIN LATERAL jsonb_array_elements(step->'materials') material_elem
+                WHERE material_elem->>'name' = %s
+            """, (product_id,))
+            recipes = [r[0] for r in cursor.fetchall()]
+            if not recipes:
+                return jsonify({'success': True, 'result': [], 'columns': columns})
+
+            # 3. Get candidate work orders and batches
+            cursor.execute("""
+                SELECT 
+                    b.work_order,
+                    b.number AS batch_seq,
+                    b.status,
+                    b.records_id,
+                    wo.recipe_id,
+                    wo.station,
+                    wo.reserved_date
+                FROM kvmes.work_order wo
+                JOIN kvmes.batch b ON b.work_order = wo.id
+                WHERE wo.recipe_id = ANY(%s)
+            """, (recipes,))
+            candidate_batches = cursor.fetchall()
+            if not candidate_batches:
+                return jsonify({'success': True, 'result': [], 'columns': columns})
+
+            # 4. Map candidate batches to feed_record IDs
+            feed_to_batches = {}
+            all_feed_ids = set()
+            for b in candidate_batches:
+                wo, b_seq, status, records_id, recipe_id, station, res_date = b
+                if records_id:
+                    for fid in records_id:
+                        all_feed_ids.add(fid)
+                        if fid not in feed_to_batches:
+                            feed_to_batches[fid] = []
+                        feed_to_batches[fid].append((wo, b_seq, status, recipe_id, station, res_date))
+
+            if not all_feed_ids:
+                return jsonify({'success': True, 'result': [], 'columns': columns})
+
+            # 5. Query feed_records matching material_oid
+            cursor.execute("""
+                SELECT 
+                    f.id,
+                    (elem->>'quantity')::numeric AS fed_quantity
                 FROM kvmes.feed_record f
-                WHERE f.id = ANY (cb.records_id)
-                AND jsonb_path_exists(
-                        f.materials,
-                        '$.** ? (@.resource_id == $rid)',
-                        jsonb_build_object('rid', p.resource_id)
-                    )
-            )
-        )
-        SELECT
-            mb.work_order,
-            mb.recipe_id,
-            mb.station,
-            to_char(mb.reserved_date, 'YYYY-MM-DD') AS reserved_date,
-            mb.consumption::text AS consumption,
-            
-            SUM (
-                CASE 
-                    WHEN mb.status = 2 THEN COALESCE(array_length(mb.records_id, 1), 0)
-                    ELSE 0
-                END
-            ) AS total_barcode,
-            
-            SUM (
-                CASE 
-                    WHEN mb.status = 1 THEN COALESCE(array_length(mb.records_id, 1), 0)
-                    ELSE 0
-                END
-            ) AS total_fail_barcode,
-            
-            (
-                SUM (
-                    CASE 
-                        WHEN mb.status = 2 THEN COALESCE(array_length(mb.records_id, 1), 0)
-                        ELSE 0
-                    END
-                )
-                + SUM (
-                    CASE 
-                        WHEN mb.status = 1 THEN COALESCE(array_length(mb.records_id, 1), 0)
-                        ELSE 0
-                    END
-                )
-            ) * mb.consumption AS total_consumption
+                CROSS JOIN LATERAL jsonb_array_elements(f.materials) site_elem
+                CROSS JOIN LATERAL jsonb_array_elements(site_elem->'feed_resources') elem
+                WHERE f.id = ANY(%s)
+                  AND elem->>'resource_id' = %s
+            """, (list(all_feed_ids), material_oid))
+            matched_feeds = cursor.fetchall()
+            if not matched_feeds:
+                return jsonify({'success': True, 'result': [], 'columns': columns})
 
-        FROM matched_batches mb
-        GROUP BY
-            mb.work_order,
-            mb.recipe_id,
-            mb.station,
-            mb.reserved_date,
-            mb.consumption
-        ORDER BY mb.work_order;
-        """
+            # 6. Aggregate feed quantities for matched batches
+            matched_work_orders = set()
+            batch_data = {}
+            for fid, fed_qty in matched_feeds:
+                fed_qty = float(fed_qty or 0)
+                for wo, b_seq, status, recipe_id, station, res_date in feed_to_batches.get(fid, []):
+                    matched_work_orders.add(wo)
+                    key = (wo, b_seq)
+                    if key not in batch_data:
+                        batch_data[key] = {
+                            'wo': wo,
+                            'batch_seq': b_seq,
+                            'status': status,
+                            'recipe_id': recipe_id,
+                            'station': station,
+                            'reserved_date': res_date,
+                            'fed_qty': 0.0,
+                            'output_qty': 0.0
+                        }
+                    batch_data[key]['fed_qty'] += fed_qty
 
-        result, column_names = execute_pg_select_query(query, (material_oid, material_type))
-        if result:
-            serialized_result = [serialize_row(list(row)) for row in result]
+            # 7. Fetch collect_records for matched work orders to get output quantities
+            cursor.execute("""
+                SELECT 
+                    cr.work_order,
+                    cr.sequence,
+                    COALESCE((cr.detail->>'quantity')::numeric, 0) AS output_quantity
+                FROM kvmes.collect_record cr
+                WHERE cr.work_order = ANY(%s)
+            """, (list(matched_work_orders),))
+            for cr_wo, cr_seq, out_qty in cursor.fetchall():
+                key = (cr_wo, cr_seq)
+                if key in batch_data:
+                    batch_data[key]['output_qty'] = float(out_qty or 0)
+
+            # 8. Group by work order
+            summary = {}
+            for (wo, b_seq), binfo in batch_data.items():
+                if wo not in summary:
+                    res_date_str = binfo['reserved_date'].strftime('%Y-%m-%d') if hasattr(binfo['reserved_date'], 'strftime') else str(binfo['reserved_date']) if binfo['reserved_date'] else None
+                    summary[wo] = {
+                        'work_order': wo,
+                        'recipe_id': binfo['recipe_id'],
+                        'station': binfo['station'],
+                        'reserved_date': res_date_str,
+                        'total_barcode': 0,
+                        'total_fail_barcode': 0,
+                        'total_output_qty': 0.0,
+                        'total_consumption': 0.0
+                    }
+                if binfo['status'] == 2:
+                    summary[wo]['total_barcode'] += 1
+                elif binfo['status'] == 1:
+                    summary[wo]['total_fail_barcode'] += 1
+                summary[wo]['total_output_qty'] += binfo['output_qty']
+                summary[wo]['total_consumption'] += binfo['fed_qty']
+
+            result_rows = []
+            for wo in sorted(summary.keys()):
+                s = summary[wo]
+                if s['total_output_qty'] > 0:
+                    consumption = str(round(s['total_consumption'] / s['total_output_qty'], 6))
+                else:
+                    consumption = "0"
+                
+                row = [
+                    s['work_order'],
+                    s['recipe_id'],
+                    s['station'],
+                    s['reserved_date'],
+                    consumption,
+                    s['total_barcode'],
+                    s['total_fail_barcode'],
+                    round(s['total_consumption'], 6)
+                ]
+                result_rows.append(serialize_row(row))
+
             return jsonify({
                 'success': True,
-                'result': serialized_result,
-                'columns': column_names
+                'result': result_rows,
+                'columns': columns
             })
-        else:
-            return jsonify({
-                'success': True,
-                'result': [],
-                'columns': column_names
-            })
+
+        finally:
+            conn.close()
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
@@ -1129,11 +1481,11 @@ def fetch_output_barcode_by_work_order():
 
     data = request.get_json() or {}
 
-    work_order_id = data.get('work_order_id')
+    work_order_id = str(data.get('work_order_id') or '').strip()
     if not work_order_id:
         return jsonify({'success': False, 'message': 'Thiếu Work Order ID'})
 
-    work_order_status = data.get('work_order_status')
+    work_order_status = str(data.get('work_order_status') or '').strip()
     if not work_order_status:
         return jsonify({'success': False, 'message': 'Thiếu Work Order Status'})
 
@@ -1151,7 +1503,7 @@ def fetch_output_barcode_by_work_order():
             FROM kvmes.collect_record cr
             LEFT JOIN kvmes.material_resource mr
                 ON mr.oid = cr.resource_oid
-            WHERE TRIM(cr.work_order) = TRIM(%s)
+            WHERE cr.work_order = %s
             ORDER BY cr.sequence ASC
         """
 
@@ -1188,69 +1540,37 @@ def cleanup_expired_barcode_tasks():
 def run_output_barcode_query_task(task_id, resource_id, work_order):
     try:
         query = """
-            WITH target_batches AS (
-                SELECT DISTINCT UNNEST(b.records_id) AS feed_id
+            WITH matched_batches AS (
+                SELECT 
+                    b.number AS batch_seq
                 FROM kvmes.batch b
-                WHERE TRIM(b.work_order) = %s
+                JOIN kvmes.feed_record fr ON fr.id = ANY(b.records_id)
+                CROSS JOIN LATERAL jsonb_array_elements(fr.materials) site_elem
+                CROSS JOIN LATERAL jsonb_array_elements(site_elem->'feed_resources') elem
+                WHERE b.work_order = %s
+                  AND elem->>'resource_id' = %s
             ),
-            matched_feed AS (
-                SELECT fr.id AS feed_id
-                FROM kvmes.feed_record fr
-                JOIN target_batches tb ON fr.id = tb.feed_id
-                WHERE EXISTS (
-                    SELECT 1
-                    FROM jsonb_array_elements(fr.materials) AS material_elem
-                    JOIN jsonb_array_elements(material_elem->'feed_resources') AS feed_elem
-                        ON TRUE
-                    WHERE feed_elem->>'resource_id' = %s
-                )
-            ),
-            feed_array AS (
-                SELECT array_agg(feed_id) AS ids
-                FROM matched_feed
+            matched_collects AS (
+                SELECT 
+                    cr.resource_oid,
+                    cr.detail->>'quantity' AS original_quantity,
+                    cr.lot_number AS cr_lot_number
+                FROM kvmes.collect_record cr
+                JOIN matched_batches mb ON mb.batch_seq = cr.sequence
+                WHERE cr.work_order = %s
             )
             SELECT
                 mr.id,
                 mr.product_id,
-                mr.quantity,
+                COALESCE(NULLIF(mc.original_quantity, '')::numeric, mr.quantity) AS quantity,
                 mr.status,
                 mr.created_at,
-                mr.info->>'lot_number' AS lot_number,
+                COALESCE(mc.cr_lot_number, mr.info->>'lot_number') AS lot_number,
                 mr.product_type
             FROM kvmes.material_resource mr
-            JOIN feed_array fa
-                ON mr.feed_records_id && fa.ids;
+            JOIN matched_collects mc ON mr.oid = mc.resource_oid;
         """
-        result, column_names = execute_pg_select_query(query, (work_order, resource_id))
-
-        if not result:
-            fallback_query = """
-                SELECT
-                    mr.id,
-                    mr.product_id,
-                    mr.quantity,
-                    mr.status,
-                    mr.created_at,
-                    mr.info->>'lot_number' AS lot_number,
-                    mr.product_type
-                FROM kvmes.material_resource mr
-                JOIN kvmes.feed_record fr
-                    ON fr.id = ANY (mr.feed_records_id)
-                JOIN kvmes.batch b
-                    ON fr.id = ANY (b.records_id)
-                WHERE EXISTS (
-                    SELECT 1
-                    FROM jsonb_array_elements(fr.materials) AS material_elem
-                    JOIN jsonb_array_elements(material_elem->'feed_resources') AS feed_elem
-                        ON TRUE
-                    WHERE feed_elem->>'resource_id' = %s
-                )
-                AND b.work_order = %s;
-            """
-            fb_result, fb_cols = execute_pg_select_query(fallback_query, (resource_id, work_order))
-            if fb_result:
-                result = fb_result
-                column_names = fb_cols
+        result, column_names = execute_pg_select_query(query, (work_order, resource_id, work_order))
 
         if result:
             convert_columns = ["expiry_time", "updated_at", "created_at", "standing_time"]
@@ -1397,70 +1717,38 @@ def stream_output_barcodes():
         
         def run_query():
             try:
-                # Optimized CTE query filtering by work_order first on kvmes.batch
                 query = """
-                    WITH target_batches AS (
-                        SELECT DISTINCT UNNEST(b.records_id) AS feed_id
+                    WITH matched_batches AS (
+                        SELECT 
+                            b.number AS batch_seq
                         FROM kvmes.batch b
-                        WHERE TRIM(b.work_order) = %s
+                        JOIN kvmes.feed_record fr ON fr.id = ANY(b.records_id)
+                        CROSS JOIN LATERAL jsonb_array_elements(fr.materials) site_elem
+                        CROSS JOIN LATERAL jsonb_array_elements(site_elem->'feed_resources') elem
+                        WHERE b.work_order = %s
+                          AND elem->>'resource_id' = %s
                     ),
-                    matched_feed AS (
-                        SELECT fr.id AS feed_id
-                        FROM kvmes.feed_record fr
-                        JOIN target_batches tb ON fr.id = tb.feed_id
-                        WHERE EXISTS (
-                            SELECT 1
-                            FROM jsonb_array_elements(fr.materials) AS material_elem
-                            JOIN jsonb_array_elements(material_elem->'feed_resources') AS feed_elem
-                                ON TRUE
-                            WHERE feed_elem->>'resource_id' = %s
-                        )
-                    ),
-                    feed_array AS (
-                        SELECT array_agg(feed_id) AS ids
-                        FROM matched_feed
+                    matched_collects AS (
+                        SELECT 
+                            cr.resource_oid,
+                            cr.detail->>'quantity' AS original_quantity,
+                            cr.lot_number AS cr_lot_number
+                        FROM kvmes.collect_record cr
+                        JOIN matched_batches mb ON mb.batch_seq = cr.sequence
+                        WHERE cr.work_order = %s
                     )
                     SELECT
                         mr.id,
                         mr.product_id,
-                        mr.quantity,
+                        COALESCE(NULLIF(mc.original_quantity, '')::numeric, mr.quantity) AS quantity,
                         mr.status,
                         mr.created_at,
-                        mr.info->>'lot_number' AS lot_number,
+                        COALESCE(mc.cr_lot_number, mr.info->>'lot_number') AS lot_number,
                         mr.product_type
                     FROM kvmes.material_resource mr
-                    JOIN feed_array fa
-                        ON mr.feed_records_id && fa.ids;
+                    JOIN matched_collects mc ON mr.oid = mc.resource_oid;
                 """
-                res, cols = execute_pg_select_query(query, (work_order, resource_id))
-
-                if not res:
-                    fallback_query = """
-                        SELECT
-                            mr.id,
-                            mr.product_id,
-                            mr.quantity,
-                            mr.status,
-                            mr.created_at,
-                            mr.info->>'lot_number' AS lot_number,
-                            mr.product_type
-                        FROM kvmes.material_resource mr
-                        JOIN kvmes.feed_record fr
-                            ON fr.id = ANY (mr.feed_records_id)
-                        JOIN kvmes.batch b
-                            ON fr.id = ANY (b.records_id)
-                        WHERE EXISTS (
-                            SELECT 1
-                            FROM jsonb_array_elements(fr.materials) AS material_elem
-                            JOIN jsonb_array_elements(material_elem->'feed_resources') AS feed_elem
-                                ON TRUE
-                            WHERE feed_elem->>'resource_id' = %s
-                        )
-                        AND b.work_order = %s;
-                    """
-                    fb_res, fb_cols = execute_pg_select_query(fallback_query, (resource_id, work_order))
-                    if fb_res:
-                        res, cols = fb_res, fb_cols
+                res, cols = execute_pg_select_query(query, (work_order, resource_id, work_order))
 
                 if res:
                     convert_columns = ["expiry_time", "updated_at", "created_at", "standing_time"]
@@ -1483,9 +1771,12 @@ def stream_output_barcodes():
         
         # Stream keep-alive / progress events until query finishes
         while task_data['status'] == 'processing':
+            worker.join(timeout=0.05)
+            if task_data['status'] != 'processing':
+                break
             elapsed = round(time.time() - start_time, 1)
             yield f"data: {json.dumps({'status': 'processing', 'elapsed': elapsed}, ensure_ascii=False)}\n\n"
-            time.sleep(1.0)
+            worker.join(timeout=0.95)
 
         duration = round(time.time() - start_time, 2)
         if task_data['status'] == 'completed':
@@ -2070,17 +2361,30 @@ def fetch_work_order_by_recipe():
         return jsonify({'success': False, 'message': 'Thiếu Recipe ID'})
     
     try:
-        query = """
-            SELECT  id AS work_order, recipe_id, status, station, 
-                    reserved_date::text AS reserved_date, 
-                    updated_at, updated_by, created_at, created_by,
-                    information, department_id, reserved_sequence,
-                    process_name, process_type
-            FROM kvmes.work_order
-            WHERE recipe_id LIKE %s
-            ORDER BY reserved_date DESC
-            LIMIT 100;
-        """
+        if '%' in recipe_id:
+            query = """
+                SELECT  id AS work_order, recipe_id, status, station, 
+                        reserved_date::text AS reserved_date, 
+                        updated_at, updated_by, created_at, created_by,
+                        information, department_id, reserved_sequence,
+                        process_name, process_type
+                FROM kvmes.work_order
+                WHERE recipe_id LIKE %s
+                ORDER BY reserved_date DESC
+                LIMIT 100;
+            """
+        else:
+            query = """
+                SELECT  id AS work_order, recipe_id, status, station, 
+                        reserved_date::text AS reserved_date, 
+                        updated_at, updated_by, created_at, created_by,
+                        information, department_id, reserved_sequence,
+                        process_name, process_type
+                FROM kvmes.work_order
+                WHERE recipe_id = %s
+                ORDER BY reserved_date DESC
+                LIMIT 100;
+            """
         
         result, column_names = execute_pg_select_query(query, (recipe_id, ))
         if result:       
@@ -2107,8 +2411,6 @@ def fetch_work_order_by_recipe():
 @login_required
 def fetch_commit_gitlab():
     
-    global gitlab_private_token
-
     recipe_id = request.json.get('recipe_id', '').strip()
     product_type = request.json.get('product_type', '').strip()
 
@@ -2116,87 +2418,78 @@ def fetch_commit_gitlab():
         return jsonify({'success': False, 'message': 'Thiếu recipe_id hoặc product_type'})
 
     project_id = get_gitlab_project_id(product_type)
-
     session['current_gitlab_project_id'] = project_id
 
-    headers = {
-        'PRIVATE-TOKEN': gitlab_private_token
-    }
+    s = get_gitlab_session()
 
     try:
-        # Step 1: Search for the yaml file in GitLab
-        search_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/search'
-        search_params = {
-            'scope': 'blobs',
-            'search': recipe_id
-        }
-
-        search_response = requests.get(search_url, headers=headers, params=search_params, verify=False, timeout=20)
-        search_response.raise_for_status()
-        search_data = search_response.json()
-
-        if not search_data:
+        # Step 1: Resolve the yaml file path in GitLab (using cache and direct check)
+        path = resolve_recipe_path(project_id, recipe_id, product_type)
+        if not path:
             return jsonify({'success': False, 'message': f'Không tìm thấy file YAML cho quy cách {recipe_id} trên GitLab'})
 
-        # Find best matching file path
-        path = None
-        for item in search_data:
-            item_path = item.get('path', '')
-            if recipe_id in item_path:
-                path = item_path
-                break
-        if not path:
-            path = search_data[0].get('path', '')
-
-        if not path:
-            return jsonify({'success': False, 'message': 'Không tìm thấy path của file YAML'})
-
-        # Step 2: URL-encode the path (replace / with %2F)
         encoded_path = path.replace('/', '%2F')
 
-        # Step 3: Fetch complete commit history for the file path
-        commits_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits'
-        commits_resp = requests.get(commits_url, headers=headers, params={'path': path, 'ref_name': 'master', 'per_page': 100}, verify=False, timeout=20)
+        # Step 2: Fetch commit history (Blame first for sub-second speed, fallback to commits endpoint)
         commits = []
-        if commits_resp.status_code == 200 and isinstance(commits_resp.json(), list):
-            commits = commits_resp.json()
+        try:
+            blame_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/files/{encoded_path}/blame'
+            blame_resp = s.get(blame_url, params={'ref': 'master'}, timeout=12)
+            if blame_resp.ok:
+                blame_data = blame_resp.json()
+                seen_commit_ids = set()
+                if isinstance(blame_data, list):
+                    for blame_entry in blame_data:
+                        commit = blame_entry.get('commit', {})
+                        commit_id = commit.get('id', '')
+                        if commit_id and commit_id not in seen_commit_ids:
+                            seen_commit_ids.add(commit_id)
+                            commits.append(commit)
+        except Exception:
+            pass
 
-        # Fallback to blame if commits endpoint returned empty
         if not commits:
             try:
-                blame_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/files/{encoded_path}/blame'
-                blame_params = {'ref': 'master'}
-                blame_response = requests.get(blame_url, headers=headers, params=blame_params, verify=False, timeout=20)
-                if blame_response.ok:
-                    blame_data = blame_response.json()
-                    seen_commit_ids = set()
-                    if isinstance(blame_data, list):
-                        for blame_entry in blame_data:
-                            commit = blame_entry.get('commit', {})
-                            commit_id = commit.get('id', '')
-                            if commit_id and commit_id not in seen_commit_ids:
-                                seen_commit_ids.add(commit_id)
-                                commits.append(commit)
-            except Exception as e:
-                print(f"Error fallback blame: {e}")
+                commits_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits'
+                commits_resp = s.get(commits_url, params={'path': path, 'ref_name': 'master', 'per_page': 50}, timeout=15)
+                if commits_resp.status_code == 200 and isinstance(commits_resp.json(), list):
+                    commits = commits_resp.json()
+            except Exception:
+                pass
 
         if not commits:
             return jsonify({'success': False, 'message': 'Không tìm thấy lịch sử commit nào cho quy cách này'})
 
-        # Step 4: Concurrently fetch diff and pipeline info for each commit, filtering specifically for this file
+        # Step 3: Concurrently fetch diff and pipeline info for each commit over pooled session
         def fetch_commit_file_diff(commit_item):
             cid = commit_item.get('id', '')
             if not cid:
                 return commit_item, {}, {}
             
-            # Fetch commit info for pipeline status, parent_ids, etc.
-            commit_detail = {}
-            try:
-                c_info_resp = requests.get(f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits/{cid}', headers=headers, verify=False, timeout=10)
-                if c_info_resp.status_code == 200:
-                    commit_detail = c_info_resp.json()
-            except Exception:
-                pass
+            def get_c_info():
+                try:
+                    c_info_resp = s.get(f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits/{cid}', timeout=5)
+                    if c_info_resp.status_code == 200:
+                        return c_info_resp.json()
+                except Exception:
+                    pass
+                return {}
+
+            def get_diff_data():
+                try:
+                    diff_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits/{cid}/diff'
+                    diff_resp = s.get(diff_url, params={'per_page': 100}, timeout=4)
+                    if diff_resp.status_code == 200:
+                        return diff_resp.json()
+                except Exception:
+                    pass
+                return []
+
+            with ThreadPoolExecutor(max_workers=2) as sub_ex:
+                f_info = sub_ex.submit(get_c_info)
+                f_diff = sub_ex.submit(get_diff_data)
+                commit_detail = f_info.result()
+                diff_data = f_diff.result()
 
             last_pipe = commit_detail.get('last_pipeline') or {}
             p_status = commit_detail.get('status') or last_pipe.get('status') or commit_item.get('status') or 'none'
@@ -2207,45 +2500,34 @@ def fetch_commit_gitlab():
             }
 
             # Tier 1: Check commit diff endpoint
-            diff_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits/{cid}/diff'
-            try:
-                diff_resp = requests.get(diff_url, headers=headers, params={'per_page': 100}, verify=False, timeout=12)
-                if diff_resp.status_code == 200:
-                    diff_data = diff_resp.json()
-                    if isinstance(diff_data, list):
-                        for d in diff_data:
-                            new_p = d.get('new_path', '')
-                            old_p = d.get('old_path', '')
-                            if new_p == path or old_p == path or new_p.endswith('/' + recipe_id + '.yaml') or old_p.endswith('/' + recipe_id + '.yaml') or new_p.endswith(recipe_id + '.yaml'):
-                                return commit_item, d, pipeline_info
-            except Exception:
-                pass
+            if isinstance(diff_data, list):
+                for d in diff_data:
+                    new_p = d.get('new_path', '')
+                    old_p = d.get('old_path', '')
+                    if new_p == path or old_p == path or new_p.endswith('/' + recipe_id + '.yaml') or old_p.endswith('/' + recipe_id + '.yaml') or new_p.endswith(recipe_id + '.yaml'):
+                        return commit_item, d, pipeline_info
 
             # Tier 2: Fallback for giant commits or commits where file was not on page 1
             try:
                 parent_ids = commit_item.get('parent_ids')
                 if parent_ids is None:
                     parent_ids = commit_detail.get('parent_ids', [])
-                    if parent_ids is None:
-                        c_info = requests.get(f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits/{cid}', headers=headers, verify=False, timeout=10).json()
-                        parent_ids = c_info.get('parent_ids', [])
-
                 parent_id = parent_ids[0] if parent_ids else None
                 raw_file_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/files/{encoded_path}/raw'
 
-                cur_resp = requests.get(raw_file_url, headers=headers, params={'ref': cid}, verify=False, timeout=12)
-                cur_text = cur_resp.text if cur_resp.status_code == 200 else ''
+                with ThreadPoolExecutor(max_workers=2) as sub_ex:
+                    f_cur = sub_ex.submit(lambda: s.get(raw_file_url, params={'ref': cid}, timeout=5))
+                    f_par = sub_ex.submit(lambda: s.get(raw_file_url, params={'ref': parent_id}, timeout=5) if parent_id else None)
+                    cur_resp = f_cur.result()
+                    parent_resp = f_par.result()
 
-                parent_text = ''
-                parent_status = 404
-                if parent_id:
-                    parent_resp = requests.get(raw_file_url, headers=headers, params={'ref': parent_id}, verify=False, timeout=12)
-                    parent_status = parent_resp.status_code
-                    if parent_status == 200:
-                        parent_text = parent_resp.text
+                cur_text = cur_resp.text if cur_resp and cur_resp.status_code == 200 else ''
+                parent_text = parent_resp.text if parent_resp and parent_resp.status_code == 200 else ''
+                parent_status = parent_resp.status_code if parent_resp else 404
+                cur_status = cur_resp.status_code if cur_resp else 404
 
-                is_new = (parent_status == 404 and cur_resp.status_code == 200)
-                is_deleted = (cur_resp.status_code == 404)
+                is_new = (parent_status == 404 and cur_status == 200)
+                is_deleted = (cur_status == 404)
 
                 cur_lines = cur_text.splitlines(keepends=True)
                 parent_lines = parent_text.splitlines(keepends=True)
@@ -2279,7 +2561,7 @@ def fetch_commit_gitlab():
                     'deleted_file': False
                 }, pipeline_info
 
-        with ThreadPoolExecutor(max_workers=10) as executor:
+        with ThreadPoolExecutor(max_workers=20) as executor:
             commit_diff_results = list(executor.map(fetch_commit_file_diff, commits))
 
         project_web_base = 'https://gitlabce.kenda.com.tw/tc/recipes/kitting' if project_id == 135 else (
@@ -2426,79 +2708,9 @@ def fetch_commit_gitlab_details():
     except Exception as e:
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
 
-_label_config_cache = {
-    'timestamp': 0,
-    'data': None
-}
-
-def get_label_config_data():
-    global _label_config_cache, gitlab_private_token
-    now = time.time()
-    if _label_config_cache['data'] and (now - _label_config_cache['timestamp'] < 300):
-        return _label_config_cache['data']
-
-    project_id = 113
-    encoded_path = 'yamls%2Flabel-config.yml'
-    ref = 'master'
-    file_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/files/{encoded_path}?ref={ref}'
-    headers = {'PRIVATE-TOKEN': gitlab_private_token}
-
-    try:
-        response = requests.get(file_url, headers=headers, verify=False, timeout=15)
-        if response.ok:
-            data = response.json()
-            content_b64 = data.get('content', '')
-            if content_b64:
-                content_decoded = base64.b64decode(content_b64).decode('utf-8')
-                parsed_yaml = yaml.safe_load(content_decoded)
-                product_types = []
-                config_map = {}
-                keys_by_product_type = {}
-                if isinstance(parsed_yaml, list):
-                    for item in parsed_yaml:
-                        if not isinstance(item, dict):
-                            continue
-                        ptype = item.get('product-type')
-                        if ptype:
-                            product_types.append(ptype)
-                            configs = item.get('configs', {})
-                            req_labels = configs.get('required-labels', []) if isinstance(configs, dict) else []
-                            rows = []
-                            keys = []
-                            for lbl in req_labels:
-                                if isinstance(lbl, dict):
-                                    key = lbl.get('key', '')
-                                    langs = lbl.get('languages', {}) if isinstance(lbl.get('languages'), dict) else {}
-                                    if key:
-                                        keys.append(key)
-                                    if key or langs:
-                                        rows.append([
-                                            key,
-                                            langs.get('VI') or langs.get('VN') or '',
-                                            langs.get('CN') or '',
-                                            langs.get('TW') or '',
-                                            langs.get('EN') or '',
-                                            langs.get('ID') or ''
-                                        ])
-                            config_map[ptype] = rows
-                            keys_by_product_type[ptype] = keys
-                result = {
-                    'product_types': product_types,
-                    'config_map': config_map,
-                    'keys_by_product_type': keys_by_product_type
-                }
-                _label_config_cache['timestamp'] = now
-                _label_config_cache['data'] = result
-                return result
-    except Exception as e:
-        print(f"Error fetching label config data: {e}")
-    return _label_config_cache['data'] or {'product_types': [], 'config_map': {}, 'keys_by_product_type': {}}
-
 @app.route('/api/recipes/fetch-yaml-content', methods=['POST'])
 @login_required
 def fetch_yaml_content():
-
-    global gitlab_private_token
 
     recipe_id = request.json.get('recipe_id', '').strip()
     product_type = request.json.get('product_type', '').strip()
@@ -2507,46 +2719,38 @@ def fetch_yaml_content():
         return jsonify({'success': False, 'message': 'Thiếu recipe_id hoặc product_type'})
 
     project_id = get_gitlab_project_id(product_type)
-
-    headers = {
-        'PRIVATE-TOKEN': gitlab_private_token
-    }
+    s = get_gitlab_session()
 
     try:
-        search_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/search'
-        search_params = {
-            'scope': 'blobs',
-            'search': recipe_id
-        }
-
-        search_response = requests.get(search_url, headers=headers, params=search_params, verify=False)
-        search_response.raise_for_status()
-        search_data = search_response.json()
-
-        if not search_data:
-            return jsonify({'success': False, 'message': 'Không tìm thấy file yaml ở gitlab'})
-
-        path = search_data[0].get('path', '')
+        path = resolve_recipe_path(project_id, recipe_id, product_type)
         if not path:
-            return jsonify({'success': False, 'message': 'Không tìm thấy path của file yaml'})
+            return jsonify({'success': False, 'message': 'Không tìm thấy file yaml ở gitlab'})
 
         encoded_path = path.replace('/', '%2F')
 
-        file_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/files/{encoded_path}'
-        file_params = {'ref': 'master'}
+        # Try raw endpoint directly for maximum speed
+        raw_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/files/{encoded_path}/raw'
+        raw_response = s.get(raw_url, params={'ref': 'master'}, timeout=10)
+        
+        file_name = os.path.basename(path)
+        last_commit_id = ''
+        content_decoded = ''
 
-        file_response = requests.get(file_url, headers=headers, params=file_params, verify=False)
-        file_response.raise_for_status()
-        file_data = file_response.json()
-
-        if not file_data:
-            return jsonify({'success': False, 'message': 'Không tìm thấy nội dung file yaml'})
-
-        content_b64 = file_data.get('content', '')
-        if not content_b64:
-            return jsonify({'success': False, 'message': 'File yaml không có nội dung'})
-
-        content_decoded = base64.b64decode(content_b64).decode('utf-8')
+        if raw_response.status_code == 200:
+            content_decoded = raw_response.text
+        else:
+            file_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/files/{encoded_path}'
+            file_response = s.get(file_url, params={'ref': 'master'}, timeout=10)
+            file_response.raise_for_status()
+            file_data = file_response.json()
+            if not file_data:
+                return jsonify({'success': False, 'message': 'Không tìm thấy nội dung file yaml'})
+            content_b64 = file_data.get('content', '')
+            if not content_b64:
+                return jsonify({'success': False, 'message': 'File yaml không có nội dung'})
+            content_decoded = base64.b64decode(content_b64).decode('utf-8')
+            file_name = file_data.get('file_name', file_name)
+            last_commit_id = file_data.get('last_commit_id', '')
 
         # Detect product_type from YAML content if present
         actual_product_type = product_type
@@ -2571,11 +2775,107 @@ def fetch_yaml_content():
             'success': True,
             'content': content_decoded,
             'file_path': path,
-            'file_name': file_data.get('file_name', ''),
-            'last_commit_id': file_data.get('last_commit_id', ''),
+            'file_name': file_name,
+            'last_commit_id': last_commit_id,
             'product_type': actual_product_type,
             'label_config_keys': label_keys,
             'all_label_config_keys': keys_map
+        })
+
+    except requests.RequestException as e:
+        return jsonify({'success': False, 'message': f'Lỗi kết nối GitLab: {str(e)}'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
+
+def parse_yaml_metadata_from_path(item_path: str, project_id: int):
+    file_name = os.path.basename(item_path)
+    dir_part = os.path.dirname(item_path).replace('\\', '/')
+    parts = [p for p in dir_part.split('/') if p and p.lower() != 'yamls']
+    
+    project_defaults = {
+        136: ('MIXING', 'Mixing (BB)'),
+        135: ('KITTING', 'Kitting (CBK)'),
+        133: ('GREEN_TIRE', 'Building (TH)'),
+        134: ('TIRE', 'Curing (EV)')
+    }
+    
+    default_pt, proj_label = project_defaults.get(project_id, ('UNKNOWN', 'GitLab'))
+    product_type = default_pt
+    location = ''
+    
+    if project_id == 135:
+        if len(parts) >= 1:
+            product_type = parts[0].upper().replace('-', '_')
+        if len(parts) > 1:
+            location = " / ".join(parts[1:])
+    elif project_id == 133:
+        product_type = 'GREEN_TIRE'
+        if len(parts) >= 1:
+            loc_parts = [p for p in parts if p.lower() not in ['green-tire', 'green_tire']]
+            location = " / ".join(loc_parts) if loc_parts else (parts[0] if parts else '')
+    elif project_id in (134, 136):
+        if parts:
+            location = " / ".join(parts)
+    else:
+        if parts:
+            product_type = parts[0].upper().replace('-', '_')
+            if len(parts) > 1:
+                location = " / ".join(parts[1:])
+
+    if not location:
+        location = proj_label
+
+    return [file_name, product_type, location, item_path]
+
+@app.route('/api/recipes/search-yaml-files', methods=['POST'])
+@login_required
+def search_recipe_yaml_files():
+    keyword = (request.json.get('keyword') or request.json.get('query') or '').strip()
+    project_id = request.json.get('project_id')
+
+    if not keyword:
+        return jsonify({'success': False, 'message': 'Thiếu từ khóa tìm kiếm'})
+
+    try:
+        project_id = int(project_id)
+    except (TypeError, ValueError):
+        project_id = 135
+
+    s = get_gitlab_session()
+    clean_keyword = keyword.replace('.yaml', '').strip()
+
+    try:
+        search_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/search'
+        res = s.get(search_url, params={'scope': 'blobs', 'search': clean_keyword}, timeout=15)
+        
+        if res.status_code in [401, 403]:
+            return jsonify({'success': False, 'message': 'Lỗi xác thực GitLab Token, vui lòng kiểm tra'})
+
+        results = []
+        seen_paths = set()
+
+        if res.ok:
+            data = res.json()
+            if isinstance(data, list):
+                for item in data:
+                    item_path = item.get('path', '')
+                    if not item_path or item_path in seen_paths:
+                        continue
+                    if item_path.endswith(('.yaml', '.yml')):
+                        seen_paths.add(item_path)
+                        results.append(parse_yaml_metadata_from_path(item_path, project_id))
+
+        # If blob search returned nothing, also try direct candidate resolution
+        if not results:
+            resolved = resolve_recipe_path(project_id, clean_keyword)
+            if resolved and resolved not in seen_paths:
+                results.append(parse_yaml_metadata_from_path(resolved, project_id))
+
+        return jsonify({
+            'success': True,
+            'columns': ['Tên file', 'Phân loại', 'Khu vực / Xưởng', 'Đường dẫn'],
+            'result': results,
+            'project_id': project_id
         })
 
     except requests.RequestException as e:
@@ -2587,9 +2887,6 @@ def fetch_yaml_content():
 @login_required
 def search_actions_commit():
 
-    global gitlab_private_token
-    token = gitlab_private_token or os.environ.get('GITLAB_PRIVATE_TOKEN', '')
-
     recipe_id = request.json.get('recipe_id', '').strip()
     product_type = request.json.get('product_type', '').strip()
 
@@ -2597,38 +2894,21 @@ def search_actions_commit():
         return jsonify({'success': False, 'message': 'Thiếu thông tin recipe_id'})
 
     project_id = get_gitlab_project_id(product_type)
-
-    headers = {
-        'PRIVATE-TOKEN': token
-    }
+    s = get_gitlab_session()
 
     clean_recipe_id = recipe_id.replace('.yaml', '').strip()
 
     try:
-        # Step 1: Concurrently discover actual file path via Blob Search AND fetch latest recent pages of actions.yaml
-        def get_blob_info():
-            try:
-                search_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/search'
-                res = requests.get(search_url, headers=headers, params={'scope': 'blobs', 'search': clean_recipe_id}, verify=False, timeout=8)
-                if res.ok:
-                    data = res.json()
-                    if data and isinstance(data, list):
-                        path = data[0].get('path', '')
-                        if path:
-                            return (path, os.path.basename(path))
-            except Exception as e:
-                print(f"Error searching blob for {clean_recipe_id}: {e}")
-            return (None, None)
-
-        def get_recent_page(page_num):
+        # Step 1: Concurrently fetch 100 recent commits of actions.yaml AND resolve recipe path + Blame dates
+        def get_recent_actions():
             try:
                 commits_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits'
                 params = {
                     'path': 'actions.yaml',
-                    'page': page_num,
+                    'page': 1,
                     'per_page': 100
                 }
-                res = requests.get(commits_url, headers=headers, params=params, verify=False, timeout=12)
+                res = s.get(commits_url, params=params, timeout=5)
                 if res.status_code in [401, 403]:
                     return {'auth_error': True}
                 if res.ok:
@@ -2636,169 +2916,143 @@ def search_actions_commit():
                     if isinstance(commits_list, list):
                         return {'commits': commits_list}
             except Exception as e:
-                print(f"Error fetching page {page_num} on actions.yaml: {e}")
+                print(f"Error fetching recent actions.yaml: {e}")
             return {'commits': []}
 
-        with ThreadPoolExecutor(max_workers=3) as executor:
-            fut_blob = executor.submit(get_blob_info)
-            fut_p1 = executor.submit(get_recent_page, 1)
-            fut_p2 = executor.submit(get_recent_page, 2)
-            
-            recipe_file_path, actual_filename = fut_blob.result()
-            res_p1 = fut_p1.result()
-            res_p2 = fut_p2.result()
+        def get_recipe_info():
+            r_path = resolve_recipe_path(project_id, clean_recipe_id, product_type)
+            rec_dates = []
+            if r_path:
+                try:
+                    enc = r_path.replace('/', '%2F')
+                    # Blame is sub-second fast (< 0.5s) compared to repository/commits?path (10-15s)
+                    blame_res = s.get(
+                        f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/files/{enc}/blame',
+                        params={'ref': 'master'},
+                        timeout=4
+                    )
+                    if blame_res.ok and isinstance(blame_res.json(), list):
+                        seen_ids = set()
+                        for b in blame_res.json():
+                            c = b.get('commit', {})
+                            cid = c.get('id')
+                            if cid and cid not in seen_ids:
+                                seen_ids.add(cid)
+                                dt = c.get('authored_date') or c.get('committed_date')
+                                if dt:
+                                    rec_dates.append(dt)
+                except Exception as e:
+                    print(f"Error getting recipe blame: {e}")
+            return r_path, rec_dates
 
-        if res_p1.get('auth_error') or res_p2.get('auth_error'):
+        with ThreadPoolExecutor(max_workers=2) as ex:
+            f_recent = ex.submit(get_recent_actions)
+            f_rec = ex.submit(get_recipe_info)
+            res_recent = f_recent.result()
+            recipe_file_path, rec_dates = f_rec.result()
+
+        if res_recent.get('auth_error'):
             return jsonify({'success': False, 'message': 'Lỗi xác thực GitLab Token, vui lòng kiểm tra'})
+
+        actual_filename = os.path.basename(recipe_file_path) if recipe_file_path else ''
 
         # Build search candidate set for matching diff lines in actions.yaml
         search_candidates = {clean_recipe_id.lower()}
         sanitized_id = re.sub(r'[:\\/*?"<>| ]', '_', clean_recipe_id)
         search_candidates.add(sanitized_id.lower())
+        search_candidates.add(f"{clean_recipe_id.lower()}.yaml")
+        search_candidates.add(f"{sanitized_id.lower()}.yaml")
 
         if actual_filename:
             search_candidates.add(actual_filename.lower())
             stem = os.path.splitext(actual_filename)[0]
             search_candidates.add(stem.lower())
 
-        # Step 2: Date-Anchoring via Recipe File Commit History (+ fallback Blame)
-        # Fetch all commits that ever touched this recipe file across its entire history
-        recipe_dates = []
-        recipe_commits = []
-        if recipe_file_path:
-            try:
-                file_commits_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits'
-                r_fc = requests.get(file_commits_url, headers=headers, params={'path': recipe_file_path, 'per_page': 100}, verify=False, timeout=10)
-                if r_fc.ok and isinstance(r_fc.json(), list):
-                    recipe_commits = r_fc.json()
-                    for c in recipe_commits:
-                        dt_str = c.get('authored_date') or c.get('committed_date')
-                        if dt_str:
-                            recipe_dates.append(dt_str)
-            except Exception as e:
-                print(f"Error getting file commits for {recipe_file_path}: {e}")
-
-            # Fallback to blame if commits list was empty
-            if not recipe_dates:
-                try:
-                    encoded_path = recipe_file_path.replace('/', '%2F')
-                    blame_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/files/{encoded_path}/blame'
-                    blame_res = requests.get(blame_url, headers=headers, params={'ref': 'master'}, verify=False, timeout=10)
-                    if blame_res.ok:
-                        blame_data = blame_res.json()
-                        seen_cids = set()
-                        for b in blame_data:
-                            c = b.get('commit', {})
-                            cid = c.get('id')
-                            if cid and cid not in seen_cids:
-                                seen_cids.add(cid)
-                                dt_str = c.get('authored_date') or c.get('committed_date')
-                                if dt_str:
-                                    recipe_dates.append(dt_str)
-                except Exception as e:
-                    print(f"Error getting blame dates for {recipe_file_path}: {e}")
-
-        # Step 3: Concurrently fetch actions.yaml commits for each anchored date window
         actions_commits_map = {}
-        for c in (res_p1.get('commits', []) + res_p2.get('commits', [])):
+        for c in res_recent.get('commits', []):
             if c.get('id'):
                 actions_commits_map[c.get('id')] = c
 
-        recipe_dts = []
-        for d in recipe_dates:
-            clean_iso = d.split('.')[0].replace('Z', '').split('+')[0]
-            try:
-                recipe_dts.append(datetime.fromisoformat(clean_iso))
-            except Exception:
-                pass
+        # Step 2: Fetch historical window commits based on recipe blame dates to catch all past versions
+        if rec_dates:
+            seen_date_keys = set()
+            window_list = []
+            for dt_str in rec_dates:
+                clean_iso = dt_str.split('.')[0].replace('Z', '').split('+')[0]
+                try:
+                    r_dt = datetime.fromisoformat(clean_iso)
+                    dkey = r_dt.strftime('%Y-%m-%d')
+                    if dkey not in seen_date_keys:
+                        seen_date_keys.add(dkey)
+                        since_dt = (r_dt - timedelta(hours=8)).strftime('%Y-%m-%dT%H:%M:%SZ')
+                        until_dt = (r_dt + timedelta(hours=10)).strftime('%Y-%m-%dT%H:%M:%SZ')
+                        window_list.append((since_dt, until_dt))
+                except Exception:
+                    pass
 
-        seen_windows = set()
-        window_list = []
-        for dt in recipe_dts:
-            since_dt = (dt - timedelta(days=1)).strftime('%Y-%m-%dT00:00:00Z')
-            until_dt = (dt + timedelta(days=1)).strftime('%Y-%m-%dT23:59:59Z')
-            wkey = (since_dt[:10], until_dt[:10])
-            if wkey not in seen_windows:
-                seen_windows.add(wkey)
-                window_list.append((since_dt, until_dt))
+            if window_list:
+                def fetch_actions_window(w):
+                    since_dt, until_dt = w
+                    try:
+                        url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits'
+                        params = {'path': 'actions.yaml', 'since': since_dt, 'until': until_dt, 'per_page': 100}
+                        res = s.get(url, params=params, timeout=4)
+                        if res.ok and isinstance(res.json(), list):
+                            return res.json()
+                    except Exception as e:
+                        print(f"Error fetching window {since_dt} - {until_dt}: {e}")
+                    return []
 
-        def fetch_actions_window(w):
-            since_dt, until_dt = w
-            try:
-                url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits'
-                params = {'path': 'actions.yaml', 'since': since_dt, 'until': until_dt, 'per_page': 100}
-                res = requests.get(url, headers=headers, params=params, verify=False, timeout=10)
-                if res.ok:
-                    return res.json()
-            except Exception as e:
-                print(f"Error fetching window {since_dt} - {until_dt}: {e}")
-            return []
-
-        if window_list:
-            with ThreadPoolExecutor(max_workers=min(len(window_list), 20)) as executor:
-                for clist in executor.map(fetch_actions_window, window_list):
-                    if clist and isinstance(clist, list):
+                with ThreadPoolExecutor(max_workers=min(len(window_list), 10)) as executor:
+                    for clist in executor.map(fetch_actions_window, window_list):
                         for c in clist:
                             cid = c.get('id')
-                            if cid:
+                            if cid and cid not in actions_commits_map:
                                 actions_commits_map[cid] = c
 
-        all_candidate_commits = list(actions_commits_map.values())
-        if not all_candidate_commits:
-            return jsonify({'success': False, 'message': 'Không tìm thấy commit nào của actions.yaml'})
-
-        # Sort candidate commits by distance to nearest recipe commit date for optimal scanning order
-        def get_min_dist(c):
-            dt_str = c.get('authored_date') or c.get('committed_date')
-            if not dt_str or not recipe_dts:
-                return 0
-            clean_iso = dt_str.split('.')[0].replace('Z', '').split('+')[0]
+        # Step 3: Concurrently fetch diffs (with caching) and scan for matches across all commits
+        def get_diff_items(cid):
+            ckey = (project_id, cid)
+            with _actions_diff_lock:
+                if ckey in _actions_diff_cache:
+                    return _actions_diff_cache[ckey]
             try:
-                c_dt = datetime.fromisoformat(clean_iso)
-                return min(abs((c_dt - r_dt).total_seconds()) for r_dt in recipe_dts)
+                diff_res = s.get(
+                    f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits/{cid}/diff',
+                    timeout=4
+                )
+                if diff_res.ok and isinstance(diff_res.json(), list):
+                    items = diff_res.json()
+                    with _actions_diff_lock:
+                        _actions_diff_cache[ckey] = items
+                    return items
             except Exception:
-                return 999999999
+                pass
+            return []
 
-        all_candidate_commits.sort(key=get_min_dist)
-
-        # Step 4: Concurrently scan diffs of candidate commits - ONLY matching ADDED lines (starting with '+')
         def check_diff(commit_item):
             cid = commit_item.get('id')
             if not cid:
                 return None
-            try:
-                diff_res = requests.get(
-                    f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits/{cid}/diff',
-                    headers=headers,
-                    verify=False,
-                    timeout=8
-                )
-                if diff_res.ok:
-                    diff_items = diff_res.json()
-                    for d in diff_items:
-                        diff_text = d.get('diff', '')
-                        has_add = False
-                        for line in diff_text.split('\n'):
-                            # Only check lines added with '+' (ignore '-' removals or '+++' headers)
-                            if line.startswith('+') and not line.startswith('+++'):
-                                line_lower = line.lower()
-                                for cand in search_candidates:
-                                    if cand in line_lower:
-                                        has_add = True
-                                        break
-                                if has_add:
-                                    break
-                        if has_add:
+            diff_items = get_diff_items(cid)
+            for d in diff_items:
+                diff_text = d.get('diff', '')
+                for line in diff_text.splitlines():
+                    if line.startswith('+') and not line.startswith('+++'):
+                        if any(cand in line.lower() for cand in search_candidates):
                             return (commit_item, d, 'add')
-            except Exception:
-                pass
             return None
 
         matched_commits = []
-        with ThreadPoolExecutor(max_workers=30) as executor:
-            for r in executor.map(check_diff, all_candidate_commits):
+        matched_seen_ids = set()
+        all_candidates = list(actions_commits_map.values())
+        with ThreadPoolExecutor(max_workers=35) as executor:
+            for r in executor.map(check_diff, all_candidates):
                 if r:
-                    matched_commits.append(r)
+                    cid = r[0].get('id')
+                    if cid and cid not in matched_seen_ids:
+                        matched_seen_ids.add(cid)
+                        matched_commits.append(r)
 
         if not matched_commits:
             return jsonify({
@@ -2806,16 +3060,18 @@ def search_actions_commit():
                 'message': f'Không tìm thấy commit thêm mới (add) của {clean_recipe_id} trong lịch sử actions.yaml'
             })
 
-        # Step 5: Concurrently fetch Merge Request & Pipeline details for all matched commits
+        # Step 4: Concurrently fetch Merge Request, Pipeline, and actions.yaml Validation
         def fetch_pipeline(sha):
             if not sha:
                 return None
+            ckey = (project_id, sha)
+            with _actions_pipeline_lock:
+                if ckey in _actions_pipeline_cache:
+                    return _actions_pipeline_cache[ckey]
             try:
-                c_res = requests.get(
+                c_res = s.get(
                     f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits/{sha}',
-                    headers=headers,
-                    verify=False,
-                    timeout=8
+                    timeout=4
                 )
                 if c_res.ok:
                     cdata = c_res.json()
@@ -2823,11 +3079,14 @@ def search_actions_commit():
                     status = cdata.get('status') or (last_p.get('status') if last_p else None)
                     web_url = last_p.get('web_url') if last_p else None
                     pid = last_p.get('id') if last_p else None
-                    return {
+                    p_info = {
                         'id': pid,
                         'status': status,
                         'web_url': web_url
                     }
+                    with _actions_pipeline_lock:
+                        _actions_pipeline_cache[ckey] = p_info
+                    return p_info
             except Exception as e:
                 print(f"Error fetching pipeline for commit {sha}: {e}")
             return None
@@ -2836,19 +3095,25 @@ def search_actions_commit():
             c_item, d_item, m_type = item
             cid = c_item.get('id')
             mr_obj = None
-            try:
-                mr_res = requests.get(
-                    f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits/{cid}/merge_requests',
-                    headers=headers,
-                    verify=False,
-                    timeout=10
-                )
-                if mr_res.ok:
-                    mrs = mr_res.json()
-                    if mrs and isinstance(mrs, list) and len(mrs) > 0:
-                        mr_obj = mrs[0]
-            except Exception as e:
-                print(f"Error fetching MR for commit {cid}: {e}")
+            mr_key = (project_id, cid)
+            with _actions_mr_lock:
+                if mr_key in _actions_mr_cache:
+                    mr_obj = _actions_mr_cache[mr_key]
+            
+            if mr_obj is None:
+                try:
+                    mr_res = s.get(
+                        f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits/{cid}/merge_requests',
+                        timeout=5
+                    )
+                    if mr_res.ok:
+                        mrs = mr_res.json()
+                        if mrs and isinstance(mrs, list) and len(mrs) > 0:
+                            mr_obj = mrs[0]
+                            with _actions_mr_lock:
+                                _actions_mr_cache[mr_key] = mr_obj
+                except Exception as e:
+                    print(f"Error fetching MR for commit {cid}: {e}")
 
             edit_sha = mr_obj.get('sha') if (mr_obj and mr_obj.get('sha')) else cid
             merge_sha = mr_obj.get('merge_commit_sha') if mr_obj else None
@@ -2861,7 +3126,32 @@ def search_actions_commit():
                 pipe_edit = f_edit.result()
                 pipe_merge = f_merge.result()
 
-            return (c_item, d_item, m_type, mr_obj, pipe_edit, pipe_merge)
+            # Validate actions.yaml content at edit_sha
+            val_res = {'is_valid': True, 'errors': [], 'has_indent_error': False}
+            val_key = (project_id, edit_sha)
+            actions_raw = ''
+            with _raw_actions_lock:
+                if val_key in _raw_actions_cache:
+                    actions_raw = _raw_actions_cache[val_key]
+            
+            if not actions_raw:
+                try:
+                    ar_res = s.get(
+                        f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/files/actions.yaml/raw',
+                        params={'ref': edit_sha},
+                        timeout=5
+                    )
+                    if ar_res.ok:
+                        actions_raw = ar_res.text
+                        with _raw_actions_lock:
+                            _raw_actions_cache[val_key] = actions_raw
+                except Exception:
+                    actions_raw = ''
+
+            if actions_raw:
+                val_res = validate_actions_yaml_content(actions_raw, clean_recipe_id)
+
+            return (c_item, d_item, m_type, mr_obj, pipe_edit, pipe_merge, val_res)
 
         with ThreadPoolExecutor(max_workers=10) as executor:
             full_matches = list(executor.map(fetch_mr_and_pipeline_details, matched_commits))
@@ -2876,7 +3166,7 @@ def search_actions_commit():
         project_web_base = 'https://gitlabce.kenda.com.tw/tc/recipes/kitting' if project_id == 135 else f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}'
 
         matches_data = []
-        for matched_commit, matched_diff, match_type, mr_info, pipe_edit, pipe_merge in full_matches:
+        for matched_commit, matched_diff, match_type, mr_info, pipe_edit, pipe_merge, val_info in full_matches:
             edit_sha = mr_info.get('sha') if (mr_info and mr_info.get('sha')) else matched_commit.get('id', '')
             edit_short = edit_sha[:8] if edit_sha else ''
             author_name = (mr_info.get('author', {}).get('name') if (mr_info and mr_info.get('author')) else matched_commit.get('author_name', ''))
@@ -2891,6 +3181,7 @@ def search_actions_commit():
 
             matches_data.append({
                 'match_type': match_type,
+                'validation': val_info,
                 'commit_edit': {
                     'id': edit_sha,
                     'short_id': edit_short,
@@ -2937,8 +3228,9 @@ def search_actions_commit():
             'merge_request': primary['merge_request'],
             'diff': primary['diff'],
             'diff_file': primary['diff_file'],
-            'matches': matches_data,
-            'total_matches_found': len(matches_data)
+            'validation': primary['validation'],
+            'total_matches_found': len(matches_data),
+            'matches': matches_data
         }
 
         return jsonify({
@@ -2954,109 +3246,23 @@ def search_actions_commit():
 @app.route('/api/label-config/fetch', methods=['GET', 'POST'])
 @login_required
 def fetch_label_config():
-
-    global _label_config_cache, gitlab_private_token
-
-    project_id = 113
-    encoded_path = 'yamls%2Flabel-config.yml'
-    ref = 'master'
-    file_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/files/{encoded_path}?ref={ref}'
-
-    headers = {
-        'PRIVATE-TOKEN': gitlab_private_token
-    }
-
-    try:
-        response = requests.get(file_url, headers=headers, verify=False, timeout=15)
-        
-        # Check authentication error
-        if response.status_code in [401, 403]:
-            return jsonify({
-                'success': False,
-                'error_type': 'auth',
-                'message': 'Lỗi gitlab token, vui lòng kiểm tra'
-            }), 200
-
-        if not response.ok:
-            return jsonify({
-                'success': False,
-                'error_type': 'gitlab',
-                'message': f'Lỗi gitlab (HTTP {response.status_code})'
-            }), 200
-
-        data = response.json()
-        content_b64 = data.get('content', '')
-        if not content_b64:
-            return jsonify({
-                'success': False,
-                'error_type': 'gitlab',
-                'message': 'Lỗi gitlab (File rỗng)'
-            }), 200
-
-        content_decoded = base64.b64decode(content_b64).decode('utf-8')
-        parsed_yaml = yaml.safe_load(content_decoded)
-
-        product_types = []
-        config_map = {}
-        keys_by_product_type = {}
-
-        if isinstance(parsed_yaml, list):
-            for item in parsed_yaml:
-                if not isinstance(item, dict):
-                    continue
-                ptype = item.get('product-type')
-                if ptype:
-                    product_types.append(ptype)
-                    configs = item.get('configs', {})
-                    req_labels = configs.get('required-labels', []) if isinstance(configs, dict) else []
-                    rows = []
-                    keys = []
-                    for lbl in req_labels:
-                        if isinstance(lbl, dict):
-                            key = lbl.get('key', '')
-                            langs = lbl.get('languages', {}) if isinstance(lbl.get('languages'), dict) else {}
-                            if key:
-                                keys.append(key)
-                            if key or langs:
-                                rows.append([
-                                    key,
-                                    langs.get('VI') or langs.get('VN') or '',
-                                    langs.get('CN') or '',
-                                    langs.get('TW') or '',
-                                    langs.get('EN') or '',
-                                    langs.get('ID') or ''
-                                ])
-                    config_map[ptype] = rows
-                    keys_by_product_type[ptype] = keys
-
-        # Update cache
-        _label_config_cache['timestamp'] = time.time()
-        _label_config_cache['data'] = {
-            'product_types': product_types,
-            'config_map': config_map,
-            'keys_by_product_type': keys_by_product_type
-        }
-
-        return jsonify({
-            'success': True,
-            'product_types': product_types,
-            'config_map': config_map,
-            'keys_by_product_type': keys_by_product_type,
-            'columns': ['key', 'VN', 'CN', 'TW', 'EN', 'ID']
-        })
-
-    except requests.exceptions.RequestException as e:
+    force = request.json.get('force', False) if request.is_json and request.json else False
+    data = get_label_config_data(force_refresh=force)
+    
+    if data.get('auth_error'):
         return jsonify({
             'success': False,
-            'error_type': 'gitlab',
-            'message': f'Lỗi gitlab ({str(e)})'
+            'error_type': 'auth',
+            'message': 'Lỗi gitlab token, vui lòng kiểm tra'
         }), 200
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error_type': 'gitlab',
-            'message': f'Lỗi gitlab: {str(e)}'
-        }), 200
+
+    return jsonify({
+        'success': True,
+        'product_types': data.get('product_types', []),
+        'config_map': data.get('config_map', {}),
+        'keys_by_product_type': data.get('keys_by_product_type', {}),
+        'columns': ['key', 'VN', 'CN', 'TW', 'EN', 'ID']
+    })
     
 @app.route('/api/barcodes/fetch-original-info', methods=['POST'])
 @login_required
@@ -3067,62 +3273,54 @@ def fetch_original_info_by_barcode():
     resource_id = data.get('resource_id')
     if not resource_id:
         return jsonify({'success': False, 'message': 'Thiếu Resource ID'})
-    
     product_type = data.get('product_type')
 
     try:
-        query = """
-            WITH params AS (
+        if product_type:
+            query = """
                 SELECT
-                    %s::text AS material_id,
-                    %s::text AS product_type
-            ),
-
-            target_work_orders AS (
-                SELECT DISTINCT
-                    wo.id AS work_order,
-                    wo.recipe_id
-                FROM params p
-                JOIN kvmes.work_order wo ON TRUE
-                WHERE EXISTS (
-                    SELECT 1
-                    FROM kvmes.collect_record cr
-                    JOIN kvmes.material_resource mr
-                        ON mr.oid = cr.resource_oid
-                    AND mr.id = p.material_id
-                    AND (p.product_type IS NULL OR mr.product_type = p.product_type)
-                    WHERE TRIM(cr.work_order) = TRIM(wo.id)
-                )
-            )
-
-            SELECT
-                mr.id              			AS barcode,
-                cr.detail->>'quantity' 		AS quantity,
-                cr.work_date::text       	AS work_date,
-                cr.detail->>'shift_group'	AS shift_group,
-                cr.lot_number,
-                cr.station         			AS station,
-                cr.created_at,
-                cr.detail->>'operator_id'	AS created_by
-
-            FROM params p
-            JOIN target_work_orders tw
-                ON TRUE
-            JOIN kvmes.work_order wo
-                ON wo.id = tw.work_order
-            JOIN kvmes.collect_record cr
-                ON TRIM(cr.work_order) = TRIM(wo.id)
-            JOIN kvmes.material_resource mr
-                ON mr.oid = cr.resource_oid
-            AND mr.id = p.material_id
-            AND (p.product_type IS NULL OR mr.product_type = p.product_type)
-
-            ORDER BY
-                wo.reserved_date DESC,
-                cr.sequence ASC;
-        """
-
-        result, column_names = execute_pg_select_query(query, (resource_id, product_type))
+                    mr.id                       AS barcode,
+                    cr.detail->>'quantity'      AS quantity,
+                    cr.work_date::text          AS work_date,
+                    cr.detail->>'shift_group'   AS shift_group,
+                    cr.lot_number,
+                    cr.station                  AS station,
+                    cr.created_at,
+                    cr.detail->>'operator_id'   AS created_by
+                FROM kvmes.material_resource mr
+                JOIN kvmes.collect_record cr 
+                    ON cr.resource_oid = mr.oid
+                LEFT JOIN kvmes.work_order wo 
+                    ON wo.id = TRIM(cr.work_order)::character(20)
+                WHERE mr.id = %s
+                  AND mr.product_type = %s
+                ORDER BY
+                    wo.reserved_date DESC NULLS LAST,
+                    cr.sequence ASC;
+            """
+            result, column_names = execute_pg_select_query(query, (resource_id, product_type))
+        else:
+            query = """
+                SELECT
+                    mr.id                       AS barcode,
+                    cr.detail->>'quantity'      AS quantity,
+                    cr.work_date::text          AS work_date,
+                    cr.detail->>'shift_group'   AS shift_group,
+                    cr.lot_number,
+                    cr.station                  AS station,
+                    cr.created_at,
+                    cr.detail->>'operator_id'   AS created_by
+                FROM kvmes.material_resource mr
+                JOIN kvmes.collect_record cr 
+                    ON cr.resource_oid = mr.oid
+                LEFT JOIN kvmes.work_order wo 
+                    ON wo.id = TRIM(cr.work_order)::character(20)
+                WHERE mr.id = %s
+                ORDER BY
+                    wo.reserved_date DESC NULLS LAST,
+                    cr.sequence ASC;
+            """
+            result, column_names = execute_pg_select_query(query, (resource_id,))
         if not result:
             return jsonify({'success': False, 'message': 'Lỗi API'})
 
@@ -4775,6 +4973,10 @@ import sys
 _current_dir = os.path.dirname(os.path.abspath(__file__))
 _ocr_libs_dir = os.path.join(_current_dir, 'ocr_libs')
 
+import io
+from PIL import Image
+import numpy as np
+
 _rapid_ocr_engine = None
 _ocr_init_error = None
 _ocr_lock = threading.Lock()
@@ -4788,7 +4990,7 @@ def get_rapid_ocr_engine():
             return _rapid_ocr_engine, None
         try:
             from rapidocr_onnxruntime import RapidOCR
-            _rapid_ocr_engine = RapidOCR(Det_limit_type='max', Det_limit_side_len=960)
+            _rapid_ocr_engine = RapidOCR(Det_limit_type='max', Det_limit_side_len=720, use_angle_cls=False)
             print("[INFO] RapidOCR Engine initialized successfully from system packages.")
             return _rapid_ocr_engine, None
         except Exception as _sys_err:
@@ -4807,7 +5009,7 @@ def get_rapid_ocr_engine():
                 os.environ["PATH"] = os.pathsep.join(_extra_paths) + os.pathsep + os.environ.get("PATH", "")
                 try:
                     from rapidocr_onnxruntime import RapidOCR
-                    _rapid_ocr_engine = RapidOCR(Det_limit_type='max', Det_limit_side_len=960)
+                    _rapid_ocr_engine = RapidOCR(Det_limit_type='max', Det_limit_side_len=720, use_angle_cls=False)
                     print("[INFO] RapidOCR Engine initialized successfully from bundled ocr_libs.")
                     return _rapid_ocr_engine, None
                 except Exception as _ocr_init_err:
@@ -4820,6 +5022,19 @@ def get_rapid_ocr_engine():
                 _rapid_ocr_engine = None
                 _ocr_init_error = str(_sys_err)
                 return None, _ocr_init_error
+
+def _warmup_rapid_ocr():
+    try:
+        engine, err = get_rapid_ocr_engine()
+        if engine:
+            dummy_img = np.zeros((64, 256, 3), dtype=np.uint8)
+            engine(dummy_img, use_angle_cls=False)
+            print("[INFO] RapidOCR Engine pre-warmed successfully in background.")
+    except Exception as _w_err:
+        print(f"[WARN] RapidOCR background warmup: {_w_err}")
+
+# Launch background warmup immediately on module load so first request is instant
+threading.Thread(target=_warmup_rapid_ocr, daemon=True, name="OCR-Warmup").start()
 
 def clean_and_merge_ocr_results(result):
     """
@@ -4913,6 +5128,15 @@ def clean_and_merge_ocr_results(result):
     avg_conf = sum(all_scores) / len(all_scores) if all_scores else 0.0
     return full_text, final_lines, round(avg_conf, 3)
 
+@app.route('/api/ocr/warmup', methods=['GET'])
+def ocr_warmup():
+    engine, err = get_rapid_ocr_engine()
+    if engine is not None:
+        dummy_img = np.zeros((64, 256, 3), dtype=np.uint8)
+        engine(dummy_img, use_angle_cls=False)
+        return jsonify({'success': True, 'warmed': True}), 200
+    return jsonify({'success': False, 'error': err}), 500
+
 @app.route('/api/ocr/recognize', methods=['POST'])
 def ocr_recognize():
     engine, init_err = get_rapid_ocr_engine()
@@ -4945,10 +5169,7 @@ def ocr_recognize():
         return jsonify({'success': False, 'error': True, 'message': 'Không tìm thấy dữ liệu hình ảnh'}), 400
 
     try:
-        t0 = time.time()
-        import io
-        from PIL import Image
-        import numpy as np
+        t0 = time.perf_counter()
 
         img = Image.open(io.BytesIO(image_bytes))
         if img.mode != 'RGB':
@@ -4958,8 +5179,8 @@ def ocr_recognize():
             img.thumbnail((1280, 1280), Image.Resampling.LANCZOS)
         img_np = np.array(img)
 
-        result, elapse = engine(img_np)
-        elapsed_ms = round((time.time() - t0) * 1000, 2)
+        result, elapse = engine(img_np, use_angle_cls=False)
+        elapsed_ms = round((time.perf_counter() - t0) * 1000, 2)
 
         if not result:
             return jsonify({

@@ -143,6 +143,34 @@
                 </button>
             </div>
         </div>
+
+        <!-- ===== SECONDARY OUTPUT BARCODE CONTAINER (LEVEL 2 DRILLDOWN) ===== -->
+        <div id="subOutputContainer" class="table-container output-barcode sub-output-barcode" role="region" aria-label="Bảng chi tiết tem đầu ra cấp 2" style="display: none;">
+            <div class="output-header" id="subOutputHeader">
+                <span id="subOutputHeaderContent">Danh sách tem đầu ra</span>
+                <button class="close-btn" onclick="closeSubOutputWindow()" aria-label="Đóng bảng tem đầu ra cấp 2" type="button"><svg class="close-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+            </div>
+
+            <div class="output-table-scroll sub-output-table-scroll">
+                <table id="subOutputBarcodeTable" class="table table-striped">
+                    <thead></thead>
+                    <tbody id="subOutputBarcodeTableBody"></tbody>
+                </table>
+            </div>
+            <div class="output-footer">
+                <div class="row-count">Số dòng: <span id="subOutputRowCount">0</span></div>
+                <button class="btn-export-excel" id="exportSubOutputExcelBtn" aria-label="Xuất dữ liệu tem đầu ra file Excel">
+                    <div class="btn-export-excel-wrapper">
+                        <div class="text">Xuất Excel</div>
+                        <span class="icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" width="2em" height="2em" preserveAspectRatio="xMidYMid meet" viewBox="0 0 24 24">
+                                <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 0 0 4.561 21h14.878a2 2 0 0 0 1.94-1.515L22 17"></path>
+                            </svg>
+                        </span>
+                    </div>
+                </button>
+            </div>
+        </div>
     </div>
 
     <!-- Context Menu -->

@@ -761,6 +761,7 @@
     function finishIntro() {
         if (isFinished) return;
         isFinished = true;
+        window.removeEventListener('resize', handleResize);
 
         const overlay = document.getElementById('supercarIntroOverlay');
         if (overlay) {

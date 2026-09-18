@@ -14,6 +14,7 @@ def execute_pg_select_query(query, params=()):
     
     try:
         cursor = conn.cursor()
+        cursor.execute("SET jit = off;")
         cursor.execute(query, params)
         result = cursor.fetchall()
         column_names = [desc[0] for desc in cursor.description]
@@ -29,6 +30,7 @@ def execute_pg_dev_select_query(query, params=()):
     
     try:
         cursor = conn.cursor()
+        cursor.execute("SET jit = off;")
         cursor.execute(query, params)
         result = cursor.fetchall()
         column_names = [desc[0] for desc in cursor.description]

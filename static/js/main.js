@@ -28,7 +28,11 @@ let selectedRow = null;
 let selectedRowData = null;
 let selectedOutputRow = null;
 let selectedOutputRowData = null;
+let selectedSubOutputRow = null;
+let selectedSubOutputRowData = null;
 let originalTableHTML = null;
+let originalOutputTableHTML = null;
+let originalOutputRowCount = null;
 let currentRowClickType = null;
 let currentTableType = null;
 let currentOutputTableType = null;
@@ -39,6 +43,8 @@ let feed_records_material_id = null;
 let tableViewStack = [];
 let outputBarcodeRawData = [];
 let outputBarcodeColumns = [];
+let subOutputRawData = [];
+let subOutputColumns = [];
 let activeSearchContext = 'main';
 let apiLoadingCount = 0;
 let currentBarcodeDetailType = null;
@@ -388,11 +394,15 @@ const Toast = {
         const { container, doc } = this.getContainer();
         const iconName = this.ICONS[toastType] || 'info';
 
-        // Stacking limit: Maximum 3 toasts at any time (dismiss oldest top toast)
-        const activeToasts = container.querySelectorAll('.toast-item:not(.removing)');
-        if (activeToasts.length >= 3) {
-            for (let i = 0; i <= activeToasts.length - 3; i++) {
-                const oldToast = activeToasts[i];
+        // Stacking limit: Maximum 3 toasts at any time (persistent toast occupies 1 fixed slot)
+        const allActiveToasts = Array.from(container.querySelectorAll('.toast-item:not(.removing)'));
+        const normalActiveToasts = allActiveToasts.filter(t => !t.classList.contains('toast-persistent'));
+        const hasPersistent = allActiveToasts.length > normalActiveToasts.length;
+        const maxNormalSlots = hasPersistent ? 2 : 3;
+
+        if (normalActiveToasts.length >= maxNormalSlots) {
+            for (let i = 0; i <= normalActiveToasts.length - maxNormalSlots; i++) {
+                const oldToast = normalActiveToasts[i];
                 oldToast.classList.add('removing');
                 setTimeout(() => {
                     try { oldToast.remove(); } catch (e) {}
@@ -498,6 +508,88 @@ const Toast = {
     },
     error(titleOrMsg, msg, duration) {
         return this.show(titleOrMsg, msg, 'error', duration);
+    },
+    showPersistentYamlSearchToast(keyword) {
+        const { container, doc } = this.getContainer();
+        
+        // Remove existing persistent toast if any
+        const existing = container.querySelector('.toast-item.toast-persistent');
+        if (existing) {
+            existing.remove();
+        }
+
+        // Keep max 2 normal toasts when persistent toast enters
+        const normalActiveToasts = Array.from(container.querySelectorAll('.toast-item:not(.removing):not(.toast-persistent)'));
+        if (normalActiveToasts.length >= 2) {
+            for (let i = 0; i <= normalActiveToasts.length - 2; i++) {
+                const oldToast = normalActiveToasts[i];
+                oldToast.classList.add('removing');
+                setTimeout(() => {
+                    try { oldToast.remove(); } catch (e) {}
+                }, 150);
+            }
+        }
+
+        const toast = doc.createElement('div');
+        toast.className = 'toast-item toast-warning toast-persistent toast-persistent-vibrate';
+        toast.setAttribute('role', 'alert');
+        toast.setAttribute('aria-live', 'polite');
+
+        const cleanKeyword = (keyword || '').trim();
+
+        toast.innerHTML = `
+            <span class="toast-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"></path>
+                    <circle cx="12" cy="13" r="3"></circle>
+                    <path d="m14.5 15.5 2.5 2.5"></path>
+                </svg>
+            </span>
+            <div class="toast-content">
+                <div class="toast-title">Tìm kiếm Quy cách trong YAML</div>
+                <div class="toast-message">Bạn đang muốn thực hiện tìm kiếm Quy cách / Recipe ở file yaml ở đâu?</div>
+                <div class="toast-actions-grid">
+                    <button class="toast-action-btn" data-project="136" data-name="Mixing (BB)" type="button" title="Dự án Mixing (136)">BB</button>
+                    <button class="toast-action-btn" data-project="135" data-name="Kitting (CBK)" type="button" title="Dự án Kitting (135)">CBK</button>
+                    <button class="toast-action-btn" data-project="133" data-name="Building (TH)" type="button" title="Dự án Building (133)">TH</button>
+                    <button class="toast-action-btn" data-project="134" data-name="Curing (EV)" type="button" title="Dự án Curing (134)">EV</button>
+                </div>
+            </div>
+            <button class="toast-close" type="button" title="Đóng" aria-label="Đóng thông báo">
+                <svg class="close-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        `;
+
+        const dismiss = () => {
+            toast.classList.add('removing');
+            setTimeout(() => {
+                try { toast.remove(); } catch (e) {}
+            }, 150);
+        };
+
+        const closeBtn = toast.querySelector('.toast-close');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                dismiss();
+            });
+        }
+
+        const buttons = toast.querySelectorAll('.toast-action-btn');
+        buttons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const projectId = parseInt(btn.dataset.project, 10);
+                const projectName = btn.dataset.name;
+                dismiss();
+                searchRecipeYamlFiles(cleanKeyword, projectId, projectName);
+            });
+        });
+
+        container.appendChild(toast);
     }
 };
 window.Toast = Toast;
@@ -713,6 +805,13 @@ function initKeyboardShortcuts() {
             const openDropdowns = document.querySelectorAll('.dropdown-list.show');
             if (openDropdowns.length > 0) {
                 openDropdowns.forEach(dd => dd.classList.remove('show'));
+                return;
+            }
+            const subOutputContainer = document.getElementById('subOutputContainer');
+            if (subOutputContainer && subOutputContainer.style.display === 'flex') {
+                if (typeof closeSubOutputWindow === 'function') {
+                    closeSubOutputWindow();
+                }
                 return;
             }
             const outputContainer = document.getElementById('outputContainer');
@@ -1026,7 +1125,11 @@ function updateTableStickyOffsets() {
             if (firstTh) {
                 const width = firstTh.getBoundingClientRect().width || firstTh.offsetWidth;
                 if (width > 0) {
-                    mainTable.style.setProperty('--col-1-width', `${width}px`);
+                    const currentVal = mainTable.style.getPropertyValue('--col-1-width');
+                    const newVal = `${width}px`;
+                    if (currentVal !== newVal) {
+                        mainTable.style.setProperty('--col-1-width', newVal);
+                    }
                 }
             }
         }
@@ -1037,7 +1140,26 @@ function updateTableStickyOffsets() {
             if (firstTh) {
                 const width = firstTh.getBoundingClientRect().width || firstTh.offsetWidth;
                 if (width > 0) {
-                    outputTable.style.setProperty('--output-col-1-width', `${width}px`);
+                    const currentVal = outputTable.style.getPropertyValue('--output-col-1-width');
+                    const newVal = `${width}px`;
+                    if (currentVal !== newVal) {
+                        outputTable.style.setProperty('--output-col-1-width', newVal);
+                    }
+                }
+            }
+        }
+        // Sub Output Barcode Table
+        const subOutputTable = document.querySelector('#subOutputBarcodeTable');
+        if (subOutputTable) {
+            const firstTh = subOutputTable.querySelector('thead th:first-child');
+            if (firstTh) {
+                const width = firstTh.getBoundingClientRect().width || firstTh.offsetWidth;
+                if (width > 0) {
+                    const currentVal = subOutputTable.style.getPropertyValue('--sub-output-col-1-width');
+                    const newVal = `${width}px`;
+                    if (currentVal !== newVal) {
+                        subOutputTable.style.setProperty('--sub-output-col-1-width', newVal);
+                    }
                 }
             }
         }
@@ -1045,19 +1167,14 @@ function updateTableStickyOffsets() {
 }
 window.updateTableStickyOffsets = updateTableStickyOffsets;
 
+let _stickySyncDebounceTimer = null;
 function initTableStickySync() {
-    window.addEventListener('resize', updateTableStickyOffsets);
-    document.addEventListener('density:changed', updateTableStickyOffsets);
+    window.addEventListener('resize', () => {
+        if (_stickySyncDebounceTimer) clearTimeout(_stickySyncDebounceTimer);
+        _stickySyncDebounceTimer = setTimeout(updateTableStickyOffsets, 80);
+    }, { passive: true });
 
-    if (typeof ResizeObserver !== 'undefined') {
-        const resizeObs = new ResizeObserver(() => {
-            updateTableStickyOffsets();
-        });
-        const mainScroll = document.querySelector('.table-scroll');
-        if (mainScroll) resizeObs.observe(mainScroll);
-        const outputScroll = document.querySelector('.output-table-scroll');
-        if (outputScroll) resizeObs.observe(outputScroll);
-    }
+    document.addEventListener('density:changed', updateTableStickyOffsets);
 }
 
 initSkeletonState();
@@ -1159,6 +1276,7 @@ function showAuthExpiredModal(message) {
     modalOverlay.setAttribute('aria-describedby', 'authModalMsg');
 
     const displayMsg = message || 'Phiên làm việc của bạn đã hết hạn. Vui lòng đăng nhập lại để tiếp tục sử dụng.';
+    const redirectCode = "try{sessionStorage.clear();localStorage.removeItem('kd_departments_cache');}catch(e){};(window.top||window).location.href='/login';";
 
     modalOverlay.innerHTML = `
         <div class="kd-auth-expired-card">
@@ -1173,9 +1291,9 @@ function showAuthExpiredModal(message) {
                 </span>
             </div>
             <div class="kd-auth-expired-actions">
-                <button type="button" class="kd-auth-expired-btn" id="kdAuthLoginRedirectBtn">
-                    <span class="material-symbols-outlined">login</span>
-                    Đăng nhập lại ngay
+                <button type="button" class="kd-auth-expired-btn" id="kdAuthLoginRedirectBtn" onclick="${redirectCode}">
+                    <span class="material-symbols-outlined" style="pointer-events: none;">login</span>
+                    <span style="pointer-events: none;">Đăng nhập lại ngay</span>
                 </button>
             </div>
         </div>
@@ -1196,11 +1314,35 @@ function showAuthExpiredModal(message) {
     const countdownEl = modalOverlay.querySelector('#kdAuthCountdown');
 
     const doRedirect = () => {
-        topWin.location.href = '/login';
+        try {
+            sessionStorage.clear();
+            localStorage.removeItem('kd_departments_cache');
+        } catch (e) {}
+        try {
+            if (window.top && window.top.location) {
+                window.top.location.href = '/login';
+                return;
+            }
+        } catch (e) {}
+        try {
+            window.location.href = '/login';
+        } catch (e) {}
     };
 
     if (redirectBtn) {
-        setTimeout(() => redirectBtn.focus(), 50);
+        setTimeout(() => {
+            try { redirectBtn.focus(); } catch (e) {}
+        }, 50);
+
+        redirectBtn.onclick = function(e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            doRedirect();
+            return false;
+        };
+
         redirectBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -1217,35 +1359,17 @@ function showAuthExpiredModal(message) {
         }
     }, 1000);
 
-    // Lock down keyboard and click interactions completely
-    const keyBlocker = (e) => {
-        if (e.target === redirectBtn && (e.key === 'Enter' || e.key === ' ')) {
-            return;
+    const keyHandler = (e) => {
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') {
+            e.preventDefault();
+            doRedirect();
         }
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        redirectBtn?.focus();
-        return false;
     };
 
-    topWin.addEventListener('keydown', keyBlocker, true);
-    topWin.addEventListener('keyup', keyBlocker, true);
-    topWin.addEventListener('keypress', keyBlocker, true);
-
-    modalOverlay.addEventListener('click', (e) => {
-        if (e.target !== redirectBtn && !redirectBtn.contains(e.target)) {
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            redirectBtn?.focus();
-        }
-    }, true);
-
-    modalOverlay.addEventListener('contextmenu', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-    }, true);
+    try {
+        topWin.addEventListener('keydown', keyHandler, true);
+    } catch (e) {}
+    window.addEventListener('keydown', keyHandler, true);
 }
 window.showAuthExpiredModal = showAuthExpiredModal;
 if (window.top) window.top.showAuthExpiredModal = showAuthExpiredModal;
@@ -1454,6 +1578,13 @@ function initializeMainEventListeners() {
         });
     }
 
+    // ===== SUB OUTPUT TABLE EVENTS =====
+    const subOutputTableBody = document.getElementById('subOutputBarcodeTableBody');
+    if (subOutputTableBody) {
+        subOutputTableBody.addEventListener('click', handleSubOutputRowClick);
+        subOutputTableBody.addEventListener('dblclick', handleSubOutputRowDoubleClick);
+    }
+
     // ===== CONTEXT MENU =====
     const contextMenu = document.getElementById('contextMenu');
     if (contextMenu) {
@@ -1596,6 +1727,69 @@ async function searchByFeedRecord() {
     }
 }
 
+/**
+ * Trích xuất thông tin recipe_id và product_type từ rowData của bảng Recipes (cả Database và YAML mode)
+ */
+function getRecipeInfoFromRow(dataObj) {
+    if (!dataObj) return { recipe_id: null, product_type: null, fileName: null, filePath: null };
+    let recipe_id = dataObj.recipe_id || dataObj['recipe_id'] || null;
+    let product_type = dataObj.product_type || dataObj['product_type'] || dataObj['Phân loại'] || null;
+    const fileName = dataObj['Tên file'] || dataObj.file_name || null;
+    const filePath = dataObj['Đường dẫn'] || dataObj.file_path || dataObj.path || null;
+
+    if (!recipe_id && fileName) {
+        recipe_id = fileName.replace(/\.ya?ml$/i, '').trim();
+    }
+
+    if (!product_type && filePath) {
+        const match = filePath.match(/yamls\/([^/]+)/i);
+        if (match && match[1]) {
+            product_type = match[1].toUpperCase().replace(/-/g, '_');
+        }
+    }
+
+    if (!product_type && window._currentYamlSearchProject) {
+        const pId = Number(window._currentYamlSearchProject);
+        if (pId === 133) product_type = 'GREEN_TIRE';
+        else if (pId === 134) product_type = 'TIRE';
+        else if (pId === 136) product_type = 'MIXING';
+    }
+
+    return { recipe_id, product_type, fileName, filePath };
+}
+
+async function searchRecipeYamlFiles(keyword, projectId = 135, projectName = 'GitLab') {
+    closeShowBarcodeWindow();
+    if (!keyword) {
+        Toast.warning('Cảnh báo', 'Vui lòng nhập từ khóa quy cách cần tìm kiếm');
+        return;
+    }
+
+    window._currentYamlSearchProject = projectId;
+    showTableSkeleton(4, 5);
+
+    try {
+        const data = await apiFetch('/api/recipes/search-yaml-files', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ keyword, project_id: projectId })
+        });
+
+        if (data && data.success) {
+            const results = data.result || [];
+            const columns = data.columns || ['Tên file', 'Phân loại', 'Khu vực / Xưởng', 'Đường dẫn'];
+            currentTableType = 'recipe';
+            setTableData(results, columns, 'recipe', `Không tìm thấy file YAML nào khớp với "${keyword}" ở ${projectName}`, `Đã tìm thấy ${results.length} file YAML ở ${projectName}`);
+        } else {
+            setTableData([], ['Tên file', 'Phân loại', 'Khu vực / Xưởng', 'Đường dẫn'], 'recipe', (data && data.message) ? data.message : `Không tìm thấy file YAML nào ở ${projectName}`);
+        }
+    } catch (err) {
+        console.error('Error searching YAML files in GitLab:', err);
+        Toast.error('Lỗi', err.message || 'Lỗi kết nối khi tìm kiếm file YAML ở GitLab');
+        clearTable();
+    }
+}
+
 function displayTable(result, columns) {
     const thead = document.getElementById('tableHead');
     const tbody = document.getElementById('tableBody');
@@ -1612,16 +1806,53 @@ function displayTable(result, columns) {
         const emptyTd = document.createElement('td');
         emptyTd.colSpan = (columns && columns.length > 0) ? columns.length : 1;
         emptyTd.style.textAlign = 'center';
-        emptyTd.style.padding = '56px 20px';
-        emptyTd.innerHTML = `
-            <div class="table-empty-state">
-                <div class="empty-state-icon-wrapper">
-                    <span class="material-symbols-outlined empty-state-icon">search_off</span>
+        emptyTd.style.padding = '48px 20px';
+
+        // Tùy biến empty state riêng cho tìm kiếm Quy cách / Recipe khi kết quả rỗng ở database
+        const isRecipeDbSearch = (currentTableType === 'recipe' && (!columns || !columns.includes('Tên file')));
+        if (isRecipeDbSearch) {
+            const currentSearchInput = document.getElementById('product_id') ? document.getElementById('product_id').value.trim() : '';
+            emptyTd.innerHTML = `
+                <div class="recipe-empty-container">
+                    <div class="recipe-empty-badge">
+                        <span class="material-symbols-outlined" style="font-size: 15px;">database</span>
+                        Database Không Có Dữ Liệu
+                    </div>
+                    <div class="recipe-empty-title">Không tìm thấy quy cách trong cơ sở dữ liệu</div>
+                    <div class="recipe-empty-desc">
+                        Quy cách <strong>"${escapeHtml(currentSearchInput || 'đang tra cứu')}"</strong> có thể chưa được đồng bộ xuống Database hoặc gặp lỗi cú pháp YAML / CI build trên GitLab.
+                    </div>
+                    <div class="recipe-yaml-fallback-box">
+                        <div class="recipe-yaml-fallback-text">
+                            Bạn có muốn chuyển sang tra cứu trực tiếp file trong kho lưu trữ <strong>GitLab</strong> không?
+                        </div>
+                        <button type="button" id="btnPromptYamlSearch" class="btn-yaml-fallback-search">
+                            <span class="material-symbols-outlined">travel_explore</span>
+                            Tìm kiếm Quy cách trong YAML GitLab
+                        </button>
+                    </div>
                 </div>
-                <div class="empty-state-title">Không có dữ liệu hiển thị</div>
-                <div class="empty-state-desc">Không tìm thấy bản ghi nào khớp với điều kiện tra cứu hoặc dữ liệu dưới hệ thống rỗng.</div>
-            </div>
-        `;
+            `;
+            const promptBtn = emptyTd.querySelector('#btnPromptYamlSearch');
+            if (promptBtn) {
+                promptBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const kw = document.getElementById('product_id') ? document.getElementById('product_id').value.trim() : '';
+                    Toast.showPersistentYamlSearchToast(kw);
+                });
+            }
+        } else {
+            emptyTd.innerHTML = `
+                <div class="table-empty-state">
+                    <div class="empty-state-icon-wrapper">
+                        <span class="material-symbols-outlined empty-state-icon">search_off</span>
+                    </div>
+                    <div class="empty-state-title">Không có dữ liệu hiển thị</div>
+                    <div class="empty-state-desc">Không tìm thấy bản ghi nào khớp với điều kiện tra cứu hoặc dữ liệu dưới hệ thống rỗng.</div>
+                </div>
+            `;
+        }
+
         emptyTr.appendChild(emptyTd);
         tbody.appendChild(emptyTr);
         updateVisibleRowCount();
@@ -1693,12 +1924,17 @@ function displayTable(result, columns) {
 }
 
 function clearTable() {
+    closeShowBarcodeWindow();
+
     document.getElementById('tableHead').innerHTML = '';
     document.getElementById('tableBody').innerHTML = '';
     document.getElementById('rowCount').textContent = '0';
 
     selectedRow = null;
     selectedRowData = null;
+    rawTableData = [];
+    rawTableColumns = [];
+    currentTableType = null;
 
     updateClientSearchState(false);
     updateVisibleRowCount();
@@ -1763,6 +1999,53 @@ function handleOutputRowDoubleClick(e) {
 
     handleOutputRowClick(e);
     showOutputDetails();
+}
+
+function handleSubOutputRowClick(e) {
+    const row = e.target.closest('tr');
+    if (!row || row.querySelector('.table-empty-state') || row.classList.contains('skeleton-row')) return;
+
+    // Remove previous selection
+    document.querySelectorAll('#subOutputBarcodeTableBody tr').forEach(r => r.classList.remove('selected'));
+
+    // Add selection to current row
+    row.classList.add('selected');
+    selectedSubOutputRow = row;
+
+    // Get row data
+    const cells = row.querySelectorAll('td');
+    const columns = Array.from(document.querySelectorAll('#subOutputBarcodeTable thead th')).map(th => th.textContent);
+    selectedSubOutputRowData = {};
+    columns.forEach((col, index) => {
+        const cell = cells[index];
+        const fullValue = cell?.dataset.fullValue;
+        selectedSubOutputRowData[col] = fullValue !== undefined ? fullValue : (cell?.textContent || '');
+    });
+}
+
+function handleSubOutputRowDoubleClick(e) {
+    const row = e.target.closest('tr');
+    if (!row || row.querySelector('.table-empty-state') || row.classList.contains('skeleton-row')) return;
+
+    handleSubOutputRowClick(e);
+    showSubOutputDetails();
+}
+
+function showSubOutputDetails() {
+    if (!selectedSubOutputRow) return;
+
+    const cells = selectedSubOutputRow.querySelectorAll('td');
+    const columns = Array.from(
+        document.querySelectorAll('#subOutputBarcodeTable thead th')
+    ).map(th => th.textContent);
+
+    const fullRowData = {};
+    columns.forEach((col, index) => {
+        const cell = cells[index];
+        fullRowData[col] = cell?.dataset.fullValue || cell?.textContent || '';
+    });
+
+    showDetailsModal(fullRowData);
 }
 
 // ===== CONTEXT MENU =====
@@ -1852,6 +2135,8 @@ function showContextMenu(x, y, tableType) {
  * @returns {string[]} Array of allowed actions
  */
 function updateContextMenu() {
+    const isRecipeYaml = (currentTableType === 'recipe' && Array.isArray(rawTableColumns) && rawTableColumns.includes('Tên file') && rawTableColumns.includes('Đường dẫn'));
+
     // Define menu configurations
     const menuConfig = {
         'barcode': [
@@ -1866,7 +2151,11 @@ function updateContextMenu() {
             'getPrdebb',
             'getPrdebc'
         ],
-        'recipe': [
+        'recipe': isRecipeYaml ? [
+            'searchCommitGitlabByRecipe',
+            'searchActionsCommitByRecipe',
+            'fetchYamlDetails'
+        ] : [
             'searchWorkOrderByRecipe',
             'searchCommitGitlabByRecipe',
             'searchActionsCommitByRecipe',
@@ -2472,6 +2761,9 @@ async function fetchPrde(type, rowData = null) {
         outputHeaderContentEl.textContent = headerMap[type] || type.toUpperCase();
     }
 
+    // Tự động đóng và clear subOutputContainer khi outputContainer mở dữ liệu mới
+    closeSubOutputWindow();
+
     const container = document.getElementById('outputContainer');
     if (container) container.style.display = 'flex';
 
@@ -2521,14 +2813,25 @@ async function fetchOutputBarcodeByWorkOrder(type, rowData = null) {
         return;
     }
 
-    activeSearchContext = type;
-    const outputHeaderContentEl = document.getElementById('outputHeaderContent');
+    // 1. Enter Single Row Mode on outputContainer
+    enterOutputSingleRowMode();
 
-    if (outputHeaderContentEl) {
+    // 2. Open subOutputContainer
+    const subContainer = document.getElementById('subOutputContainer');
+    if (subContainer) subContainer.style.display = 'flex';
+
+    clearSubOutputBarcodeTable();
+
+    activeSearchContext = type;
+    const subOutputHeaderContentEl = document.getElementById('subOutputHeaderContent');
+
+    if (subOutputHeaderContentEl) {
         if (type && type === 'outputByBarcode') {
-            outputHeaderContentEl.textContent = 'Tem đầu ra theo Barcode';
-        } else if (type && type === 'outputByRecipe') { 
-            outputHeaderContentEl.textContent = 'Tem đầu ra theo quy cách';
+            subOutputHeaderContentEl.textContent = `Tem đầu ra của mã MES (${work_order_id})`;
+        } else if (type && type === 'outputByRecipe') {
+            subOutputHeaderContentEl.textContent = `Tem đầu ra của mã MES (${work_order_id})`;
+        } else {
+            subOutputHeaderContentEl.textContent = `Tem đầu ra của mã MES (${work_order_id})`;
         }
     }
 
@@ -2541,20 +2844,21 @@ async function fetchOutputBarcodeByWorkOrder(type, rowData = null) {
 
         if (data.success) {
             if (data.result && data.result.length > 0) {
-                outputBarcodeRawData = data.result;
-                outputBarcodeColumns = data.columns;
+                subOutputRawData = data.result;
+                subOutputColumns = data.columns;
 
-                currentOutputTableType = null;
-                renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
+                renderSubOutputBarcodeTable(subOutputRawData, subOutputColumns);
                 Toast.success('Thành công', `Tải thành công ${data.result.length} tem đầu ra`);
             } else {
-                renderOutputBarcodeTable([], data.columns || []);
+                renderSubOutputBarcodeTable([], data.columns || []);
                 Toast.warning('Không có dữ liệu', data.message || 'Không tìm thấy tem đầu ra nào');
             }
         } else {
+            renderSubOutputBarcodeTable([], []);
             Toast.error('Lỗi', data.message || 'Lỗi khi tải tem đầu ra');
         }
     } catch (err) {
+        renderSubOutputBarcodeTable([], []);
         Toast.error('Lỗi', err.message || 'Lỗi kết nối khi tải tem đầu ra');
     }
 }
@@ -3269,8 +3573,9 @@ async function fetchWorkOrderByRecipe(recipeId = null) {
 }
 
 async function fetchCommitGitlabByRecipe(recipeId = null, productType = null) {
-    const recipe_id = recipeId || (selectedRowData ? selectedRowData['recipe_id'] : null);
-    const product_type = productType || (selectedRowData ? selectedRowData['product_type'] : null);
+    const info = getRecipeInfoFromRow(selectedRowData);
+    const recipe_id = recipeId || info.recipe_id;
+    const product_type = productType || info.product_type;
     if (!recipe_id || !product_type) {
         Toast.warning('Cảnh báo', 'Chưa chọn hàng dữ liệu hoặc thiếu thông tin quy cách.');
         return;
@@ -3305,8 +3610,9 @@ async function fetchCommitGitlabByRecipe(recipeId = null, productType = null) {
 
 async function fetchYamlContent(rowData = null) {
     const dataObj = rowData || selectedRowData;
-    const recipe_id = dataObj ? dataObj['recipe_id'] : null;
-    const product_type = dataObj ? dataObj['product_type'] : null;
+    const info = getRecipeInfoFromRow(dataObj);
+    const recipe_id = info.recipe_id;
+    const product_type = info.product_type;
 
     if (!recipe_id || !product_type) {
         Toast.warning('Cảnh báo', 'Thiếu thông tin recipe_id hoặc product_type');
@@ -3362,8 +3668,9 @@ async function fetchYamlContent(rowData = null) {
  */
 async function fetchActionsCommitByRecipe(rowData = null) {
     const dataObj = rowData || selectedRowData;
-    const recipe_id = dataObj ? dataObj['recipe_id'] : null;
-    const product_type = dataObj ? dataObj['product_type'] : null;
+    const info = getRecipeInfoFromRow(dataObj);
+    const recipe_id = info.recipe_id;
+    const product_type = info.product_type;
 
     if (!recipe_id) {
         Toast.warning('Cảnh báo', 'Thiếu thông tin recipe_id');
@@ -3506,6 +3813,19 @@ function updateActionsCommitCopyReport(result, activeIndex = 0) {
         `   - Người merge: ${item.commit_merge.merged_by || 'N/A'}\n` +
         `   - Thời gian merge: ${item.commit_merge.merged_at || 'N/A'}\n` +
         `   - URL: ${item.commit_merge.web_url || 'N/A'}\n`;
+
+    if (item.validation) {
+        if (!item.validation.is_valid) {
+            copyReport += `\n[CẢNH BÁO LỖI ACTIONS.YAML]\n` +
+                `- Trạng thái: LỖI ĐỊNH DẠNG / THỤT LỀ\n` +
+                `- Chi tiết: ${(item.validation.errors || []).join('; ')}\n`;
+            if (item.validation.has_indent_error) {
+                copyReport += `- Lưu ý: Dòng 'files:' phải thụt lề 2 khoảng trắng dưới 'recipe:'\n`;
+            }
+        } else {
+            copyReport += `\n[CẤU TRÚC ACTIONS.YAML]: Hợp lệ (Chuẩn 2 spaces)\n`;
+        }
+    }
 
     if (item.diff) {
         copyReport += `\n=== DIFF ACTIONS.YAML ===\n${item.diff}\n`;
@@ -3679,9 +3999,10 @@ function renderActionsCommitModal(result, activeIndex = 0) {
     const mr = activeMatch.merge_request;
     const diff = activeMatch.diff || '';
     const recipeId = result.recipe_id || '';
+    const cleanRecipeId = recipeId.replace('.yaml', '').trim();
     const candidates = (result.search_candidates && result.search_candidates.length > 0)
         ? result.search_candidates
-        : [recipeId, result.actual_filename].filter(Boolean);
+        : [recipeId, cleanRecipeId, result.actual_filename].filter(Boolean);
 
     // Version Tabs Selector (chỉ hiển thị khi có từ 2 phiên bản match trở lên)
     let versionTabsHtml = '';
@@ -3691,8 +4012,10 @@ function renderActionsCommitModal(result, activeIndex = 0) {
             const timeDate = m.commit_edit.authored_date ? m.commit_edit.authored_date.split(' ')[0] : '';
             const verNum = matches.length - idx;
             const label = `Lần ${verNum}${timeDate ? ` (${timeDate})` : ''}`;
-            const badgeText = idx === 0 ? '<span class="tab-badge-new">Mới nhất</span>' : '<span class="tab-badge-add">+Thêm</span>';
-            return `<button type="button" class="actions-version-tab ${isAct ? 'active' : ''}" onclick="switchActionsCommitVersion(${idx}, event)"><span>${escapeHtml(label)}</span>${badgeText}</button>`;
+            const badgeText = idx === 0 ? '<span class="tab-badge-new">Mới nhất</span>' : '';
+            const isInvalid = m.validation && !m.validation.is_valid;
+            const errorBadge = isInvalid ? '<span class="tab-badge-error" title="Cấu trúc actions.yaml có lỗi thụt lề / cú pháp">Lỗi</span>' : '';
+            return `<button type="button" class="actions-version-tab ${isAct ? 'active' : ''} ${isInvalid ? 'has-error' : ''}" onclick="switchActionsCommitVersion(${idx}, event)"><span>${escapeHtml(label)}</span>${badgeText}${errorBadge}</button>`;
         }).join('');
 
         versionTabsHtml = `<div class="actions-version-tabs-bar"><span class="tabs-label">Lịch sử khớp (${matches.length}):</span><div class="actions-version-tabs">${tabsList}</div></div>`;
@@ -3718,6 +4041,62 @@ function renderActionsCommitModal(result, activeIndex = 0) {
                     <span class="material-symbols-outlined">unfold_more</span>
                     <span>Hiện tất cả (${diffResult.totalLines} dòng)</span>
                 </button>
+            `;
+        }
+    }
+
+    // YAML Syntax & Indentation Validation Banner
+    const validation = activeMatch.validation;
+    let validationBannerHtml = '';
+    if (validation) {
+        if (!validation.is_valid) {
+            const errorItems = (validation.errors || []).map(err => `
+                <li class="syntax-error-item">
+                    <span class="material-symbols-outlined bullet-icon">cancel</span>
+                    <span>${escapeHtml(err)}</span>
+                </li>
+            `).join('');
+            const sampleFile = result.actual_filename || (cleanRecipeId ? cleanRecipeId + '.yaml' : 'filename.yaml');
+            const hintText = validation.has_indent_error
+                ? `<div class="syntax-error-hint">
+                    <span class="material-symbols-outlined hint-icon">lightbulb</span>
+                    <div class="hint-content">
+                        <strong>Cách khắc phục lỗi thụt lề:</strong> Trong file <code>actions.yaml</code>, khóa <code>files:</code> và danh sách các file phải được thụt lề <strong>2 khoảng trắng (2 spaces)</strong> dưới khóa <code>recipe:</code>. Ví dụ chuẩn:
+                        <pre class="yaml-example-code">recipe:
+  files:
+    - ${escapeHtml(sampleFile)}</pre>
+                    </div>
+                   </div>`
+                : '';
+
+            validationBannerHtml = `
+                <div class="actions-syntax-banner invalid">
+                    <div class="syntax-banner-header">
+                        <div class="syntax-banner-title">
+                            <span class="material-symbols-outlined banner-status-icon">error</span>
+                            <span class="banner-title-text">Phát hiện lỗi actions.yaml tại commit này</span>
+                        </div>
+                        <span class="syntax-status-badge badge-danger">Lỗi</span>
+                    </div>
+                    <div class="syntax-banner-body">
+                        <ul class="syntax-error-list">
+                            ${errorItems}
+                        </ul>
+                        ${hintText}
+                    </div>
+                </div>
+            `;
+        } else {
+            validationBannerHtml = `
+                <div class="actions-syntax-banner valid">
+                    <div class="syntax-banner-header">
+                        <div class="syntax-banner-title">
+                            <span class="material-symbols-outlined banner-status-icon">verified</span>
+                            <span class="banner-title-text">Cấu trúc actions.yaml tại commit này hợp lệ</span>
+                        </div>
+                        <span class="syntax-status-badge badge-success">OK</span>
+                    </div>
+                </div>
             `;
         }
     }
@@ -3848,6 +4227,9 @@ function renderActionsCommitModal(result, activeIndex = 0) {
                     </div>
                 </div>
             </div>
+
+            <!-- Syntax Validation Banner -->
+            ${validationBannerHtml}
 
             <!-- Diff Section of actions.yaml for selected version -->
             <div class="actions-diff-section" id="actionsDiffSection">
@@ -4285,10 +4667,18 @@ window.jumpToYamlLine = function(lineIdx) {
 };
 
 function filterClientResult(keyword) {
-    if (['inputBarcode', 'outputBarcodeByFeedRecords', 'workOrderByRecipe', 'commitGitlabByRecipe', 'workOrderByBarcode', 'outputByBarcode', 'outputByRecipe', 'commitDetailByRecipe'].includes(activeSearchContext)) {
+    if (['outputByBarcode', 'outputByRecipe'].includes(activeSearchContext)) {
+        filterSubOutputBarcode(keyword);
+        return;
+    }
+
+    if (['inputBarcode', 'outputBarcodeByFeedRecords', 'workOrderByRecipe', 'commitGitlabByRecipe', 'workOrderByBarcode', 'commitDetailByRecipe'].includes(activeSearchContext)) {
         filterOutputBarcode(keyword);
         return;
     }
+
+    // Khi lọc dữ liệu trên main table-container, tự động đóng và clear outputContainer + subOutputContainer
+    closeShowBarcodeWindow();
 
     if (!keyword) {
         displayTable(rawTableData, rawTableColumns);
@@ -4323,10 +4713,30 @@ function filterOutputBarcode(keyword) {
     renderOutputBarcodeTable(filtered, outputBarcodeColumns);
 }
 
+function filterSubOutputBarcode(keyword) {
+    if (!keyword) {
+        renderSubOutputBarcodeTable(subOutputRawData, subOutputColumns);
+        return;
+    }
+
+    const filtered = subOutputRawData.filter(row =>
+        row.some(val =>
+            val !== null &&
+            val !== undefined &&
+            String(val).toLowerCase().includes(keyword)
+        )
+    );
+
+    renderSubOutputBarcodeTable(filtered, subOutputColumns);
+}
+
 function openOutputTable(type, rowData = null) {
     if (rowData) {
         selectedRowData = rowData;
     }
+
+    // Tự động đóng và clear subOutputContainer khi outputContainer thay đổi dữ liệu
+    closeSubOutputWindow();
 
     enterSingleRowMode();
 
@@ -4351,7 +4761,8 @@ function openOutputTable(type, rowData = null) {
         fetchWorkOrderByRecipe(dataObj.recipe_id);
     } else if (type === 'commitGitlabByRecipe') {
         if (outputHeaderContentEl) outputHeaderContentEl.textContent = 'Commit Gitlab theo quy cách';
-        fetchCommitGitlabByRecipe(dataObj.recipe_id, dataObj.product_type);
+        const info = getRecipeInfoFromRow(dataObj);
+        fetchCommitGitlabByRecipe(info.recipe_id, info.product_type);
     } else if (type === 'workOrderByBarcode') {
         if (outputHeaderContentEl) outputHeaderContentEl.textContent = 'Đơn điều động theo barcode';
         fetchWorkOrderByBarcode(dataObj.id, dataObj.info);
@@ -4362,6 +4773,8 @@ function openOutputTable(type, rowData = null) {
 }
 
 function closeShowBarcodeWindow() {
+    closeSubOutputWindow();
+
     const container = document.getElementById('outputContainer');
     if (!container) return;
 
@@ -4375,15 +4788,23 @@ function closeShowBarcodeWindow() {
 
 function clearOutputBarcodeTable() {
     const table = document.getElementById('outputBarcodeTable');
-    table.querySelector('thead').innerHTML = '';
-    table.querySelector('tbody').innerHTML = '';
+    if (table) {
+        const thead = table.querySelector('thead');
+        const tbody = table.querySelector('tbody');
+        if (thead) thead.innerHTML = '';
+        if (tbody) tbody.innerHTML = '';
+    }
 
-    const count = document.getElementById('outputBarcodeCount');
-    if (count) count.innerHTML = '';
+    const count = document.getElementById('outputRowCount');
+    if (count) count.textContent = '0';
 
     // Clear output table selection
     selectedOutputRow = null;
     selectedOutputRowData = null;
+    outputBarcodeRawData = [];
+    outputBarcodeColumns = [];
+    currentOutputTableType = null;
+    updateOutputVisibleRowCount();
     updateTableStickyOffsets();
 }
 
@@ -4412,8 +4833,8 @@ function renderOutputBarcodeTable(rows, columns) {
                 <div class="empty-state-icon-wrapper">
                     <span class="material-symbols-outlined empty-state-icon">inventory_2</span>
                 </div>
-                <div class="empty-state-title">Không có dữ liệu tem đầu ra</div>
-                <div class="empty-state-desc">Không tìm thấy tem quét ra nào thuộc phạm vi đơn điều động hoặc barcode này.</div>
+                <div class="empty-state-title">Không có dữ liệu</div>
+                <div class="empty-state-desc">Không tìm thấy bản ghi nào khớp với điều kiện tra cứu hoặc dữ liệu rỗng.</div>
             </div>
         `;
         emptyTr.appendChild(emptyTd);
@@ -4488,6 +4909,154 @@ function renderOutputBarcodeTable(rows, columns) {
     updateTableStickyOffsets();
 }
 
+function closeSubOutputWindow() {
+    const container = document.getElementById('subOutputContainer');
+    if (!container) return;
+
+    clearSubOutputBarcodeTable();
+    container.style.display = 'none';
+
+    exitOutputSingleRowMode();
+}
+window.closeSubOutputWindow = closeSubOutputWindow;
+
+function clearSubOutputBarcodeTable() {
+    const table = document.getElementById('subOutputBarcodeTable');
+    if (table) {
+        const thead = table.querySelector('thead');
+        const tbody = table.querySelector('tbody');
+        if (thead) thead.innerHTML = '';
+        if (tbody) tbody.innerHTML = '';
+    }
+
+    const rowCount = document.getElementById('subOutputRowCount');
+    if (rowCount) rowCount.textContent = '0';
+
+    subOutputRawData = [];
+    subOutputColumns = [];
+    selectedSubOutputRow = null;
+    selectedSubOutputRowData = null;
+    updateSubOutputVisibleRowCount();
+    updateTableStickyOffsets();
+}
+
+function updateSubOutputVisibleRowCount() {
+    const tbody = document.getElementById('subOutputBarcodeTableBody') || document.querySelector('#subOutputBarcodeTable tbody');
+    const rowCount = document.getElementById('subOutputRowCount');
+    const subOutputFooter = document.querySelector('#subOutputContainer .output-footer');
+
+    if (!tbody || !rowCount) return;
+
+    const hasEmptyState = tbody.querySelector('.table-empty-state');
+    const count = hasEmptyState ? 0 : tbody.querySelectorAll('tr').length;
+    rowCount.textContent = count;
+
+    if (subOutputFooter) {
+        subOutputFooter.classList.toggle('hidden', count === 0 || !!hasEmptyState);
+    }
+}
+
+function renderSubOutputBarcodeTable(rows, columns) {
+    const thead = document.querySelector('#subOutputBarcodeTable thead');
+    const tbody = document.querySelector('#subOutputBarcodeTable tbody');
+    const rowCount = document.getElementById('subOutputRowCount');
+
+    if (!thead || !tbody) return;
+
+    thead.innerHTML = '';
+    tbody.innerHTML = '';
+
+    const hiddenColumns = ['diff', 'new_path', 'old_path', 'new_file', 'renamed_file', 'deleted_file', 'a_mode', 'b_mode', 'web_url'];
+
+    // Khi không có dữ liệu: hiển thị empty state
+    if (!rows || rows.length === 0) {
+        if (rowCount) rowCount.textContent = '0';
+        const emptyTr = document.createElement('tr');
+        const emptyTd = document.createElement('td');
+        emptyTd.colSpan = (columns && columns.length > 0) ? columns.length : 1;
+        emptyTd.style.textAlign = 'center';
+        emptyTd.style.padding = '56px 20px';
+        emptyTd.innerHTML = `
+            <div class="table-empty-state">
+                <div class="empty-state-icon-wrapper">
+                    <span class="material-symbols-outlined empty-state-icon">inventory_2</span>
+                </div>
+                <div class="empty-state-title">Không có dữ liệu tem đầu ra</div>
+                <div class="empty-state-desc">Không tìm thấy tem quét ra nào thuộc phạm vi đơn điều động này.</div>
+            </div>
+        `;
+        emptyTr.appendChild(emptyTd);
+        tbody.appendChild(emptyTr);
+        updateSubOutputVisibleRowCount();
+        updateTableStickyOffsets();
+        return;
+    }
+
+    // Table header
+    if (columns && columns.length > 0) {
+        const trHead = document.createElement('tr');
+        columns.forEach(col => {
+            const th = document.createElement('th');
+            th.textContent = col;
+            if (hiddenColumns.includes(col)) {
+                th.style.display = 'none';
+            }
+            trHead.appendChild(th);
+        });
+        thead.appendChild(trHead);
+    }
+
+    const truncateThreshold = 50;
+    const displayLength = 45;
+
+    rows.forEach(row => {
+        const tr = document.createElement('tr');
+        row.forEach((val, valIdx) => {
+            const td = document.createElement('td');
+            const colName = (columns && columns.length > valIdx) ? columns[valIdx] : null;
+            if (colName && hiddenColumns.includes(colName)) {
+                td.style.display = 'none';
+            }
+
+            let cellValue = '';
+            let fullValue = '';
+
+            if (val !== null && val !== undefined) {
+                if (typeof val === 'object') {
+                    try {
+                        fullValue = JSON.stringify(val, null, 2);
+                        cellValue = fullValue;
+                    } catch (e) {
+                        fullValue = String(val);
+                        cellValue = fullValue;
+                    }
+                } else {
+                    fullValue = String(val);
+                    cellValue = fullValue;
+                }
+            }
+
+            if (cellValue.length > truncateThreshold) {
+                td.textContent = cellValue.substring(0, displayLength) + '...';
+                td.title = fullValue;
+                td.classList.add('truncated-cell');
+            } else {
+                td.textContent = cellValue;
+            }
+
+            td.dataset.fullValue = fullValue;
+
+            tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+    });
+
+    const count = rows.length;
+    if (rowCount) rowCount.textContent = count;
+    updateSubOutputVisibleRowCount();
+    updateTableStickyOffsets();
+}
+
 function initClientSearch() {
     const searchInput = document.getElementById('clientSearch');
     if (!searchInput) return;
@@ -4516,14 +5085,24 @@ function updateClientSearchState(hasData = false) {
     } else {
         // Disable clientSearch khi không có dữ liệu
         searchInput.disabled = true;
-        searchInput.value = ''; // Clear input
+        clearInputBox(searchInput);
     }
 }
 
 function setTableData(result, columns, tableType = null, customEmptyMsg = null, customSuccessMsg = null) {
+    // Tự động đóng và clear outputContainer + subOutputContainer khi table-container thay đổi dữ liệu
+    closeShowBarcodeWindow();
+
     rawTableData = result || [];
     rawTableColumns = columns || [];
     currentTableType = tableType;
+
+    // Reset ô client search mỗi khi nhận tập dữ liệu mới từ backend
+    const searchInput = document.getElementById('clientSearch');
+    if (searchInput) {
+        clearInputBox(searchInput);
+    }
+
     updateClientSearchState(rawTableData.length > 0);
     displayTable(rawTableData, rawTableColumns);
 
@@ -4632,6 +5211,10 @@ document.addEventListener('click', function (e) {
     if (buttonId === 'exportOutputExcelBtn') {
         handleExportOutputBarcodeExcel();
     }
+
+    if (buttonId === 'exportSubOutputExcelBtn') {
+        handleExportSubOutputBarcodeExcel();
+    }
 });
 
 async function handleExportExcel() {
@@ -4712,6 +5295,54 @@ function exportOutputBarcodeToExcel() {
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.table_to_sheet(cloneTable, { raw: true });
     XLSX.utils.book_append_sheet(wb, ws, 'Barcode_Detail');
+
+    const fileName =
+        'KDMES_TOOL_' +
+        getVietnamTimestamp() +
+        '.xlsx';
+
+    XLSX.writeFile(wb, fileName);
+}
+
+async function handleExportSubOutputBarcodeExcel() {
+    const tbody = document.getElementById('subOutputBarcodeTableBody');
+    if (!tbody) return;
+
+    const rows = tbody.querySelectorAll('tr:not(.table-empty-state)');
+    if (rows.length === 0) {
+        Toast.warning('Cảnh báo', 'Không có dữ liệu để xuất file Excel.');
+        return;
+    }
+
+    const confirmed = await showConfirm(
+        'Bạn có chắc chắn muốn xuất file Excel của dữ liệu trên?'
+    );
+    if (!confirmed) return;
+
+    exportSubOutputBarcodeToExcel();
+    Toast.success('Thành công', 'Xuất file Excel thành công!');
+}
+
+function exportSubOutputBarcodeToExcel() {
+    const table = document.getElementById('subOutputBarcodeTable');
+    if (!table) return;
+
+    const cloneTable = table.cloneNode(true);
+
+    // Remove hidden columns from export
+    cloneTable.querySelectorAll('th, td').forEach(el => {
+        if (el.style.display === 'none') {
+            el.remove();
+        }
+    });
+
+    cloneTable.querySelectorAll('td[data-full-value]').forEach(td => {
+        td.textContent = td.dataset.fullValue;
+    });
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.table_to_sheet(cloneTable, { raw: true });
+    XLSX.utils.book_append_sheet(wb, ws, 'MES_Output_Barcode');
 
     const fileName =
         'KDMES_TOOL_' +
@@ -4838,6 +5469,64 @@ function exitSingleRowMode() {
     }
 
     updateVisibleRowCount();
+    updateTableStickyOffsets();
+}
+
+function enterOutputSingleRowMode() {
+    const tbody = document.getElementById('outputBarcodeTableBody') || document.querySelector('#outputBarcodeTable tbody');
+    if (!tbody) return;
+
+    const outputContainer = document.getElementById('outputContainer');
+    const isAlreadySingleRow = outputContainer && outputContainer.classList.contains('single-row-mode');
+
+    if (isAlreadySingleRow) {
+        return;
+    }
+
+    if (!selectedOutputRow) return;
+
+    // Backup table và row count lần đầu
+    if (!originalOutputTableHTML) {
+        originalOutputTableHTML = tbody.innerHTML;
+        const countEl = document.getElementById('outputRowCount');
+        originalOutputRowCount = countEl ? countEl.textContent : null;
+    }
+
+    // Giữ lại đúng dòng đã chọn
+    tbody.innerHTML = '';
+    tbody.appendChild(selectedOutputRow);
+
+    if (outputContainer) {
+        outputContainer.classList.add('single-row-mode');
+    }
+
+    updateOutputVisibleRowCount();
+    updateTableStickyOffsets();
+}
+
+function exitOutputSingleRowMode() {
+    const tbody = document.getElementById('outputBarcodeTableBody') || document.querySelector('#outputBarcodeTable tbody');
+    if (!tbody || !originalOutputTableHTML) return;
+
+    tbody.innerHTML = originalOutputTableHTML;
+
+    originalOutputTableHTML = null;
+    selectedOutputRow = null;
+    selectedOutputRowData = null;
+
+    const outputContainer = document.getElementById('outputContainer');
+    if (outputContainer) {
+        outputContainer.classList.remove('single-row-mode');
+    }
+
+    if (originalOutputRowCount !== null) {
+        const countEl = document.getElementById('outputRowCount');
+        if (countEl) countEl.textContent = originalOutputRowCount;
+        originalOutputRowCount = null;
+    } else {
+        updateOutputVisibleRowCount();
+    }
+
     updateTableStickyOffsets();
 }
 
