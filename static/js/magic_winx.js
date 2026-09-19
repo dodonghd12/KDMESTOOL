@@ -181,13 +181,15 @@ function renderSelectTable(rows) {
             : `<input type="checkbox" class="cr-check" data-seq="${row.sequence}" data-oid="${row.resource_oid}"
                        onchange="onRowCheck(this)">`;
 
+        const formatCellVal = val => (val === null || val === undefined || String(val).trim() === '' || String(val).toLowerCase() === 'null' || String(val).toLowerCase() === 'undefined') ? '-' : String(val);
+
         tr.innerHTML = `
             <td style="text-align:center;">${checkboxCell}</td>
-            <td class="winx-cell-warn">${row.sequence}</td>
-            <td>${row.lot_number || ''}</td>
-            <td>${row.station   || ''}</td>
-            <td>${row.work_date || ''}</td>
-            <td class="winx-oid-cell">${row.resource_oid}</td>
+            <td class="winx-cell-warn">${formatCellVal(row.sequence)}</td>
+            <td>${formatCellVal(row.lot_number)}</td>
+            <td>${formatCellVal(row.station)}</td>
+            <td>${formatCellVal(row.work_date)}</td>
+            <td class="winx-oid-cell">${formatCellVal(row.resource_oid)}</td>
         `;
 
         tr.addEventListener('click', e => {
@@ -382,7 +384,14 @@ function renderPreviewTable(rows) {
         displayCols.forEach(c => {
             const td = document.createElement('td');
             const v  = row[c];
-            td.textContent = v === null || v === undefined ? '' : String(v);
+            let cellStr = '';
+            if (v !== null && v !== undefined) {
+                cellStr = (typeof v === 'object') ? JSON.stringify(v) : String(v);
+            }
+            if (!cellStr || cellStr.trim() === '' || cellStr.toLowerCase() === 'null' || cellStr.toLowerCase() === 'undefined') {
+                cellStr = '-';
+            }
+            td.textContent = cellStr;
             if (c === 'product_type') td.classList.add('winx-cell-accent');
             if (c === '_sequence')    td.classList.add('winx-cell-warn');
             tr.appendChild(td);
@@ -1024,13 +1033,15 @@ function renderBulkResultTable(rows) {
         return;
     }
 
+    const formatBulkVal = v => (v === null || v === undefined || String(v).trim() === '' || String(v).toLowerCase() === 'null' || String(v).toLowerCase() === 'undefined') ? '-' : String(v);
+
     rows.forEach(row => {
         const [workOrder, crCount, mrCount] = row;
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td>${workOrder}</td>
-            <td>${crCount}</td>
-            <td>${mrCount}</td>
+            <td>${formatBulkVal(workOrder)}</td>
+            <td>${formatBulkVal(crCount)}</td>
+            <td>${formatBulkVal(mrCount)}</td>
         `;
         tbody.appendChild(tr);
     });
@@ -1491,7 +1502,14 @@ function renderSingleMRPreviewTable(row) {
     displayCols.forEach(c => {
         const td = document.createElement('td');
         const v  = row[c];
-        td.textContent = (v === null || v === undefined) ? '' : (typeof v === 'object' ? JSON.stringify(v) : String(v));
+        let valStr = '';
+        if (v !== null && v !== undefined) {
+            valStr = (typeof v === 'object') ? JSON.stringify(v) : String(v);
+        }
+        if (!valStr || valStr.trim() === '' || valStr.toLowerCase() === 'null' || valStr.toLowerCase() === 'undefined') {
+            valStr = '-';
+        }
+        td.textContent = valStr;
         if (c === 'product_type') td.classList.add('winx-cell-accent');
         if (c === 'id')           td.classList.add('winx-cell-warn');
         trBody.appendChild(td);

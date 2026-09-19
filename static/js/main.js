@@ -1900,6 +1900,11 @@ function displayTable(result, columns) {
                 }
             }
 
+            if (cell === null || cell === undefined || cellValue.trim() === '' || cellValue.trim().toLowerCase() === 'null' || cellValue.trim().toLowerCase() === 'undefined') {
+                cellValue = '-';
+                fullValue = '-';
+            }
+
             if (cellValue.length > truncateThreshold) {
                 // Only truncate long strings
                 td.textContent = cellValue.substring(0, displayLength) + '...';
@@ -4892,6 +4897,11 @@ function renderOutputBarcodeTable(rows, columns) {
                 }
             }
 
+            if (val === null || val === undefined || cellValue.trim() === '' || cellValue.trim().toLowerCase() === 'null' || cellValue.trim().toLowerCase() === 'undefined') {
+                cellValue = '-';
+                fullValue = '-';
+            }
+
             if (cellValue.length > truncateThreshold) {
                 td.textContent = cellValue.substring(0, displayLength) + '...';
                 td.title = fullValue;
@@ -5038,6 +5048,11 @@ function renderSubOutputBarcodeTable(rows, columns) {
                     fullValue = String(val);
                     cellValue = fullValue;
                 }
+            }
+
+            if (val === null || val === undefined || cellValue.trim() === '' || cellValue.trim().toLowerCase() === 'null' || cellValue.trim().toLowerCase() === 'undefined') {
+                cellValue = '-';
+                fullValue = '-';
             }
 
             if (cellValue.length > truncateThreshold) {
