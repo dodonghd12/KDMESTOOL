@@ -1672,6 +1672,93 @@ td {
     box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3), 0 2px 6px var(--color-feedback-success-glow);
 }
 
+.btn-insert-query {
+    width: var(--btn-export-w, 126px);
+    height: var(--btn-export-h, 32px);
+    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+    position: relative;
+    text-align: center;
+    border-radius: 8px;
+    font-family: var(--font-stack);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    cursor: pointer;
+    overflow: hidden;
+    box-shadow: 0 4px 14px rgba(2, 132, 199, 0.25);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    outline: none;
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+    display: inline-block;
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+
+.btn-insert-query-wrapper {
+    overflow: hidden;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    color: var(--color-text-inverse, #ffffff);
+    pointer-events: none;
+}
+
+.btn-insert-query .text,
+.btn-insert-query .icon {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-inverse, #ffffff);
+    transition: top 0.32s cubic-bezier(0.16, 1, 0.3, 1), transform 0.32s ease;
+    font-weight: 600;
+    font-size: var(--font-size-sm, 13px);
+    letter-spacing: 0.4px;
+    user-select: none;
+    box-sizing: border-box;
+}
+
+.btn-insert-query .text {
+    top: 0;
+}
+
+.btn-insert-query .icon {
+    top: 100%;
+    color: var(--color-text-inverse, #ffffff);
+}
+
+.btn-insert-query:hover {
+    background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%);
+    border-color: #38bdf8;
+    box-shadow: 0 6px 20px rgba(56, 189, 248, 0.35);
+    transform: translateY(-1.5px);
+}
+
+.btn-insert-query:hover .text {
+    top: -100%;
+}
+
+.btn-insert-query:hover .icon {
+    top: 0;
+}
+
+.btn-insert-query:active {
+    transform: translateY(1px) scale(0.975);
+    filter: brightness(0.93);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3), 0 2px 6px rgba(2, 132, 199, 0.3);
+}
+
+.btn-insert-query:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
 /* Compact Density Overrides */
 body.density-compact .row-count,
 .density-compact .row-count {

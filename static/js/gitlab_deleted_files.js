@@ -1,8 +1,10 @@
-document.addEventListener('DOMContentLoaded', function () {
-    initializeCheckGitlabDeletedFiles();
-});
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeGitlabDeletedFiles);
+} else {
+    initializeGitlabDeletedFiles();
+}
 
-function initializeCheckGitlabDeletedFiles() {
+function initializeGitlabDeletedFiles() {
     const checkBtn = document.getElementById('btnCheckDeletedFiles');
     if (checkBtn) {
         checkBtn.addEventListener('click', () => {
@@ -21,7 +23,7 @@ async function fetchDeletedFilesLog() {
     }
 
     if (typeof showTableSkeleton === 'function') {
-        showTableSkeleton(6, 8);
+        showTableSkeleton(8, 5);
     }
 
     try {
@@ -47,7 +49,7 @@ async function fetchDeletedFilesLog() {
             setTableData(
                 data.result,
                 data.columns,
-                null,
+                'gitlab_deleted_files',
                 'Chưa có file YAML nào bị xóa được ghi nhận trong log.',
                 `Đã tải ${data.result.length} bản ghi file bị xóa`
             );
@@ -55,7 +57,7 @@ async function fetchDeletedFilesLog() {
             setTableData(
                 [],
                 data ? data.columns : [],
-                null,
+                'gitlab_deleted_files',
                 (data && data.message) ? data.message : 'Chưa có file YAML nào bị xóa được ghi nhận trong log.'
             );
         }
@@ -69,5 +71,6 @@ async function fetchDeletedFilesLog() {
         if (checkBtn) {
             checkBtn.disabled = false;
         }
+        document.body.classList.remove('app-loading-state');
     }
 }

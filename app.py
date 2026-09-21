@@ -11,6 +11,7 @@ import base64
 import yaml
 from datetime import datetime, timezone, timedelta
 import re
+import glob
 from typing import Optional
 from db_execute import (execute_pg_select_query, execute_pg_update_query)
 from db_connections import connect_pg_db
@@ -41,6 +42,9 @@ _label_config_lock = threading.Lock()
 
 LOG_YAML_DELETED_NETWORK_PATH = r"\\198.1.10.2\Vitinh\Thu\QUAN TRONG KHONG XOA\log_yaml_deleted_alerts.jsonl"
 LOG_YAML_DELETED_LOCAL_PATH = os.path.join(os.path.dirname(__file__), "log_yaml_deleted_alerts.jsonl")
+
+POSTGRES_AUDIT_LOG_NETWORK_DIR = r"\\198.1.10.2\Vitinh\Thu\QUAN TRONG KHONG XOA\KvmesAuditDaemonLog"
+POSTGRES_AUDIT_LOG_LOCAL_DIR = os.path.join(os.path.dirname(__file__), "KvmesAuditDaemonLog")
 
 def get_yaml_deleted_log_path():
     try:
@@ -382,8 +386,10 @@ from db_execute import (
 )
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.0.0"
-ASSET_VERSION = str(int(time.time()))
+APP_VERSION = "2.1.0"
+
+def get_asset_version():
+    return f"{APP_VERSION}.{int(time.time())}"
 VN_TZ = timezone(timedelta(hours=7))
 API_LOG_FILE_PATH = r"\\198.1.10.2\Vitinh\Thu\QUAN TRONG KHONG XOA\log_kd_mes_tool.txt"
 
@@ -520,8 +526,10 @@ def suppress_browser_auth_popup(response):
     response.headers.pop('WWW-Authenticate', None)
     response.headers.pop('www-authenticate', None)
 
-    if request.path.startswith('/static/'):
-        response.headers['Cache-Control'] = 'public, max-age=2592000, immutable'
+    if request.path.startswith('/static/vendor/'):
+        response.headers['Cache-Control'] = 'public, max-age=86400'
+    elif request.path.startswith('/static/'):
+        response.headers['Cache-Control'] = 'no-cache, must-revalidate, max-age=0'
     elif request.path.startswith('/api/'):
         response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
     else:
@@ -576,7 +584,7 @@ def custom_403_handler(e):
 @app.context_processor
 def inject_global_context():
     return {
-        'version': ASSET_VERSION,
+        'version': APP_VERSION + '.' + str(int(time.time())),
         'app_version': APP_VERSION
     }
 
@@ -650,7 +658,7 @@ def login():
         
         return jsonify({'success': False, 'message': 'Tài khoản không tồn tại hoặc mật khẩu không đúng'})
     
-    return render_template('login.html', version=APP_VERSION)
+    return render_template('login.html', version=get_asset_version())
 
 @app.route('/logout', methods=['POST'])
 def logout():
@@ -668,18 +676,19 @@ def render_page_or_shell(template_name, page_path, page_title="KDMES TOOL"):
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
         return redirect(url_for('login'))
     is_frame = request.args.get('frame') == '1'
+    current_version = get_asset_version()
     if not is_frame:
         return render_template('spa_shell.html',
                                initial_path=page_path,
                                page_title=page_title,
                                user_id=session.get('user_id'),
                                user_ip=session.get('user_ip'),
-                               version=APP_VERSION)
+                               version=current_version)
     return render_template(template_name,
                            is_frame=True,
                            user_id=session.get('user_id'),
                            user_ip=session.get('user_ip'),
-                           version=APP_VERSION)
+                           version=current_version)
 
 @app.route('/main')
 def main():
@@ -722,12 +731,16 @@ def label_config():
     return render_page_or_shell('label_config.html', '/label-config', 'Thông số kỹ thuật')
 
 @app.route('/gitlab-deleted-files')
-@app.route('/check-gitlab-deleted-files')
 def gitlab_deleted_files():
-    return render_page_or_shell('check_gitlab_deleted_files.html', '/gitlab-deleted-files', 'Gitlab Deleted Files')
+    return render_page_or_shell('gitlab_deleted_files.html', '/gitlab-deleted-files', 'Gitlab Deleted Files')
 
-def check_gitlab_deleted_files():
-    return gitlab_deleted_files()
+@app.route('/check-gitlab-deleted-files')
+def check_gitlab_deleted_files_redirect():
+    return redirect(url_for('gitlab_deleted_files'))
+
+@app.route('/postgres-deleted-data')
+def postgres_deleted_data():
+    return render_page_or_shell('postgres_deleted_data.html', '/postgres-deleted-data', 'Postgres Deleted Data')
 
 @app.route('/magic-winx')
 def magic_winx():
@@ -743,6 +756,26 @@ def format_to_utc7_str(time_val) -> str:
             dt = datetime.fromisoformat(s.replace('Z', '+00:00'))
             utc7_tz = timezone(timedelta(hours=7))
             return dt.astimezone(utc7_tz).strftime('%Y-%m-%d %H:%M:%S')
+        if '.' in s:
+            return s.split('.')[0]
+        return s
+    except Exception:
+        return str(time_val)
+
+
+def format_postgres_timestamp(time_val) -> str:
+    if not time_val or time_val == '-':
+        return '-'
+    try:
+        s = str(time_val).strip()
+        if 'T' in s:
+            s = s.replace('T', ' ')
+        if '.' in s:
+            s = s.split('.')[0]
+        elif '+' in s:
+            s = s.split('+')[0].strip()
+        elif s.endswith('Z'):
+            s = s[:-1].strip()
         return s
     except Exception:
         return str(time_val)
@@ -813,14 +846,14 @@ def gitlab_webhook():
 @login_required
 def get_deleted_files_log():
     columns = [
-        'Dự án',
-        'File bị xóa',
-        'Người xóa',
+        'Project',
+        'File Name',
+        'deleted_by',
         'Email',
         'Thời gian',
-        'Commit ID',
-        'Commit Message',
-        'Commit URL'
+        'File Path',
+        'Commit URL',
+        'Commit Message'
     ]
     
     found_lines = []
@@ -847,15 +880,17 @@ def get_deleted_files_log():
             key = (item.get('project'), item.get('file'), item.get('raw_commit_id') or item.get('commit_id'))
             if key not in seen:
                 seen.add(key)
+                full_path = item.get('file', '-')
+                file_name = full_path.replace('\\', '/').split('/')[-1] if (full_path and full_path != '-') else '-'
                 records.append([
                     item.get('project', '-'),
-                    item.get('file', '-'),
+                    file_name,
                     item.get('author', '-'),
                     item.get('email', '-'),
                     format_to_utc7_str(item.get('time', '-')),
-                    item.get('commit_id', '-'),
-                    item.get('commit_message', '-'),
-                    item.get('commit_url', '-')
+                    full_path,
+                    item.get('commit_url', '-'),
+                    item.get('commit_message', '-')
                 ])
         except Exception:
             continue
@@ -866,6 +901,212 @@ def get_deleted_files_log():
         'result': records,
         'columns': columns
     })
+
+
+@app.route('/api/postgres/get-deleted-records-log', methods=['POST', 'GET'])
+@login_required
+def get_postgres_deleted_records_log():
+    columns = [
+        'Table',
+        'Time',
+        'Database',
+        'Data'
+    ]
+    
+    dirs_to_check = [POSTGRES_AUDIT_LOG_NETWORK_DIR, POSTGRES_AUDIT_LOG_LOCAL_DIR]
+    found_files = []
+    
+    for d in dirs_to_check:
+        if os.path.exists(d):
+            try:
+                pattern = os.path.join(d, "deleted_records_*.jsonl")
+                matched = glob.glob(pattern)
+                if matched:
+                    found_files = sorted(matched, reverse=True)
+                    break
+            except Exception:
+                continue
+                
+    records = []
+    seen = set()
+    
+    for fpath in found_files:
+        try:
+            with open(fpath, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        item = json.loads(line)
+                        raw_ts = item.get('timestamp', '-')
+                        ts = format_postgres_timestamp(raw_ts)
+                        schema = item.get('schema', '-')
+                        table = item.get('table', '-')
+                        record_oid = item.get('record_oid') or ''
+                        data = item.get('data') or {}
+                        
+                        unique_key = (raw_ts, schema, table, record_oid, str(data))
+                        if unique_key in seen:
+                            continue
+                        seen.add(unique_key)
+                        
+                        if isinstance(data, (dict, list)):
+                            data_str = json.dumps(data, ensure_ascii=False)
+                        else:
+                            data_str = str(data)
+                            
+                        records.append([
+                            table,
+                            ts,
+                            schema,
+                            data_str
+                        ])
+                    except Exception:
+                        continue
+        except Exception:
+            continue
+            
+    records.sort(key=lambda x: str(x[1]), reverse=True)
+    
+    return jsonify({
+        'result': records,
+        'columns': columns
+    })
+
+
+_pg_table_columns_cache = {}
+_pg_table_columns_lock = threading.Lock()
+
+def get_pg_table_columns_meta(schema_name, table_name):
+    key = (schema_name, table_name)
+    with _pg_table_columns_lock:
+        if key in _pg_table_columns_cache:
+            return _pg_table_columns_cache[key]
+    
+    cols = []
+    conn = connect_pg_db()
+    if conn:
+        try:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT column_name, data_type, udt_name 
+                FROM information_schema.columns 
+                WHERE table_schema = %s AND table_name = %s 
+                ORDER BY ordinal_position
+            """, (schema_name, table_name))
+            for r in cur.fetchall():
+                cols.append({'name': r[0], 'type': r[1], 'udt': r[2]})
+            cur.close()
+        except Exception as e:
+            print(f"Error fetching table columns for {schema_name}.{table_name}: {e}")
+        finally:
+            conn.close()
+            
+    with _pg_table_columns_lock:
+        _pg_table_columns_cache[key] = cols
+    return cols
+
+def format_pg_sql_literal(val, col_meta=None):
+    if val is None:
+        return 'NULL'
+    if isinstance(val, bool):
+        return 'TRUE' if val else 'FALSE'
+    if isinstance(val, (int, float, Decimal)):
+        return str(val)
+    if isinstance(val, (dict, list)):
+        j_str = json.dumps(val, ensure_ascii=False).replace("'", "''")
+        return f"'{j_str}'"
+    s = str(val).strip()
+    if s == '' and col_meta and col_meta.get('type') in ['integer', 'bigint', 'smallint', 'numeric', 'uuid', 'date', 'timestamp without time zone', 'timestamp with time zone']:
+        return 'NULL'
+    escaped = s.replace("'", "''")
+    return f"'{escaped}'"
+
+@app.route('/api/postgres/generate-insert-query', methods=['POST'])
+@login_required
+def generate_postgres_insert_query():
+    try:
+        payload = request.get_json(force=True, silent=True) or {}
+        rows = payload.get('rows') or []
+        if not rows:
+            return jsonify({'success': False, 'message': 'Không có dữ liệu để tạo câu lệnh Insert.'}), 400
+        
+        grouped = {}
+        valid_count = 0
+        for r in rows:
+            if isinstance(r, dict):
+                table = r.get('table') or 'material_resource'
+                schema = r.get('schema') or r.get('database') or 'kvmes'
+                data = r.get('data')
+            elif isinstance(r, (list, tuple)) and len(r) >= 4:
+                table = r[0]
+                schema = r[2]
+                data = r[3]
+            else:
+                continue
+            
+            if isinstance(data, str):
+                try:
+                    data = json.loads(data)
+                except Exception:
+                    continue
+            if not isinstance(data, dict):
+                continue
+            
+            k = (schema, table)
+            if k not in grouped:
+                grouped[k] = []
+            grouped[k].append(data)
+            valid_count += 1
+            
+        if not grouped:
+            return jsonify({'success': False, 'message': 'Không tìm thấy dữ liệu hợp lệ dạng JSON để tạo câu lệnh Insert.'}), 400
+            
+        header_comment = [
+            "-- ====================================================================",
+            "-- KDMES POSTGRESQL INSERT QUERY RECOVERY SCRIPT",
+            f"-- Thoi gian xuat: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+            f"-- Tong so bang: {len(grouped)}, Tong so ban ghi: {valid_count}",
+            "-- ====================================================================\n"
+        ]
+        
+        statements = []
+        for (schema, table), data_list in grouped.items():
+            cols_meta = get_pg_table_columns_meta(schema, table)
+            if cols_meta:
+                active_cols = [c for c in cols_meta if any(c['name'] in d for d in data_list)]
+            else:
+                all_keys = []
+                for d in data_list:
+                    for k in d.keys():
+                        if k not in all_keys:
+                            all_keys.append(k)
+                active_cols = [{'name': k, 'type': 'text', 'udt': 'text'} for k in all_keys]
+                
+            col_names = [c['name'] for c in active_cols]
+            col_names_str = ', '.join(col_names)
+            
+            val_rows = []
+            for d in data_list:
+                row_vals = [format_pg_sql_literal(d.get(c['name']), c) for c in active_cols]
+                val_rows.append(f"  ({', '.join(row_vals)})")
+                
+            stmt_header = f"-- Bang: {schema}.{table} ({len(data_list)} ban ghi)"
+            stmt = f"{stmt_header}\nINSERT INTO {schema}.{table} ({col_names_str})\nVALUES\n" + ",\n".join(val_rows) + ";"
+            statements.append(stmt)
+            
+        full_content = "\n".join(header_comment) + "\n\n".join(statements) + "\n"
+        filename = f"postgres_insert_queries_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+        
+        return jsonify({
+            'success': True,
+            'filename': filename,
+            'content': full_content,
+            'count': valid_count
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 
 @app.route('/api/barcodes', methods=['POST'])

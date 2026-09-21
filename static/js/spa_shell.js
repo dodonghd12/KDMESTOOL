@@ -14,6 +14,8 @@
         { path: '/station-configuration', frameId: 'view-station-configuration', title: 'Thiết lập máy' },
         { path: '/label-config', frameId: 'view-label-config', title: 'Thông số kỹ thuật' },
         { path: '/gitlab-deleted-files', frameId: 'view-gitlab-deleted-files', title: 'Gitlab Deleted Files' },
+        { path: '/check-gitlab-deleted-files', frameId: 'view-gitlab-deleted-files', title: 'Gitlab Deleted Files' },
+        { path: '/postgres-deleted-data', frameId: 'view-postgres-deleted-data', title: 'Postgres Deleted Data' },
         { path: '/magic-winx', frameId: 'view-magic-winx', title: 'Magic Winx' }
     ];
 
@@ -33,7 +35,17 @@
 
     function switchPage(targetPath, pushState = true) {
         const normPath = getNormalizedPath(targetPath);
-        const route = SPA_ROUTES.find(r => r.path === normPath) || SPA_ROUTES[0];
+        let route = SPA_ROUTES.find(r => r.path === normPath);
+
+        if (!route) {
+            const derivedFrameId = 'view-' + normPath.replace(/^\/+/, '');
+            const existingFrame = document.getElementById(derivedFrameId);
+            if (existingFrame) {
+                route = { path: normPath, frameId: derivedFrameId, title: existingFrame.title || document.title || 'KDMES TOOL' };
+            } else {
+                route = SPA_ROUTES[0];
+            }
+        }
 
         if (currentRoutePath === route.path) return;
         currentRoutePath = route.path;
@@ -264,7 +276,7 @@
             try {
                 const linkUrl = new URL(link.href, window.location.origin);
                 const targetPath = linkUrl.pathname.replace(/\/+$/, '');
-                const isSpaRoute = SPA_ROUTES.some(r => r.path === targetPath);
+                const isSpaRoute = SPA_ROUTES.some(r => r.path === targetPath) || !!document.getElementById('view-' + targetPath.replace(/^\/+/, ''));
 
                 if (isSpaRoute) {
                     e.preventDefault();
