@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gitlab Deleted Files</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v={{ version }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/smooth_input.css') }}?v={{ version }}">
+
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome/css/all.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/material-symbols/material-symbols.css') }}">
+</head>
+<body class="check-gitlab-deleted-files {% if is_frame %}is-spa-frame{% endif %} app-loading-state">
+    {% if not is_frame %}{% include "components/sidebar.html" %}{% endif %}
+
+    <div class="container" autocomplete="off">
+        <div class="search-section">
+            <div class="search-row" style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
+                <button type="button" id="btnCheckDeletedFiles" class="winx-btn winx-btn-primary" style="height: 44px; padding: 0 24px; font-size: 14px; font-weight: 700; letter-spacing: 0.5px; flex-shrink: 0;">
+                    <span class="material-symbols-outlined" style="font-size: 20px !important;">delete_history</span>
+                    <span>Check</span>
+                </button>
+                <div class="input-wrapper" style="min-width: 260px; max-width: 400px; flex: 1;">
+                    <input placeholder="Tìm kiếm..." class="input" id="clientSearch" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text" aria-label="Tìm kiếm trong bảng">
+                </div>
+                <div style="color: var(--color-text-muted, #94a3b8); font-size: 13px; display: flex; align-items: center; gap: 6px; white-space: nowrap;">
+                    <span class="material-symbols-outlined" style="font-size: 16px; color: var(--color-text-accent, #38bdf8);">info</span>
+                    <span>Truy vấn danh sách file YAML bị xóa ở GitLab</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="table-container">
+            <div class="table-scroll">
+                <table>
+                    <thead id="tableHead"></thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+
+            <div class="table-footer hidden">
+                <div class="row-count">Số dòng: <span id="rowCount">0</span></div>
+                <button class="btn-export-excel" id="exportExcelBtn" aria-label="Xuất dữ liệu ra file Excel">
+                    <div class="btn-export-excel-wrapper">
+                        <div class="text">Xuất Excel</div>
+                        <span class="icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" width="2em" height="2em" preserveAspectRatio="xMidYMid meet" viewBox="0 0 24 24">
+                                <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 0 0 4.561 21h14.878a2 2 0 0 0 1.94-1.515L22 17"></path>
+                            </svg>
+                        </span>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    {% include "components/shared_modals.html" %}
+
+    <script src="{{ url_for('static', filename='vendor/xlsx/xlsx.full.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/smooth_input.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/check_gitlab_deleted_files.js') }}?v={{ version }}"></script>
+</body>
+</html>

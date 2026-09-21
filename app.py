@@ -10,11 +10,10 @@ import os
 import base64
 import yaml
 from datetime import datetime, timezone, timedelta
-import ast
 import re
 from typing import Optional
 from db_execute import (execute_pg_select_query, execute_pg_update_query)
-from db_connections import (connect_pg_db, connect_pg_db_dev)
+from db_connections import connect_pg_db
 import threading
 from concurrent.futures import ThreadPoolExecutor
 import difflib
@@ -39,6 +38,18 @@ _actions_pipeline_lock = threading.Lock()
 
 _label_config_cache = {'timestamp': 0, 'data': None}
 _label_config_lock = threading.Lock()
+
+LOG_YAML_DELETED_NETWORK_PATH = r"\\198.1.10.2\Vitinh\Thu\QUAN TRONG KHONG XOA\log_yaml_deleted_alerts.jsonl"
+LOG_YAML_DELETED_LOCAL_PATH = os.path.join(os.path.dirname(__file__), "log_yaml_deleted_alerts.jsonl")
+
+def get_yaml_deleted_log_path():
+    try:
+        net_dir = os.path.dirname(LOG_YAML_DELETED_NETWORK_PATH)
+        if os.path.exists(net_dir):
+            return LOG_YAML_DELETED_NETWORK_PATH
+    except Exception:
+        pass
+    return LOG_YAML_DELETED_LOCAL_PATH
 
 def validate_actions_yaml_content(content: str, recipe_id: str) -> dict:
     """
@@ -383,8 +394,10 @@ def convert_iso_datetime(value):
     if not value:
         return value
     try:
-        from dateutil import parser
-        dt = parser.isoparse(value)
+        val_str = str(value)
+        if val_str.endswith('Z'):
+            val_str = val_str[:-1] + '+00:00'
+        dt = datetime.fromisoformat(val_str)
         if dt.tzinfo:
             dt = dt.astimezone(VN_TZ)
         return dt.strftime('%Y-%m-%d %H:%M:%S')
@@ -708,11 +721,149 @@ def station_configuration():
 def label_config():
     return render_page_or_shell('label_config.html', '/label-config', 'Thông số kỹ thuật')
 
+@app.route('/check-gitlab-deleted-files')
+def check_gitlab_deleted_files():
+    return render_page_or_shell('check_gitlab_deleted_files.html', '/check-gitlab-deleted-files', 'Gitlab Deleted Files')
+
 @app.route('/magic-winx')
 def magic_winx():
     return render_page_or_shell('magic_winx.html', '/magic-winx', 'Magic Winx')
 
 #========= API =========#
+def format_to_utc7_str(time_val) -> str:
+    if not time_val or time_val == '-':
+        return '-'
+    try:
+        s = str(time_val).strip()
+        if 'T' in s or '+' in s or s.endswith('Z'):
+            dt = datetime.fromisoformat(s.replace('Z', '+00:00'))
+            utc7_tz = timezone(timedelta(hours=7))
+            return dt.astimezone(utc7_tz).strftime('%Y-%m-%d %H:%M:%S')
+        return s
+    except Exception:
+        return str(time_val)
+
+
+@app.route('/api/gitlab/webhook', methods=['POST'])
+def gitlab_webhook():
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+        project = data.get('project') or {}
+        project_name = project.get('name') or project.get('path_with_namespace') or 'unknown'
+        
+        commits = data.get('commits', [])
+        deleted_records = []
+        now_utc7 = datetime.now(timezone(timedelta(hours=7))).strftime('%Y-%m-%d %H:%M:%S')
+        
+        for commit in commits:
+            removed_files = commit.get('removed', [])
+            if not removed_files:
+                continue
+            
+            author = commit.get('author') or {}
+            author_name = author.get('name') or data.get('user_name') or 'unknown'
+            author_email = author.get('email') or data.get('user_email') or ''
+            commit_id = commit.get('id', '')
+            commit_message = (commit.get('message') or '').strip()
+            commit_url = commit.get('url') or ''
+            raw_ts = commit.get('timestamp')
+            timestamp = format_to_utc7_str(raw_ts) if raw_ts else now_utc7
+            
+            for f in removed_files:
+                if f.lower().endswith(('.yaml', '.yml')):
+                    record = {
+                        'project': project_name,
+                        'file': f,
+                        'author': author_name,
+                        'email': author_email,
+                        'time': timestamp,
+                        'commit_id': commit_id[:10] if commit_id else '',
+                        'commit_message': commit_message,
+                        'commit_url': commit_url,
+                        'raw_commit_id': commit_id
+                    }
+                    deleted_records.append(record)
+                    
+        if deleted_records:
+            log_path = get_yaml_deleted_log_path()
+            try:
+                with open(log_path, 'a', encoding='utf-8') as lf:
+                    for rec in deleted_records:
+                        lf.write(json.dumps(rec, ensure_ascii=False) + '\n')
+            except Exception:
+                local_path = LOG_YAML_DELETED_LOCAL_PATH
+                if log_path != local_path:
+                    try:
+                        with open(local_path, 'a', encoding='utf-8') as lf:
+                            for rec in deleted_records:
+                                lf.write(json.dumps(rec, ensure_ascii=False) + '\n')
+                    except Exception:
+                        pass
+                
+        return jsonify({'status': 'ok', 'logged_count': len(deleted_records)})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@app.route('/api/gitlab/get-deleted-files-log', methods=['POST', 'GET'])
+@login_required
+def get_deleted_files_log():
+    columns = [
+        'Dự án',
+        'File bị xóa',
+        'Người xóa',
+        'Email',
+        'Thời gian',
+        'Commit ID',
+        'Commit Message',
+        'Commit URL'
+    ]
+    
+    found_lines = []
+    log_paths = [LOG_YAML_DELETED_NETWORK_PATH, LOG_YAML_DELETED_LOCAL_PATH]
+    
+    for lp in log_paths:
+        if os.path.exists(lp):
+            try:
+                with open(lp, 'r', encoding='utf-8') as lf:
+                    for line in lf:
+                        line = line.strip()
+                        if line:
+                            found_lines.append(line)
+                if found_lines:
+                    break
+            except Exception:
+                continue
+                
+    records = []
+    seen = set()
+    for line in found_lines:
+        try:
+            item = json.loads(line)
+            key = (item.get('project'), item.get('file'), item.get('raw_commit_id') or item.get('commit_id'))
+            if key not in seen:
+                seen.add(key)
+                records.append([
+                    item.get('project', '-'),
+                    item.get('file', '-'),
+                    item.get('author', '-'),
+                    item.get('email', '-'),
+                    format_to_utc7_str(item.get('time', '-')),
+                    item.get('commit_id', '-'),
+                    item.get('commit_message', '-'),
+                    item.get('commit_url', '-')
+                ])
+        except Exception:
+            continue
+            
+    records.reverse()
+    
+    return jsonify({
+        'result': records,
+        'columns': columns
+    })
+
+
 @app.route('/api/barcodes', methods=['POST'])
 @login_required
 def search_barcode():

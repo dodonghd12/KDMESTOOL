@@ -1905,7 +1905,50 @@ function displayTable(result, columns) {
                 fullValue = '-';
             }
 
-            if (cellValue.length > truncateThreshold) {
+            const isUrl = String(cellValue).trim().startsWith('http://') || String(cellValue).trim().startsWith('https://') || (columns && columns[cellIndex] && String(columns[cellIndex]).toLowerCase().includes('url'));
+            const urlToOpen = String(fullValue || cellValue).trim();
+
+            if (isUrl && (urlToOpen.startsWith('http://') || urlToOpen.startsWith('https://'))) {
+                const link = document.createElement('a');
+                link.href = urlToOpen;
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer';
+                link.className = 'table-cell-url-link';
+                link.style.color = '#38bdf8';
+                link.style.textDecoration = 'underline';
+                link.style.fontWeight = '500';
+                link.style.display = 'inline-flex';
+                link.style.alignItems = 'center';
+                link.style.gap = '4px';
+                link.style.cursor = 'pointer';
+                link.style.pointerEvents = 'auto';
+
+                const textSpan = document.createElement('span');
+                if (cellValue.length > truncateThreshold) {
+                    textSpan.textContent = cellValue.substring(0, displayLength) + '...';
+                    td.title = fullValue;
+                    td.classList.add('truncated-cell');
+                } else {
+                    textSpan.textContent = cellValue;
+                }
+                link.appendChild(textSpan);
+
+                const icon = document.createElement('span');
+                icon.className = 'material-symbols-outlined';
+                icon.style.fontSize = '14px';
+                icon.style.lineHeight = '1';
+                icon.style.verticalAlign = 'middle';
+                icon.style.textDecoration = 'none';
+                icon.textContent = 'open_in_new';
+                link.appendChild(icon);
+
+                link.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    window.open(urlToOpen, '_blank', 'noopener,noreferrer');
+                });
+
+                td.appendChild(link);
+            } else if (cellValue.length > truncateThreshold) {
                 // Only truncate long strings
                 td.textContent = cellValue.substring(0, displayLength) + '...';
                 td.title = fullValue; // Show full value on hover
@@ -3480,6 +3523,10 @@ function formatJSON(json) {
                 } else {
                     // String value
                     cls = 'json-string';
+                    const unquoted = match.slice(1, -1);
+                    if (/^https?:\/\//i.test(unquoted)) {
+                        return '<span class="' + cls + '">"<a href="' + unquoted + '" target="_blank" rel="noopener noreferrer" class="json-url-link" onclick="event.stopPropagation(); window.open(\'' + unquoted + '\', \'_blank\', \'noopener,noreferrer\'); return false;" style="color: #38bdf8; text-decoration: underline; cursor: pointer; pointer-events: auto; word-break: break-all;">' + unquoted + ' <span class="material-symbols-outlined" style="font-size: 13px; vertical-align: middle; text-decoration: none;">open_in_new</span></a>"</span>';
+                    }
                 }
             } else if (/true|false/.test(match)) {
                 cls = 'json-boolean';
