@@ -13,7 +13,7 @@
         { path: '/check-mesync', frameId: 'view-check-mesync', title: 'Check Mesync' },
         { path: '/station-configuration', frameId: 'view-station-configuration', title: 'Thiết lập máy' },
         { path: '/label-config', frameId: 'view-label-config', title: 'Thông số kỹ thuật' },
-        { path: '/check-gitlab-deleted-files', frameId: 'view-check-gitlab-deleted-files', title: 'Gitlab Deleted Files' },
+        { path: '/gitlab-deleted-files', frameId: 'view-gitlab-deleted-files', title: 'Gitlab Deleted Files' },
         { path: '/magic-winx', frameId: 'view-magic-winx', title: 'Magic Winx' }
     ];
 

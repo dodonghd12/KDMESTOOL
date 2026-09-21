@@ -721,9 +721,13 @@ def station_configuration():
 def label_config():
     return render_page_or_shell('label_config.html', '/label-config', 'Thông số kỹ thuật')
 
+@app.route('/gitlab-deleted-files')
 @app.route('/check-gitlab-deleted-files')
+def gitlab_deleted_files():
+    return render_page_or_shell('check_gitlab_deleted_files.html', '/gitlab-deleted-files', 'Gitlab Deleted Files')
+
 def check_gitlab_deleted_files():
-    return render_page_or_shell('check_gitlab_deleted_files.html', '/check-gitlab-deleted-files', 'Gitlab Deleted Files')
+    return gitlab_deleted_files()
 
 @app.route('/magic-winx')
 def magic_winx():
