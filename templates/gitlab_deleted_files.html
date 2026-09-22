@@ -24,9 +24,17 @@
                     <span class="material-symbols-outlined" style="font-size: 20px !important;">delete_history</span>
                     <span>Check</span>
                 </button>
-                <div class="input-wrapper" style="min-width: 260px; max-width: 400px; flex: 1;">
+
+                <div class="input-box" style="min-width: 180px; max-width: 220px; flex-shrink: 0; position: relative;">
+                    <input placeholder=" " type="text" id="project_filter" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="input" style="cursor: pointer;" readonly>
+                    <label class="user-label">Project</label>
+                    <div id="project-filter-dropdown" class="dropdown-list"></div>
+                </div>
+
+                <div class="input-wrapper" style="min-width: 220px; max-width: 380px; flex: 1;">
                     <input placeholder="Tìm kiếm..." class="input" id="clientSearch" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text" aria-label="Tìm kiếm trong bảng">
                 </div>
+
                 <div style="color: var(--color-text-muted, #94a3b8); font-size: 13px; display: flex; align-items: center; gap: 6px; white-space: nowrap;">
                     <span class="material-symbols-outlined" style="font-size: 16px; color: var(--color-text-accent, #38bdf8);">info</span>
                     <span>Truy vấn danh sách file YAML bị xóa ở GitLab</span>

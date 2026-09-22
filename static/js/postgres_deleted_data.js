@@ -6,7 +6,7 @@
  */
 
 let allFetchedRecords = [];
-let tableColumns = ['Table', 'Time', 'Database', 'Data'];
+let tableColumns = ['Table', 'Time', 'client_ip', 'Database', 'Data'];
 let selectedTableFilter = '';
 let selectedFromDate = '';
 let selectedToDate = '';
@@ -17,7 +17,11 @@ const AUDIT_TABLES = [
     'work_order',
     'collect_record',
     'feed_record',
-    'batch'
+    'batch',
+    'defective_code',
+    'defective_records',
+    'recipe',
+    'recipe_process_definition'
 ];
 
 if (document.readyState === 'loading') {
@@ -35,10 +39,57 @@ function initializePostgresDeletedData() {
     fetchDeletedRecordsLog();
 }
 
+function resetAllFiltersAndTable() {
+    // 1. Reset filter variables
+    selectedTableFilter = '';
+    selectedFromDate = '';
+    selectedToDate = '';
+
+    // 2. Reset DOM controls
+    const tableInput = document.getElementById('table_filter');
+    if (tableInput) {
+        tableInput.value = '';
+        const box = tableInput.closest('.input-box');
+        if (box) box.classList.remove('has-value');
+    }
+
+    const dateInput = document.getElementById('dateRange');
+    const fromDateEl = document.getElementById('fromDate');
+    const toDateEl = document.getElementById('toDate');
+    if (flatpickrInstance) {
+        flatpickrInstance.clear();
+    }
+    if (dateInput) dateInput.value = '';
+    if (fromDateEl) fromDateEl.value = '';
+    if (toDateEl) toDateEl.value = '';
+
+    const searchInput = document.getElementById('clientSearch');
+    if (searchInput) {
+        searchInput.value = '';
+    }
+
+    // 3. Clear table container state
+    allFetchedRecords = [];
+    rawTableData = [];
+    const thead = document.getElementById('tableHead');
+    const tbody = document.getElementById('tableBody');
+    const rowCount = document.getElementById('rowCount');
+    if (thead) thead.innerHTML = '';
+    if (tbody) tbody.innerHTML = '';
+    if (rowCount) rowCount.textContent = '0';
+
+    const tableFooter = document.querySelector('.table-footer');
+    if (tableFooter) tableFooter.classList.add('hidden');
+
+    const insertBtn = document.getElementById('btnInsertQuery');
+    if (insertBtn) insertBtn.disabled = true;
+}
+
 function initControls() {
     const checkBtn = document.getElementById('btnCheckDeletedData');
     if (checkBtn) {
         checkBtn.addEventListener('click', () => {
+            resetAllFiltersAndTable();
             fetchDeletedRecordsLog();
         });
     }
@@ -168,6 +219,19 @@ function initTableDropdown() {
         toggleTableDropdown();
     });
 
+    input.addEventListener('input', () => {
+        selectedTableFilter = input.value.trim();
+        const box = input.closest('.input-box');
+        if (box) {
+            if (input.value && input.value.trim().length > 0) {
+                box.classList.add('has-value');
+            } else {
+                box.classList.remove('has-value');
+            }
+        }
+        applyAllFilters();
+    });
+
     document.addEventListener('click', (e) => {
         if (!input.contains(e.target) && !dropdown.contains(e.target)) {
             dropdown.classList.remove('show');
@@ -212,6 +276,14 @@ function renderTableDropdownItems() {
             e.preventDefault();
             selectedTableFilter = item.dataset.value;
             input.value = selectedTableFilter ? selectedTableFilter : '';
+            const box = input.closest('.input-box');
+            if (box) {
+                if (input.value && input.value.trim().length > 0) {
+                    box.classList.add('has-value');
+                } else {
+                    box.classList.remove('has-value');
+                }
+            }
             dropdown.classList.remove('show');
             applyAllFilters();
         });
@@ -225,7 +297,7 @@ function applyAllFilters() {
     const searchTerm = searchInput ? searchInput.value.trim().toLowerCase() : '';
 
     let filtered = allFetchedRecords.filter(row => {
-        // row[0]: Table, row[1]: Time ("YYYY-MM-DD HH:MM:SS"), row[2]: Database, row[3]: Data
+        // row[0]: Table, row[1]: Time ("YYYY-MM-DD HH:MM:SS"), row[2]: client_ip, row[3]: Database, row[4]: Data
         const rowTable = String(row[0] || '').trim();
         const rowTime = String(row[1] || '').trim();
 
@@ -295,7 +367,7 @@ async function fetchDeletedRecordsLog() {
     }
 
     if (typeof showTableSkeleton === 'function') {
-        showTableSkeleton(4, 5);
+        showTableSkeleton(5, 5);
     }
 
     try {
@@ -319,7 +391,7 @@ async function fetchDeletedRecordsLog() {
 
         if (data && Array.isArray(data.result)) {
             allFetchedRecords = data.result;
-            tableColumns = data.columns || ['Table', 'Time', 'Database', 'Data'];
+            tableColumns = data.columns || ['Table', 'Time', 'client_ip', 'Database', 'Data'];
 
             applyAllFilters();
 
@@ -328,7 +400,7 @@ async function fetchDeletedRecordsLog() {
             }
         } else {
             allFetchedRecords = [];
-            tableColumns = data ? (data.columns || ['Table', 'Time', 'Database', 'Data']) : ['Table', 'Time', 'Database', 'Data'];
+            tableColumns = data ? (data.columns || ['Table', 'Time', 'client_ip', 'Database', 'Data']) : ['Table', 'Time', 'client_ip', 'Database', 'Data'];
             applyAllFilters();
 
             if (typeof Toast !== 'undefined' && Toast.warning) {
@@ -371,8 +443,9 @@ async function generateInsertQueries() {
         const rowsToSend = rawTableData.map(r => ({
             table: r[0],
             time: r[1],
-            schema: r[2],
-            data: r[3]
+            client_ip: r[2],
+            schema: r[3],
+            data: r[4]
         }));
 
         const res = await fetch('/api/postgres/generate-insert-query', {

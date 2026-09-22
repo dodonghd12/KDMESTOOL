@@ -911,6 +911,7 @@ def get_postgres_deleted_records_log():
     columns = [
         'Table',
         'Time',
+        'client_ip',
         'Database',
         'Data'
     ]
@@ -945,10 +946,11 @@ def get_postgres_deleted_records_log():
                         ts = format_postgres_timestamp(raw_ts)
                         schema = item.get('schema', '-')
                         table = item.get('table', '-')
+                        client_ip = item.get('client_ip') or item.get('ip') or '-'
                         record_oid = item.get('record_oid') or ''
                         data = item.get('data') or {}
                         
-                        unique_key = (raw_ts, schema, table, record_oid, str(data))
+                        unique_key = (raw_ts, schema, table, client_ip, record_oid, str(data))
                         if unique_key in seen:
                             continue
                         seen.add(unique_key)
@@ -961,6 +963,7 @@ def get_postgres_deleted_records_log():
                         records.append([
                             table,
                             ts,
+                            client_ip,
                             schema,
                             data_str
                         ])
@@ -1041,10 +1044,17 @@ def generate_postgres_insert_query():
                 table = r.get('table') or 'material_resource'
                 schema = r.get('schema') or r.get('database') or 'kvmes'
                 data = r.get('data')
-            elif isinstance(r, (list, tuple)) and len(r) >= 4:
-                table = r[0]
-                schema = r[2]
-                data = r[3]
+            elif isinstance(r, (list, tuple)):
+                if len(r) >= 5:
+                    table = r[0]
+                    schema = r[3]
+                    data = r[4]
+                elif len(r) >= 4:
+                    table = r[0]
+                    schema = r[2]
+                    data = r[3]
+                else:
+                    continue
             else:
                 continue
             
@@ -1126,7 +1136,7 @@ def search_barcode():
                standing_time, feed_records_id, info, oid,
                reprint_reason, collected, erp_tire_barcode_synced
         FROM kvmes.material_resource
-        WHERE id LIKE %s
+        WHERE id ILIKE %s
         LIMIT 100;
     """
     result, column_names = execute_pg_select_query(query, (f"%{keyword}%",))
@@ -1181,7 +1191,7 @@ def search_work_order():
         JOIN LATERAL jsonb_array_elements(r.processes::jsonb) proc ON TRUE
         JOIN kvmes.recipe_process_definition rpd ON rpd.oid = (proc->>'reference_oid')::uuid
         JOIN LATERAL jsonb_array_elements(rpd.configs::jsonb) cfg ON TRUE
-        WHERE r.id LIKE %s
+        WHERE r.id ILIKE %s
         LIMIT 100;
     """
     result, column_names = execute_pg_select_query(query, (f"%{keyword}%",))
@@ -1216,10 +1226,7 @@ def search_feed_record():
                standing_time, feed_records_id, info, oid,
                reprint_reason, collected, erp_tire_barcode_synced
         FROM kvmes.material_resource
-        WHERE EXISTS (
-            SELECT 1 FROM unnest(feed_records_id) AS elem
-            WHERE elem ILIKE %s
-        )
+        WHERE kvmes.immutable_array_to_string(feed_records_id, ' ') ILIKE %s
         LIMIT 100;
     """
     result, column_names = execute_pg_select_query(query, (f"%{keyword}%",))
