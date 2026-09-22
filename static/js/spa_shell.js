@@ -122,6 +122,9 @@
         isAllPagesLoaded = true;
         window.__kd_all_pages_loaded = true;
 
+        const allFrames = document.querySelectorAll('.spa-view-frame');
+        const total = allFrames.length || SPA_ROUTES.length;
+
         const counterEl = document.getElementById('spaPreloadCounter');
         const progressBar = document.getElementById('spaPreloadProgressBar');
         const badge = document.getElementById('spaPreloadBadge');
@@ -129,7 +132,7 @@
         const msgEl = document.getElementById('spaPreloadMessage');
         const iconContainer = document.getElementById('spaPreloadIconContainer');
 
-        if (counterEl) counterEl.textContent = `${SPA_ROUTES.length}/${SPA_ROUTES.length}`;
+        if (counterEl) counterEl.textContent = `${total}/${total}`;
         if (progressBar) progressBar.style.width = '100%';
 
         if (badge) {
@@ -137,13 +140,12 @@
             badge.classList.add('toast-success');
         }
         if (titleEl) titleEl.textContent = 'Khởi tạo hoàn tất';
-        if (msgEl) msgEl.textContent = `Tất cả ${SPA_ROUTES.length} trang đã sẵn sàng`;
+        if (msgEl) msgEl.textContent = `Tất cả ${total} trang đã sẵn sàng`;
         if (iconContainer) {
             iconContainer.innerHTML = '<span class="material-symbols-outlined" style="color: #34d399; font-size: 22px;">check_circle</span>';
         }
 
         // Notify and remove skeleton loading across all iframes
-        const allFrames = document.querySelectorAll('.spa-view-frame');
         allFrames.forEach(frame => {
             try {
                 const doc = frame.contentDocument || frame.contentWindow?.document;
@@ -166,7 +168,7 @@
 
         // Notify Supercar Intro overlay
         if (window.SupercarIntro && typeof window.SupercarIntro.onAllLoaded === 'function') {
-            window.SupercarIntro.onAllLoaded();
+            window.SupercarIntro.onAllLoaded(total);
         }
     }
 
@@ -175,6 +177,10 @@
         const total = allFrames.length || SPA_ROUTES.length;
         let loadedCount = 0;
         const loadedSet = new Set();
+
+        if (window.SupercarIntro && typeof window.SupercarIntro.setTotalPages === 'function') {
+            window.SupercarIntro.setTotalPages(total);
+        }
 
         function onFrameLoaded(frameId) {
             if (loadedSet.has(frameId)) return;

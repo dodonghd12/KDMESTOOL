@@ -9,7 +9,7 @@
                     <span class="actual-text">&nbsp;KDMES TOOL&nbsp;</span>
                     <span aria-hidden="true" class="hover-text">&nbsp;KDMES TOOL&nbsp;</span>
                 </span>
-                <span class="logo-badge">v{{ version }}</span>
+                <span class="logo-badge">v{{ app_version or '2.1.0' }}</span>
             </div>
         </li>
 
@@ -177,4 +177,5 @@
     const userId = '{{ user_id }}';
     const userIp = '{{ user_ip }}';
     const version = '{{ version }}';
+    const appVersion = '{{ app_version or "2.1.0" }}';
 </script>

@@ -34,7 +34,26 @@
     let isFinished = false;
     let isAllPreloaded = false;
     let preloadedCount = 0;
-    const totalPages = 10;
+
+    function getDynamicTotalPages() {
+        const frames = document.querySelectorAll('.spa-view-frame');
+        if (frames && frames.length > 0) return frames.length;
+
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar) {
+            const links = Array.from(sidebar.querySelectorAll('a[href]')).filter(a => {
+                const href = a.getAttribute('href');
+                return href && href !== '#' && !href.startsWith('javascript:') && a.id !== 'logoutMenuItem';
+            });
+            if (links.length > 0) return links.length;
+        }
+        if (typeof window !== 'undefined' && window.__KD_TOTAL_PAGES) {
+            return window.__KD_TOTAL_PAGES;
+        }
+        return 13;
+    }
+
+    let totalPages = getDynamicTotalPages();
 
     // Particle & Entity Pools
     const smokePool = [];
@@ -687,8 +706,9 @@
                     }
                 }
             } else {
-                const dynamicPct = Math.min(99, Math.max(70, Math.floor((preloadedCount / totalPages) * 100)));
-                updateHud('Đang tải ' + totalPages + ' trang KDMES...', dynamicPct);
+                const currentTotal = totalPages || getDynamicTotalPages() || 13;
+                const dynamicPct = Math.min(99, Math.max(70, Math.floor((preloadedCount / currentTotal) * 100)));
+                updateHud('Đang tải ' + currentTotal + ' trang KDMES...', dynamicPct);
             }
         }
 
@@ -737,7 +757,8 @@
         const barEl = document.getElementById('hudIntroProgressBar');
         const rpmEl = document.getElementById('hudIntroRpm');
 
-        const cappedPct = Math.min(100, Math.max(percent, Math.floor((preloadedCount / totalPages) * 100)));
+        const currentTotal = totalPages || getDynamicTotalPages() || 13;
+        const cappedPct = Math.min(100, Math.max(percent, Math.floor((preloadedCount / currentTotal) * 100)));
 
         if (titleEl) titleEl.textContent = statusText;
         if (pctEl) pctEl.textContent = cappedPct + '%';
@@ -754,7 +775,7 @@
             rpmEl.textContent = isAllPreloaded ? 'READY' : (rpm + ' RPM');
         }
         if (descEl) {
-            descEl.textContent = 'Đã tải ' + preloadedCount + '/' + totalPages + ' trang';
+            descEl.textContent = 'Đã tải ' + preloadedCount + '/' + currentTotal + ' trang';
         }
     }
 
@@ -830,15 +851,29 @@
     // Public API exposed for spa_shell.js
     window.SupercarIntro = {
         init: init,
+        setTotalPages: function (total) {
+            if (total && total > 0) {
+                totalPages = total;
+            }
+        },
         onProgress: function (loaded, total) {
+            if (total && total > 0) {
+                totalPages = total;
+            }
             preloadedCount = loaded;
-            const pct = Math.floor((loaded / total) * 100);
+            const currentTotal = totalPages || getDynamicTotalPages() || 13;
+            const pct = Math.floor((loaded / currentTotal) * 100);
             updateHud('Đang khởi tạo các trang...', pct);
-            if (loaded >= total) {
+            if (loaded >= currentTotal) {
                 isAllPreloaded = true;
             }
         },
-        onAllLoaded: function () {
+        onAllLoaded: function (total) {
+            if (total && total > 0) {
+                totalPages = total;
+            } else if (!totalPages || totalPages <= 0) {
+                totalPages = getDynamicTotalPages();
+            }
             isAllPreloaded = true;
             preloadedCount = totalPages;
             updateHud('Tất cả các trang đã sẵn sàng', 100);

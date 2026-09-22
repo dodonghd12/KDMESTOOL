@@ -658,7 +658,7 @@ def login():
         
         return jsonify({'success': False, 'message': 'Tài khoản không tồn tại hoặc mật khẩu không đúng'})
     
-    return render_template('login.html', version=get_asset_version())
+    return render_template('login.html', version=get_asset_version(), app_version=APP_VERSION)
 
 @app.route('/logout', methods=['POST'])
 def logout():
@@ -683,12 +683,14 @@ def render_page_or_shell(template_name, page_path, page_title="KDMES TOOL"):
                                page_title=page_title,
                                user_id=session.get('user_id'),
                                user_ip=session.get('user_ip'),
-                               version=current_version)
+                               version=current_version,
+                               app_version=APP_VERSION)
     return render_template(template_name,
                            is_frame=True,
                            user_id=session.get('user_id'),
                            user_ip=session.get('user_ip'),
-                           version=current_version)
+                           version=current_version,
+                           app_version=APP_VERSION)
 
 @app.route('/main')
 def main():
