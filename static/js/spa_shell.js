@@ -12,7 +12,7 @@
         { path: '/check-qc-data', frameId: 'view-check-qc-data', title: 'Check QC Data' },
         { path: '/check-mesync', frameId: 'view-check-mesync', title: 'Check Mesync' },
         { path: '/station-configuration', frameId: 'view-station-configuration', title: 'Thiết lập máy' },
-        { path: '/label-config', frameId: 'view-label-config', title: 'Thông số kỹ thuật' },
+        { path: '/technical-specifications', frameId: 'view-technical-specifications', title: 'Thông số kỹ thuật' },
         { path: '/gitlab-deleted-files', frameId: 'view-gitlab-deleted-files', title: 'Gitlab Deleted Files' },
         { path: '/check-gitlab-deleted-files', frameId: 'view-gitlab-deleted-files', title: 'Gitlab Deleted Files' },
         { path: '/postgres-deleted-data', frameId: 'view-postgres-deleted-data', title: 'Postgres Deleted Data' },

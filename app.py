@@ -37,8 +37,10 @@ _actions_mr_lock = threading.Lock()
 _actions_pipeline_cache = {}
 _actions_pipeline_lock = threading.Lock()
 
-_label_config_cache = {'timestamp': 0, 'data': None}
-_label_config_lock = threading.Lock()
+_technical_specifications_cache = {'timestamp': 0, 'data': None}
+_technical_specifications_lock = threading.Lock()
+_label_config_cache = _technical_specifications_cache
+_label_config_lock = _technical_specifications_lock
 
 LOG_YAML_DELETED_NETWORK_PATH = r"\\198.1.10.2\Vitinh\Thu\QUAN TRONG KHONG XOA\log_yaml_deleted_alerts.jsonl"
 LOG_YAML_DELETED_LOCAL_PATH = os.path.join(os.path.dirname(__file__), "log_yaml_deleted_alerts.jsonl")
@@ -202,44 +204,69 @@ def get_gitlab_session():
             _gitlab_session.headers['PRIVATE-TOKEN'] = token
     return _gitlab_session
 
-def get_label_config_data(force_refresh: bool = False) -> dict:
-    global _label_config_cache
+def get_technical_specifications_data(force_refresh: bool = False) -> dict:
+    global _technical_specifications_cache
     now = time.time()
-    with _label_config_lock:
-        if not force_refresh and _label_config_cache.get('data') and (now - _label_config_cache.get('timestamp', 0) < 600):
-            return _label_config_cache['data']
+    with _technical_specifications_lock:
+        if not force_refresh and _technical_specifications_cache.get('data') and (now - _technical_specifications_cache.get('timestamp', 0) < 600):
+            return _technical_specifications_cache['data']
 
     s = get_gitlab_session()
-    project_id = 113
-    encoded_path = 'yamls%2Flabel-config.yml'
+    
+    # 1. Fetch label-config.yml (Project 113)
+    project_id_lc = 113
+    encoded_path_lc = 'yamls%2Flabel-config.yml'
     ref = 'master'
 
-    content_raw = ''
+    content_raw_lc = ''
     try:
-        raw_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/files/{encoded_path}/raw'
+        raw_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id_lc}/repository/files/{encoded_path_lc}/raw'
         r = s.get(raw_url, params={'ref': ref}, timeout=8)
         if r.status_code == 200:
-            content_raw = r.text
+            content_raw_lc = r.text
         elif r.status_code in [401, 403]:
             return {'auth_error': True}
         else:
-            file_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/files/{encoded_path}'
+            file_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id_lc}/repository/files/{encoded_path_lc}'
             r2 = s.get(file_url, params={'ref': ref}, timeout=8)
             if r2.status_code in [401, 403]:
                 return {'auth_error': True}
             if r2.ok:
                 c_b64 = r2.json().get('content', '')
                 if c_b64:
-                    content_raw = base64.b64decode(c_b64).decode('utf-8')
+                    content_raw_lc = base64.b64decode(c_b64).decode('utf-8')
     except Exception as e:
-        print(f"Error fetching label-config: {e}")
+        print(f"Error fetching technical-specifications (label-config): {e}")
 
-    if not content_raw:
-        with _label_config_lock:
-            return _label_config_cache.get('data') or {'product_types': [], 'config_map': {}, 'keys_by_product_type': {}}
+    # 2. Fetch limitary-hour.yaml (Project 99: tc/limitary-hour)
+    project_id_lh = 99
+    encoded_path_lh = 'yamls%2Flimitary-hour.yaml'
+    content_raw_lh = ''
+    try:
+        raw_url_lh = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id_lh}/repository/files/{encoded_path_lh}/raw'
+        r_lh = s.get(raw_url_lh, params={'ref': ref}, timeout=8)
+        if r_lh.status_code == 200:
+            content_raw_lh = r_lh.text
+        elif r_lh.status_code in [401, 403]:
+            return {'auth_error': True}
+        else:
+            file_url_lh = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id_lh}/repository/files/{encoded_path_lh}'
+            r2_lh = s.get(file_url_lh, params={'ref': ref}, timeout=8)
+            if r2_lh.status_code in [401, 403]:
+                return {'auth_error': True}
+            if r2_lh.ok:
+                c_b64 = r2_lh.json().get('content', '')
+                if c_b64:
+                    content_raw_lh = base64.b64decode(c_b64).decode('utf-8')
+    except Exception as e:
+        print(f"Error fetching limitary-hour: {e}")
+
+    if not content_raw_lc:
+        with _technical_specifications_lock:
+            return _technical_specifications_cache.get('data') or {'product_types': [], 'config_map': {}, 'keys_by_product_type': {}, 'limitary_hours': {}}
 
     try:
-        parsed_yaml = yaml.safe_load(content_raw)
+        parsed_yaml = yaml.safe_load(content_raw_lc)
         product_types = []
         config_map = {}
         keys_by_product_type = {}
@@ -273,18 +300,40 @@ def get_label_config_data(force_refresh: bool = False) -> dict:
                     config_map[ptype] = rows
                     keys_by_product_type[ptype] = keys
 
+        limitary_hours = {}
+        if content_raw_lh:
+            try:
+                parsed_lh = yaml.safe_load(content_raw_lh)
+                if isinstance(parsed_lh, list):
+                    for item in parsed_lh:
+                        if isinstance(item, dict) and item.get('product-type'):
+                            pt = str(item.get('product-type')).strip()
+                            lh_obj = item.get('limitary-hour', {})
+                            if isinstance(lh_obj, dict):
+                                min_v = lh_obj.get('min')
+                                max_v = lh_obj.get('max')
+                                limitary_hours[pt.upper()] = {
+                                    'standing_time': min_v,
+                                    'limitary_hour': max_v
+                                }
+            except Exception as lh_err:
+                print(f"Error parsing limitary-hour yaml: {lh_err}")
+
         data = {
             'product_types': product_types,
             'config_map': config_map,
-            'keys_by_product_type': keys_by_product_type
+            'keys_by_product_type': keys_by_product_type,
+            'limitary_hours': limitary_hours
         }
-        with _label_config_lock:
-            _label_config_cache['timestamp'] = now
-            _label_config_cache['data'] = data
+        with _technical_specifications_lock:
+            _technical_specifications_cache['timestamp'] = now
+            _technical_specifications_cache['data'] = data
         return data
     except Exception as e:
-        print(f"Error parsing label-config yaml: {e}")
-        return {'product_types': [], 'config_map': {}, 'keys_by_product_type': {}}
+        print(f"Error parsing technical-specifications yaml: {e}")
+        return {'product_types': [], 'config_map': {}, 'keys_by_product_type': {}, 'limitary_hours': {}}
+
+get_label_config_data = get_technical_specifications_data
 
 def resolve_recipe_path(project_id: int, recipe_id: str, product_type: str = '') -> Optional[str]:
     cache_key = (project_id, recipe_id)
@@ -728,9 +777,9 @@ def check_mesync():
 def station_configuration():
     return render_page_or_shell('station_configuration.html', '/station-configuration', 'Thiết lập máy')
 
-@app.route('/label-config')
-def label_config():
-    return render_page_or_shell('label_config.html', '/label-config', 'Thông số kỹ thuật')
+@app.route('/technical-specifications')
+def technical_specifications():
+    return render_page_or_shell('technical_specifications.html', '/technical-specifications', 'Thông số kỹ thuật')
 
 @app.route('/gitlab-deleted-files')
 def gitlab_deleted_files():
@@ -3654,11 +3703,11 @@ def search_actions_commit():
     except Exception as e:
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
 
-@app.route('/api/label-config/fetch', methods=['GET', 'POST'])
+@app.route('/api/technical-specifications/fetch', methods=['GET', 'POST'])
 @login_required
-def fetch_label_config():
+def fetch_technical_specifications():
     force = request.json.get('force', False) if request.is_json and request.json else False
-    data = get_label_config_data(force_refresh=force)
+    data = get_technical_specifications_data(force_refresh=force)
     
     if data.get('auth_error'):
         return jsonify({
@@ -3672,6 +3721,7 @@ def fetch_label_config():
         'product_types': data.get('product_types', []),
         'config_map': data.get('config_map', {}),
         'keys_by_product_type': data.get('keys_by_product_type', {}),
+        'limitary_hours': data.get('limitary_hours', {}),
         'columns': ['key', 'VN', 'CN', 'TW', 'EN', 'ID']
     })
     

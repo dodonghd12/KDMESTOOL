@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
@@ -14,7 +14,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome/css/all.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/material-symbols/material-symbols.css') }}">
 </head>
-<body class="label-config {% if is_frame %}is-spa-frame{% endif %} app-loading-state">
+<body class="technical-specifications {% if is_frame %}is-spa-frame{% endif %} app-loading-state">
     {% if not is_frame %}{% include "components/sidebar.html" %}{% endif %}
 
     <div class="container" autocomplete="off">
@@ -42,7 +42,17 @@
             </div>
 
             <div class="table-footer hidden">
-                <div class="row-count">Số dòng: <span id="rowCount">0</span></div>
+                <div class="table-footer-left">
+                    <div class="row-count">Số dòng: <span id="rowCount">0</span></div>
+                    <div class="spec-stat-badge" id="standingTimeBadge" title="Thời gian chờ tối thiểu (min)">
+                        <span class="spec-stat-label">standing-time:</span>
+                        <span class="spec-stat-value" id="standingTimeVal">-</span>
+                    </div>
+                    <div class="spec-stat-badge" id="limitaryHourBadge" title="Thời hạn tối đa (max)">
+                        <span class="spec-stat-label">limitary-hour:</span>
+                        <span class="spec-stat-value" id="limitaryHourVal">-</span>
+                    </div>
+                </div>
                 <button class="btn-export-excel" id="exportExcelBtn" aria-label="Xuất dữ liệu ra file Excel">
                     <div class="btn-export-excel-wrapper">
                         <div class="text">Xuất Excel</div>
@@ -62,6 +72,6 @@
     <script src="{{ url_for('static', filename='vendor/xlsx/xlsx.full.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/smooth_input.js') }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/label_config.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/technical_specifications.js') }}"></script>
 </body>
 </html>

@@ -1568,6 +1568,13 @@ td {
     display: none !important;
 }
 
+.table-footer-left {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
 .row-count {
     display: inline-flex;
     align-items: center;
@@ -1582,6 +1589,35 @@ td {
     letter-spacing: 0.5px;
     animation: fadeIn 0.3s ease;
     user-select: none;
+}
+
+.spec-stat-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    color: var(--amber-500);
+    font-weight: 600;
+    font-size: var(--font-size-sm);
+    letter-spacing: 0.5px;
+    animation: fadeIn 0.3s ease;
+    user-select: none;
+    transition: all 0.2s ease;
+}
+
+.spec-stat-badge .spec-stat-label {
+    color: var(--amber-500);
+    opacity: 0.85;
+    font-weight: 600;
+}
+
+.spec-stat-badge .spec-stat-value {
+    color: var(--amber-500);
+    font-weight: 800;
+    text-shadow: 0 0 8px rgba(245, 158, 11, 0.25);
 }
 
 /* ── MODERN EXCEL EXPORT BUTTON WITH SLIDE HOVER EFFECT ── */
@@ -1761,7 +1797,9 @@ td {
 
 /* Compact Density Overrides */
 body.density-compact .row-count,
-.density-compact .row-count {
+.density-compact .row-count,
+body.density-compact .spec-stat-badge,
+.density-compact .spec-stat-badge {
     padding: 2px 8px;
     font-size: 11.5px;
 }
@@ -1786,7 +1824,9 @@ body.density-compact .btn-export-excel .icon svg,
 
 /* Comfortable Density Overrides */
 body.density-comfortable .row-count,
-.density-comfortable .row-count {
+.density-comfortable .row-count,
+body.density-comfortable .spec-stat-badge,
+.density-comfortable .spec-stat-badge {
     padding: 4px 12px;
     font-size: 13.5px;
 }

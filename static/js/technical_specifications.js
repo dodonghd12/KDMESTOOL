@@ -1,21 +1,22 @@
-﻿/**
+/**
  * ==============================================================================
- * KDMES TOOL — THÔNG SỐ KỸ THUẬT (LABEL CONFIG) CONTROLLER
- * Tra cứu thông số kỹ thuật / required-labels từ file label-config.yml trên GitLab
+ * KDMES TOOL — THÔNG SỐ KỸ THUẬT (TECHNICAL SPECIFICATIONS) CONTROLLER
+ * Tra cứu thông số kỹ thuật (required-labels) & limitary-hour từ GitLab
  * ==============================================================================
  */
 
 let productTypes = [];
 let configMap = {};
+let limitaryHoursMap = {};
 let currentProductType = '';
 let productTypeSearchTimeout = null;
 
 document.addEventListener('DOMContentLoaded', async function () {
-    initializeLabelConfigEventListeners();
-    await loadLabelConfig();
+    initializeTechnicalSpecificationsEventListeners();
+    await loadTechnicalSpecifications();
 });
 
-function initializeLabelConfigEventListeners() {
+function initializeTechnicalSpecificationsEventListeners() {
     const productTypeInput = document.getElementById('product_type');
     if (!productTypeInput) return;
 
@@ -119,9 +120,9 @@ function hideProductTypeDropdown() {
     }
 }
 
-async function loadLabelConfig() {
+async function loadTechnicalSpecifications() {
     try {
-        const res = await apiFetch('/api/label-config/fetch', {
+        const res = await apiFetch('/api/technical-specifications/fetch', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -135,12 +136,13 @@ async function loadLabelConfig() {
             } else {
                 Toast.error('Lỗi GitLab', (res && res.message) ? res.message : 'Lỗi gitlab');
             }
-            renderInitialEmptyState('Không thể tải dữ liệu cấu hình từ GitLab.');
+            renderInitialEmptyState('Không thể tải dữ liệu thông số kỹ thuật từ GitLab.');
             return;
         }
 
         productTypes = res.product_types || [];
         configMap = res.config_map || {};
+        limitaryHoursMap = res.limitary_hours || {};
 
         if (productTypes.length === 0) {
             Toast.warning('Thông báo', 'Không tìm thấy loại sản phẩm nào trong file cấu hình.');
@@ -152,9 +154,33 @@ async function loadLabelConfig() {
         renderInitialEmptyState('Vui lòng chọn Loại sản phẩm (Product Type) để xem thông số kỹ thuật.');
 
     } catch (err) {
-        console.error('Error loading label config:', err);
+        console.error('Error loading technical specifications:', err);
         Toast.error('Lỗi GitLab', err.message || 'Lỗi gitlab');
         renderInitialEmptyState('Lỗi kết nối khi tải dữ liệu từ GitLab.');
+    }
+}
+
+function updateLimitaryHoursDisplay(ptype) {
+    const standingTimeVal = document.getElementById('standingTimeVal');
+    const limitaryHourVal = document.getElementById('limitaryHourVal');
+
+    if (!standingTimeVal || !limitaryHourVal) return;
+
+    if (!ptype) {
+        standingTimeVal.textContent = '-';
+        limitaryHourVal.textContent = '-';
+        return;
+    }
+
+    const key = ptype.trim().toUpperCase();
+    const lh = limitaryHoursMap[key] || limitaryHoursMap[ptype];
+
+    if (lh) {
+        standingTimeVal.textContent = (lh.standing_time !== null && lh.standing_time !== undefined) ? lh.standing_time : '-';
+        limitaryHourVal.textContent = (lh.limitary_hour !== null && lh.limitary_hour !== undefined) ? lh.limitary_hour : '-';
+    } else {
+        standingTimeVal.textContent = '-';
+        limitaryHourVal.textContent = '-';
     }
 }
 
@@ -165,10 +191,13 @@ function selectProductType(ptype) {
     const rows = configMap[ptype] || [];
     const columns = ['key', 'VN', 'CN', 'TW', 'EN', 'ID'];
 
+    // Update standing-time and limitary-hour stats in table footer
+    updateLimitaryHoursDisplay(ptype);
+
     setTableData(
         rows,
         columns,
-        'label_config',
+        'technical_specifications',
         `Không có thông số kỹ thuật nào cho loại sản phẩm: ${ptype}`,
         `Tải thành công thông số kỹ thuật: ${ptype} (${rows.length} dòng)`
     );
@@ -180,6 +209,9 @@ function renderInitialEmptyState(message = 'Vui lòng chọn loại sản phẩm
     const rowCount = document.getElementById('rowCount');
     const tableFooter = document.querySelector('.table-footer');
 
+    // Reset limitary hour stats display
+    updateLimitaryHoursDisplay(null);
+
     if (thead) thead.innerHTML = '';
     if (tbody) {
         tbody.innerHTML = `
@@ -189,7 +221,7 @@ function renderInitialEmptyState(message = 'Vui lòng chọn loại sản phẩm
                         <div class="empty-state-icon-wrapper">
                             <span class="material-symbols-outlined empty-state-icon">tune</span>
                         </div>
-                        <div class="empty-state-title">Thông số kỹ thuật nhãn (Label Config)</div>
+                        <div class="empty-state-title">Thông số kỹ thuật (Technical Specifications)</div>
                         <div class="empty-state-desc">${message}</div>
                     </div>
                 </td>
