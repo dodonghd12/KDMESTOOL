@@ -157,10 +157,14 @@ function showDepartmentDropdown(items) {
         item.textContent = deptId;
         item.dataset.value = deptId;
         item.addEventListener('mousedown', (e) => {
-            e.preventDefault(); // Prevent blur event
-            document.getElementById('department').value = deptId;
+            e.preventDefault();
+            const input = document.getElementById('department');
+            input.value = deptId;
             currentDepartmentOid = dept.id;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
             hideDepartmentDropdown();
+            input.blur();
             // Load stations when department is selected
             loadStations(currentDepartmentOid).then(() => {
                 document.getElementById('station').disabled = false;
@@ -296,10 +300,14 @@ function showStationDropdown(items) {
         item.textContent = stationId;
         item.dataset.value = stationId;
         item.addEventListener('mousedown', (e) => {
-            e.preventDefault(); // Prevent blur event
-            document.getElementById('station').value = stationId;
+            e.preventDefault();
+            const input = document.getElementById('station');
+            input.value = stationId;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
             hideStationDropdown();
-            checkAndSearchWorkOrders()
+            input.blur();
+            checkAndSearchWorkOrders();
         });
         dropdown.appendChild(item);
     });

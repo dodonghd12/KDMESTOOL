@@ -900,6 +900,11 @@ function initDropdownKeyboardNavigation() {
                 // Đóng dropdown và xóa highlight
                 openDropdown.classList.remove('show');
                 items.forEach(item => item.classList.remove('highlight'));
+
+                // Bỏ focus khỏi input dropdown ngay sau khi chọn
+                if (document.activeElement && typeof document.activeElement.blur === 'function') {
+                    document.activeElement.blur();
+                }
             }
         }
     }, true);
@@ -1390,28 +1395,14 @@ async function getDepartments(forceRefresh = false) {
     }
 
     if (!forceRefresh) {
-        // 1. Check in-memory in top window or current window
+        // 1. If already fetched and cached in top window's in-memory lifetime, return it immediately
         if (topWin.__kd_departments && Array.isArray(topWin.__kd_departments) && topWin.__kd_departments.length > 0) {
             departments = topWin.__kd_departments;
             window.departments = topWin.__kd_departments;
             return topWin.__kd_departments;
         }
 
-        // 2. Check sessionStorage
-        try {
-            const cached = sessionStorage.getItem('kd_departments_cache');
-            if (cached) {
-                const parsed = JSON.parse(cached);
-                if (Array.isArray(parsed) && parsed.length > 0) {
-                    topWin.__kd_departments = parsed;
-                    departments = parsed;
-                    window.departments = parsed;
-                    return parsed;
-                }
-            }
-        } catch (e) {}
-
-        // 3. Deduplicate concurrent in-flight requests across iframes
+        // 2. Deduplicate concurrent in-flight requests across iframes/modules during page load
         if (topWin.__kd_departments_promise) {
             const depts = await topWin.__kd_departments_promise;
             departments = depts || [];
@@ -1433,7 +1424,6 @@ async function getDepartments(forceRefresh = false) {
             // Check if Token Expired / Unauthorized (401 or 500 with 401 in message)
             if (isUnauthorizedResponse(response.status, result)) {
                 topWin.__kd_departments = [];
-                sessionStorage.removeItem('kd_departments_cache');
                 showAuthExpiredModal(result?.message);
                 return [];
             }
@@ -1452,14 +1442,9 @@ async function getDepartments(forceRefresh = false) {
                 };
             });
 
-            if (depts.length > 0) {
-                topWin.__kd_departments = depts;
-                departments = depts;
-                window.departments = depts;
-                try {
-                    sessionStorage.setItem('kd_departments_cache', JSON.stringify(depts));
-                } catch (e) {}
-            }
+            topWin.__kd_departments = depts;
+            departments = depts;
+            window.departments = depts;
 
             return depts;
         } catch (error) {
@@ -1635,6 +1620,12 @@ async function searchBarcode() {
             return;
         }
 
+        if (!response.ok || (data && data.success === false)) {
+            Toast.error('Lỗi kết nối cơ sở dữ liệu', (data && data.message) ? data.message : `Lỗi kết nối cơ sở dữ liệu (${response.status})`);
+            clearTable();
+            return;
+        }
+
         if (data && Array.isArray(data.result)) {
             setTableData(data.result, data.columns, 'barcode', `Không tìm thấy tem barcode nào với từ khóa "${keyword}"`);
         } else {
@@ -1675,6 +1666,12 @@ async function searchRecipes() {
             return;
         }
 
+        if (!response.ok || (data && data.success === false)) {
+            Toast.error('Lỗi kết nối cơ sở dữ liệu', (data && data.message) ? data.message : `Lỗi kết nối cơ sở dữ liệu (${response.status})`);
+            clearTable();
+            return;
+        }
+
         if (data && Array.isArray(data.result)) {
             setTableData(data.result, data.columns, 'recipe', `Không tìm thấy quy cách nào với từ khóa "${keyword}"`);
         } else {
@@ -1711,6 +1708,12 @@ async function searchByFeedRecord() {
 
         if (isUnauthorizedResponse(response.status, data)) {
             showAuthExpiredModal(data ? data.message : null);
+            clearTable();
+            return;
+        }
+
+        if (!response.ok || (data && data.success === false)) {
+            Toast.error('Lỗi kết nối cơ sở dữ liệu', (data && data.message) ? data.message : `Lỗi kết nối cơ sở dữ liệu (${response.status})`);
             clearTable();
             return;
         }
@@ -5193,7 +5196,13 @@ async function apiFetch(url, options = {}) {
                 showAuthExpiredModal();
                 throw new Error('Phiên đăng nhập đã hết hạn');
             }
-            if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+            if (!res.ok) {
+                const errMsg = `Lỗi hệ thống (${res.status})`;
+                if (typeof Toast !== 'undefined' && Toast.error) {
+                    Toast.error('Lỗi kết nối', errMsg);
+                }
+                throw new Error(errMsg);
+            }
             return null;
         }
 
@@ -5202,8 +5211,11 @@ async function apiFetch(url, options = {}) {
             throw new Error(data ? data.message : 'Unauthorized');
         }
 
-        if (!res.ok) {
-            const errMsg = (data && data.message) ? data.message : `HTTP error ${res.status}`;
+        if (!res.ok || (data && data.success === false)) {
+            const errMsg = (data && data.message) ? data.message : `Lỗi kết nối cơ sở dữ liệu (${res.status})`;
+            if (typeof Toast !== 'undefined' && Toast.error) {
+                Toast.error('Lỗi kết nối cơ sở dữ liệu', errMsg);
+            }
             throw new Error(errMsg);
         }
 

@@ -65,6 +65,12 @@ async function searchSubstitutions() {
             return;
         }
 
+        if (!response.ok || (data && data.success === false)) {
+            Toast.error('Lỗi kết nối cơ sở dữ liệu', (data && data.message) ? data.message : `Lỗi kết nối cơ sở dữ liệu (${response.status})`);
+            clearTable();
+            return;
+        }
+
         if (data && Array.isArray(data.result)) {
             setTableData(data.result, data.columns, null, `Không tìm thấy NVL thay thế nào cho "${keyword}"`);
         } else {

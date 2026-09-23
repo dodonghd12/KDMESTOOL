@@ -13,8 +13,16 @@ from datetime import datetime, timezone, timedelta
 import re
 import glob
 from typing import Optional
-from db_execute import (execute_pg_select_query, execute_pg_update_query)
-from db_connections import connect_pg_db
+from db_execute import (execute_pg_select_query, execute_pg_update_query, execute_pg_dev_select_query, execute_pg_insert_query)
+from db_connections import (
+    connect_pg_db,
+    connect_pg_db_dev,
+    get_pg_connection,
+    get_pg_dev_connection,
+    DatabaseError,
+    DatabaseConnectionError,
+    DatabaseQueryError
+)
 import threading
 from concurrent.futures import ThreadPoolExecutor
 import difflib
@@ -429,10 +437,6 @@ def get_client_ip():
     
     return request.remote_addr
 
-from db_connections import connect_pg_db
-from db_execute import (
-    execute_pg_select_query
-)
 
 # --- Core Application Constants & Helpers ---
 APP_VERSION = "2.1.0"
@@ -630,6 +634,33 @@ def custom_401_handler(e):
 def custom_403_handler(e):
     return make_unauthorized_response()
 
+@app.errorhandler(DatabaseConnectionError)
+def custom_db_conn_error_handler(e):
+    return jsonify({
+        'success': False,
+        'message': f'{str(e)}',
+        'result': [],
+        'columns': []
+    }), 500
+
+@app.errorhandler(DatabaseQueryError)
+def custom_db_query_error_handler(e):
+    return jsonify({
+        'success': False,
+        'message': f'{str(e)}',
+        'result': [],
+        'columns': []
+    }), 500
+
+@app.errorhandler(DatabaseError)
+def custom_db_error_handler(e):
+    return jsonify({
+        'success': False,
+        'message': f'{str(e)}',
+        'result': [],
+        'columns': []
+    }), 500
+
 @app.context_processor
 def inject_global_context():
     return {
@@ -784,10 +815,6 @@ def technical_specifications():
 @app.route('/gitlab-deleted-files')
 def gitlab_deleted_files():
     return render_page_or_shell('gitlab_deleted_files.html', '/gitlab-deleted-files', 'Gitlab Deleted Files')
-
-@app.route('/check-gitlab-deleted-files')
-def check_gitlab_deleted_files_redirect():
-    return redirect(url_for('gitlab_deleted_files'))
 
 @app.route('/postgres-deleted-data')
 def postgres_deleted_data():
@@ -2380,14 +2407,6 @@ _STATIONS_CACHE_TTL = 600  # 10 minutes cache
 @app.route('/api/departments', methods=['GET'])
 @login_required
 def get_department_list():
-    
-    now = time.time()
-    if _DEPARTMENTS_CACHE['data'] is not None and (now - _DEPARTMENTS_CACHE['timestamp'] < _DEPARTMENTS_CACHE['ttl']):
-        return jsonify({
-            'error': False,
-            'data': _DEPARTMENTS_CACHE['data']
-        })
-    
     url = 'https://198.1.10.85:8810/api/departments'
     headers = get_auth_headers(session)
     
@@ -2402,9 +2421,6 @@ def get_department_list():
         elif isinstance(data, list):
             dept_data = data
         
-        _DEPARTMENTS_CACHE['data'] = dept_data
-        _DEPARTMENTS_CACHE['timestamp'] = now
-        
         return jsonify({
             'error': False,
             'data': dept_data
@@ -2413,15 +2429,8 @@ def get_department_list():
     except Exception as e:
         error_msg = str(e)
         if (hasattr(e, 'response') and e.response is not None and e.response.status_code in [401, 403]) or '401' in error_msg or '403' in error_msg or 'Unauthorized' in error_msg:
-            _DEPARTMENTS_CACHE['data'] = None
             return make_unauthorized_response('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.')
 
-        # Fallback to existing cache even if expired for non-auth errors
-        if _DEPARTMENTS_CACHE['data'] is not None:
-            return jsonify({
-                'error': False,
-                'data': _DEPARTMENTS_CACHE['data']
-            })
         return jsonify({
             'error': True,
             'code': 'INTERNAL_ERROR',

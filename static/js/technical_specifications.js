@@ -101,9 +101,13 @@ function showProductTypeDropdown(items) {
         }
 
         item.addEventListener('mousedown', (e) => {
-            e.preventDefault(); // Prevent blur before selection
-            document.getElementById('product_type').value = pt;
+            e.preventDefault();
+            const input = document.getElementById('product_type');
+            input.value = pt;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
             hideProductTypeDropdown();
+            input.blur();
             selectProductType(pt);
         });
 

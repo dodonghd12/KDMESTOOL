@@ -179,15 +179,10 @@ function renderProjectDropdownItems() {
             e.preventDefault();
             selectedProjectFilter = item.dataset.value;
             input.value = selectedProjectFilter ? selectedProjectFilter : '';
-            const box = input.closest('.input-box');
-            if (box) {
-                if (input.value && input.value.trim().length > 0) {
-                    box.classList.add('has-value');
-                } else {
-                    box.classList.remove('has-value');
-                }
-            }
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
             dropdown.classList.remove('show');
+            input.blur();
             applyAllFilters();
         });
 

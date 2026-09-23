@@ -169,10 +169,14 @@ function showDepartmentDropdown(items) {
         item.textContent = deptId;
         item.dataset.value = deptId;
         item.addEventListener('mousedown', (e) => {
-            e.preventDefault(); // Prevent blur event
-            document.getElementById('department').value = deptId;
+            e.preventDefault();
+            const input = document.getElementById('department');
+            input.value = deptId;
             currentDepartmentOid = dept.id;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
             hideDepartmentDropdown();
+            input.blur();
             // Load stations when department is selected
             loadStations(currentDepartmentOid).then(() => {
                 document.getElementById('station').disabled = false;
@@ -313,9 +317,13 @@ function showStationDropdown(items) {
         item.dataset.value = stationId;
         item.addEventListener('mousedown', (e) => {
             e.preventDefault();
-            document.getElementById('station').value = stationId;
+            const input = document.getElementById('station');
+            input.value = stationId;
             document.getElementById('dateRange').disabled = false;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
             hideStationDropdown();
+            input.blur();
             checkAndSearchHistoryPrintByStation();
         });
         dropdown.appendChild(item);

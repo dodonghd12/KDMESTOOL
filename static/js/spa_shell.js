@@ -14,7 +14,6 @@
         { path: '/station-configuration', frameId: 'view-station-configuration', title: 'Thiết lập máy' },
         { path: '/technical-specifications', frameId: 'view-technical-specifications', title: 'Thông số kỹ thuật' },
         { path: '/gitlab-deleted-files', frameId: 'view-gitlab-deleted-files', title: 'Gitlab Deleted Files' },
-        { path: '/check-gitlab-deleted-files', frameId: 'view-gitlab-deleted-files', title: 'Gitlab Deleted Files' },
         { path: '/postgres-deleted-data', frameId: 'view-postgres-deleted-data', title: 'Postgres Deleted Data' },
         { path: '/magic-winx', frameId: 'view-magic-winx', title: 'Magic Winx' }
     ];

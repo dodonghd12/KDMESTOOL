@@ -1139,7 +1139,10 @@ async function initMRFormUI() {
                 item.addEventListener('click', () => {
                     createdByInp.value = code;
                     selectedDepartmentOid = code;
+                    createdByInp.dispatchEvent(new Event('input', { bubbles: true }));
+                    createdByInp.dispatchEvent(new Event('change', { bubbles: true }));
                     createdByDropdown.classList.remove('show');
+                    createdByInp.blur();
 
                     // Department changed → reset dependent Station selection
                     document.getElementById('mr_station').value = '';
@@ -1228,7 +1231,10 @@ async function initMRFormUI() {
                 item.textContent = s.name && s.name !== s.id ? `${s.id} - ${s.name}` : s.id;
                 item.addEventListener('click', () => {
                     stationInp.value = s.id;
+                    stationInp.dispatchEvent(new Event('input', { bubbles: true }));
+                    stationInp.dispatchEvent(new Event('change', { bubbles: true }));
                     stationDropdown.classList.remove('show');
+                    stationInp.blur();
                 });
                 stationDropdown.appendChild(item);
             });
