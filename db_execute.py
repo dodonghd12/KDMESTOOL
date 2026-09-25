@@ -2,8 +2,6 @@ import json
 from db_connections import (
     get_pg_connection,
     get_pg_dev_connection,
-    connect_pg_db,
-    connect_pg_db_dev,
     DatabaseError,
     DatabaseConnectionError,
     DatabaseQueryError

@@ -51,9 +51,11 @@ function initializeTechnicalSpecificationsEventListeners() {
 
         // If exact match while typing, load table
         if (val && productTypes.includes(val)) {
-            productTypeSearchTimeout = setTimeout(() => {
-                selectProductType(val);
-            }, 300);
+            if (val !== currentProductType) {
+                productTypeSearchTimeout = setTimeout(() => {
+                    selectProductType(val);
+                }, 300);
+            }
         } else if (!val) {
             // Cleared input
             clearTable();
@@ -102,10 +104,12 @@ function showProductTypeDropdown(items) {
 
         item.addEventListener('mousedown', (e) => {
             e.preventDefault();
+            clearTimeout(productTypeSearchTimeout);
             const input = document.getElementById('product_type');
             input.value = pt;
             input.dispatchEvent(new Event('input', { bubbles: true }));
             input.dispatchEvent(new Event('change', { bubbles: true }));
+            clearTimeout(productTypeSearchTimeout);
             hideProductTypeDropdown();
             input.blur();
             selectProductType(pt);
@@ -188,8 +192,13 @@ function updateLimitaryHoursDisplay(ptype) {
     }
 }
 
-function selectProductType(ptype) {
+function selectProductType(ptype, force = false) {
     if (!ptype) return;
+    clearTimeout(productTypeSearchTimeout);
+
+    if (!force && ptype === currentProductType) {
+        return;
+    }
     currentProductType = ptype;
 
     const rows = configMap[ptype] || [];
@@ -237,6 +246,7 @@ function renderInitialEmptyState(message = 'Vui lòng chọn loại sản phẩm
 }
 
 function clearTable() {
+    clearTimeout(productTypeSearchTimeout);
     currentProductType = '';
     renderInitialEmptyState('Vui lòng chọn Loại sản phẩm (Product Type) để xem thông số kỹ thuật.');
 }

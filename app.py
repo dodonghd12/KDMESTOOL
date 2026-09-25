@@ -15,8 +15,6 @@ import glob
 from typing import Optional
 from db_execute import (execute_pg_select_query, execute_pg_update_query, execute_pg_dev_select_query, execute_pg_insert_query)
 from db_connections import (
-    connect_pg_db,
-    connect_pg_db_dev,
     get_pg_connection,
     get_pg_dev_connection,
     DatabaseError,
@@ -47,8 +45,6 @@ _actions_pipeline_lock = threading.Lock()
 
 _technical_specifications_cache = {'timestamp': 0, 'data': None}
 _technical_specifications_lock = threading.Lock()
-_label_config_cache = _technical_specifications_cache
-_label_config_lock = _technical_specifications_lock
 
 LOG_YAML_DELETED_NETWORK_PATH = r"\\198.1.10.2\Vitinh\Thu\QUAN TRONG KHONG XOA\log_yaml_deleted_alerts.jsonl"
 LOG_YAML_DELETED_LOCAL_PATH = os.path.join(os.path.dirname(__file__), "log_yaml_deleted_alerts.jsonl")
@@ -340,8 +336,6 @@ def get_technical_specifications_data(force_refresh: bool = False) -> dict:
     except Exception as e:
         print(f"Error parsing technical-specifications yaml: {e}")
         return {'product_types': [], 'config_map': {}, 'keys_by_product_type': {}, 'limitary_hours': {}}
-
-get_label_config_data = get_technical_specifications_data
 
 def resolve_recipe_path(project_id: int, recipe_id: str, product_type: str = '') -> Optional[str]:
     cache_key = (project_id, recipe_id)
@@ -1066,23 +1060,16 @@ def get_pg_table_columns_meta(schema_name, table_name):
             return _pg_table_columns_cache[key]
     
     cols = []
-    conn = connect_pg_db()
-    if conn:
-        try:
-            cur = conn.cursor()
-            cur.execute("""
-                SELECT column_name, data_type, udt_name 
-                FROM information_schema.columns 
-                WHERE table_schema = %s AND table_name = %s 
-                ORDER BY ordinal_position
-            """, (schema_name, table_name))
-            for r in cur.fetchall():
-                cols.append({'name': r[0], 'type': r[1], 'udt': r[2]})
-            cur.close()
-        except Exception as e:
-            print(f"Error fetching table columns for {schema_name}.{table_name}: {e}")
-        finally:
-            conn.close()
+    try:
+        rows, _ = execute_pg_select_query("""
+            SELECT column_name, data_type, udt_name 
+            FROM information_schema.columns 
+            WHERE table_schema = %s AND table_name = %s 
+            ORDER BY ordinal_position
+        """, (schema_name, table_name))
+        cols = [{'name': r[0], 'type': r[1], 'udt': r[2]} for r in rows]
+    except Exception as e:
+        print(f"Error fetching table columns for {schema_name}.{table_name}: {e}")
             
     with _pg_table_columns_lock:
         _pg_table_columns_cache[key] = cols
@@ -1793,11 +1780,7 @@ def get_used_history_by_barcode():
     ]
 
     try:
-        conn = connect_pg_db()
-        if not conn:
-            return jsonify({'success': False, 'message': 'Không thể kết nối đến cơ sở dữ liệu'})
-        
-        try:
+        with get_pg_connection() as conn:
             cursor = conn.cursor()
 
             # 1. Get product_id from material_resource
@@ -1955,9 +1938,6 @@ def get_used_history_by_barcode():
                 'result': result_rows,
                 'columns': columns
             })
-
-        finally:
-            conn.close()
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
@@ -3229,8 +3209,8 @@ def fetch_yaml_content():
             if detected_pt:
                 actual_product_type = detected_pt
 
-        label_config_data = get_label_config_data()
-        keys_map = label_config_data.get('keys_by_product_type', {})
+        spec_data = get_technical_specifications_data()
+        keys_map = spec_data.get('keys_by_product_type', {})
         
         label_keys = keys_map.get(actual_product_type)
         if label_keys is None:
@@ -4375,34 +4355,19 @@ def magic_winx_execute():
     """
 
     try:
-        conn   = connect_pg_db()
-        cursor = conn.cursor()
         inserted = 0
         errors   = []
-
-        if conn is None:
-            return jsonify({
-                'success': False,
-                'message': 'Không thể kết nối cơ sở dữ liệu'
-            })
-
-        for i, vals in enumerate(normalized_rows):
-
-            vals = tuple(
-                row.get(c)
-                for c in cols_order
-            )
-
-            try:
-                cursor.execute(insert_sql, vals)
-                inserted += 1
-            except Exception as row_err:
-                errors.append({'row': i + 1, 'error': str(row_err)})
-                conn.rollback()
-
-        conn.commit()
-        cursor.close()
-        conn.close()
+        with get_pg_connection() as conn:
+            with conn.cursor() as cursor:
+                for i, row in enumerate(normalized_rows):
+                    vals = tuple(row.get(c) for c in cols_order)
+                    try:
+                        cursor.execute(insert_sql, vals)
+                        inserted += 1
+                    except Exception as row_err:
+                        errors.append({'row': i + 1, 'error': str(row_err)})
+                        conn.rollback()
+            conn.commit()
 
         return jsonify({
             'success':  True,
@@ -4436,151 +4401,105 @@ def magic_winx_update():
         })
 
     try:
-
         import json as _json
-        from db_connections import connect_pg_db
-
-        conn = connect_pg_db()
-        cursor = conn.cursor()
 
         updated = 0
         errors = []
 
-        for item in updates:
+        with get_pg_connection() as conn:
+            cursor = conn.cursor()
 
-            sequence = item.get('sequence')
-            new_resource_id = str(
-                item.get('new_resource_id') or ''
-            ).strip()
+            for item in updates:
+                sequence = item.get('sequence')
+                new_resource_id = str(item.get('new_resource_id') or '').strip()
+                station = str(item.get('station') or '').strip()
 
-            station = str(
-                item.get('station') or ''
-            ).strip()
-
-            if sequence is None:
-                errors.append({
-                    'sequence': sequence,
-                    'error': 'Thiếu sequence'
-                })
-                continue
-
-            if not new_resource_id:
-                errors.append({
-                    'sequence': sequence,
-                    'error': 'Thiếu new_resource_id'
-                })
-                continue
-
-            try:
-
-                sequence = int(sequence)
-
-                find_sql = """
-                    SELECT fr.id, fr.materials
-                    FROM kvmes.feed_record fr
-                    WHERE fr.id IN (
-                        SELECT UNNEST(records_id)
-                        FROM kvmes.batch
-                        WHERE TRIM(work_order) = TRIM(%s)
-                          AND "number" = %s
-                    )
-                """
-
-                cursor.execute(
-                    find_sql,
-                    (
-                        work_order_id,
-                        sequence
-                    ))
-
-                feed_rows = cursor.fetchall()
-
-                if not feed_rows:
-                    errors.append({
-                        'sequence': sequence,
-                        'error': 'Không tìm thấy feed_record'
-                    })
+                if sequence is None:
+                    errors.append({'sequence': sequence, 'error': 'Thiếu sequence'})
                     continue
 
-                sequence_updated = False
+                if not new_resource_id:
+                    errors.append({'sequence': sequence, 'error': 'Thiếu new_resource_id'})
+                    continue
 
-                for feed_id, materials in feed_rows:
-                    if materials is None:
-                        continue
+                try:
+                    sequence = int(sequence)
 
-                    if isinstance(materials, str):
-                        materials = _json.loads(materials)
-
-                    if not isinstance(materials, list):
-                        continue
-
-                    changed = False
-
-                    for material in materials:
-                        if not isinstance(material, dict):
-                            continue
-
-                        material_station = str(material.get('station') or '').strip()
-
-                        if station and material_station != station:
-                            continue
-
-                        feed_resources = material.get(
-                            'feed_resources',
-                            []
+                    find_sql = """
+                        SELECT fr.id, fr.materials
+                        FROM kvmes.feed_record fr
+                        WHERE fr.id IN (
+                            SELECT UNNEST(records_id)
+                            FROM kvmes.batch
+                            WHERE TRIM(work_order) = TRIM(%s)
+                              AND "number" = %s
                         )
+                    """
 
-                        if not isinstance(feed_resources, list):
+                    cursor.execute(find_sql, (work_order_id, sequence))
+                    feed_rows = cursor.fetchall()
+
+                    if not feed_rows:
+                        errors.append({'sequence': sequence, 'error': 'Không tìm thấy feed_record'})
+                        continue
+
+                    sequence_updated = False
+
+                    for feed_id, materials in feed_rows:
+                        if materials is None:
                             continue
 
-                        for feed_resource in feed_resources:
-                            if not isinstance(feed_resource, dict):
+                        if isinstance(materials, str):
+                            materials = _json.loads(materials)
+
+                        if not isinstance(materials, list):
+                            continue
+
+                        changed = False
+
+                        for material in materials:
+                            if not isinstance(material, dict):
                                 continue
 
-                            if feed_resource.get('product_type') != 'GREEN_TIRE':
+                            material_station = str(material.get('station') or '').strip()
+                            if station and material_station != station:
                                 continue
 
-                            old_resource_id = feed_resource.get('resource_id')
-                            if not old_resource_id:
+                            feed_resources = material.get('feed_resources', [])
+                            if not isinstance(feed_resources, list):
                                 continue
 
-                            feed_resource['resource_id'] = new_resource_id
-                            changed = True
+                            for feed_resource in feed_resources:
+                                if not isinstance(feed_resource, dict):
+                                    continue
 
-                    if changed:
-                        update_sql = """
-                            UPDATE kvmes.feed_record
-                            SET materials = %s
-                            WHERE id = %s
-                        """
+                                if feed_resource.get('product_type') != 'GREEN_TIRE':
+                                    continue
 
-                        cursor.execute(
-                            update_sql,
-                            (
-                                _json.dumps(materials, ensure_ascii=False),
-                                feed_id
-                            ))
+                                old_resource_id = feed_resource.get('resource_id')
+                                if not old_resource_id:
+                                    continue
 
-                        updated += 1
-                        sequence_updated = True
+                                feed_resource['resource_id'] = new_resource_id
+                                changed = True
 
-                if not sequence_updated:
-                    errors.append({
-                        'sequence': sequence,
-                        'error': 'Không tìm thấy GREEN_TIRE phù hợp để update'
-                    })
+                        if changed:
+                            update_sql = """
+                                UPDATE kvmes.feed_record
+                                SET materials = %s
+                                WHERE id = %s
+                            """
+                            cursor.execute(update_sql, (_json.dumps(materials, ensure_ascii=False), feed_id))
+                            updated += 1
+                            sequence_updated = True
 
-            except Exception as row_err:
+                    if not sequence_updated:
+                        errors.append({'sequence': sequence, 'error': 'Không tìm thấy GREEN_TIRE phù hợp để update'})
 
-                errors.append({
-                    'sequence': sequence,
-                    'error': str(row_err)
-                })
+                except Exception as row_err:
+                    errors.append({'sequence': sequence, 'error': str(row_err)})
 
-        conn.commit()
-
-        cursor.close()
-        conn.close()
+            conn.commit()
 
         return jsonify({
             'success': True,
@@ -4593,14 +4512,6 @@ def magic_winx_update():
         })
 
     except Exception as e:
-
-        try:
-            conn.rollback()
-            cursor.close()
-            conn.close()
-        except Exception:
-            pass
-
         return jsonify({
             'success': False,
             'message': f'Lỗi update: {str(e)}'
@@ -5416,15 +5327,10 @@ def magic_winx_insert_material_resource():
     """
 
     try:
-        conn = connect_pg_db()
-        if conn is None:
-            return jsonify({'success': False, 'message': 'Không thể kết nối cơ sở dữ liệu'})
-
-        cursor = conn.cursor()
-        cursor.execute(insert_sql, vals)
-        conn.commit()
-        cursor.close()
-        conn.close()
+        with get_pg_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(insert_sql, vals)
+            conn.commit()
 
         return jsonify({
             'success': True,

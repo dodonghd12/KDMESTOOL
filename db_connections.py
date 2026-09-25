@@ -200,19 +200,3 @@ def get_pg_connection():
 def get_pg_dev_connection():
     """Context manager lấy kết nối Dev từ connection pool."""
     return dev_pool.connection()
-
-def connect_pg_db():
-    """Lấy PooledConnection từ Production pool (tự động hoàn trả khi gọi conn.close())."""
-    try:
-        return prod_pool.get_connection()
-    except Exception as e:
-        print(f"Error getting connection from prod pool: {e}")
-        return None
-
-def connect_pg_db_dev():
-    """Lấy PooledConnection từ Dev pool (tự động hoàn trả khi gọi conn.close())."""
-    try:
-        return dev_pool.get_connection()
-    except Exception as e:
-        print(f"Error getting connection from dev pool: {e}")
-        return None
