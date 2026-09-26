@@ -4567,6 +4567,11 @@ window.jumpToYamlLine = function(lineIdx) {
 };
 
 function filterClientResult(keyword) {
+    if (typeof window.customClientSearchHandler === 'function') {
+        window.customClientSearchHandler(keyword);
+        return;
+    }
+
     if (['outputByBarcode', 'outputByRecipe'].includes(activeSearchContext)) {
         filterSubOutputBarcode(keyword);
         return;
@@ -5021,6 +5026,104 @@ function setTableData(result, columns, tableType = null, customEmptyMsg = null, 
     } else {
         Toast.success('Thành công', customSuccessMsg || `Tải thành công ${rawTableData.length.toLocaleString()} dòng dữ liệu`);
     }
+}
+
+/**
+ * Render component Pagination chuẩn shadcn/ui với PaginationEllipsis
+ * Landmark: <nav aria-label="pagination">
+ * Hiển thị số trang 1-based, hỗ trợ Previous/Next, ellipsis (...), aria-current="page"
+ * @param {HTMLElement} navElement - Thẻ <nav aria-label="pagination">
+ * @param {number} currentPage - Trang hiện tại (1-based)
+ * @param {number} totalPages - Tổng số trang (1-based)
+ * @param {Function} onPageChange - Callback khi đổi trang (newPage: number)
+ */
+function renderShadcnPagination(navElement, currentPage, totalPages, onPageChange) {
+    if (!navElement) return;
+
+    if (!totalPages || totalPages <= 1) {
+        navElement.classList.add('hidden');
+        navElement.innerHTML = '';
+        return;
+    }
+
+    navElement.classList.remove('hidden');
+
+    // Canonical shadcn/ui range algorithm
+    const items = [];
+    if (totalPages <= 7) {
+        for (let i = 1; i <= totalPages; i++) items.push(i);
+    } else {
+        if (currentPage <= 4) {
+            items.push(1, 2, 3, 4, 5, 'ellipsis', totalPages);
+        } else if (currentPage >= totalPages - 3) {
+            items.push(1, 'ellipsis', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+        } else {
+            items.push(1, 'ellipsis', currentPage - 1, currentPage, currentPage + 1, 'ellipsis', totalPages);
+        }
+    }
+
+    let html = '<ul class="pagination-content">';
+
+    // Previous Button
+    const prevDisabled = (currentPage <= 1);
+    html += `
+        <li class="pagination-item">
+            <button type="button" class="pagination-link pagination-previous" aria-label="Go to previous page" ${prevDisabled ? 'disabled aria-disabled="true"' : ''} data-page="${currentPage - 1}">
+                <span class="material-symbols-outlined" aria-hidden="true">chevron_left</span>
+                <span>Trước</span>
+            </button>
+        </li>
+    `;
+
+    // Page Links & Ellipsis
+    items.forEach(item => {
+        if (item === 'ellipsis') {
+            html += `
+                <li class="pagination-item">
+                    <span aria-hidden="true" class="pagination-ellipsis" title="Thêm trang">
+                        <span class="material-symbols-outlined">more_horiz</span>
+                        <span class="sr-only">Thêm trang</span>
+                    </span>
+                </li>
+            `;
+        } else {
+            const isCurrent = (item === currentPage);
+            html += `
+                <li class="pagination-item">
+                    <button type="button" class="pagination-link" aria-label="Trang ${item}" ${isCurrent ? 'aria-current="page"' : ''} data-page="${item}">
+                        ${item}
+                    </button>
+                </li>
+            `;
+        }
+    });
+
+    // Next Button
+    const nextDisabled = (currentPage >= totalPages);
+    html += `
+        <li class="pagination-item">
+            <button type="button" class="pagination-link pagination-next" aria-label="Go to next page" ${nextDisabled ? 'disabled aria-disabled="true"' : ''} data-page="${currentPage + 1}">
+                <span>Sau</span>
+                <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
+            </button>
+        </li>
+    `;
+
+    html += '</ul>';
+    navElement.innerHTML = html;
+
+    // Attach click listener
+    navElement.querySelectorAll('.pagination-link:not([disabled]):not([aria-current="page"])').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const targetPage = parseInt(btn.dataset.page, 10);
+            if (targetPage && targetPage >= 1 && targetPage <= totalPages && targetPage !== currentPage) {
+                if (typeof onPageChange === 'function') {
+                    onPageChange(targetPage);
+                }
+            }
+        });
+    });
 }
 
 async function apiFetch(url, options = {}) {

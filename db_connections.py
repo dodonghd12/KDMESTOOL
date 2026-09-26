@@ -1,5 +1,9 @@
 import pg8000
 import pg8000.exceptions
+try:
+    import pyodbc
+except ImportError:
+    pyodbc = None
 import queue
 import threading
 import time
@@ -200,3 +204,82 @@ def get_pg_connection():
 def get_pg_dev_connection():
     """Context manager lấy kết nối Dev từ connection pool."""
     return dev_pool.connection()
+
+# ==============================================================================
+# SQL Server ERP Configuration & Connection (198.1.10.33)
+# ==============================================================================
+ERP_MSSQL_HOST = "198.1.10.33"
+ERP_MSSQL_DB = "erp"
+ERP_MSSQL_USER = "kendakv2"
+ERP_MSSQL_PWD = "kenda123"
+
+def _create_mssql_connection(timeout=8):
+    """
+    Tạo kết nối tới SQL Server ERP 10.33:
+    1. Thử qua pyodbc với các driver tương thích.
+    2. Thử qua adodbapi (SQLOLEDB / MSOLEDBSQL) nếu pyodbc không khả dụng hoặc lỗi.
+    """
+    last_err = None
+
+    # 1. Thử qua pyodbc nếu đã cài đặt
+    if pyodbc is not None:
+        drivers = pyodbc.drivers() if hasattr(pyodbc, 'drivers') else []
+        conn_strs = []
+        if 'ODBC Driver 18 for SQL Server' in drivers:
+            conn_strs.append(f"DRIVER={{ODBC Driver 18 for SQL Server}};SERVER={ERP_MSSQL_HOST};DATABASE={ERP_MSSQL_DB};UID={ERP_MSSQL_USER};PWD={ERP_MSSQL_PWD};Encrypt=Mandatory;TrustServerCertificate=yes;")
+        if 'ODBC Driver 17 for SQL Server' in drivers:
+            conn_strs.append(f"DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={ERP_MSSQL_HOST};DATABASE={ERP_MSSQL_DB};UID={ERP_MSSQL_USER};PWD={ERP_MSSQL_PWD};Encrypt=yes;TrustServerCertificate=yes;")
+        for d_ver in ('ODBC Driver 13 for SQL Server', 'ODBC Driver 11 for SQL Server'):
+            if d_ver in drivers:
+                conn_strs.append(f"DRIVER={{{d_ver}}};SERVER={ERP_MSSQL_HOST};DATABASE={ERP_MSSQL_DB};UID={ERP_MSSQL_USER};PWD={ERP_MSSQL_PWD};Encrypt=yes;TrustServerCertificate=yes;")
+        for ncl in ('SQL Server Native Client 11.0', 'SQL Server Native Client 10.0'):
+            if ncl in drivers:
+                conn_strs.append(f"DRIVER={{{ncl}}};SERVER={ERP_MSSQL_HOST};DATABASE={ERP_MSSQL_DB};UID={ERP_MSSQL_USER};PWD={ERP_MSSQL_PWD};")
+        if 'SQL Server' in drivers or not conn_strs:
+            conn_strs.append(f"DRIVER={{SQL Server}};SERVER={ERP_MSSQL_HOST};DATABASE={ERP_MSSQL_DB};UID={ERP_MSSQL_USER};PWD={ERP_MSSQL_PWD};")
+            conn_strs.append(f"DRIVER={{ODBC Driver 18 for SQL Server}};SERVER={ERP_MSSQL_HOST};DATABASE={ERP_MSSQL_DB};UID={ERP_MSSQL_USER};PWD={ERP_MSSQL_PWD};Encrypt=Mandatory;TrustServerCertificate=yes;")
+
+        for c_str in conn_strs:
+            try:
+                return pyodbc.connect(c_str, timeout=timeout)
+            except Exception as e:
+                last_err = e
+                continue
+
+    # 2. Thử qua adodbapi nếu có sẵn (Windows OLE DB)
+    try:
+        import adodbapi
+        providers = [
+            f"Provider=SQLOLEDB;Data Source={ERP_MSSQL_HOST};Initial Catalog={ERP_MSSQL_DB};User ID={ERP_MSSQL_USER};Password={ERP_MSSQL_PWD};",
+            f"Provider=MSOLEDBSQL;Data Source={ERP_MSSQL_HOST};Initial Catalog={ERP_MSSQL_DB};User ID={ERP_MSSQL_USER};Password={ERP_MSSQL_PWD};Trust Server Certificate=True;",
+            f"Provider=MSDASQL;Driver={{SQL Server}};Server={ERP_MSSQL_HOST};Database={ERP_MSSQL_DB};Uid={ERP_MSSQL_USER};Pwd={ERP_MSSQL_PWD};"
+        ]
+        for p_str in providers:
+            try:
+                return adodbapi.connect(p_str, timeout=timeout)
+            except Exception as e:
+                last_err = e
+                continue
+    except ImportError:
+        pass
+
+    raise DatabaseConnectionError(f"Không thể kết nối đến SQL Server ERP ({ERP_MSSQL_HOST}/{ERP_MSSQL_DB}): {last_err}")
+
+@contextmanager
+def get_erp_mssql_connection(timeout=8):
+    """
+    Context manager kết nối tới SQL Server ERP (198.1.10.33/erp).
+    Tự động thử các driver tương thích trên hệ điều hành và giải phóng kết nối sau khi hoàn tất.
+    """
+    conn = _create_mssql_connection(timeout=timeout)
+    try:
+        yield conn
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+# Aliases
+get_mssql_connection = get_erp_mssql_connection
+connect_erp_mssql = get_erp_mssql_connection

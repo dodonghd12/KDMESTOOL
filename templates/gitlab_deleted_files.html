@@ -51,17 +51,22 @@
             </div>
 
             <div class="table-footer hidden">
-                <div class="row-count">Số dòng: <span id="rowCount">0</span></div>
-                <button class="btn-export-excel" id="exportExcelBtn" aria-label="Xuất dữ liệu ra file Excel">
-                    <div class="btn-export-excel-wrapper">
-                        <div class="text">Xuất Excel</div>
-                        <span class="icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" width="2em" height="2em" preserveAspectRatio="xMidYMid meet" viewBox="0 0 24 24">
-                                <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 0 0 4.561 21h14.878a2 2 0 0 0 1.94-1.515L22 17"></path>
-                            </svg>
-                        </span>
-                    </div>
-                </button>
+                <div class="table-footer-left">
+                    <div class="row-count">Số dòng: <span id="rowCount">0</span></div>
+                </div>
+                <nav aria-label="pagination" class="pagination-nav" id="paginationNav"></nav>
+                <div class="table-footer-right">
+                    <button class="btn-export-excel" id="exportExcelBtn" aria-label="Xuất dữ liệu ra file Excel">
+                        <div class="btn-export-excel-wrapper">
+                            <div class="text">Xuất Excel</div>
+                            <span class="icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" width="2em" height="2em" preserveAspectRatio="xMidYMid meet" viewBox="0 0 24 24">
+                                    <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 0 0 4.561 21h14.878a2 2 0 0 0 1.94-1.515L22 17"></path>
+                                </svg>
+                            </span>
+                        </div>
+                    </button>
+                </div>
             </div>
         </div>
     </div>

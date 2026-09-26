@@ -58,8 +58,11 @@
             </div>
 
             <div class="table-footer hidden">
-                <div class="row-count">Số dòng: <span id="rowCount">0</span></div>
-                <div style="display: flex; align-items: center; gap: 10px;">
+                <div class="table-footer-left">
+                    <div class="row-count">Số dòng: <span id="rowCount">0</span></div>
+                </div>
+                <nav aria-label="pagination" class="pagination-nav" id="paginationNav"></nav>
+                <div class="table-footer-right" style="display: flex; align-items: center; gap: 10px;">
                     <button class="btn-insert-query" id="btnInsertQuery" aria-label="Tạo và xuất file câu lệnh Insert PostgreSQL">
                         <div class="btn-insert-query-wrapper">
                             <div class="text">Insert Query</div>

@@ -13,7 +13,7 @@ from datetime import datetime, timezone, timedelta
 import re
 import glob
 from typing import Optional
-from db_execute import (execute_pg_select_query, execute_pg_update_query, execute_pg_dev_select_query, execute_pg_insert_query)
+from db_execute import (execute_pg_select_query, execute_pg_update_query, execute_pg_dev_select_query, execute_pg_insert_query, execute_mssql_select_query)
 from db_connections import (
     get_pg_connection,
     get_pg_dev_connection,
@@ -208,12 +208,68 @@ def get_gitlab_session():
             _gitlab_session.headers['PRIVATE-TOKEN'] = token
     return _gitlab_session
 
+def get_prdexp_expdays() -> dict:
+    """
+    Truy vấn bảng [erp].[dbo].[prdexp] trên SQL Server 10.33 để lấy hạn sử dụng expday theo từng loại sản phẩm.
+    """
+    query = """
+        SELECT [id], [subno], [factory], [ptype], [itcls], [rubkind], [rubno], [expday], [indat], [usrno]
+        FROM [erp].[dbo].[prdexp]
+        WHERE factory = 'V'
+          AND ptype NOT IN ('RD', 'RR', 'RC', 'RB')
+    """
+    rubkind_map = {}
+    try:
+        rows, cols = execute_mssql_select_query(query)
+        cols_lower = [str(c).lower() for c in cols]
+        rubkind_idx = cols_lower.index('rubkind') if 'rubkind' in cols_lower else 5
+        expday_idx = cols_lower.index('expday') if 'expday' in cols_lower else 7
+
+        for r in rows:
+            rk = str(r[rubkind_idx]).strip().upper() if len(r) > rubkind_idx and r[rubkind_idx] is not None else ""
+            ed = r[expday_idx] if len(r) > expday_idx else None
+            if rk and ed is not None:
+                rubkind_map[rk] = ed
+    except Exception as e:
+        print(f"Error querying prdexp from SQL Server 10.33: {e}")
+        return {}
+
+    # Quy tắc ánh xạ Product Type -> danh sách rubkind
+    product_type_rubkinds = {
+        'STEEL_BELT': ['TRANG BO KEM'],
+        'PLY': ['TRANG BO VAI'],
+        'CARCASS_PLY': ['CAT BO VAI'],
+        'INNER_LINER': ['KMT'],
+        'BEAD': ['VONG TANH'],
+        'BEAD_AND_BEAD_FILLER_PREASSEMBLY': ['TANH BA CANH'],
+        'CHAFER': ['TANH CHONG CO'],
+        'BELT_AND_EDGE_GUM_PREASSEMBLY': ['CAT BO KEM', 'CAT BO KEM (EDGE)'],
+        'SQUEEZE': ['EDGE'],
+        'CAP_PLY': ['SNOW', 'BIG SNOW'],
+        'SIDEWALL': ['KH'],
+        'TREAD': ['KMN'],
+        'GREEN_TIRE': ['VO SONG'],
+    }
+
+    expday_map = {}
+    for ptype, kinds in product_type_rubkinds.items():
+        matched_expdays = []
+        for k in kinds:
+            val = rubkind_map.get(k.upper())
+            if val is not None and val not in matched_expdays:
+                matched_expdays.append(val)
+        if matched_expdays:
+            expday_map[ptype] = " / ".join(str(x) for x in matched_expdays) if len(matched_expdays) > 1 else str(matched_expdays[0])
+
+    return expday_map
+
 def get_technical_specifications_data(force_refresh: bool = False) -> dict:
     global _technical_specifications_cache
     now = time.time()
     with _technical_specifications_lock:
-        if not force_refresh and _technical_specifications_cache.get('data') and (now - _technical_specifications_cache.get('timestamp', 0) < 600):
-            return _technical_specifications_cache['data']
+        cached = _technical_specifications_cache.get('data')
+        if not force_refresh and cached and cached.get('expdays') and (now - _technical_specifications_cache.get('timestamp', 0) < 600):
+            return cached
 
     s = get_gitlab_session()
     
@@ -267,7 +323,7 @@ def get_technical_specifications_data(force_refresh: bool = False) -> dict:
 
     if not content_raw_lc:
         with _technical_specifications_lock:
-            return _technical_specifications_cache.get('data') or {'product_types': [], 'config_map': {}, 'keys_by_product_type': {}, 'limitary_hours': {}}
+            return _technical_specifications_cache.get('data') or {'product_types': [], 'config_map': {}, 'keys_by_product_type': {}, 'limitary_hours': {}, 'expdays': {}}
 
     try:
         parsed_yaml = yaml.safe_load(content_raw_lc)
@@ -323,19 +379,23 @@ def get_technical_specifications_data(force_refresh: bool = False) -> dict:
             except Exception as lh_err:
                 print(f"Error parsing limitary-hour yaml: {lh_err}")
 
+        # 3. Fetch expday from SQL Server 10.33/erp
+        expdays = get_prdexp_expdays()
+
         data = {
             'product_types': product_types,
             'config_map': config_map,
             'keys_by_product_type': keys_by_product_type,
-            'limitary_hours': limitary_hours
+            'limitary_hours': limitary_hours,
+            'expdays': expdays
         }
         with _technical_specifications_lock:
             _technical_specifications_cache['timestamp'] = now
             _technical_specifications_cache['data'] = data
         return data
     except Exception as e:
-        print(f"Error parsing technical-specifications yaml: {e}")
-        return {'product_types': [], 'config_map': {}, 'keys_by_product_type': {}, 'limitary_hours': {}}
+        print(f"Error parsing technical-specifications data: {e}")
+        return {'product_types': [], 'config_map': {}, 'keys_by_product_type': {}, 'limitary_hours': {}, 'expdays': {}}
 
 def resolve_recipe_path(project_id: int, recipe_id: str, product_type: str = '') -> Optional[str]:
     cache_key = (project_id, recipe_id)
@@ -3711,6 +3771,7 @@ def fetch_technical_specifications():
         'config_map': data.get('config_map', {}),
         'keys_by_product_type': data.get('keys_by_product_type', {}),
         'limitary_hours': data.get('limitary_hours', {}),
+        'expdays': data.get('expdays', {}),
         'columns': ['key', 'VN', 'CN', 'TW', 'EN', 'ID']
     })
     

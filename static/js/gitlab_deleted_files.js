@@ -2,10 +2,12 @@
  * ==============================================================================
  * KDMES TOOL — GITLAB DELETED FILES CONTROLLER
  * Truy vấn & Lọc danh sách file YAML bị xóa trên GitLab (Audit Log)
+ * Hỗ trợ Phân trang (shadcn/ui Pagination) & Tìm kiếm toàn cục trên tất cả các trang
  * ==============================================================================
  */
 
 let allFetchedRecords = [];
+let currentFilteredRecords = [];
 let tableColumns = [
     'Project',
     'File Name',
@@ -17,6 +19,31 @@ let tableColumns = [
     'Commit Message'
 ];
 let selectedProjectFilter = '';
+
+// Pagination State (1-based for user display, clamped, 0-based for slicing)
+const PAGE_SIZE = 30;
+let currentPage = 1;
+let totalPages = 1;
+
+/**
+ * Chuyển đổi số trang 1-based (người dùng) sang page index 0-based (backend/offset slice).
+ * DUY NHẤT một nơi trong code thực hiện việc chuyển đổi này.
+ * @param {number} page1 - Số trang 1-based (>= 1)
+ * @returns {number} - Page index 0-based (>= 0)
+ */
+function toZeroBasedPageIndex(page1) {
+    return Math.max(0, (parseInt(page1, 10) || 1) - 1);
+}
+
+function calculateTotalPages(totalRecords, pageSize) {
+    if (!totalRecords || totalRecords <= 0) return 1;
+    return Math.ceil(totalRecords / pageSize);
+}
+
+function clampPage(page, total) {
+    if (total <= 0) return 1;
+    return Math.min(Math.max(1, page), total);
+}
 
 const PROJECT_ITEMS = [
     'kitting',
@@ -34,13 +61,20 @@ function initializeGitlabDeletedFiles() {
     initControls();
     initProjectDropdown();
 
+    // Hook custom search handler cho main.js clientSearch
+    window.customClientSearchHandler = function () {
+        applyAllFilters(true);
+    };
+
     // Tự động tải dữ liệu ban đầu khi mở trang
     fetchDeletedFilesLog();
 }
 
 function resetAllFiltersAndTable() {
-    // 1. Reset biến lưu trạng thái lọc
+    // 1. Reset biến lưu trạng thái lọc và phân trang
     selectedProjectFilter = '';
+    currentPage = 1;
+    totalPages = 1;
 
     // 2. Reset DOM controls và gỡ bỏ class has-value để ẩn nút clear-btn (x)
     const projectInput = document.getElementById('project_filter');
@@ -57,8 +91,9 @@ function resetAllFiltersAndTable() {
         if (box) box.classList.remove('has-value');
     }
 
-    // 3. Clear toàn bộ nội dung table container
+    // 3. Clear toàn bộ nội dung table container và pagination nav
     allFetchedRecords = [];
+    currentFilteredRecords = [];
     rawTableData = [];
     const thead = document.getElementById('tableHead');
     const tbody = document.getElementById('tableBody');
@@ -66,6 +101,12 @@ function resetAllFiltersAndTable() {
     if (thead) thead.innerHTML = '';
     if (tbody) tbody.innerHTML = '';
     if (rowCount) rowCount.textContent = '0';
+
+    const paginationNav = document.getElementById('paginationNav');
+    if (paginationNav) {
+        paginationNav.innerHTML = '';
+        paginationNav.classList.add('hidden');
+    }
 
     const tableFooter = document.querySelector('.table-footer');
     if (tableFooter) tableFooter.classList.add('hidden');
@@ -85,7 +126,7 @@ function initControls() {
         searchInput.disabled = false;
         searchInput.removeAttribute('disabled');
         searchInput.addEventListener('input', () => {
-            applyAllFilters();
+            applyAllFilters(true);
         });
     }
 
@@ -132,7 +173,7 @@ function initProjectDropdown() {
                 box.classList.remove('has-value');
             }
         }
-        applyAllFilters();
+        applyAllFilters(true);
     });
 
     document.addEventListener('click', (e) => {
@@ -183,18 +224,23 @@ function renderProjectDropdownItems() {
             input.dispatchEvent(new Event('change', { bubbles: true }));
             dropdown.classList.remove('show');
             input.blur();
-            applyAllFilters();
+            applyAllFilters(true);
         });
 
         dropdown.appendChild(item);
     });
 }
 
-function applyAllFilters() {
+/**
+ * Áp dụng bộ lọc (Project + Client Search) trên toàn bộ danh sách dữ liệu gốc
+ * Sau đó tính toán lại tổng số trang và clamp trang hiện tại
+ * @param {boolean} resetPageToOne - true nếu cần đưa về trang 1 khi lọc thay đổi
+ */
+function applyAllFilters(resetPageToOne = false) {
     const searchInput = document.getElementById('clientSearch');
     const searchTerm = searchInput ? searchInput.value.trim().toLowerCase() : '';
 
-    let filtered = allFetchedRecords.filter(row => {
+    currentFilteredRecords = allFetchedRecords.filter(row => {
         // row[0]: Project, row[1]: File Name, ...
         const rowProject = String(row[0] || '').trim();
 
@@ -205,7 +251,7 @@ function applyAllFilters() {
             }
         }
 
-        // 2. Lọc theo Client Search (toàn bộ các cột)
+        // 2. Lọc theo Client Search (toàn bộ các cột trên toàn bộ dữ liệu)
         if (searchTerm) {
             const matches = row.some(cell => String(cell || '').toLowerCase().includes(searchTerm));
             if (!matches) {
@@ -216,24 +262,61 @@ function applyAllFilters() {
         return true;
     });
 
-    rawTableData = filtered;
+    // rawTableData luôn chứa toàn bộ danh sách đã lọc (phục vụ Xuất Excel toàn bộ)
+    rawTableData = currentFilteredRecords;
     rawTableColumns = tableColumns;
 
-    displayTable(filtered, tableColumns);
+    // 1. Tính toán lại tổng số trang (total pages)
+    totalPages = calculateTotalPages(currentFilteredRecords.length, PAGE_SIZE);
+
+    // 2. Đảm bảo trang hiện tại (current page) không vượt quá tổng số trang mới bằng cách điều chỉnh (clamp)
+    if (resetPageToOne) {
+        currentPage = 1;
+    } else {
+        currentPage = clampPage(currentPage, totalPages);
+    }
+
+    renderCurrentPage();
+}
+
+/**
+ * Hiển thị dữ liệu của trang hiện tại và cập nhật khu vực phân trang
+ */
+function renderCurrentPage() {
+    // Chuyển 1-based currentPage sang 0-based page index tại một nơi duy nhất
+    const page0 = toZeroBasedPageIndex(currentPage);
+    const startIdx = page0 * PAGE_SIZE;
+    const endIdx = startIdx + PAGE_SIZE;
+    const pageRows = currentFilteredRecords.slice(startIdx, endIdx);
+
+    displayTable(pageRows, tableColumns);
     ensureClientSearchEnabled();
 
     const rowCount = document.getElementById('rowCount');
     if (rowCount) {
-        rowCount.textContent = filtered.length.toLocaleString();
+        rowCount.textContent = currentFilteredRecords.length.toLocaleString();
     }
 
     const tableFooter = document.querySelector('.table-footer');
     if (tableFooter) {
-        if (filtered.length > 0) {
+        if (currentFilteredRecords.length > 0) {
             tableFooter.classList.remove('hidden');
         } else {
             tableFooter.classList.add('hidden');
         }
+    }
+
+    // Render component Pagination shadcn/ui ở chính giữa table-footer
+    const paginationNav = document.getElementById('paginationNav');
+    if (paginationNav) {
+        renderShadcnPagination(paginationNav, currentPage, totalPages, (newPage) => {
+            currentPage = clampPage(newPage, totalPages);
+            renderCurrentPage();
+            const tableScroll = document.querySelector('.table-scroll');
+            if (tableScroll) {
+                tableScroll.scrollTop = 0;
+            }
+        });
     }
 }
 
@@ -279,7 +362,7 @@ async function fetchDeletedFilesLog() {
                 'Commit Message'
             ];
 
-            applyAllFilters();
+            applyAllFilters(true);
 
             if (typeof Toast !== 'undefined' && Toast.success) {
                 Toast.success('Thành công', `Đã tải ${allFetchedRecords.length.toLocaleString()} bản ghi file bị xóa`);
@@ -287,7 +370,7 @@ async function fetchDeletedFilesLog() {
         } else {
             allFetchedRecords = [];
             tableColumns = data ? (data.columns || []) : [];
-            applyAllFilters();
+            applyAllFilters(true);
 
             if (typeof Toast !== 'undefined' && Toast.warning) {
                 Toast.warning('Không có dữ liệu', (data && data.message) ? data.message : 'Chưa có file YAML nào bị xóa được ghi nhận trong log.');
@@ -299,7 +382,7 @@ async function fetchDeletedFilesLog() {
             Toast.error('Lỗi kết nối', 'Không thể kết nối tới máy chủ để đọc file log.');
         }
         allFetchedRecords = [];
-        applyAllFilters();
+        applyAllFilters(true);
     } finally {
         if (checkBtn) {
             checkBtn.disabled = false;

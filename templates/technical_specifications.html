@@ -48,9 +48,13 @@
                         <span class="spec-stat-label">standing-time:</span>
                         <span class="spec-stat-value" id="standingTimeVal">-</span>
                     </div>
-                    <div class="spec-stat-badge" id="limitaryHourBadge" title="Thời hạn tối đa (max)">
-                        <span class="spec-stat-label">limitary-hour:</span>
+                    <div class="spec-stat-badge" id="limitaryHourBadge" title="Hạn sử dụng theo ngày (expday từ cấu hình KD / limitary-hour)">
+                        <span class="spec-stat-label">expday-kd:</span>
                         <span class="spec-stat-value" id="limitaryHourVal">-</span>
+                    </div>
+                    <div class="spec-stat-badge" id="expdayBadge" title="Hạn sử dụng theo ngày (expday từ SQL Server ERP 10.33)">
+                        <span class="spec-stat-label">expday-kv:</span>
+                        <span class="spec-stat-value" id="expdayVal">-</span>
                     </div>
                 </div>
                 <button class="btn-export-excel" id="exportExcelBtn" aria-label="Xuất dữ liệu ra file Excel">

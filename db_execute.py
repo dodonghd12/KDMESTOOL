@@ -2,6 +2,7 @@ import json
 from db_connections import (
     get_pg_connection,
     get_pg_dev_connection,
+    get_erp_mssql_connection,
     DatabaseError,
     DatabaseConnectionError,
     DatabaseQueryError
@@ -117,3 +118,31 @@ def execute_pg_insert_query(table_name, result, column_names):
             return True
     except Exception as e:
         raise _classify_db_exception(e, f"PostgreSQL Insert vào {table_name}")
+
+# ==============================================================================
+# SQL Server ERP Select Query (198.1.10.33/erp)
+# ==============================================================================
+def execute_mssql_select_query(query, params=()):
+    """
+    Thực thi câu lệnh SELECT trên SQL Server ERP (198.1.10.33/erp).
+    Trả về: (result, column_names) với result là list các dòng dữ liệu.
+    Ném ngoại lệ: DatabaseConnectionError nếu lỗi kết nối, DatabaseQueryError nếu lỗi cú pháp/truy vấn.
+    """
+    try:
+        with get_erp_mssql_connection() as conn:
+            cursor = conn.cursor()
+            if params:
+                cursor.execute(query, params)
+            else:
+                cursor.execute(query)
+            result = cursor.fetchall()
+            rows = [list(row) for row in result] if result else []
+            column_names = [desc[0] for desc in cursor.description] if cursor.description else []
+            cursor.close()
+            return rows, column_names
+    except Exception as e:
+        raise _classify_db_exception(e, "SQL Server ERP (198.1.10.33/erp)")
+
+# Aliases
+execute_erp_mssql_select_query = execute_mssql_select_query
+execute_sqlserver_select_query = execute_mssql_select_query

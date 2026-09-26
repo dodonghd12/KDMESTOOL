@@ -5,11 +5,80 @@
  * ==============================================================================
  */
 
+const PRODUCT_TYPE_DISPLAY_MAP = {
+    'INNER_LINER': 'I - INNER_LINER',
+    'CARCASS_PLY': 'P - CARCASS_PLY',
+    'SIDEWALL': 'S - SIDEWALL',
+    'TREAD': 'T - TREAD',
+    'BEAD': 'W - BEAD',
+    'BEAD_AND_BEAD_FILLER_PREASSEMBLY': 'W0 - BEAD_AND_BEAD_FILLER_PREASSEMBLY',
+    'CHAFER': 'W2 - CHAFER',
+    'GREEN_TIRE': 'G - GREEN_TIRE',
+    'STEEL_BELT': 'D - STEEL_BELT',
+    'PLY': 'D - PLY',
+    'BELT_AND_EDGE_GUM_PREASSEMBLY': 'B - BELT_AND_EDGE_GUM_PREASSEMBLY',
+    'SQUEEZE': 'R - SQUEEZE',
+    'CAP_PLY': 'N - CAP_PLY'
+};
+
+const PREFERRED_ORDER = [
+    'INNER_LINER',
+    'CARCASS_PLY',
+    'SIDEWALL',
+    'TREAD',
+    'BEAD',
+    'BEAD_AND_BEAD_FILLER_PREASSEMBLY',
+    'CHAFER',
+    'GREEN_TIRE',
+    'STEEL_BELT',
+    'PLY',
+    'BELT_AND_EDGE_GUM_PREASSEMBLY',
+    'SQUEEZE',
+    'CAP_PLY'
+];
+
 let productTypes = [];
 let configMap = {};
 let limitaryHoursMap = {};
+let expdaysMap = {};
 let currentProductType = '';
 let productTypeSearchTimeout = null;
+
+function getProductTypeLabel(pt) {
+    if (!pt) return '';
+    return PRODUCT_TYPE_DISPLAY_MAP[pt.toUpperCase()] || pt;
+}
+
+function findProductType(val) {
+    if (!val) return null;
+    const clean = val.trim().toUpperCase();
+
+    // 1. Exact match against display label (e.g. "I - INNER_LINER")
+    for (const pt of productTypes) {
+        if (getProductTypeLabel(pt).toUpperCase() === clean) {
+            return pt;
+        }
+    }
+
+    // 2. Exact match against raw product type (e.g. "INNER_LINER")
+    for (const pt of productTypes) {
+        if (pt.toUpperCase() === clean) {
+            return pt;
+        }
+    }
+
+    // 3. Match against unique prefix code (e.g. "I", "W0", "W2")
+    const prefixMatches = productTypes.filter(pt => {
+        const label = getProductTypeLabel(pt).toUpperCase();
+        const parts = label.split(' - ');
+        return parts.length === 2 && parts[0].trim() === clean;
+    });
+    if (prefixMatches.length === 1) {
+        return prefixMatches[0];
+    }
+
+    return null;
+}
 
 document.addEventListener('DOMContentLoaded', async function () {
     initializeTechnicalSpecificationsEventListeners();
@@ -34,10 +103,19 @@ function initializeTechnicalSpecificationsEventListeners() {
     productTypeInput.addEventListener('blur', () => {
         setTimeout(() => {
             hideProductTypeDropdown();
-            // If user typed an exact match, auto-select it
+            // If user typed an exact match, auto-select it and format label
             const val = productTypeInput.value.trim().toUpperCase();
-            if (val && productTypes.includes(val) && val !== currentProductType) {
-                selectProductType(val);
+            if (val) {
+                const matched = findProductType(val);
+                if (matched) {
+                    productTypeInput.value = getProductTypeLabel(matched);
+                    const box = productTypeInput.closest('.input-box');
+                    if (box) box.classList.add('has-value');
+
+                    if (matched !== currentProductType) {
+                        selectProductType(matched);
+                    }
+                }
             }
         }, 220);
     });
@@ -50,10 +128,11 @@ function initializeTechnicalSpecificationsEventListeners() {
         showFilteredDropdown();
 
         // If exact match while typing, load table
-        if (val && productTypes.includes(val)) {
-            if (val !== currentProductType) {
+        const matched = findProductType(val);
+        if (matched) {
+            if (matched !== currentProductType) {
                 productTypeSearchTimeout = setTimeout(() => {
-                    selectProductType(val);
+                    selectProductType(matched);
                 }, 300);
             }
         } else if (!val) {
@@ -73,7 +152,12 @@ function showFilteredDropdown() {
         return;
     }
 
-    const filtered = productTypes.filter(pt => pt.toUpperCase().includes(val));
+    const filtered = productTypes.filter(pt => {
+        const label = getProductTypeLabel(pt).toUpperCase();
+        const raw = pt.toUpperCase();
+        return label.includes(val) || raw.includes(val);
+    });
+
     if (filtered.length > 0) {
         showProductTypeDropdown(filtered);
     } else {
@@ -95,7 +179,9 @@ function showProductTypeDropdown(items) {
     items.forEach(pt => {
         const item = document.createElement('div');
         item.className = 'dropdown-item';
-        item.textContent = pt;
+        const label = getProductTypeLabel(pt);
+        item.textContent = label;
+        item.title = label;
         item.dataset.value = pt;
 
         if (pt === currentProductType) {
@@ -106,7 +192,9 @@ function showProductTypeDropdown(items) {
             e.preventDefault();
             clearTimeout(productTypeSearchTimeout);
             const input = document.getElementById('product_type');
-            input.value = pt;
+            input.value = label;
+            const box = input.closest('.input-box');
+            if (box) box.classList.add('has-value');
             input.dispatchEvent(new Event('input', { bubbles: true }));
             input.dispatchEvent(new Event('change', { bubbles: true }));
             clearTimeout(productTypeSearchTimeout);
@@ -148,9 +236,20 @@ async function loadTechnicalSpecifications() {
             return;
         }
 
-        productTypes = res.product_types || [];
+        let rawTypes = res.product_types || [];
+        rawTypes.sort((a, b) => {
+            const idxA = PREFERRED_ORDER.indexOf(a);
+            const idxB = PREFERRED_ORDER.indexOf(b);
+            if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+            if (idxA !== -1) return -1;
+            if (idxB !== -1) return 1;
+            return a.localeCompare(b);
+        });
+
+        productTypes = rawTypes;
         configMap = res.config_map || {};
         limitaryHoursMap = res.limitary_hours || {};
+        expdaysMap = res.expdays || {};
 
         if (productTypes.length === 0) {
             Toast.warning('Thông báo', 'Không tìm thấy loại sản phẩm nào trong file cấu hình.');
@@ -168,15 +267,24 @@ async function loadTechnicalSpecifications() {
     }
 }
 
+function hoursToDays(hours) {
+    if (hours === null || hours === undefined || hours === '' || isNaN(hours)) return '-';
+    const num = Number(hours);
+    const days = num / 24;
+    return Number.isInteger(days) ? days : +(days.toFixed(2));
+}
+
 function updateLimitaryHoursDisplay(ptype) {
     const standingTimeVal = document.getElementById('standingTimeVal');
     const limitaryHourVal = document.getElementById('limitaryHourVal');
+    const expdayVal = document.getElementById('expdayVal');
 
     if (!standingTimeVal || !limitaryHourVal) return;
 
     if (!ptype) {
         standingTimeVal.textContent = '-';
         limitaryHourVal.textContent = '-';
+        if (expdayVal) expdayVal.textContent = '-';
         return;
     }
 
@@ -185,10 +293,15 @@ function updateLimitaryHoursDisplay(ptype) {
 
     if (lh) {
         standingTimeVal.textContent = (lh.standing_time !== null && lh.standing_time !== undefined) ? lh.standing_time : '-';
-        limitaryHourVal.textContent = (lh.limitary_hour !== null && lh.limitary_hour !== undefined) ? lh.limitary_hour : '-';
+        limitaryHourVal.textContent = (lh.limitary_hour !== null && lh.limitary_hour !== undefined) ? hoursToDays(lh.limitary_hour) : '-';
     } else {
         standingTimeVal.textContent = '-';
         limitaryHourVal.textContent = '-';
+    }
+
+    if (expdayVal) {
+        const ed = expdaysMap[key] || expdaysMap[ptype];
+        expdayVal.textContent = (ed !== null && ed !== undefined && ed !== '') ? ed : '-';
     }
 }
 
@@ -201,6 +314,7 @@ function selectProductType(ptype, force = false) {
     }
     currentProductType = ptype;
 
+    const label = getProductTypeLabel(ptype);
     const rows = configMap[ptype] || [];
     const columns = ['key', 'VN', 'CN', 'TW', 'EN', 'ID'];
 
@@ -211,8 +325,8 @@ function selectProductType(ptype, force = false) {
         rows,
         columns,
         'technical_specifications',
-        `Không có thông số kỹ thuật nào cho loại sản phẩm: ${ptype}`,
-        `Tải thành công thông số kỹ thuật: ${ptype} (${rows.length} dòng)`
+        `Không có thông số kỹ thuật nào cho loại sản phẩm: ${label}`,
+        `Tải thành công thông số kỹ thuật: ${label} (${rows.length} dòng)`
     );
 }
 

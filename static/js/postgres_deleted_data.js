@@ -2,15 +2,42 @@
  * ==============================================================================
  * KDMES TOOL — POSTGRES DELETED DATA CONTROLLER
  * Truy vấn & Lọc dữ liệu PostgreSQL bị xóa (Audit Log) và Xuất câu lệnh Insert Query
+ * Hỗ trợ Phân trang (shadcn/ui Pagination) & Tìm kiếm toàn cục trên tất cả các trang
  * ==============================================================================
  */
 
 let allFetchedRecords = [];
+let currentFilteredRecords = [];
 let tableColumns = ['Table', 'Time', 'client_ip', 'Database', 'Data'];
 let selectedTableFilter = '';
 let selectedFromDate = '';
 let selectedToDate = '';
 let flatpickrInstance = null;
+
+// Pagination State (1-based for user display, clamped, 0-based for slicing)
+const PAGE_SIZE = 30;
+let currentPage = 1;
+let totalPages = 1;
+
+/**
+ * Chuyển đổi số trang 1-based (người dùng) sang page index 0-based (backend/offset slice).
+ * DUY NHẤT một nơi trong code thực hiện việc chuyển đổi này.
+ * @param {number} page1 - Số trang 1-based (>= 1)
+ * @returns {number} - Page index 0-based (>= 0)
+ */
+function toZeroBasedPageIndex(page1) {
+    return Math.max(0, (parseInt(page1, 10) || 1) - 1);
+}
+
+function calculateTotalPages(totalRecords, pageSize) {
+    if (!totalRecords || totalRecords <= 0) return 1;
+    return Math.ceil(totalRecords / pageSize);
+}
+
+function clampPage(page, total) {
+    if (total <= 0) return 1;
+    return Math.min(Math.max(1, page), total);
+}
 
 const AUDIT_TABLES = [
     'material_resource',
@@ -35,15 +62,22 @@ function initializePostgresDeletedData() {
     initDatePicker();
     initTableDropdown();
 
+    // Hook custom search handler cho main.js clientSearch
+    window.customClientSearchHandler = function () {
+        applyAllFilters(true);
+    };
+
     // Tự động tải dữ liệu khi vào trang
     fetchDeletedRecordsLog();
 }
 
 function resetAllFiltersAndTable() {
-    // 1. Reset filter variables
+    // 1. Reset filter & pagination variables
     selectedTableFilter = '';
     selectedFromDate = '';
     selectedToDate = '';
+    currentPage = 1;
+    totalPages = 1;
 
     // 2. Reset DOM controls
     const tableInput = document.getElementById('table_filter');
@@ -68,8 +102,9 @@ function resetAllFiltersAndTable() {
         searchInput.value = '';
     }
 
-    // 3. Clear table container state
+    // 3. Clear table container state & pagination nav
     allFetchedRecords = [];
+    currentFilteredRecords = [];
     rawTableData = [];
     const thead = document.getElementById('tableHead');
     const tbody = document.getElementById('tableBody');
@@ -77,6 +112,12 @@ function resetAllFiltersAndTable() {
     if (thead) thead.innerHTML = '';
     if (tbody) tbody.innerHTML = '';
     if (rowCount) rowCount.textContent = '0';
+
+    const paginationNav = document.getElementById('paginationNav');
+    if (paginationNav) {
+        paginationNav.innerHTML = '';
+        paginationNav.classList.add('hidden');
+    }
 
     const tableFooter = document.querySelector('.table-footer');
     if (tableFooter) tableFooter.classList.add('hidden');
@@ -99,7 +140,7 @@ function initControls() {
         searchInput.disabled = false;
         searchInput.removeAttribute('disabled');
         searchInput.addEventListener('input', () => {
-            applyAllFilters();
+            applyAllFilters(true);
         });
     }
 
@@ -184,7 +225,7 @@ function initDatePicker() {
                 dateInput.value = '';
             }
 
-            applyAllFilters();
+            applyAllFilters(true);
         }
     });
 
@@ -196,7 +237,7 @@ function initDatePicker() {
             if (fromDateEl) fromDateEl.value = '';
             if (toDateEl) toDateEl.value = '';
             dateInput.value = '';
-            applyAllFilters();
+            applyAllFilters(true);
         }
     });
 }
@@ -229,7 +270,7 @@ function initTableDropdown() {
                 box.classList.remove('has-value');
             }
         }
-        applyAllFilters();
+        applyAllFilters(true);
     });
 
     document.addEventListener('click', (e) => {
@@ -280,18 +321,23 @@ function renderTableDropdownItems() {
             input.dispatchEvent(new Event('change', { bubbles: true }));
             dropdown.classList.remove('show');
             input.blur();
-            applyAllFilters();
+            applyAllFilters(true);
         });
 
         dropdown.appendChild(item);
     });
 }
 
-function applyAllFilters() {
+/**
+ * Áp dụng bộ lọc (Bảng + Ngày + Client Search) trên toàn bộ danh sách dữ liệu gốc
+ * Sau đó tính toán lại tổng số trang và clamp trang hiện tại
+ * @param {boolean} resetPageToOne - true nếu cần đưa về trang 1 khi lọc thay đổi
+ */
+function applyAllFilters(resetPageToOne = false) {
     const searchInput = document.getElementById('clientSearch');
     const searchTerm = searchInput ? searchInput.value.trim().toLowerCase() : '';
 
-    let filtered = allFetchedRecords.filter(row => {
+    currentFilteredRecords = allFetchedRecords.filter(row => {
         // row[0]: Table, row[1]: Time ("YYYY-MM-DD HH:MM:SS"), row[2]: client_ip, row[3]: Database, row[4]: Data
         const rowTable = String(row[0] || '').trim();
         const rowTime = String(row[1] || '').trim();
@@ -318,7 +364,7 @@ function applyAllFilters() {
             }
         }
 
-        // 3. Lọc theo Client Search
+        // 3. Lọc theo Client Search (toàn bộ các cột trên toàn bộ dữ liệu)
         if (searchTerm) {
             const matches = row.some(cell => String(cell || '').toLowerCase().includes(searchTerm));
             if (!matches) {
@@ -329,20 +375,44 @@ function applyAllFilters() {
         return true;
     });
 
-    rawTableData = filtered;
+    // rawTableData luôn chứa toàn bộ danh sách đã lọc (phục vụ Xuất Excel & Insert Query toàn bộ)
+    rawTableData = currentFilteredRecords;
     rawTableColumns = tableColumns;
 
-    displayTable(filtered, tableColumns);
+    // 1. Tính toán lại tổng số trang (total pages)
+    totalPages = calculateTotalPages(currentFilteredRecords.length, PAGE_SIZE);
+
+    // 2. Đảm bảo trang hiện tại (current page) không vượt quá tổng số trang mới bằng cách điều chỉnh (clamp)
+    if (resetPageToOne) {
+        currentPage = 1;
+    } else {
+        currentPage = clampPage(currentPage, totalPages);
+    }
+
+    renderCurrentPage();
+}
+
+/**
+ * Hiển thị dữ liệu của trang hiện tại và cập nhật khu vực phân trang
+ */
+function renderCurrentPage() {
+    // Chuyển 1-based currentPage sang 0-based page index tại một nơi duy nhất
+    const page0 = toZeroBasedPageIndex(currentPage);
+    const startIdx = page0 * PAGE_SIZE;
+    const endIdx = startIdx + PAGE_SIZE;
+    const pageRows = currentFilteredRecords.slice(startIdx, endIdx);
+
+    displayTable(pageRows, tableColumns);
     ensureClientSearchEnabled();
 
     const rowCount = document.getElementById('rowCount');
     if (rowCount) {
-        rowCount.textContent = filtered.length.toLocaleString();
+        rowCount.textContent = currentFilteredRecords.length.toLocaleString();
     }
 
     const tableFooter = document.querySelector('.table-footer');
     if (tableFooter) {
-        if (filtered.length > 0) {
+        if (currentFilteredRecords.length > 0) {
             tableFooter.classList.remove('hidden');
         } else {
             tableFooter.classList.add('hidden');
@@ -351,7 +421,20 @@ function applyAllFilters() {
 
     const insertBtn = document.getElementById('btnInsertQuery');
     if (insertBtn) {
-        insertBtn.disabled = (filtered.length === 0);
+        insertBtn.disabled = (currentFilteredRecords.length === 0);
+    }
+
+    // Render component Pagination shadcn/ui ở chính giữa table-footer
+    const paginationNav = document.getElementById('paginationNav');
+    if (paginationNav) {
+        renderShadcnPagination(paginationNav, currentPage, totalPages, (newPage) => {
+            currentPage = clampPage(newPage, totalPages);
+            renderCurrentPage();
+            const tableScroll = document.querySelector('.table-scroll');
+            if (tableScroll) {
+                tableScroll.scrollTop = 0;
+            }
+        });
     }
 }
 
@@ -388,7 +471,7 @@ async function fetchDeletedRecordsLog() {
             allFetchedRecords = data.result;
             tableColumns = data.columns || ['Table', 'Time', 'client_ip', 'Database', 'Data'];
 
-            applyAllFilters();
+            applyAllFilters(true);
 
             if (typeof Toast !== 'undefined' && Toast.success) {
                 Toast.success('Thành công', `Đã tải ${allFetchedRecords.length.toLocaleString()} bản ghi PostgreSQL bị xóa`);
@@ -396,7 +479,7 @@ async function fetchDeletedRecordsLog() {
         } else {
             allFetchedRecords = [];
             tableColumns = data ? (data.columns || ['Table', 'Time', 'client_ip', 'Database', 'Data']) : ['Table', 'Time', 'client_ip', 'Database', 'Data'];
-            applyAllFilters();
+            applyAllFilters(true);
 
             if (typeof Toast !== 'undefined' && Toast.warning) {
                 Toast.warning('Không có dữ liệu', (data && data.message) ? data.message : 'Chưa có bản ghi PostgreSQL nào bị xóa được ghi nhận.');
@@ -408,7 +491,7 @@ async function fetchDeletedRecordsLog() {
             Toast.error('Lỗi kết nối', 'Không thể kết nối tới máy chủ để đọc file audit log.');
         }
         allFetchedRecords = [];
-        applyAllFilters();
+        applyAllFilters(true);
     } finally {
         if (checkBtn) {
             checkBtn.disabled = false;
