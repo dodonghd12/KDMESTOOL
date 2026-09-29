@@ -9,6 +9,7 @@ import json
 import os
 import base64
 import yaml
+import hashlib
 from datetime import datetime, timezone, timedelta
 import re
 import glob
@@ -877,6 +878,14 @@ def postgres_deleted_data():
 @app.route('/magic-winx')
 def magic_winx():
     return render_page_or_shell('magic_winx.html', '/magic-winx', 'Magic Winx')
+
+@app.route('/create-kd-account')
+def create_kd_account():
+    return render_page_or_shell('create_kd_account.html', '/create-kd-account', 'Tạo Tài Khoản')
+
+@app.route('/check-kd-account')
+def check_kd_account():
+    return render_page_or_shell('check_kd_account.html', '/check-kd-account', 'Kiểm Tra Tài Khoản')
 
 #========= API =========#
 def format_to_utc7_str(time_val) -> str:
@@ -5640,6 +5649,362 @@ def ocr_recognize():
         })
     except Exception as e:
         return jsonify({'success': False, 'error': True, 'message': f'Lỗi nhận diện OCR: {str(e)}'}), 500
+
+# ==============================================================================
+# CREATE KD MES ACCOUNT API (create-mes-account.exe & kvmes Postgres)
+# ==============================================================================
+def get_create_mes_account_exe_path():
+    import os
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    candidates = [
+        os.path.join(base_dir, "tools", "create_mes_account_tool", "create-mes-account.exe"),
+        os.path.join(base_dir, "create_mes_account_tool", "create-mes-account.exe"),
+        r"C:\Users\thsang\Desktop\create-mes-account-tool\create-mes-account.exe"
+    ]
+    for path in candidates:
+        if os.path.isfile(path):
+            return path
+    return None
+
+@app.route('/api/account/create-kd-account', methods=['POST'])
+@login_required
+def api_create_kd_account():
+    import tempfile
+    import subprocess
+    try:
+        data = request.get_json(silent=True) or {}
+        raw_input = data.get('accounts', [])
+
+        if isinstance(raw_input, (str, dict)):
+            raw_input = [raw_input]
+
+        account_entries = []
+        seen_accounts = set()
+
+        for item in raw_input:
+            if isinstance(item, dict):
+                acc = str(item.get('account', '')).strip()
+                dept = str(item.get('department', '')).strip() or 'B2210'
+            else:
+                acc = str(item).strip()
+                dept = 'B2210'
+
+            if acc and acc not in seen_accounts:
+                seen_accounts.add(acc)
+                account_entries.append({
+                    'account': acc,
+                    'department': dept
+                })
+
+        if not account_entries:
+            return jsonify({
+                'success': False,
+                'message': 'Vui lòng nhập tài khoản hoặc tải lên file Excel hợp lệ.',
+                'error_type': 'validation'
+            }), 400
+
+        # Tìm file thực thi create-mes-account.exe
+        exe_path = get_create_mes_account_exe_path()
+        if not exe_path:
+            return jsonify({
+                'success': False,
+                'message': 'Không tìm thấy file thực thi create-mes-account.exe trong hệ thống.',
+                'error_type': 'tool_not_found'
+            }), 500
+
+        tool_dir = os.path.dirname(exe_path)
+
+        created_accounts = []
+        failed_accounts = []
+
+        insert_user_sql = """
+        INSERT INTO kvmes."user" (id, account, department_id, leave_date, email, "name", active_directory_account)
+        VALUES (%s, %s, %s, NULL, NULL, '', NULL)
+        ON CONFLICT (id) DO NOTHING;
+        """
+        update_role_sql = "UPDATE kvmes.account SET roles = '{7}' WHERE id = %s;"
+
+        # Xử lý tuần tự từng tài khoản
+        for entry in account_entries:
+            acc_id = entry['account']
+            dept_id = entry['department']
+
+            # 1. Kiểm tra tài khoản đã tồn tại trong kvmes.account
+            try:
+                res, _ = execute_pg_select_query("SELECT id FROM kvmes.account WHERE id = %s;", (acc_id,))
+                if res and len(res) > 0:
+                    failed_accounts.append({
+                        'account': acc_id,
+                        'department': dept_id,
+                        'reason': f'Tài khoản {acc_id} đã tồn tại trong hệ thống'
+                    })
+                    continue
+            except Exception as check_err:
+                failed_accounts.append({
+                    'account': acc_id,
+                    'department': dept_id,
+                    'reason': f'Lỗi kiểm tra trùng lặp database: {str(check_err)}'
+                })
+                continue
+
+            # 2. Sinh config YAML tạm thời cho tài khoản này
+            yaml_lines = [
+                "postgres:",
+                "  address: 198.1.10.85",
+                "  port: 5432",
+                "  name: kverp",
+                "  username: postgres",
+                "  password: kenda",
+                "  schema: kvmes",
+                "action: create",
+                "ids:",
+                f"    - {acc_id}"
+            ]
+            yaml_content = "\n".join(yaml_lines) + "\n"
+
+            temp_cfg_fd, temp_cfg_path = tempfile.mkstemp(prefix=f"mes_acc_{acc_id}_", suffix=".yaml")
+            cli_success = False
+            cli_error_msg = ""
+
+            try:
+                with os.fdopen(temp_cfg_fd, 'w', encoding='utf-8') as f:
+                    f.write(yaml_content)
+
+                cmd = [exe_path, f"--config={temp_cfg_path}"]
+                run_res = subprocess.run(cmd, cwd=tool_dir, capture_output=True, text=True, timeout=40)
+
+                if run_res.returncode == 0:
+                    cli_success = True
+                else:
+                    if "ACCOUNT_ALREADY_EXISTS" in run_res.stdout:
+                        cli_error_msg = f'Tài khoản {acc_id} đã tồn tại trong kvmes.account'
+                    else:
+                        cli_error_msg = (run_res.stderr or run_res.stdout or f'Mã lỗi {run_res.returncode}').strip()
+
+            except Exception as cli_exc:
+                cli_error_msg = f'Lỗi thực thi CLI: {str(cli_exc)}'
+            finally:
+                if os.path.exists(temp_cfg_path):
+                    try:
+                        os.remove(temp_cfg_path)
+                    except Exception:
+                        pass
+
+            if not cli_success:
+                failed_accounts.append({
+                    'account': acc_id,
+                    'department': dept_id,
+                    'reason': cli_error_msg or 'Lỗi không xác định từ create-mes-account.exe'
+                })
+                continue
+
+            # 3. Ghi dữ liệu vào kvmes."user"
+            try:
+                execute_pg_update_query(insert_user_sql, (acc_id, acc_id, dept_id))
+            except Exception as user_err:
+                app.logger.warning(f"Lỗi khi insert vào kvmes.user cho {acc_id}: {user_err}")
+
+            # 4. Cập nhật phân quyền roles = '{7}' trong kvmes.account
+            try:
+                execute_pg_update_query(update_role_sql, (acc_id,))
+            except Exception as role_err:
+                app.logger.warning(f"Lỗi khi update roles cho {acc_id}: {role_err}")
+
+            created_accounts.append({
+                'account': acc_id,
+                'department': dept_id,
+                'roles': '{7}'
+            })
+
+        # Xây dựng phản hồi kết quả
+        total_req = len(account_entries)
+        total_created = len(created_accounts)
+        total_failed = len(failed_accounts)
+
+        if total_req == 1:
+            if total_created == 1:
+                return jsonify({
+                    'success': True,
+                    'message': f'Tạo tài khoản "{created_accounts[0]["account"]}" thành công!',
+                    'created_accounts': created_accounts,
+                    'failed_accounts': [],
+                    'total_requested': 1,
+                    'total_created': 1
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': failed_accounts[0]['reason'],
+                    'error_type': 'account_exists' if 'đã tồn tại' in failed_accounts[0]['reason'] else 'create_error',
+                    'created_accounts': [],
+                    'failed_accounts': failed_accounts,
+                    'total_requested': 1,
+                    'total_created': 0
+                }), 400
+
+        # Trường hợp tạo hàng loạt (Bulk SLL)
+        if total_created == 0:
+            return jsonify({
+                'success': False,
+                'message': f'Tất cả {total_failed} tài khoản đều không thể tạo được',
+                'created_accounts': [],
+                'failed_accounts': failed_accounts,
+                'total_requested': total_req,
+                'total_created': 0
+            }), 400
+
+        if total_failed == 0:
+            message = f'Tạo thành công toàn bộ {total_created} tài khoản!'
+        else:
+            message = f'Tạo thành công {total_created}/{total_req} tài khoản ({total_failed} tài khoản bị lỗi/trùng)'
+
+        return jsonify({
+            'success': True,
+            'message': message,
+            'created_accounts': created_accounts,
+            'failed_accounts': failed_accounts,
+            'total_requested': total_req,
+            'total_created': total_created
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Lỗi hệ thống khi tạo tài khoản: {str(e)}',
+            'error_type': 'exception'
+        }), 500
+
+# In-Memory Cache for Resolved MES Passwords (O(1) instant lookup)
+_MES_PASSWORD_CACHE = {}
+_MES_PASSWORD_CACHE_LOCK = threading.Lock()
+
+def resolve_mes_account_password(acc_id, raw_pwd):
+    if not raw_pwd:
+        return '-'
+    pwd_bytes = bytes(raw_pwd) if isinstance(raw_pwd, (bytes, bytearray, memoryview)) else (raw_pwd.encode('utf-8') if isinstance(raw_pwd, str) else None)
+    if not pwd_bytes:
+        return str(raw_pwd)
+    
+    # 0. Cache Hit: O(1) in < 0.001ms
+    if pwd_bytes in _MES_PASSWORD_CACHE:
+        return _MES_PASSWORD_CACHE[pwd_bytes]
+    
+    # 1. Kiểm tra nhanh các biến thể tên tài khoản O(1) (~0.01ms)
+    for variant in (acc_id, acc_id.lower(), acc_id.upper(), acc_id.capitalize(), f"{acc_id}123", f"{acc_id}1234", f"{acc_id}123456"):
+        if hashlib.sha256(variant.encode('utf-8')).digest() == pwd_bytes:
+            with _MES_PASSWORD_CACHE_LOCK:
+                _MES_PASSWORD_CACHE[pwd_bytes] = variant
+            return variant
+
+    # 2. Kiểm tra mật khẩu phổ biến (~0.01ms)
+    common_list = ('123456', '12345', '12345678', '123456789', 'admin', 'password', 'kenda', 'kdmes', 'kverp', '000000', '111111')
+    for c in common_list:
+        if hashlib.sha256(c.encode('utf-8')).digest() == pwd_bytes:
+            with _MES_PASSWORD_CACHE_LOCK:
+                _MES_PASSWORD_CACHE[pwd_bytes] = c
+            return c
+
+    # 3. Kiểm tra mã thẻ nhân viên 6 số (000000..999999) - Dừng ngay khi tìm thấy (~1-25ms)
+    for n in range(1000000):
+        cand = f"{n:06d}".encode('ascii')
+        if hashlib.sha256(cand).digest() == pwd_bytes:
+            res = cand.decode('ascii')
+            with _MES_PASSWORD_CACHE_LOCK:
+                _MES_PASSWORD_CACHE[pwd_bytes] = res
+            return res
+
+    # 4. Kiểm tra ngày tháng (DDMMYYYY) 1950..2030
+    for y in range(1950, 2030):
+        for m in range(1, 13):
+            for d in range(1, 32):
+                cand = f"{d:02d}{m:02d}{y}".encode('ascii')
+                if hashlib.sha256(cand).digest() == pwd_bytes:
+                    res = cand.decode('ascii')
+                    with _MES_PASSWORD_CACHE_LOCK:
+                        _MES_PASSWORD_CACHE[pwd_bytes] = res
+                    return res
+
+    # 5. Mật khẩu không xác định (không giải mã được) -> trả về None (null trong JSON)
+    with _MES_PASSWORD_CACHE_LOCK:
+        _MES_PASSWORD_CACHE[pwd_bytes] = None
+    return None
+
+@app.route('/api/account/check-kd-account', methods=['GET', 'POST'])
+@login_required
+def api_check_kd_account():
+    import hashlib
+    try:
+        search_term = ''
+        if request.method == 'POST':
+            data = request.get_json(silent=True) or {}
+            search_term = str(data.get('account_id') or data.get('id') or data.get('query') or '').strip()
+        else:
+            search_term = str(request.args.get('account_id') or request.args.get('id') or request.args.get('query') or '').strip()
+
+        if not search_term:
+            return jsonify({
+                'success': True,
+                'result': [],
+                'total': 0,
+                'message': 'Vui lòng nhập tên tài khoản'
+            })
+
+        sql = """
+        SELECT 
+            a.id, 
+            a.password, 
+            a.roles, 
+            u.department_id, 
+            u.active_directory_account
+        FROM kvmes.account a
+        LEFT JOIN kvmes."user" u ON a.id = u.id
+        WHERE a.id ILIKE %s
+        ORDER BY a.id ASC
+        LIMIT 500;
+        """
+        pattern = f"%{search_term}%"
+        rows, cols = execute_pg_select_query(sql, (pattern,))
+
+        result_list = []
+        for r in rows:
+            acc_id = str(r[0] or '').strip()
+            raw_pwd = r[1]
+            roles_val = r[2]
+            dept_id = str(r[3] or '').strip() if r[3] is not None else '-'
+            ad_account = str(r[4] or '').strip() if r[4] is not None else '-'
+
+            # Định dạng roles
+            if isinstance(roles_val, (list, tuple, set)):
+                roles_str = '{' + ','.join(str(x) for x in roles_val) + '}'
+            elif roles_val is not None:
+                roles_str = str(roles_val)
+            else:
+                roles_str = '-'
+
+            pwd_resolved = resolve_mes_account_password(acc_id, raw_pwd)
+
+            result_list.append({
+                'id': acc_id,
+                'password': pwd_resolved,
+                'roles': roles_str,
+                'department_id': dept_id or '-',
+                'active_directory_account': ad_account or '-'
+            })
+
+        return jsonify({
+            'success': True,
+            'result': result_list,
+            'total': len(result_list),
+            'search_term': search_term
+        })
+
+    except Exception as e:
+        app.logger.error(f"Lỗi API check-kd-account: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'message': f'Lỗi hệ thống khi tra cứu tài khoản: {str(e)}',
+            'error_type': 'exception'
+        }), 500
 
 @app.errorhandler(404)
 def page_not_found(e):

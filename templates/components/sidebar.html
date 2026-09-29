@@ -104,6 +104,30 @@
                 <span>Magic Winx</span>
             </a>
         </li>
+        <li>
+            <button class="dropdown-btn">
+                <span class="material-symbols-outlined">manage_accounts</span>
+                <span>Tài Khoản</span>
+                <span class="material-symbols-outlined">keyboard_arrow_down</span>
+            </button>
+
+            <ul class="sub-menu">
+                <div>
+                    <li>
+                        <a href="{{ url_for('create_kd_account') }}">
+                            <span class="material-symbols-outlined">person_add</span>
+                            <span>Tạo Tài Khoản</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('check_kd_account') }}">
+                            <span class="material-symbols-outlined">badge</span>
+                            <span>Kiểm Tra Tài Khoản</span>
+                        </a>
+                    </li>
+                </div>
+            </ul>
+        </li>
     </ul>
 
     <div class="sidebar-footer">

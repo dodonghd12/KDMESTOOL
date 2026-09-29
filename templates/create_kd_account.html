@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tạo Tài Khoản</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v={{ version }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/smooth_input.css') }}?v={{ version }}">
+
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome/css/all.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/material-symbols/material-symbols.css') }}">
+</head>
+<body class="{% if is_frame %}is-spa-frame{% endif %} app-loading-state">
+    {% if not is_frame %}{% include "components/sidebar.html" %}{% endif %}
+
+    <div class="container account-container">
+        <!-- ── TOP ROW: SINGLE ACCOUNT & BULK EXCEL UPLOAD ── -->
+        <div class="account-top-row">
+
+            <!-- ── SECTION 1: TẠO TÀI KHOẢN ĐƠN LẺ ── -->
+            <div class="account-card account-card-single">
+                <div class="account-input-group">
+                    <div style="margin-bottom: 10px;">
+                        <label class="account-label" style="margin-bottom: 0;">TẠO TÀI KHOẢN</label>
+                    </div>
+                    <div class="account-input-row" style="display: flex; gap: 10px; align-items: center;">
+                        <div class="input-wrapper" style="flex: 1.35;">
+                            <input placeholder="Nhập tên tài khoản..." class="input" id="singleAccountInput" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text">
+                        </div>
+                        <div class="input-wrapper" id="singleDepartmentInputWrapper" style="flex: 1.15;">
+                            <input placeholder="Nhập bộ phận..." class="input" id="singleDepartmentInput" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text">
+                        </div>
+                        <button type="button" id="createSingleBtn" class="winx-btn winx-btn-primary" style="height: 44px; padding: 0 22px; font-size: 14px; font-weight: 700; letter-spacing: 0.5px; flex-shrink: 0;">
+                            <span class="material-symbols-outlined" style="font-size: 20px !important;">person_add</span>
+                            <span>Tạo</span>
+                        </button>
+                    </div>
+                    <div class="account-single-footer" style="margin-top: 10px; min-height: 20px; display: flex; gap: 10px; align-items: center;">
+                        <div style="flex: 1.35; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--color-text-muted, #94a3b8); line-height: 1.5; min-width: 0;">
+                            <span class="material-symbols-outlined" style="font-size: 15px; color: #10b981; flex-shrink: 0;">info</span>
+                            <span style="white-space: nowrap;">Mật khẩu mặc định giống user</span>
+                        </div>
+                        <div style="flex: 1.15; display: flex; align-items: center; min-width: 0;">
+                            <div id="deptErrorMsg" class="account-dept-error-msg" style="display: none; color: #f87171; font-size: 12px; font-weight: 600; line-height: 1.5; align-items: center; gap: 4px;">
+                                <span class="material-symbols-outlined" style="font-size: 15px; color: #f87171; flex-shrink: 0;">error</span>
+                                <span style="white-space: nowrap;">Bộ phận bắt đầu bằng P hoặc B</span>
+                            </div>
+                        </div>
+                        <div style="visibility: hidden; pointer-events: none; flex-shrink: 0; padding: 0 22px; font-size: 14px; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; height: 0; overflow: hidden;" aria-hidden="true">
+                            <span class="material-symbols-outlined" style="font-size: 20px !important;">person_add</span>
+                            <span>Tạo</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── SECTION 2: TẠO TÀI KHOẢN SLL (BULK) ── -->
+            <div class="account-card account-card-bulk">
+                <div class="account-bulk-layout">
+                    <!-- 1/2 bên trái: Label trên, Download Template dưới -->
+                    <div class="account-bulk-left">
+                        <label class="account-label">TẠO TÀI KHOẢN SLL</label>
+                        <button type="button" id="downloadTemplateBtn" class="winx-btn winx-btn-ghost" style="height: 42px; padding: 0 18px; font-size: 13px; font-weight: 700; letter-spacing: 0.5px;" onclick="downloadAccountTemplate()">
+                            <span class="material-symbols-outlined" style="font-size: 18px;">file_download</span>
+                            <span>DOWNLOAD TEMPLATE</span>
+                        </button>
+                    </div>
+
+                    <!-- 1/2 bên phải: Ô Import Excel tương tác kéo thả & preview -->
+                    <div class="account-bulk-right">
+                        <div class="account-dropzone" id="accountDropzone" tabindex="0" role="button" aria-label="Kéo thả hoặc chọn file Excel">
+                            <input type="file" id="bulkAccountFileInput" accept=".xlsx,.xls" style="display:none;" onchange="handleBulkAccountFileSelected(event)">
+
+                            <!-- State 1: Chờ chọn file / Kéo thả -->
+                            <div class="dropzone-state dropzone-idle" id="dropzoneIdle">
+                                <div class="dropzone-icon-wrap">
+                                    <svg class="dropzone-cloud-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"></path>
+                                        <polyline points="12 12 12 16"></polyline>
+                                        <polyline points="9 13 12 10 15 13"></polyline>
+                                    </svg>
+                                </div>
+                                <div class="dropzone-title" id="dropzoneTitle">Drop your file</div>
+                                <div class="dropzone-subtitle" id="dropzoneSubtitle">XLSX, XLS — up to 50 MB</div>
+                            </div>
+
+                            <!-- State 2: Đang tải / Thanh Loading (0.5s - 1s) -->
+                            <div class="dropzone-state dropzone-loading" id="dropzoneLoading" style="display: none;">
+                                <div class="dropzone-file-meta">
+                                    <div class="dropzone-doc-badge">
+                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                            <polyline points="14 2 14 8 20 8"></polyline>
+                                        </svg>
+                                    </div>
+                                    <div class="dropzone-file-info">
+                                        <span class="dropzone-filename" id="loadingFileName">accounts.xlsx</span>
+                                        <span class="dropzone-filesize" id="loadingFileSize">0 KB</span>
+                                    </div>
+                                    <span class="dropzone-loading-pct" id="loadingPercent">0%</span>
+                                </div>
+                                <div class="dropzone-progress-track">
+                                    <div class="dropzone-progress-bar" id="dropzoneProgressBar"></div>
+                                </div>
+                            </div>
+
+                            <!-- State 3: Preview File & Nút Tạo Tài Khoản -->
+                            <div class="dropzone-state dropzone-preview" id="dropzonePreview" style="display: none;">
+                                <!-- Bên trái (2 phần): Badge Excel phóng to -->
+                                <div class="dropzone-excel-badge">
+                                    <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                        <polyline points="14 2 14 8 20 8"></polyline>
+                                        <line x1="8" y1="13" x2="16" y2="17"></line>
+                                        <line x1="16" y1="13" x2="8" y2="17"></line>
+                                    </svg>
+                                    <span>XLSX</span>
+                                </div>
+
+                                <!-- Bên phải (3 phần): Tên file, nút xóa ở trên -> dung lượng & số user -> nút tạo ở dưới -->
+                                <div class="dropzone-preview-info">
+                                    <div class="dropzone-name-row">
+                                        <span class="dropzone-preview-name" id="previewFileName">accounts.xlsx</span>
+                                        <button type="button" class="dropzone-remove-btn" id="dropzoneRemoveBtn" onclick="resetAccountDropzone(event)" title="Chọn file khác" aria-label="Xóa file đã chọn">
+                                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                        </button>
+                                    </div>
+                                    <div class="dropzone-meta-row">
+                                        <span id="previewFileSize">0 KB</span>
+                                        <span class="dropzone-success-tag" id="previewAccountCountTag">
+                                            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                            <span id="previewAccountCountText">0 tài khoản</span>
+                                        </span>
+                                    </div>
+                                    <button type="button" id="startBulkCreateBtn" class="winx-btn winx-btn-primary dropzone-check-btn" onclick="executeUploadedBulkAccountCreation(event)">
+                                        <span class="material-symbols-outlined">group_add</span>
+                                        <span>Tạo danh sách tài khoản</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── STATUS & RESULT SECTION (Unified KDMES Layout) ── -->
+        <div class="account-result-section" id="accountResultSection" style="display: none;">
+            <!-- Filter & Search Bar -->
+            <div class="search-section" style="padding-top: 6px;">
+                <div class="search-row" style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
+                    <div class="input-box" style="min-width: 180px; max-width: 220px; flex-shrink: 0; position: relative;">
+                        <input placeholder=" " type="text" id="status_filter" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="input" style="cursor: pointer;" readonly>
+                        <label class="user-label">Trạng thái</label>
+                        <div id="status-filter-dropdown" class="dropdown-list"></div>
+                    </div>
+
+                    <div class="input-wrapper" style="min-width: 220px; max-width: 380px; flex: 1;">
+                        <input placeholder="Tìm kiếm..." class="input" id="clientSearch" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text" aria-label="Tìm kiếm trong bảng">
+                    </div>
+
+                    <div class="account-stat-pills" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-left: auto;">
+                        <div class="account-stat-pill" title="Tổng số tài khoản yêu cầu">
+                            <span class="pill-dot" style="background: #38bdf8;"></span>
+                            <span class="pill-label">Tổng:</span>
+                            <span class="pill-val" id="statTotalReq">0</span>
+                        </div>
+                        <div class="account-stat-pill pill-success" title="Tạo thành công">
+                            <span class="pill-dot" style="background: #10b981;"></span>
+                            <span class="pill-label">Thành công:</span>
+                            <span class="pill-val" id="statCreated">0</span>
+                        </div>
+                        <div class="account-stat-pill pill-error" title="Thất bại hoặc đã tồn tại">
+                            <span class="pill-dot" style="background: #ef4444;"></span>
+                            <span class="pill-label">Thất bại:</span>
+                            <span class="pill-val" id="statFailed">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Table Container -->
+            <div class="table-container" id="accountTableContainer">
+                <div class="table-scroll">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 60px; text-align: center;">STT</th>
+                                <th style="width: 200px;">Tài Khoản</th>
+                                <th style="width: 140px;">Bộ Phận</th>
+                                <th style="width: 110px; text-align: center;">Roles</th>
+                                <th style="width: 160px; text-align: center;">Trạng Thái</th>
+                                <th>Chi Tiết / Ghi Chú</th>
+                                <th style="width: 180px; text-align: center;">Thời Gian</th>
+                            </tr>
+                        </thead>
+                        <tbody id="accountResultTableBody"></tbody>
+                    </table>
+                </div>
+
+                <div class="table-footer">
+                    <div class="table-footer-left">
+                        <div class="row-count">Số dòng: <span id="rowCount">0</span></div>
+                    </div>
+                    <div class="table-footer-right">
+                        <button class="btn-export-excel" id="downloadLogBtn" onclick="downloadAccountCreationLog()" aria-label="Xuất dữ liệu ra file Excel">
+                            <div class="btn-export-excel-wrapper">
+                                <div class="text">Download Log</div>
+                                <span class="icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" width="2em" height="2em" preserveAspectRatio="xMidYMid meet" viewBox="0 0 24 24">
+                                        <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 0 0 4.561 21h14.878a2 2 0 0 0 1.94-1.515L22 17"></path>
+                                    </svg>
+                                </span>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% include "components/account_security_gate.html" %}
+    {% include "components/shared_modals.html" %}
+
+    <script src="{{ url_for('static', filename='vendor/xlsx/xlsx.full.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/smooth_input.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/account_security_gate.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/create_kd_account.js') }}?v={{ version }}"></script>
+</body>
+</html>

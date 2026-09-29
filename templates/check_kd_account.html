@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kiểm Tra Tài Khoản</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v={{ version }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/smooth_input.css') }}?v={{ version }}">
+
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome/css/all.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/material-symbols/material-symbols.css') }}">
+</head>
+<body class="{% if is_frame %}is-spa-frame{% endif %} app-loading-state">
+    {% if not is_frame %}{% include "components/sidebar.html" %}{% endif %}
+
+    <div class="container" autocomplete="off">
+        <!-- ── TOP SEARCH & FILTER BAR ── -->
+        <div class="search-section" style="padding-top: 6px;">
+            <div class="search-row">
+                <div class="input-box">
+                    <input required placeholder=" " type="text" id="accountIdInput" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="input">
+                    <label class="user-label">Tên tài khoản</label>
+                </div>
+            </div>
+
+            <div class="search-row search-row-client">
+                <div class="input-wrapper">
+                    <input placeholder="Tìm kiếm..." class="input" id="clientSearch" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text" aria-label="Tìm kiếm trong bảng">
+                </div>
+            </div>
+        </div>
+
+        <!-- ── TABLE CONTAINER ── -->
+        <div class="table-container" id="checkAccountTableContainer" style="display: none;">
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 220px;">Tài Khoản</th>
+                            <th style="width: 220px;">Mật Khẩu</th>
+                            <th style="width: 140px; text-align: center;">Phân Quyền</th>
+                            <th style="width: 150px; text-align: center;">Bộ Phận</th>
+                            <th>Active Directory</th>
+                        </tr>
+                    </thead>
+                    <tbody id="checkAccountTableBody"></tbody>
+                </table>
+            </div>
+
+            <div class="table-footer">
+                <div class="row-count">Số dòng: <span id="rowCount">0</span></div>
+                <button class="btn-export-excel" id="exportExcelBtn" aria-label="Xuất dữ liệu ra file Excel">
+                    <div class="btn-export-excel-wrapper">
+                        <div class="text">Xuất Excel</div>
+                        <span class="icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" width="2em" height="2em" preserveAspectRatio="xMidYMid meet" viewBox="0 0 24 24">
+                                <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 0 0 4.561 21h14.878a2 2 0 0 0 1.94-1.515L22 17"></path>
+                            </svg>
+                        </span>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    {% include "components/account_security_gate.html" %}
+    {% include "components/shared_modals.html" %}
+
+    <script src="{{ url_for('static', filename='vendor/xlsx/xlsx.full.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/smooth_input.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/account_security_gate.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/check_kd_account.js') }}?v={{ version }}"></script>
+</body>
+</html>

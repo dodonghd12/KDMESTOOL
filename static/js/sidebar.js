@@ -127,10 +127,18 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     dropdownButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', (e) => {
             const subMenu = btn.nextElementSibling;
 
             if (!subMenu) return;
+
+            // Nếu 1 mục con trong dropdown này đang active -> không cho phép toggle thu gọn dropdown cha
+            const hasActiveChild = !!subMenu.querySelector('li.active');
+            if (hasActiveChild) {
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
 
             if (!subMenu.classList.contains('show')) {
                 closeAllSubMenus();
@@ -500,12 +508,13 @@ document.addEventListener('DOMContentLoaded', () => {
     window.updateSidebarActiveIndicator = updateSidebarActiveIndicator;
 
     (function highlightActiveSidebarItem() {
-        const currentPath = window.location.pathname;
+        const currentPath = window.location.pathname.replace(/\/+$/, '');
 
         const sidebarLinks = document.querySelectorAll('#sidebar a[href]');
+        let activeSubMenu = null;
 
         sidebarLinks.forEach(link => {
-            const linkPath = new URL(link.href, window.location.origin).pathname;
+            const linkPath = new URL(link.href, window.location.origin).pathname.replace(/\/+$/, '');
 
             if (currentPath === linkPath) {
                 const li = link.closest('li');
@@ -515,11 +524,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     // nếu nằm trong submenu → mở menu cha
                     const subMenu = li.closest('.sub-menu');
                     if (subMenu) {
+                        activeSubMenu = subMenu;
                         subMenu.classList.add('show');
                         const parentBtn = subMenu.previousElementSibling;
                         parentBtn?.classList.add('rotate');
                     }
                 }
+            } else {
+                link.closest('li')?.classList.remove('active');
+            }
+        });
+
+        // Thu gọn tất cả các dropdown khác không chứa active item
+        sidebar.querySelectorAll('.sub-menu').forEach(subMenu => {
+            if (subMenu !== activeSubMenu) {
+                subMenu.classList.remove('show');
+                subMenu.previousElementSibling?.classList.remove('rotate');
             }
         });
 

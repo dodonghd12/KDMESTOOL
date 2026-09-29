@@ -15,7 +15,9 @@
         { path: '/technical-specifications', frameId: 'view-technical-specifications', title: 'Thông số kỹ thuật' },
         { path: '/gitlab-deleted-files', frameId: 'view-gitlab-deleted-files', title: 'Gitlab Deleted Files' },
         { path: '/postgres-deleted-data', frameId: 'view-postgres-deleted-data', title: 'Postgres Deleted Data' },
-        { path: '/magic-winx', frameId: 'view-magic-winx', title: 'Magic Winx' }
+        { path: '/magic-winx', frameId: 'view-magic-winx', title: 'Magic Winx' },
+        { path: '/create-kd-account', frameId: 'view-create-kd-account', title: 'Tạo Tài Khoản' },
+        { path: '/check-kd-account', frameId: 'view-check-kd-account', title: 'Kiểm Tra Tài Khoản' }
     ];
 
     let currentRoutePath = null;
@@ -86,6 +88,8 @@
         if (!sidebar) return;
 
         const links = sidebar.querySelectorAll('a[href]');
+        let activeSubMenu = null;
+
         links.forEach(link => {
             const href = link.getAttribute('href');
             if (!href || href === '#' || href.startsWith('javascript:')) return;
@@ -97,12 +101,23 @@
                 li.classList.add('active');
                 const subMenu = li.closest('.sub-menu');
                 if (subMenu) {
+                    activeSubMenu = subMenu;
                     subMenu.classList.add('show');
                     const parentBtn = subMenu.previousElementSibling;
                     parentBtn?.classList.add('rotate');
                 }
             } else {
                 li.classList.remove('active');
+            }
+        });
+
+        // Thu gọn tất cả các dropdown khác không chứa active item
+        const allSubMenus = sidebar.querySelectorAll('.sub-menu');
+        allSubMenus.forEach(subMenu => {
+            if (subMenu !== activeSubMenu) {
+                subMenu.classList.remove('show');
+                const parentBtn = subMenu.previousElementSibling;
+                parentBtn?.classList.remove('rotate');
             }
         });
 

@@ -1,0 +1,30 @@
+<!-- ── SECURITY AUTHENTICATION GATE OVERLAY (PROTECTS ACCOUNT MANAGEMENT MODULES) ── -->
+<div id="accountSecurityGateOverlay" class="account-security-gate-overlay" style="display: none;">
+    <div class="security-gate-card" role="dialog" aria-modal="true" aria-labelledby="securityGateTitle">
+        <div class="security-gate-icon" aria-hidden="true">
+            <span class="material-symbols-outlined">lock</span>
+        </div>
+        <h2 class="security-gate-title" id="securityGateTitle">Xác Thực Quyền Truy Cập</h2>
+        <p class="security-gate-desc">Vui lòng nhập mật khẩu để truy cập tính năng</p>
+        
+        <form id="securityGateForm" class="security-gate-form" onsubmit="return false;">
+            <div class="security-input-box" id="securityInputBox">
+                <span class="material-symbols-outlined security-input-icon">key</span>
+                <input type="password" id="securityGateInput" class="security-gate-input" placeholder="Nhập mật khẩu..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" required>
+                <button type="button" id="securityGateToggleEye" class="security-eye-btn" aria-label="Hiện hoặc ẩn mật khẩu">
+                    <span class="material-symbols-outlined" id="securityEyeIcon">visibility</span>
+                </button>
+            </div>
+            
+            <div id="securityGateErrorMsg" class="security-gate-error-msg" style="display: none;">
+                <span class="material-symbols-outlined">error</span>
+                <span id="securityGateErrorText">Sai mật khẩu</span>
+            </div>
+
+            <button type="submit" id="securityGateSubmitBtn" class="security-gate-submit-btn">
+                <span>Xác Nhận</span>
+                <span class="material-symbols-outlined">arrow_forward</span>
+            </button>
+        </form>
+    </div>
+</div>
