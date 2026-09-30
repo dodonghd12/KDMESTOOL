@@ -1,6 +1,6 @@
 /**
  * KDMES TOOL — Account Modules Security Gatekeeper
- * Protects /create-kd-account and /check-kd-account
+ * Protects /create-kd-account
  * Requires password 'Newhouse@120396'
  * Locks out & redirects to /main on 5 failed attempts with a 5s countdown
  */

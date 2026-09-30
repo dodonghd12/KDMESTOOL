@@ -195,7 +195,10 @@
             }
 
             if (!data.success) {
-                Toast.error('Tài khoản đã tồn tại', data.message || `Tài khoản ${accountName} đã tồn tại`);
+                const errorTitle = (data.message && data.message.includes('Bộ phận'))
+                    ? 'Lỗi định dạng'
+                    : ((data.message && data.message.includes('đã tồn tại')) ? 'Tài khoản đã tồn tại' : 'Tạo tài khoản thất bại');
+                Toast.error(errorTitle, data.message || `Không thể tạo tài khoản ${accountName}`);
             } else {
                 Toast.success('Thành công', data.message || `Tạo tài khoản "${accountName}" thành công!`);
                 singleInp.value = '';

@@ -5727,7 +5727,17 @@ def api_create_kd_account():
         # Xử lý tuần tự từng tài khoản
         for entry in account_entries:
             acc_id = entry['account']
-            dept_id = entry['department']
+            raw_dept = str(entry.get('department', '')).strip()
+            dept_id = raw_dept.upper() if raw_dept else 'B2210'
+
+            # 0. Kiểm tra ràng buộc Bộ phận (Bắt buộc bắt đầu bằng P hoặc B)
+            if not dept_id.startswith('P') and not dept_id.startswith('B'):
+                failed_accounts.append({
+                    'account': acc_id,
+                    'department': raw_dept or dept_id,
+                    'reason': 'Bộ phận bắt đầu bằng P hoặc B'
+                })
+                continue
 
             # 1. Kiểm tra tài khoản đã tồn tại trong kvmes.account
             try:

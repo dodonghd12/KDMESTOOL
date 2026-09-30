@@ -67,12 +67,10 @@
         </div>
     </div>
 
-    {% include "components/account_security_gate.html" %}
     {% include "components/shared_modals.html" %}
 
     <script src="{{ url_for('static', filename='vendor/xlsx/xlsx.full.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/smooth_input.js') }}?v={{ version }}"></script>
-    <script src="{{ url_for('static', filename='js/account_security_gate.js') }}?v={{ version }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}?v={{ version }}"></script>
     <script src="{{ url_for('static', filename='js/check_kd_account.js') }}?v={{ version }}"></script>
 </body>
