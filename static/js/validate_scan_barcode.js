@@ -440,6 +440,66 @@ async function validateScanBarcode() {
     }
 }
 
+function getValidationStatusText(item) {
+    if (!item._hasBarcode) {
+        return 'Chưa quét tem';
+    }
+    const reasons = [];
+    if (!item._isMatch) {
+        reasons.push('Sai quy cách');
+    }
+    if (item._isEmptyQuantity) {
+        reasons.push('Hết số lượng');
+    }
+    if (item._isExpired) {
+        reasons.push('Hết Hạn');
+    }
+    return reasons.length > 0 ? reasons.join(', ') : 'Sai quy cách';
+}
+
+async function copyValidationRowText(event, btnElement) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    const textToCopy = btnElement?.dataset?.copyText;
+    if (!textToCopy) return;
+
+    try {
+        await navigator.clipboard.writeText(textToCopy);
+    } catch (err) {
+        const textarea = document.createElement('textarea');
+        textarea.value = textToCopy;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        try {
+            document.execCommand('copy');
+        } catch (e) {
+            console.error('Copy fallback failed:', e);
+        }
+        document.body.removeChild(textarea);
+    }
+
+    // Visual feedback
+    if (btnElement) {
+        const originalHTML = btnElement.innerHTML;
+        btnElement.classList.add('copied');
+        btnElement.innerHTML = '<span class="material-symbols-outlined" aria-hidden="true">check</span><span>Đã copy!</span>';
+        
+        setTimeout(() => {
+            btnElement.classList.remove('copied');
+            btnElement.innerHTML = originalHTML;
+        }, 2000);
+    }
+
+    if (typeof Toast !== 'undefined' && Toast.success) {
+        Toast.success('Đã sao chép', textToCopy);
+    }
+}
+window.copyValidationRowText = copyValidationRowText;
+
 function displayComparison(result, recipeId, station) {
     const modal = document.getElementById('comparisonModal');
     const content = document.getElementById('comparisonContent');
@@ -541,6 +601,14 @@ function displayComparison(result, recipeId, station) {
         
         // 2. NVL column - show site_id (recipe name), barcode, quantity, expiry
         html += '<td class="material-cell">';
+        if (!item._isMatch || !item._isValid || item.match === false) {
+            const statusText = getValidationStatusText(item);
+            const copyText = `Trạm ${item.site || ''} Tem ${item.site_barcode || ''} ${statusText}`.replace(/\s+/g, ' ').trim();
+            html += `<button type="button" class="comparison-copy-btn" data-copy-text="${escapeHtml(copyText)}" onclick="copyValidationRowText(event, this)" title="Sao chép thông tin lỗi: ${escapeHtml(copyText)}" aria-label="Sao chép thông tin lỗi">` +
+                `<span class="material-symbols-outlined" aria-hidden="true">content_copy</span>` +
+                `<span>Copy</span>` +
+            `</button>`;
+        }
         html += `<div class="site-id-text">${item.site_id ? escapeHtml(item.site_id) : '<span class="empty-cell">N/A</span>'}</div>`;
         if (item._hasBarcode) {
             let barcodeClass = 'barcode-highlight';

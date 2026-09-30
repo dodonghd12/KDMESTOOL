@@ -10,7 +10,7 @@ import os
 import base64
 import yaml
 import hashlib
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, date
 import re
 import glob
 from typing import Optional
@@ -454,7 +454,7 @@ def resolve_recipe_path(project_id: int, recipe_id: str, product_type: str = '')
 def json_serial_fallback(obj):
     if isinstance(obj, Decimal):
         return float(obj) if obj % 1 else int(obj)
-    if isinstance(obj, (datetime, timedelta)):
+    if isinstance(obj, (datetime, date, timedelta)):
         return str(obj)
     return str(obj)
 
@@ -467,7 +467,7 @@ def serialize_row(row):
             serialized.append(json.dumps(value, indent=2, ensure_ascii=False, default=json_serial_fallback))
         elif isinstance(value, (list, tuple)) and value and isinstance(value[0], (dict, list)):
             serialized.append(json.dumps(value, indent=2, ensure_ascii=False, default=json_serial_fallback))
-        elif isinstance(value, (datetime, timedelta)):
+        elif isinstance(value, (datetime, date, timedelta)):
             serialized.append(str(value))
         else:
             serialized.append(value)
@@ -1377,6 +1377,47 @@ def search_feed_record():
             'result': [],
             'columns': column_names
         })
+
+@app.route('/api/work-orders', methods=['POST'])
+@login_required
+def search_work_orders():
+    keyword = request.json.get('keyword', '').strip()
+    if not keyword:
+        return jsonify({'result': [], 'columns': []})
+    
+    query = """
+        SELECT id, recipe_id,
+               COALESCE(information->'plan_quantity'->>'plan_quantity', information->'fixed_quantity'->>'plan_quantity') AS plan_quantity,
+               department_id, status, station, reserved_date, updated_at, updated_by, created_at, created_by, information, process_name, process_type, reserved_sequence
+        FROM kvmes.work_order
+        WHERE id ILIKE %s
+        LIMIT 100;
+    """
+    try:
+        result, column_names = execute_pg_select_query(query, (f"%{keyword}%",))
+        if result:
+            convert_columns = ["updated_at", "created_at"]
+            result = convert_timestamp(result, column_names, convert_columns)
+            serialized_result = [serialize_row(list(row)) for row in result]
+            return jsonify({
+                'success': True,
+                'result': serialized_result,
+                'columns': column_names
+            })
+        else:
+            return jsonify({
+                'success': True,
+                'result': [],
+                'columns': column_names or []
+            })
+    except Exception as e:
+        app.logger.error(f"Error searching work orders: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e),
+            'result': [],
+            'columns': []
+        }), 500
     
 @app.route('/api/work-orders/get-details', methods=['POST'])
 @login_required

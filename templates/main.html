@@ -21,22 +21,46 @@
     <!-- <canvas id="starfield"></canvas> -->
     <div class="container" autocomplete="off">
         <div class="search-section">
-            <div class="search-row">
-                <div class="input-box">
-                    <input required placeholder=" " type="text" id="barcode" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="input">
-                    <label class="user-label">Tem / Barcode</label>
+            <div class="search-row search-row-switchable">
+                <div class="input-switcher-container" id="mainInputSwitcher" data-active-mode="barcode">
+                    <!-- 1. Input Barcode (Default Mode) -->
+                    <div class="input-box input-switch-item" id="barcodeInputBox" data-mode="barcode">
+                        <input required placeholder=" " type="text" id="barcode" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="input">
+                        <label class="user-label">Tem / Barcode</label>
+                    </div>
+
+                    <!-- 2. Input Feed Record ID -->
+                    <div class="input-box input-switch-item" id="feedRecordInputBox" data-mode="feed_record">
+                        <input required placeholder=" " type="text" id="feed_record_id" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="input">
+                        <label class="user-label">Lịch sử hao dùng / Feed Record</label>
+                    </div>
+
+                    <!-- 3. Toggle Button Centered Below Input Bottom Border -->
+                    <button type="button" class="input-mode-toggle-btn" id="toggleInputModeBtn" title="Chuyển sang tìm kiếm theo Lịch sử hao dùng (Feed Record)" aria-label="Đổi chế độ tìm kiếm">
+                        <span class="material-symbols-outlined toggle-icon">swap_vert</span>
+                        <span class="toggle-mode-text" id="toggleModeLabel">Feed Record</span>
+                    </button>
                 </div>
             </div>
-            <div class="search-row">
-                <div class="input-box">
-                    <input required placeholder=" " type="text" id="product_id" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="input">
-                    <label class="user-label">Quy cách / Recipe</label>
-                </div>
-            </div>
-            <div class="search-row">
-                <div class="input-box">
-                    <input required placeholder=" " type="text" id="feed_record_id" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="input">
-                    <label class="user-label">Lịch sử hao dùng / Feed Record</label>
+            <div class="search-row search-row-switchable">
+                <div class="input-switcher-container" id="recipeInputSwitcher" data-active-mode="recipe">
+                    <!-- 1. Input Recipe (Default Mode) -->
+                    <div class="input-box input-switch-item" id="recipeInputBox" data-mode="recipe">
+                        <input required placeholder=" " type="text" id="product_id" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="input">
+                        <label class="user-label">Quy cách / Recipe</label>
+                    </div>
+
+                    <!-- 2. Input Work Order -->
+                    <div class="input-box input-switch-item" id="workOrderInputBox" data-mode="work_order">
+                        <input required placeholder=" " type="text" id="work_order" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="input">
+                        <label class="user-label">Đơn điều động / Work Order</label>
+                    </div>
+
+                    <!-- 3. Toggle Button Centered Below Input Bottom Border -->
+                    <button type="button" class="input-mode-toggle-btn" id="toggleRecipeModeBtn" title="Chuyển sang tìm kiếm theo Đơn điều động (Work Order)" aria-label="Đổi chế độ tìm kiếm">
+                        <span class="material-symbols-outlined toggle-icon">swap_vert</span>
+                        <span class="toggle-mode-text" id="toggleRecipeModeLabel">Work Order</span>
+                    </button>
                 </div>
             </div>
             <div class="search-row search-row-client">
@@ -192,6 +216,8 @@
         <div class="context-menu-item" data-action="searchCommitGitlabByRecipe" style="display: none;">Kiểm tra Commit Gitlab</div>
         <div class="context-menu-item" data-action="searchActionsCommitByRecipe" style="display: none;">Kiểm tra Commit Actions</div>
         <div class="context-menu-item" data-action="fetchYamlDetails" style="display: none;">Kiểm tra nội dung YAML</div>
+
+        <div class="context-menu-item" data-action="fetchOutputBarcodeByWorkOrder" style="display: none;">Tem đầu ra của mã MES</div>
 
         <div class="context-menu-item" data-action="outputByBarcode" style="display: none;">Tem đầu ra của mã MES</div>
         <div class="context-menu-item" data-action="outputByRecipe" style="display: none;">Tem đầu ra của mã MES</div>

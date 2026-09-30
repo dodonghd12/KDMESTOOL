@@ -550,7 +550,7 @@ window.clearInputBox = clearInputBox;
 
 // ===== AUTO UPPERCASE =====
 function initAutoUppercase() {
-    const uppercaseIds = ['barcode', 'product_id', 'feed_record_id', 'workOrderInput', 'substitutions', 'mr_id', 'mr_product_id', 'mr_station', 'station', 'department'];
+    const uppercaseIds = ['barcode', 'product_id', 'feed_record_id', 'work_order', 'workOrderInput', 'substitutions', 'mr_id', 'mr_product_id', 'mr_station', 'station', 'department'];
     uppercaseIds.forEach(id => {
         const el = document.getElementById(id);
         if (el && !el.dataset.uppercaseInit) {
@@ -573,11 +573,26 @@ function initKeyboardShortcuts() {
         // Ctrl + K -> Focus main search input
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
             e.preventDefault();
-            const searchInp = document.getElementById('barcode') ||
-                              document.getElementById('product_id') ||
-                              document.getElementById('clientSearch') ||
-                              document.getElementById('workOrderInput') ||
-                              document.querySelector('.input-box .input');
+            const bSwitcher = document.getElementById('mainInputSwitcher');
+            const rSwitcher = document.getElementById('recipeInputSwitcher');
+            let searchInp = null;
+            if (bSwitcher) {
+                const bMode = bSwitcher.dataset.activeMode || 'barcode';
+                searchInp = bMode === 'feed_record' ? document.getElementById('feed_record_id') : document.getElementById('barcode');
+            }
+            if (!searchInp && rSwitcher) {
+                const rMode = rSwitcher.dataset.activeMode || 'recipe';
+                searchInp = rMode === 'work_order' ? document.getElementById('work_order') : document.getElementById('product_id');
+            }
+            if (!searchInp) {
+                searchInp = document.getElementById('barcode') ||
+                            document.getElementById('feed_record_id') ||
+                            document.getElementById('product_id') ||
+                            document.getElementById('work_order') ||
+                            document.getElementById('clientSearch') ||
+                            document.getElementById('workOrderInput') ||
+                            document.querySelector('.input-box .input');
+            }
             if (searchInp) {
                 searchInp.focus();
                 searchInp.select?.();
@@ -1309,11 +1324,94 @@ async function checkAuth() {
     await getDepartments();
 }
 
+function initMainInputSwitcher() {
+    // 1. Barcode ⇋ Feed Record Switcher
+    const barcodeSwitcher = document.getElementById('mainInputSwitcher');
+    const barcodeToggleBtn = document.getElementById('toggleInputModeBtn');
+    const barcodeToggleLabel = document.getElementById('toggleModeLabel');
+    const barcodeInput = document.getElementById('barcode');
+    const feedRecordInput = document.getElementById('feed_record_id');
+
+    if (barcodeSwitcher && barcodeToggleBtn) {
+        function switchBarcodeMode(targetMode, focus = true) {
+            const currentMode = barcodeSwitcher.dataset.activeMode || 'barcode';
+            const newMode = targetMode || (currentMode === 'barcode' ? 'feed_record' : 'barcode');
+
+            barcodeSwitcher.dataset.activeMode = newMode;
+
+            if (newMode === 'barcode') {
+                barcodeToggleBtn.title = 'Chuyển sang tìm kiếm theo Lịch sử hao dùng (Feed Record)';
+                if (barcodeToggleLabel) barcodeToggleLabel.textContent = 'Feed Record';
+                if (focus && barcodeInput) {
+                    setTimeout(() => barcodeInput.focus(), 60);
+                }
+            } else {
+                barcodeToggleBtn.title = 'Chuyển sang tìm kiếm theo Tem / Barcode';
+                if (barcodeToggleLabel) barcodeToggleLabel.textContent = 'Barcode';
+                if (focus && feedRecordInput) {
+                    setTimeout(() => feedRecordInput.focus(), 60);
+                }
+            }
+        }
+
+        barcodeToggleBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            switchBarcodeMode();
+        });
+
+        window.switchBarcodeMode = switchBarcodeMode;
+        window.switchMainInputMode = switchBarcodeMode;
+    }
+
+    // 2. Recipe ⇋ Work Order Switcher
+    const recipeSwitcher = document.getElementById('recipeInputSwitcher');
+    const recipeToggleBtn = document.getElementById('toggleRecipeModeBtn');
+    const recipeToggleLabel = document.getElementById('toggleRecipeModeLabel');
+    const productInput = document.getElementById('product_id');
+    const workOrderInput = document.getElementById('work_order');
+
+    if (recipeSwitcher && recipeToggleBtn) {
+        function switchRecipeMode(targetMode, focus = true) {
+            const currentMode = recipeSwitcher.dataset.activeMode || 'recipe';
+            const newMode = targetMode || (currentMode === 'recipe' ? 'work_order' : 'recipe');
+
+            recipeSwitcher.dataset.activeMode = newMode;
+
+            if (newMode === 'recipe') {
+                recipeToggleBtn.title = 'Chuyển sang tìm kiếm theo Đơn điều động (Work Order)';
+                if (recipeToggleLabel) recipeToggleLabel.textContent = 'Work Order';
+                if (focus && productInput) {
+                    setTimeout(() => productInput.focus(), 60);
+                }
+            } else {
+                recipeToggleBtn.title = 'Chuyển sang tìm kiếm theo Quy cách / Recipe';
+                if (recipeToggleLabel) recipeToggleLabel.textContent = 'Recipe';
+                if (focus && workOrderInput) {
+                    setTimeout(() => workOrderInput.focus(), 60);
+                }
+            }
+        }
+
+        recipeToggleBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            switchRecipeMode();
+        });
+
+        window.switchRecipeMode = switchRecipeMode;
+    }
+}
+
 function initializeMainEventListeners() {
+    // ===== MAIN PAGE INPUT SWITCHERS (BARCODE ⇋ FEED RECORD, RECIPE ⇋ WORK ORDER) =====
+    initMainInputSwitcher();
+
     // ===== MAIN PAGE INPUTS =====
     const barcodeInput = document.getElementById('barcode');
     const productInput = document.getElementById('product_id');
     const feedRecordInput = document.getElementById('feed_record_id');
+    const workOrderInput = document.getElementById('work_order');
 
     if (barcodeInput) {
         barcodeInput.addEventListener(
@@ -1325,13 +1423,13 @@ function initializeMainEventListeners() {
             e.target.value = e.target.value.toUpperCase();
             if (productInput) clearInputBox(productInput);
             if (feedRecordInput) clearInputBox(feedRecordInput);
+            if (workOrderInput) clearInputBox(workOrderInput);
             if (e.target.value.trim()) {
                 showTableSkeleton(10, 5);
             } else {
                 clearTable();
             }
         });
-
     }
 
     if (productInput) {
@@ -1344,6 +1442,7 @@ function initializeMainEventListeners() {
             e.target.value = e.target.value.toUpperCase();
             if (barcodeInput) clearInputBox(barcodeInput);
             if (feedRecordInput) clearInputBox(feedRecordInput);
+            if (workOrderInput) clearInputBox(workOrderInput);
             if (e.target.value.trim()) {
                 showTableSkeleton(7, 5);
             } else {
@@ -1362,6 +1461,26 @@ function initializeMainEventListeners() {
             e.target.value = e.target.value.toUpperCase();
             if (barcodeInput) clearInputBox(barcodeInput);
             if (productInput) clearInputBox(productInput);
+            if (workOrderInput) clearInputBox(workOrderInput);
+            if (e.target.value.trim()) {
+                showTableSkeleton(10, 5);
+            } else {
+                clearTable();
+            }
+        });
+    }
+
+    if (workOrderInput) {
+        workOrderInput.addEventListener(
+            'input',
+            debounceSearch(searchWorkOrders, 500)
+        );
+
+        workOrderInput.addEventListener('input', e => {
+            e.target.value = e.target.value.toUpperCase();
+            if (barcodeInput) clearInputBox(barcodeInput);
+            if (productInput) clearInputBox(productInput);
+            if (feedRecordInput) clearInputBox(feedRecordInput);
             if (e.target.value.trim()) {
                 showTableSkeleton(10, 5);
             } else {
@@ -1567,6 +1686,52 @@ async function searchByFeedRecord() {
     } catch (error) {
         console.error('Error searching by feed record:', error);
         Toast.error('Lỗi', 'Lỗi kết nối khi tìm kiếm Liệu nạp');
+        clearTable();
+    }
+}
+
+async function searchWorkOrders() {
+    closeShowBarcodeWindow();
+    const keyword = document.getElementById('work_order').value.trim();
+    if (!keyword) {
+        clearTable();
+        return;
+    }
+
+    showTableSkeleton(10, 5);
+
+    try {
+        const response = await fetch('/api/work-orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ keyword })
+        });
+
+        let data = null;
+        try {
+            data = await response.json();
+        } catch (e) {}
+
+        if (isUnauthorizedResponse(response.status, data)) {
+            showAuthExpiredModal(data ? data.message : null);
+            clearTable();
+            return;
+        }
+
+        if (!response.ok || (data && data.success === false)) {
+            Toast.error('Lỗi kết nối cơ sở dữ liệu', (data && data.message) ? data.message : `Lỗi kết nối cơ sở dữ liệu (${response.status})`);
+            clearTable();
+            return;
+        }
+
+        if (data && Array.isArray(data.result)) {
+            setTableData(data.result, data.columns, 'work_order', `Không tìm thấy đơn điều động nào với từ khóa "${keyword}"`);
+        } else {
+            setTableData([], data ? data.columns : [], 'work_order', `Không tìm thấy đơn điều động nào với từ khóa "${keyword}"`);
+        }
+    } catch (error) {
+        console.error('Error searching work orders:', error);
+        Toast.error('Lỗi', 'Lỗi kết nối khi tìm kiếm Đơn điều động');
         clearTable();
     }
 }
@@ -2055,6 +2220,9 @@ function updateContextMenu() {
         ],
         'outputBarcodeByFeedRecords': [
             'outputBarcodeByFeedRecords'
+        ],
+        'work_order': [
+            'fetchOutputBarcodeByWorkOrder'
         ]
     };
 
@@ -2182,6 +2350,11 @@ function handleContextMenuAction(e) {
             break;
         case 'fetchYamlDetails':
             fetchYamlContent(rowData);
+            break;
+
+        // currentTableType === 'work_order'
+        case 'fetchOutputBarcodeByWorkOrder':
+            openOutputTable('outputBarcodeByWorkOrder', rowData);
             break;
             
         // currentOutputTableType 
@@ -2751,6 +2924,44 @@ async function fetchOutputBarcodeByWorkOrder(type, rowData = null) {
         }
     } catch (err) {
         renderSubOutputBarcodeTable([], []);
+        Toast.error('Lỗi', err.message || 'Lỗi kết nối khi tải tem đầu ra');
+    }
+}
+
+async function fetchOutputBarcodeByMainWorkOrder(workOrderId = null, workOrderStatus = null) {
+    const targetId = workOrderId || (selectedRowData ? (selectedRowData['id'] || selectedRowData['work_order']) : null);
+    const targetStatus = (workOrderStatus !== undefined && workOrderStatus !== null) ? workOrderStatus : (selectedRowData ? selectedRowData['status'] : null);
+
+    if (!targetId) {
+        Toast.warning('Cảnh báo', 'Chưa chọn đơn điều động.');
+        return;
+    }
+
+    try {
+        const data = await apiFetch('/api/workorders/fetch-output-barcodes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ work_order_id: targetId, work_order_status: targetStatus })
+        });
+
+        if (data.success) {
+            if (data.result && data.result.length > 0) {
+                outputBarcodeRawData = data.result;
+                outputBarcodeColumns = data.columns;
+
+                currentOutputTableType = null;
+                renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
+                Toast.success('Thành công', `Tải thành công ${data.result.length} tem đầu ra`);
+            } else {
+                renderOutputBarcodeTable([], data.columns || []);
+                Toast.warning('Không có dữ liệu', data.message || 'Không tìm thấy tem đầu ra nào');
+            }
+        } else {
+            renderOutputBarcodeTable([], []);
+            Toast.error('Lỗi', data.message || 'Lỗi khi tải tem đầu ra');
+        }
+    } catch (err) {
+        renderOutputBarcodeTable([], []);
         Toast.error('Lỗi', err.message || 'Lỗi kết nối khi tải tem đầu ra');
     }
 }
@@ -4577,7 +4788,7 @@ function filterClientResult(keyword) {
         return;
     }
 
-    if (['inputBarcode', 'outputBarcodeByFeedRecords', 'workOrderByRecipe', 'commitGitlabByRecipe', 'workOrderByBarcode', 'commitDetailByRecipe'].includes(activeSearchContext)) {
+    if (['inputBarcode', 'outputBarcodeByFeedRecords', 'workOrderByRecipe', 'commitGitlabByRecipe', 'workOrderByBarcode', 'commitDetailByRecipe', 'outputBarcodeByWorkOrder'].includes(activeSearchContext)) {
         filterOutputBarcode(keyword);
         return;
     }
@@ -4674,6 +4885,11 @@ function openOutputTable(type, rowData = null) {
     } else if (type === 'fetchOriginalInfoByBarcode') {
         if (outputHeaderContentEl) outputHeaderContentEl.textContent = 'Thông tin gốc của barcode';
         fetchOriginalInfoByBarcode(dataObj.id, dataObj.product_type);
+    } else if (type === 'outputBarcodeByWorkOrder') {
+        if (outputHeaderContentEl) outputHeaderContentEl.textContent = 'Tem đầu ra của mã MES';
+        const workOrderId = dataObj.id || dataObj.work_order;
+        const workOrderStatus = dataObj.status;
+        fetchOutputBarcodeByMainWorkOrder(workOrderId, workOrderStatus);
     }
 }
 
