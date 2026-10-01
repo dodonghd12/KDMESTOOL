@@ -27,8 +27,11 @@ from concurrent.futures import ThreadPoolExecutor
 import difflib
 import time
 import uuid
+import logging
 from urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
+
+logger = logging.getLogger(__name__)
 
 _gitlab_session = None
 _gitlab_session_lock = threading.Lock()
@@ -3989,8 +3992,11 @@ def get_station_configuration_list():
 def get_prdeba():
 
     resource_id = request.json.get('resource_id', '').strip()
+    product_type = request.json.get('product_type', '').strip()
     if not resource_id:
         return jsonify({'success': False, 'message': 'Thiếu Resource ID'})
+    if not product_type:
+        return jsonify({'success': False, 'message': 'Thiếu Product Type'})
 
     try:
         query = """
@@ -4020,14 +4026,9 @@ def get_prdeba():
             LEFT JOIN kvmes.material_resource mr_res
                 ON mr_res.id = fr_elem->>'resource_id'
             WHERE mr.id = %s
-                -- AND mr.created_at BETWEEN
-                --     (extract(epoch FROM '2026-08-10'::date AT TIME ZONE 'Asia/Ho_Chi_Minh') * 1000000000)::bigint
-                --     AND
-                --     (extract(epoch FROM ('2026-08-10'::date + 1) AT TIME ZONE 'Asia/Ho_Chi_Minh') * 1000000000)::bigint - 1;
-                -- AND mr.product_type = 'BEAD'
-                -- AND m_elem->>'station' LIKE '%P8300%'
+                AND mr.product_type = %s
         """
-        result, column_names = execute_pg_select_query(query, (resource_id,))
+        result, column_names = execute_pg_select_query(query, (resource_id, product_type))
         serialized_result = [serialize_row(list(row)) for row in result] if result else []
         return jsonify({'success': True, 'result': serialized_result, 'columns': column_names})
 
@@ -4040,8 +4041,11 @@ def get_prdeba():
 def get_prdebb():
 
     resource_id = request.json.get('resource_id', '').strip()
+    product_type = request.json.get('product_type', '').strip()
     if not resource_id:
         return jsonify({'success': False, 'message': 'Thiếu Resource ID'})
+    if not product_type:
+        return jsonify({'success': False, 'message': 'Thiếu Product Type'})
 
     try:
         query = """
@@ -4059,12 +4063,9 @@ def get_prdebb():
                 ON cr.resource_oid = mr.oid
                 AND cr.station = mr.info->'production_info'->>'station'
             WHERE mr.id = %s
-                -- AND mr.product_type LIKE 'BEAD'
-                -- AND mr.info->'production_info'->>'station' LIKE '%P8300%'
-                -- AND (to_timestamp(mr.created_at / 1000000000.0) AT TIME ZONE 'Asia/Ho_Chi_Minh')::date 
-                --     BETWEEN '2026-08-10'::date AND '2026-08-10'::date
+                AND mr.product_type = %s
         """
-        result, column_names = execute_pg_select_query(query, (resource_id,))
+        result, column_names = execute_pg_select_query(query, (resource_id, product_type))
         serialized_result = [serialize_row(list(row)) for row in result] if result else []
         return jsonify({'success': True, 'result': serialized_result, 'columns': column_names})
 
@@ -4077,8 +4078,11 @@ def get_prdebb():
 def get_prdebc():
 
     resource_id = request.json.get('resource_id', '').strip()
+    product_type = request.json.get('product_type', '').strip()
     if not resource_id:
         return jsonify({'success': False, 'message': 'Thiếu Resource ID'})
+    if not product_type:
+        return jsonify({'success': False, 'message': 'Thiếu Product Type'})
 
     try:
         query = """
@@ -4105,14 +4109,9 @@ def get_prdebc():
             LEFT JOIN kvmes.work_order wo
                 ON TRIM(wo.id) = TRIM(cr.work_order)
             WHERE mr.id = %s
-                -- AND mr.created_at BETWEEN
-                --     (extract(epoch FROM '2026-08-10'::date AT TIME ZONE 'Asia/Ho_Chi_Minh') * 1000000000)::bigint
-                --     AND
-                --     (extract(epoch FROM ('2026-08-10'::date + 1) AT TIME ZONE 'Asia/Ho_Chi_Minh') * 1000000000)::bigint - 1;
-                -- AND mr.product_type = 'BEAD'
-                -- AND m_elem->>'station' LIKE '%P8300%'
+                AND mr.product_type = %s
         """
-        result, column_names = execute_pg_select_query(query, (resource_id,))
+        result, column_names = execute_pg_select_query(query, (resource_id, product_type))
         serialized_result = [serialize_row(list(row)) for row in result] if result else []
         return jsonify({'success': True, 'result': serialized_result, 'columns': column_names})
 

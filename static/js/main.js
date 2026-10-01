@@ -2800,7 +2800,8 @@ async function fetchOriginalInfoByBarcode(id = null, product_type = null) {
 
 async function fetchPrde(type, rowData = null) {
     const dataObj = rowData || selectedRowData;
-    const resource_id = dataObj ? dataObj['id'] : null;
+    const resource_id = dataObj ? (dataObj['id'] || dataObj['barcode'] || dataObj['resource_id']) : null;
+    const product_type = dataObj ? (dataObj['product_type'] || dataObj['material_type']) : null;
     if (!resource_id) {
         Toast.warning('Cảnh báo', 'Chưa chọn hàng dữ liệu.');
         return;
@@ -2834,10 +2835,15 @@ async function fetchPrde(type, rowData = null) {
     activeSearchContext = type;
 
     try {
+        const payload = { resource_id };
+        if (product_type) {
+            payload.product_type = product_type;
+        }
+
         const data = await apiFetch(urlMap[type], {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ resource_id })
+            body: JSON.stringify(payload)
         });
 
         if (!data || !data.success) {
