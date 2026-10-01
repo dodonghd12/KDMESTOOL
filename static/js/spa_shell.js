@@ -180,9 +180,10 @@
             }, 1200);
         }
 
-        // Notify Supercar Intro overlay
-        if (window.SupercarIntro && typeof window.SupercarIntro.onAllLoaded === 'function') {
-            window.SupercarIntro.onAllLoaded(total);
+        // Notify Lusion Preloader overlay
+        const introEngine = window.LusionIntro || window.SupercarIntro;
+        if (introEngine && typeof introEngine.onAllLoaded === 'function') {
+            introEngine.onAllLoaded(total);
         }
     }
 
@@ -192,8 +193,9 @@
         let loadedCount = 0;
         const loadedSet = new Set();
 
-        if (window.SupercarIntro && typeof window.SupercarIntro.setTotalPages === 'function') {
-            window.SupercarIntro.setTotalPages(total);
+        const introEngine = window.LusionIntro || window.SupercarIntro;
+        if (introEngine && typeof introEngine.setTotalPages === 'function') {
+            introEngine.setTotalPages(total);
         }
 
         function onFrameLoaded(frameId) {
@@ -224,9 +226,9 @@
                 progressBar.style.width = `${percent}%`;
             }
 
-            // Đồng bộ tiến trình với Supercar Intro Overlay
-            if (window.SupercarIntro && typeof window.SupercarIntro.onProgress === 'function') {
-                window.SupercarIntro.onProgress(loadedCount, total);
+            // Đồng bộ tiến trình với Lusion Preloader Overlay
+            if (introEngine && typeof introEngine.onProgress === 'function') {
+                introEngine.onProgress(loadedCount, total);
             }
 
             if (loadedCount >= total) {
@@ -289,7 +291,7 @@
             if (!link) return;
 
             const href = link.getAttribute('href');
-            if (!href || href === '#' || href.startsWith('javascript:') || href.includes('logout')) {
+            if (!href || href === '#' || href.startsWith('javascript:')) {
                 return;
             }
 
@@ -332,118 +334,19 @@
     };
 
     /**
-     * Top-level Auth Expired Modal Handler
+     * Top-level Auth Expired Handler — Auto reload for fresh token (Zero Login Page)
      */
-    function showAuthExpiredModal(message) {
-        if (window.__kd_auth_modal_shown) return;
-        window.__kd_auth_modal_shown = true;
+     function showAuthExpiredModal(message) {
+         if (window.__kd_auth_refreshing) return;
+         window.__kd_auth_refreshing = true;
 
-        try {
-            sessionStorage.clear();
-            localStorage.removeItem('kd_departments_cache');
-        } catch (e) {}
+         try {
+             sessionStorage.clear();
+             localStorage.removeItem('kd_departments_cache');
+         } catch (e) {}
 
-        const existingModal = document.getElementById('kdAuthExpiredModal');
-        if (existingModal) existingModal.remove();
-
-        let countdown = 3;
-        const modalOverlay = document.createElement('div');
-        modalOverlay.id = 'kdAuthExpiredModal';
-        modalOverlay.className = 'kd-auth-expired-overlay';
-        modalOverlay.setAttribute('role', 'alertdialog');
-        modalOverlay.setAttribute('aria-modal', 'true');
-        modalOverlay.setAttribute('aria-labelledby', 'authModalTitle');
-        modalOverlay.setAttribute('aria-describedby', 'authModalMsg');
-
-        const displayMsg = message || 'Phiên làm việc của bạn đã hết hạn. Vui lòng đăng nhập lại để tiếp tục sử dụng.';
-        const redirectCode = "try{sessionStorage.clear();localStorage.removeItem('kd_departments_cache');}catch(e){};(window.top||window).location.href='/login';";
-
-        modalOverlay.innerHTML = `
-            <div class="kd-auth-expired-card">
-                <div class="kd-auth-expired-icon-wrap">
-                    <span class="material-symbols-outlined kd-auth-expired-icon">lock_clock</span>
-                </div>
-                <div class="kd-auth-expired-title" id="authModalTitle">Phiên Đăng Nhập Hết Hạn</div>
-                <div class="kd-auth-expired-message" id="authModalMsg">
-                    ${displayMsg}<br>
-                    <span style="display: inline-block; margin-top: 6px; font-size: 13px; color: var(--color-text-muted, #94a3b8);">
-                        Tự động chuyển về trang Đăng nhập sau <b id="kdAuthCountdown" style="color: #f43f5e; font-size: 15px;">${countdown}</b>s...
-                    </span>
-                </div>
-                <div class="kd-auth-expired-actions">
-                    <button type="button" class="kd-auth-expired-btn" id="kdAuthLoginRedirectBtn" onclick="${redirectCode}">
-                        <span class="material-symbols-outlined" style="pointer-events: none;">login</span>
-                        <span style="pointer-events: none;">Đăng nhập lại ngay</span>
-                    </button>
-                </div>
-            </div>
-        `;
-
-        document.body.appendChild(modalOverlay);
-        document.body.style.overflow = 'hidden';
-
-        const iframes = document.querySelectorAll('iframe');
-        iframes.forEach(f => {
-            try { f.style.pointerEvents = 'none'; } catch (e) {}
-        });
-
-        const redirectBtn = modalOverlay.querySelector('#kdAuthLoginRedirectBtn');
-        const countdownEl = modalOverlay.querySelector('#kdAuthCountdown');
-
-        const doRedirect = () => {
-            try {
-                sessionStorage.clear();
-                localStorage.removeItem('kd_departments_cache');
-            } catch (e) {}
-            try {
-                if (window.top && window.top.location) {
-                    window.top.location.href = '/login';
-                    return;
-                }
-            } catch (e) {}
-            try {
-                window.location.href = '/login';
-            } catch (e) {}
-        };
-
-        if (redirectBtn) {
-            setTimeout(() => {
-                try { redirectBtn.focus(); } catch (e) {}
-            }, 50);
-
-            redirectBtn.onclick = function(e) {
-                if (e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                }
-                doRedirect();
-                return false;
-            };
-
-            redirectBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                doRedirect();
-            });
-        }
-
-        const timer = setInterval(() => {
-            countdown--;
-            if (countdownEl) countdownEl.textContent = countdown;
-            if (countdown <= 0) {
-                clearInterval(timer);
-                doRedirect();
-            }
-        }, 1000);
-
-        const keyHandler = (e) => {
-            if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') {
-                e.preventDefault();
-                doRedirect();
-            }
-        };
-
-        window.addEventListener('keydown', keyHandler, true);
+         // Tự động tải lại trang ngay lập tức để lấy token mới mà không cần trang login
+        window.location.reload();
     }
 
     window.showAuthExpiredModal = showAuthExpiredModal;

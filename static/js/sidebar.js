@@ -99,32 +99,11 @@ window.showModal = showModal;
 window.closeModal = closeModal;
 window.showConfirm = showConfirm;
 
-async function handleLogout() {
-    const confirmed = await showConfirm('Bạn có chắc chắn muốn đăng xuất?');
-    if (!confirmed) return;
-
-    try {
-        const response = await fetch('/logout', { method: 'POST' });
-        const data = await response.json();
-        if (data && data.success) {
-            (window.top || window).location.href = '/login';
-        }
-    } catch (error) {
-        console.error('Logout error:', error);
-        (window.top || window).location.href = '/login';
-    }
-}
-window.handleLogout = handleLogout;
-
 document.addEventListener('DOMContentLoaded', () => {
     const sidebar = document.getElementById('sidebar');
     if (!sidebar) return;
 
     const dropdownButtons = sidebar.querySelectorAll('.dropdown-btn');
-
-    document.addEventListener('sidebar:logout', () => {
-        handleLogout();
-    });
 
     dropdownButtons.forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -428,12 +407,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // Density Mode Toggle Button
         if (e.target.closest('#densityQuickBtn') || e.target.closest('#densityToggleMenuItem')) {
             toggleDensity();
-            return;
-        }
-
-        // Logout
-        if (e.target.closest('#logoutMenuItem')) {
-            document.dispatchEvent(new Event('sidebar:logout'));
             return;
         }
 

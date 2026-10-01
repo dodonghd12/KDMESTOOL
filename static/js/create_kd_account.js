@@ -24,9 +24,6 @@
     ];
 
     document.addEventListener('DOMContentLoaded', () => {
-        if (typeof handleLogout === 'function') {
-            document.addEventListener('sidebar:logout', handleLogout);
-        }
         if (typeof showAbout === 'function') {
             document.addEventListener('sidebar:about', showAbout);
         }

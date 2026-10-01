@@ -15,7 +15,6 @@ let cachedStations = [];
 let cachedStationsDeptKey = null;
 
 document.addEventListener('DOMContentLoaded', () => {
-    document.addEventListener('sidebar:logout', handleLogout);
     document.addEventListener('sidebar:about',  showAbout);
 
     const inp = document.getElementById('workOrderInput');

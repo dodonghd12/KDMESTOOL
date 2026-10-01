@@ -29,10 +29,6 @@ function initializeReprintEventListeners() {
         showAbout();
     });
 
-    document.addEventListener('sidebar:logout', () => {
-        handleLogout();
-    });
-
     const dateRangeInput = document.getElementById('dateRange'); 
     dateRangeInput.addEventListener('input', e => {
         if (!e.target.value) {

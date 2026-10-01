@@ -492,6 +492,86 @@ def get_client_ip():
     
     return request.remote_addr
 
+DEFAULT_MES_USER = os.environ.get('DEFAULT_MES_USER', 'thsang')
+DEFAULT_MES_PASS = os.environ.get('DEFAULT_MES_PASS', 'thsang')
+
+def perform_mes_login(user_id=None, password=None):
+    """Tự động đăng nhập ngầm vào MES (198.1.10.85:8810) và lưu session."""
+    u_id = user_id or DEFAULT_MES_USER
+    pwd = password or DEFAULT_MES_PASS
+    try:
+        user_ip = get_client_ip()
+    except Exception:
+        user_ip = "127.0.0.1"
+    
+    url = "https://198.1.10.85:8810/api/user/login"
+    headers = {
+        "accept": "application/json",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "ID": u_id,
+        "loginType": 0,
+        "password": pwd
+    }
+    try:
+        response = requests.post(url, headers=headers, json=data, verify=False, timeout=10)
+        response_data = response.json()
+        if response_data.get('data') and response_data['data'].get('token'):
+            session['user_id'] = u_id
+            session['user_token'] = response_data['data']['token']
+            session['user_ip'] = user_ip
+            
+            cookie_parts = []
+            if response.cookies:
+                for cookie in response.cookies:
+                    cookie_parts.append(f"{cookie.name}={cookie.value}")
+            if 'Set-Cookie' in response.headers:
+                set_cookie = response.headers['Set-Cookie']
+                if ';' in set_cookie:
+                    cookie_parts.append(set_cookie.split(';')[0])
+                else:
+                    cookie_parts.append(set_cookie)
+            if cookie_parts:
+                session['user_cookie_string'] = '; '.join(cookie_parts)
+            return True
+    except Exception as e:
+        logger.error(f"perform_mes_login error: {e}")
+    return False
+
+def fetch_mes_api_with_retry(method, url, **kwargs):
+    """
+    Tự động gọi API MES (198.1.10.85:8810) với cơ chế tự động làm mới Token nếu Token hết hạn (401/403).
+    Không bao giờ để gián đoạn người dùng.
+    """
+    if 'user_token' not in session or not session.get('user_token'):
+        perform_mes_login()
+    
+    kwargs['verify'] = False
+    if 'timeout' not in kwargs:
+        kwargs['timeout'] = 12
+
+    try:
+        kwargs['headers'] = kwargs.get('headers') or get_auth_headers(session)
+        if method.upper() == 'GET':
+            resp = requests.get(url, **kwargs)
+        else:
+            resp = requests.post(url, **kwargs)
+            
+        # Nếu token hết hạn (401 hoặc 403) -> Tự động re-login và retry ngay lập tức
+        if resp.status_code in [401, 403]:
+            logger.info("MES Token expired (401/403). Silently re-authenticating with MES...")
+            if perform_mes_login():
+                kwargs['headers'] = get_auth_headers(session)
+                if method.upper() == 'GET':
+                    resp = requests.get(url, **kwargs)
+                else:
+                    resp = requests.post(url, **kwargs)
+        return resp
+    except Exception as e:
+        logger.error(f"fetch_mes_api_with_retry error: {e}")
+        raise e
+
 
 # --- Core Application Constants & Helpers ---
 APP_VERSION = "2.1.0"
@@ -661,7 +741,8 @@ def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-            return make_unauthorized_response()
+            if not perform_mes_login():
+                return make_unauthorized_response()
         return f(*args, **kwargs)
     return decorated_function
 
@@ -728,102 +809,43 @@ default_language = "vi"
 
 @app.route('/')
 def index():
-    if 'user_id' in session:
-        return redirect(url_for('main'))
-    return redirect(url_for('login'))
+    if 'user_token' not in session:
+        perform_mes_login()
+    return redirect(url_for('main'))
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-
-        user_ip = get_client_ip()
-
-        if request.is_json:
-            data = request.get_json()
-            user_id = data.get('user_id', '').strip() if data else ''
-            password = data.get('password', '').strip() if data else ''
-        else:
-            user_id = request.form.get('user_id', '').strip()
-            password = request.form.get('password', '').strip()
-        
-        if not user_id or not password:
-            return jsonify({'success': False, 'message': 'Vui lòng nhập đầy đủ Tài khoản và mật khẩu.'})
-        
-        tool_status = get_config_data("available")
-        if tool_status and tool_status[0] == "N":
-            return jsonify({'success': False, 'message': 'Tool không khả dụng ở thời điểm hiện tại'})
-        
-        url = "https://198.1.10.85:8810/api/user/login"
-        headers = {
-            "accept": "application/json",
-            "Content-Type": "application/json"
-        }
-        data = {
-            "ID": user_id,
-            "loginType": 0,
-            "password": password
-        }
-        
-        try:
-            response = requests.post(url, headers=headers, json=data, verify=False)
-            response_data = response.json()
-            if response_data.get('data'):
-                session['user_id'] = user_id
-                session['user_token'] = response_data['data']['token']
-                session['user_ip'] = user_ip
-                
-                cookie_parts = []
-                if response.cookies:
-                    for cookie in response.cookies:
-                        cookie_parts.append(f"{cookie.name}={cookie.value}")
-                
-                if 'Set-Cookie' in response.headers:
-                    set_cookie = response.headers['Set-Cookie']
-                    if ';' in set_cookie:
-                        cookie_parts.append(set_cookie.split(';')[0])
-                    else:
-                        cookie_parts.append(set_cookie)
-                
-                if cookie_parts:
-                    session['user_cookie_string'] = '; '.join(cookie_parts)
-                    
-                return jsonify({'success': True})
-        except Exception as e:
-            pass
-        
-        return jsonify({'success': False, 'message': 'Tài khoản không tồn tại hoặc mật khẩu không đúng'})
-    
-    return render_template('login.html', version=get_asset_version(), app_version=APP_VERSION)
-
-@app.route('/logout', methods=['POST'])
-def logout():
-    session.clear()
-    return jsonify({'success': True})
+        if perform_mes_login():
+            return jsonify({'success': True})
+        return jsonify({'success': False, 'message': 'Tự động xác thực thất bại'})
+    return redirect(url_for('main'))
 
 @app.route('/api/check-auth', methods=['GET'])
 @login_required
 def check_auth():
-
     return jsonify({'success': True})
 
 #========= PAGE ROUTES =========#
 def render_page_or_shell(template_name, page_path, page_title="KDMES TOOL"):
     if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
-        return redirect(url_for('login'))
+        perform_mes_login()
     is_frame = request.args.get('frame') == '1'
     current_version = get_asset_version()
+    user_id = session.get('user_id', DEFAULT_MES_USER)
+    user_ip = session.get('user_ip', get_client_ip() or '127.0.0.1')
     if not is_frame:
         return render_template('spa_shell.html',
                                initial_path=page_path,
                                page_title=page_title,
-                               user_id=session.get('user_id'),
-                               user_ip=session.get('user_ip'),
+                               user_id=user_id,
+                               user_ip=user_ip,
                                version=current_version,
                                app_version=APP_VERSION)
     return render_template(template_name,
                            is_frame=True,
-                           user_id=session.get('user_id'),
-                           user_ip=session.get('user_ip'),
+                           user_id=user_id,
+                           user_ip=user_ip,
                            version=current_version,
                            app_version=APP_VERSION)
 
@@ -2498,10 +2520,8 @@ _STATIONS_CACHE_TTL = 600  # 10 minutes cache
 @login_required
 def get_department_list():
     url = 'https://198.1.10.85:8810/api/departments'
-    headers = get_auth_headers(session)
-    
     try:
-        response = requests.get(url, headers=headers, verify=False, timeout=10)
+        response = fetch_mes_api_with_retry('GET', url)
         response.raise_for_status()
         data = response.json()
         
@@ -2518,9 +2538,6 @@ def get_department_list():
     
     except Exception as e:
         error_msg = str(e)
-        if (hasattr(e, 'response') and e.response is not None and e.response.status_code in [401, 403]) or '401' in error_msg or '403' in error_msg or 'Unauthorized' in error_msg:
-            return make_unauthorized_response('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.')
-
         return jsonify({
             'error': True,
             'code': 'INTERNAL_ERROR',
@@ -2530,11 +2547,6 @@ def get_department_list():
 @app.route('/api/departments/stations', methods=['POST'])
 @login_required
 def get_station_list_by_department():
-    
-    user_token = session.get('user_token')
-    if not user_token:
-        return make_unauthorized_response()
-    
     department_oid = request.json.get('department_oid', '').strip()
     if not department_oid:
         return jsonify({'stations': []})
@@ -2545,10 +2557,8 @@ def get_station_list_by_department():
         return jsonify({'stations': cached_entry['data']})
     
     url = f'https://198.1.10.85:8810/api/station-list/department-oid/{department_oid}'
-    headers = get_auth_headers(session)
-    
     try:
-        response = requests.get(url, headers=headers, verify=False, timeout=10)
+        response = fetch_mes_api_with_retry('GET', url)
         data = response.json()
         stations = []
         if data.get('data'):
@@ -2563,7 +2573,7 @@ def get_station_list_by_department():
             'timestamp': now
         }
         return jsonify({'stations': stations})
-    except requests.RequestException as e:
+    except Exception as e:
         if cached_entry:
             return jsonify({'stations': cached_entry['data']})
         return jsonify({'stations': [], 'error': str(e)})
@@ -2774,10 +2784,8 @@ def get_reprint_barcode_list():
         'createdBefore': to_date
     }
 
-    headers = get_auth_headers(session)
-
     try:
-        response = requests.get(url, headers=headers, params=params, verify=False)
+        response = fetch_mes_api_with_retry('GET', url, params=params)
         response.raise_for_status()
         data = response.json()
 

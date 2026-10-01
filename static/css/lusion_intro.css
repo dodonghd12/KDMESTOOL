@@ -1,0 +1,39 @@
+/* ==========================================================================
+   LUSION-STYLE MORPHING PRELOADER & SPA TRANSITION ENGINE
+   Authentic Lusion.co Implementation | Letter 'O' Morph & Portal Transition
+   Theme Background: var(--bg-main) | Accent: var(--color-text-accent)
+   ========================================================================== */
+
+#lusionPreloader {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 2147483647;
+    background-color: transparent !important;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.35s;
+    will-change: opacity, visibility;
+    pointer-events: auto;
+}
+
+#lusionPreloader.fade-out {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+
+#lusionCanvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    image-rendering: -webkit-optimize-contrast;
+}

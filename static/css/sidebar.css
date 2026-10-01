@@ -665,29 +665,17 @@ main p {
     flex-shrink: 0;
 }
 
-.sidebar-footer button {
+.user-profile-badge {
     width: 100%;
-    background: none;
-    border: none;
     color: var(--text-clr);
     display: flex;
     align-items: center;
     gap: 1em;
     padding: .85em;
     border-radius: .5em;
-    cursor: pointer;
     font: inherit;
-    text-align: left;
     box-sizing: border-box;
-}
-
-.sidebar-footer button:hover {
-    background-color: var(--hover-clr);
-}
-
-.sidebar-footer .sub-menu a {
-    padding-left: 2em;
-    gap: 1em;
+    user-select: none;
 }
 
 .sidebar.close a > span:not(.material-symbols-outlined),
@@ -702,7 +690,8 @@ main p {
 .sidebar.close a,
 .sidebar.close .dropdown-btn,
 .sidebar.close .sidebar-btn,
-.sidebar.close .density-menu-item {
+.sidebar.close .density-menu-item,
+.sidebar.close .user-profile-badge {
     height: 42px;
     width: 42px;
     margin: 4px auto;

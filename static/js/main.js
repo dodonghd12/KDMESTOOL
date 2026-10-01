@@ -1489,9 +1489,6 @@ function initializeMainEventListeners() {
         });
     }
 
-    // ===== SIDEBAR EVENTS =====
-    document.addEventListener('sidebar:logout', handleLogout);
-
     // ===== MODAL CLOSE BUTTONS =====
     document.querySelectorAll('.close').forEach(btn => {
         btn.addEventListener('click', function () {
@@ -3613,21 +3610,6 @@ function closeDetailsModal() {
     }
     window._currentRawYamlContent = null;
     document.body.classList.remove('modal-open');
-}
-
-async function handleLogout() {
-    const confirmed = await showConfirm('Bạn có chắc chắn muốn đăng xuất?');
-    if (!confirmed) return;
-
-    try {
-        const response = await fetch('/logout', { method: 'POST' });
-        const data = await response.json();
-        if (data.success) {
-            (window.top || window).location.href = '/login';
-        }
-    } catch (error) {
-        console.error('Logout error:', error);
-    }
 }
 
 function showAbout() {

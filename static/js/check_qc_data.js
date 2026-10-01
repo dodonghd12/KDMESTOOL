@@ -5,7 +5,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function initializeQCDataEventListeners() {
     document.addEventListener('sidebar:about', () => { showAbout(); });
-    document.addEventListener('sidebar:logout', () => { handleLogout(); });
 
     // Clear table khi xóa ngày
     const dateRangeInput = document.getElementById('dateRange');

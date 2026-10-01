@@ -31,10 +31,6 @@ function initializeValidateScanBarcodeEventListeners() {
         showAbout();
     });
 
-    document.addEventListener('sidebar:logout', () => {
-        handleLogout();
-    });
-
     // Department search
     const departmentInput = document.getElementById('department'); 
     departmentInput.addEventListener('click', () => {
