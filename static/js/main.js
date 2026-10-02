@@ -645,6 +645,11 @@ function initKeyboardShortcuts() {
                 closeDetailsModal();
                 return;
             }
+            const mesTrackingModal = document.getElementById('mesTrackingModal');
+            if (mesTrackingModal && !mesTrackingModal.classList.contains('hidden') && mesTrackingModal.style.display !== 'none') {
+                closeMesTrackingModal();
+                return;
+            }
             const comparisonModal = document.getElementById('comparisonModal');
             if (comparisonModal && !comparisonModal.classList.contains('hidden') && comparisonModal.style.display !== 'none') {
                 if (typeof closeComparisonModal === 'function') {
@@ -812,6 +817,7 @@ function enhanceContextMenu() {
         'feedRecords': 'history',
         'checkScanBarcodeHistory': 'receipt_long',
         'checkBarcodeWorkOrder': 'assignment',
+        'mesTracking': 'account_tree',
         'checkBarcodeTransfer': 'local_shipping',
         'checkBarcodeExtendDateTime': 'update',
         'fetchOriginalInfo': 'info',
@@ -2198,6 +2204,7 @@ function updateContextMenu() {
             'feedRecords',
             'checkScanBarcodeHistory',
             'checkBarcodeWorkOrder',
+            'mesTracking',
             'checkBarcodeTransfer',
             'checkBarcodeExtendDateTime',
             'fetchOriginalInfo',
@@ -2310,6 +2317,9 @@ function handleContextMenuAction(e) {
             break;
         case 'checkBarcodeWorkOrder':
             openOutputTable('workOrderByBarcode', rowData);
+            break;
+        case 'mesTracking':
+            openMesTrackingModal(rowData);
             break;
         case 'checkBarcodeTransfer':
             checkBarcodeTransfer(rowData);
@@ -2867,6 +2877,498 @@ async function fetchPrde(type, rowData = null) {
     }
 }
 
+// ===== MES TRACKING MASTER-DETAIL UNIFIED TREE TABLE IMPLEMENTATION =====
+let mesModalNodeCounter = 0;
+
+async function openMesTrackingModal(rowData = null) {
+    const dataObj = rowData || selectedRowData || {};
+    const resource_id = dataObj.id || dataObj.barcode || dataObj.resource_id;
+    const product_id = dataObj.product_id || dataObj.recipe_id || dataObj.productID;
+
+    if (!resource_id || !product_id) {
+        Toast.warning('Cảnh báo', 'Không tìm thấy thông tin Resource ID hoặc Product ID để tra cứu MES Tracking.');
+        return;
+    }
+
+    const modal = document.getElementById('mesTrackingModal');
+    if (!modal) return;
+
+    // Set meta info in modal header
+    const modalBarcodeEl = document.getElementById('mesModalBarcode');
+    const modalProductEl = document.getElementById('mesModalProduct');
+    if (modalBarcodeEl) modalBarcodeEl.textContent = resource_id;
+    if (modalProductEl) modalProductEl.textContent = product_id;
+
+    // Reset search input
+    const searchInput = document.getElementById('mesModalSearch');
+    if (searchInput) searchInput.value = '';
+
+    // Show modal
+    modal.classList.remove('hidden');
+    modal.classList.add('show');
+
+    // Load initial root data
+    await fetchMesTrackingModalData(resource_id, product_id);
+}
+window.openMesTrackingModal = openMesTrackingModal;
+
+function closeMesTrackingModal() {
+    const modal = document.getElementById('mesTrackingModal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('show');
+    }
+}
+window.closeMesTrackingModal = closeMesTrackingModal;
+
+async function fetchMesTrackingModalData(resourceId, productId) {
+    const tbody = document.getElementById('mesMasterTableBody');
+    if (!tbody) return;
+
+    mesModalNodeCounter = 0;
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="11" style="text-align: center; padding: 40px 20px;">
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 10px; color: var(--color-text-accent);">
+                    <span class="mes-tree-spinner" style="width: 24px; height: 24px; border-width: 3px;"></span>
+                    <span style="font-size: 13px;">Đang truy xuất lịch sử vật liệu MES...</span>
+                </div>
+            </td>
+        </tr>
+    `;
+
+    try {
+        const data = await apiFetch('/api/mes/material-history', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                resource_id: resourceId,
+                product_id: productId,
+                type: 0
+            })
+        });
+
+        if (!data || !data.success) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="11" style="text-align: center; padding: 40px 20px; color: var(--rose-400);">
+                        ${escapeHtml((data && data.message) ? data.message : 'Lỗi khi gọi API MES')}
+                    </td>
+                </tr>
+            `;
+            Toast.error('Lỗi', (data && data.message) ? data.message : 'Lỗi khi tải dữ liệu MES Tracking');
+            return;
+        }
+
+        if (!data.data || data.data.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="11" style="text-align: center; padding: 40px 20px;">
+                        <div class="table-empty-state">
+                            <div class="empty-state-icon-wrapper">
+                                <span class="material-symbols-outlined empty-state-icon">account_tree</span>
+                            </div>
+                            <div class="empty-state-title">Không tìm thấy dữ liệu</div>
+                            <div class="empty-state-desc">Không tìm thấy thông tin cấu trúc vật liệu cho Barcode ${escapeHtml(resourceId)}</div>
+                        </div>
+                    </td>
+                </tr>
+            `;
+            Toast.warning('Không có dữ liệu', `Không tìm thấy lịch sử MES Tracking cho Barcode ${resourceId}`);
+            return;
+        }
+
+        renderMesMasterTableRows(data.data, tbody, 0, null, []);
+        Toast.success('Thành công', `Tải thành công ${data.data.length} bản ghi gốc`);
+    } catch (err) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="11" style="text-align: center; padding: 40px 20px; color: var(--rose-400);">
+                    ${escapeHtml(err.message || 'Lỗi kết nối')}
+                </td>
+            </tr>
+        `;
+        Toast.error('Lỗi kết nối', err.message || 'Lỗi khi gọi API MES Tracking');
+    }
+}
+
+function renderMesMasterTableRows(items, tbody, level = 0, parentNodeId = null, ancestorIds = []) {
+    if (!tbody) return;
+    if (level === 0) {
+        tbody.innerHTML = '';
+    }
+
+    const fragment = document.createDocumentFragment();
+    items.forEach(item => {
+        const rowEl = createMesTableRow(item, level, parentNodeId, ancestorIds);
+        fragment.appendChild(rowEl);
+    });
+    tbody.appendChild(fragment);
+}
+
+function createMesTableRow(item, level = 0, parentNodeId = null, ancestorIds = []) {
+    const nodeId = 'mes-node-' + (++mesModalNodeCounter);
+    const clampedLevel = Math.min(level, 4);
+    const tr = document.createElement('tr');
+    tr.className = `mes-data-row mes-tree-row mes-level-${clampedLevel}`;
+    tr.dataset.nodeId = nodeId;
+    tr.dataset.level = String(level);
+    tr.dataset.resourceId = item.resourceID || '';
+    tr.dataset.productId = item.productID || '';
+    tr.dataset.loaded = 'false';
+    tr.dataset.expanded = 'false';
+    tr.dataset.parentNodeId = parentNodeId || '';
+    tr.dataset.ancestorIds = JSON.stringify(ancestorIds || []);
+
+    // 1. Toggle Button
+    const tdToggle = document.createElement('td');
+    tdToggle.className = 'mes-toggle-td';
+    const toggleBtn = document.createElement('button');
+    toggleBtn.type = 'button';
+    toggleBtn.className = 'mes-tree-toggle-btn';
+    toggleBtn.title = 'Mở rộng vật liệu con';
+    toggleBtn.setAttribute('aria-label', 'Mở rộng vật liệu con');
+    toggleBtn.innerHTML = '<span class="mes-toggle-arrow">›</span>';
+    toggleBtn.onclick = (e) => {
+        e.stopPropagation();
+        handleMesRowToggle(toggleBtn, tr);
+    };
+    tdToggle.appendChild(toggleBtn);
+    tr.appendChild(tdToggle);
+
+    // 2. Product_type (Badge)
+    const tdType = document.createElement('td');
+    const rawType = (item.productType || 'N/A').toUpperCase();
+    tdType.innerHTML = `<span class="mes-product-type-badge mes-badge-${rawType.toLowerCase()}">${escapeHtml(rawType)}</span>`;
+    tdType.dataset.fullValue = rawType;
+    tr.appendChild(tdType);
+
+    // 3. Barcode (Resource ID)
+    const tdResource = document.createElement('td');
+    tdResource.className = 'font-mono text-cyan-400 font-medium';
+    tdResource.textContent = item.resourceID || '-';
+    tdResource.dataset.fullValue = item.resourceID || '';
+    tdResource.title = item.resourceID || '';
+    tr.appendChild(tdResource);
+
+    // 4. Product_id (Product ID)
+    const tdProduct = document.createElement('td');
+    tdProduct.className = 'font-mono font-medium';
+    tdProduct.textContent = item.productID || '-';
+    tdProduct.dataset.fullValue = item.productID || '';
+    tdProduct.title = item.productID || '';
+    tr.appendChild(tdProduct);
+
+    // 5. Số Lượng
+    const tdQty = document.createElement('td');
+    tdQty.className = 'text-right font-mono font-medium';
+    tdQty.textContent = (item.quantity !== undefined && item.quantity !== null && item.quantity !== '') ? item.quantity : '-';
+    tdQty.dataset.fullValue = String(item.quantity ?? '');
+    tr.appendChild(tdQty);
+
+    // 6. Số Lô
+    const tdLot = document.createElement('td');
+    tdLot.className = 'font-mono';
+    tdLot.textContent = item.lotNumber || '-';
+    tdLot.dataset.fullValue = item.lotNumber || '';
+    tr.appendChild(tdLot);
+
+    // 7. Trạm / Máy
+    const tdStation = document.createElement('td');
+    tdStation.className = 'font-mono';
+    tdStation.textContent = item.stationID || '-';
+    tdStation.dataset.fullValue = item.stationID || '';
+    tr.appendChild(tdStation);
+
+    // 8. Ngày SX
+    const tdProdDate = document.createElement('td');
+    tdProdDate.textContent = item.productionDate || '-';
+    tdProdDate.dataset.fullValue = item.productionDate || '';
+    tr.appendChild(tdProdDate);
+
+    // 9. Thời Gian SX
+    const tdProdTime = document.createElement('td');
+    const formattedProdTime = item.productionTime ? formatIsoDateTimeStr(item.productionTime) : '-';
+    tdProdTime.textContent = formattedProdTime;
+    tdProdTime.dataset.fullValue = formattedProdTime;
+    tdProdTime.title = item.productionTime || '';
+    tr.appendChild(tdProdTime);
+
+    // 10. NV Sản Xuất
+    const tdStaff = document.createElement('td');
+    const staffVal = item.productionStaff || (Array.isArray(item.boundResourceUserIDs) && item.boundResourceUserIDs.length > 0 ? item.boundResourceUserIDs.join(', ') : '-');
+    tdStaff.textContent = staffVal;
+    tdStaff.dataset.fullValue = staffVal;
+    tr.appendChild(tdStaff);
+
+    // 11. Hạn Dùng
+    const tdExpiry = document.createElement('td');
+    const formattedExpiry = item.expiryTime ? formatIsoDateTimeStr(item.expiryTime) : '-';
+    tdExpiry.textContent = formattedExpiry;
+    tdExpiry.dataset.fullValue = formattedExpiry;
+    tdExpiry.title = item.expiryTime || '';
+    tr.appendChild(tdExpiry);
+
+    return tr;
+}
+
+async function handleMesRowToggle(btn, tr) {
+    const isExpanded = tr.dataset.expanded === 'true';
+    const isLoaded = tr.dataset.loaded === 'true';
+    const resourceId = tr.dataset.resourceId;
+    const productId = tr.dataset.productId;
+    const level = parseInt(tr.dataset.level || '0', 10);
+    const nodeId = tr.dataset.nodeId;
+    const parentTbody = tr.closest('tbody');
+    if (!parentTbody) return;
+
+    if (isExpanded) {
+        // Thu gọn: Ẩn tất cả con cháu trực tiếp & gián tiếp của node này
+        tr.dataset.expanded = 'false';
+        btn.classList.remove('expanded');
+
+        const allRows = Array.from(parentTbody.querySelectorAll('tr.mes-tree-row'));
+        allRows.forEach(r => {
+            try {
+                const ancestors = JSON.parse(r.dataset.ancestorIds || '[]');
+                if (ancestors.includes(nodeId)) {
+                    r.style.display = 'none';
+                }
+            } catch (e) {}
+        });
+        return;
+    }
+
+    if (isLoaded) {
+        // Đã nạp dữ liệu con trước đó: Hiển thị lại cây con
+        tr.dataset.expanded = 'true';
+        btn.classList.add('expanded');
+
+        showDescendantRows(parentTbody, nodeId);
+        return;
+    }
+
+    // Chưa tải: gọi API MES lấy danh sách vật liệu con
+    if (!resourceId || !productId) {
+        btn.remove();
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="mes-tree-spinner"></span>';
+
+    try {
+        const data = await apiFetch('/api/mes/material-history', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                resource_id: resourceId,
+                product_id: productId,
+                type: 0
+            })
+        });
+
+        if (!data || !data.success || !data.data || data.data.length === 0) {
+            // Nút dropdown biến mất khi trả về data: []
+            const parentTd = btn.parentElement;
+            btn.remove();
+            if (parentTd) {
+                parentTd.innerHTML = '<span class="mes-leaf-spacer"></span>';
+            }
+            tr.dataset.isLeaf = 'true';
+            tr.dataset.loaded = 'true';
+            Toast.info('Thông báo', `Không có dữ liệu cấp con cho Barcode ${resourceId}`);
+            return;
+        }
+
+        // Đã có data con: chèn trực tiếp các dòng con ngay sau dòng cha trong cùng thead/tbody
+        tr.dataset.loaded = 'true';
+        tr.dataset.expanded = 'true';
+        btn.disabled = false;
+        btn.classList.add('expanded');
+        btn.innerHTML = '<span class="mes-toggle-arrow">›</span>';
+
+        const childLevel = level + 1;
+        let parentAncestors = [];
+        try {
+            parentAncestors = JSON.parse(tr.dataset.ancestorIds || '[]');
+        } catch (e) {}
+        const childAncestors = [...parentAncestors, nodeId];
+
+        const fragment = document.createDocumentFragment();
+        data.data.forEach(item => {
+            const childRow = createMesTableRow(item, childLevel, nodeId, childAncestors);
+            fragment.appendChild(childRow);
+        });
+
+        tr.after(fragment);
+
+        // Áp dụng lại tìm kiếm highlight nếu đang có keyword
+        const searchInput = document.getElementById('mesModalSearch');
+        if (searchInput && searchInput.value.trim()) {
+            highlightMesModalBarcode(searchInput.value.trim());
+        }
+
+        Toast.success('Thành công', `Tải thành công ${data.data.length} vật liệu con của ${resourceId}`);
+    } catch (err) {
+        btn.disabled = false;
+        btn.classList.remove('expanded');
+        btn.innerHTML = '<span class="mes-toggle-arrow">›</span>';
+        Toast.error('Lỗi', err.message || 'Lỗi khi tải dữ liệu cấp con');
+    }
+}
+
+/**
+ * Hiển thị lại các dòng con trực tiếp và các dòng cháu nếu node cha của chúng đang mở (expanded)
+ */
+function showDescendantRows(tbody, parentNodeId) {
+    const directChildren = tbody.querySelectorAll(`tr.mes-tree-row[data-parent-node-id="${parentNodeId}"]`);
+    directChildren.forEach(childRow => {
+        childRow.style.display = '';
+        if (childRow.dataset.expanded === 'true') {
+            showDescendantRows(tbody, childRow.dataset.nodeId);
+        }
+    });
+}
+
+/**
+ * Highlight barcode tìm kiếm mà KHÔNG ẩn hay lọc dòng nào
+ * @param {string} keyword
+ */
+function highlightMesModalBarcode(keyword) {
+    const tbody = document.getElementById('mesMasterTableBody');
+    if (!tbody) return;
+
+    const rows = Array.from(tbody.querySelectorAll('tr.mes-tree-row'));
+    const query = (keyword || '').trim();
+
+    let firstMatchRow = null;
+
+    rows.forEach(row => {
+        const barcodeCell = row.querySelector('td:nth-child(3)');
+        if (!barcodeCell) return;
+
+        const rawBarcode = barcodeCell.dataset.fullValue || row.dataset.resourceId || '';
+
+        if (!query) {
+            row.classList.remove('has-search-match');
+            barcodeCell.innerHTML = escapeHtml(rawBarcode);
+        } else {
+            const escapedQuery = escapeRegex(query);
+            const regex = new RegExp(`(${escapedQuery})`, 'i');
+
+            if (regex.test(rawBarcode)) {
+                row.classList.add('has-search-match');
+                const highlighted = escapeHtml(rawBarcode).replace(
+                    new RegExp(`(${escapeRegex(escapeHtml(query))})`, 'gi'),
+                    '<mark class="barcode-search-match">$1</mark>'
+                );
+                barcodeCell.innerHTML = highlighted;
+
+                if (!firstMatchRow && row.style.display !== 'none') {
+                    firstMatchRow = row;
+                }
+            } else {
+                row.classList.remove('has-search-match');
+                barcodeCell.innerHTML = escapeHtml(rawBarcode);
+            }
+        }
+    });
+
+    if (firstMatchRow) {
+        firstMatchRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+}
+window.highlightMesModalBarcode = highlightMesModalBarcode;
+window.filterMesModalTable = highlightMesModalBarcode;
+
+/**
+ * Highlight văn bản tìm kiếm trong Details Modal (JSON, YAML, Diff, Actions Commit) mà không phá vỡ cấu trúc DOM
+ * @param {string} keyword
+ */
+function highlightDetailsModalText(keyword) {
+    const modal = document.getElementById('detailsModal');
+    if (!modal) return;
+    const body = modal.querySelector('.details-modal-body');
+    if (!body) return;
+
+    if (!window._currentDetailsOriginalHTML) {
+        window._currentDetailsOriginalHTML = body.innerHTML;
+    }
+
+    const query = (keyword || '').trim();
+    if (!query) {
+        body.innerHTML = window._currentDetailsOriginalHTML;
+        return;
+    }
+
+    // Khôi phục nguyên trạng HTML ban đầu trước khi highlight mới
+    body.innerHTML = window._currentDetailsOriginalHTML;
+
+    // Duyệt qua tất cả các Text Node trong cây DOM của body modal
+    const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT, null, false);
+    const textNodes = [];
+    let node;
+    while ((node = walker.nextNode())) {
+        if (node.nodeValue && node.nodeValue.trim()) {
+            textNodes.push(node);
+        }
+    }
+
+    const escapedQuery = escapeRegex(query);
+    const regex = new RegExp(`(${escapedQuery})`, 'gi');
+    let firstMatchEl = null;
+
+    textNodes.forEach(textNode => {
+        const text = textNode.nodeValue;
+        if (regex.test(text)) {
+            const span = document.createElement('span');
+            span.innerHTML = escapeHtml(text).replace(
+                new RegExp(`(${escapeRegex(escapeHtml(query))})`, 'gi'),
+                '<mark class="barcode-search-match details-search-match">$1</mark>'
+            );
+
+            const parent = textNode.parentNode;
+            if (parent) {
+                while (span.firstChild) {
+                    const child = span.firstChild;
+                    if (!firstMatchEl && child.nodeType === Node.ELEMENT_NODE && child.classList && child.classList.contains('details-search-match')) {
+                        firstMatchEl = child;
+                    }
+                    parent.insertBefore(child, textNode);
+                }
+                parent.removeChild(textNode);
+            }
+        }
+    });
+
+    if (firstMatchEl) {
+        firstMatchEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+}
+window.highlightDetailsModalText = highlightDetailsModalText;
+
+function escapeRegex(str) {
+    return (str || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function formatIsoDateTimeStr(val) {
+    if (!val) return '-';
+    try {
+        const d = new Date(val);
+        if (isNaN(d.getTime())) return String(val);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const h = String(d.getHours()).padStart(2, '0');
+        const min = String(d.getMinutes()).padStart(2, '0');
+        const s = String(d.getSeconds()).padStart(2, '0');
+        return `${y}-${m}-${day} ${h}:${min}:${s}`;
+    } catch (e) {
+        return String(val);
+    }
+}
+
 async function fetchOutputBarcodeByWorkOrder(type, rowData = null) {
     const dataObj = rowData || selectedOutputRowData || selectedRowData;
     const work_order_id = dataObj ? dataObj['work_order'] : null;
@@ -3029,6 +3531,15 @@ function initDetailsModal() {
         }
     });
 
+    const mesModal = document.getElementById('mesTrackingModal');
+    if (mesModal) {
+        mesModal.addEventListener('click', e => {
+            if (e.target === mesModal) {
+                closeMesTrackingModal();
+            }
+        });
+    }
+
     // ESC để đóng
     document.addEventListener('keydown', e => {
         if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
@@ -3103,6 +3614,9 @@ function showDetailsModal(data) {
         body.classList.add('details-modal-body-diff');
         window._currentRawYamlContent = data['diff'] || '';
         body.innerHTML = renderDiffViewer(data);
+        window._currentDetailsOriginalHTML = body.innerHTML;
+        const searchInput = document.getElementById('detailsModalSearch');
+        if (searchInput) searchInput.value = '';
 
         // 2D Scroll Synchronization: Horizontal (scrollLeft) AND Vertical (scrollTop)
         const leftPane = modal.querySelector('#diffPaneLeft');
@@ -3197,6 +3711,9 @@ function showDetailsModal(data) {
 
     const jsonString = JSON.stringify(processedData, null, 2);
     body.innerHTML = formatJSON(jsonString);
+    window._currentDetailsOriginalHTML = body.innerHTML;
+    const searchInput = document.getElementById('detailsModalSearch');
+    if (searchInput) searchInput.value = '';
 
     modal.classList.remove('hidden');
     document.body.classList.add('modal-open');
@@ -3614,13 +4131,18 @@ function closeDetailsModal() {
             copyBtn.style.display = '';
         }
     }
+    const searchInput = document.getElementById('detailsModalSearch');
+    if (searchInput) {
+        searchInput.value = '';
+    }
     window._currentRawYamlContent = null;
+    window._currentDetailsOriginalHTML = null;
     document.body.classList.remove('modal-open');
 }
 
 function showAbout() {
     // Use global version variable if available, otherwise fallback
-    const appVersion = typeof version !== 'undefined' ? version : '0.11.01';
+    const appVersion = (typeof appVersion !== 'undefined' && appVersion) ? appVersion : ((typeof version !== 'undefined' && version) ? version : '2.2.0');
     showAlert('Tool Version: ' + appVersion, 'info');
 }
 
@@ -3746,6 +4268,9 @@ async function fetchYamlContent(rowData = null) {
         
         body.classList.add('details-modal-body-yaml');
         body.innerHTML = renderYamlWithErrors(data.content, data.file_path, errors, resolvedProductType, labelConfigKeys);
+        window._currentDetailsOriginalHTML = body.innerHTML;
+        const searchInput = document.getElementById('detailsModalSearch');
+        if (searchInput) searchInput.value = '';
         modal.classList.remove('hidden');
         document.body.classList.add('modal-open');
     } catch (err) {
@@ -3815,6 +4340,9 @@ async function fetchActionsCommitByRecipe(rowData = null) {
         body.classList.remove('details-modal-body-yaml');
         body.classList.add('details-modal-body-actions');
         body.innerHTML = renderActionsCommitModal(result, 0);
+        window._currentDetailsOriginalHTML = body.innerHTML;
+        const commitSearchInput = document.getElementById('detailsModalSearch');
+        if (commitSearchInput) commitSearchInput.value = '';
 
         modal.classList.remove('hidden');
         document.body.classList.add('modal-open');
@@ -4370,6 +4898,11 @@ window.toggleActionsDiffFullView = function(event) {
     if (!body) return;
 
     body.innerHTML = renderActionsCommitModal(window._currentActionsCommitData, window._currentActionsCommitIndex || 0);
+    window._currentDetailsOriginalHTML = body.innerHTML;
+    const searchInput = document.getElementById('detailsModalSearch');
+    if (searchInput && searchInput.value.trim()) {
+        highlightDetailsModalText(searchInput.value.trim());
+    }
 };
 
 /**
@@ -4391,6 +4924,11 @@ window.switchActionsCommitVersion = function(index, event) {
     window._currentActionsCommitIndex = index;
     updateActionsCommitCopyReport(window._currentActionsCommitData, index);
     body.innerHTML = renderActionsCommitModal(window._currentActionsCommitData, index);
+    window._currentDetailsOriginalHTML = body.innerHTML;
+    const searchInput = document.getElementById('detailsModalSearch');
+    if (searchInput && searchInput.value.trim()) {
+        highlightDetailsModalText(searchInput.value.trim());
+    }
 };
 
 // Global copy helper with instant UI feedback for Actions Commit modal

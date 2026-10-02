@@ -577,7 +577,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.1.0"
+APP_VERSION = "2.2.0"
 
 def get_asset_version():
     return f"{APP_VERSION}.{int(time.time())}"
@@ -4117,6 +4117,37 @@ def get_prdebc():
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
+
+@app.route('/api/mes/material-history', methods=['POST'])
+@login_required
+def get_mes_material_history():
+    payload = request.get_json(silent=True) or {}
+    resource_id = str(payload.get('resource_id') or payload.get('resourceID') or '').strip()
+    product_id = str(payload.get('product_id') or payload.get('productID') or '').strip()
+    query_type = payload.get('type', 0)
+
+    if not resource_id or not product_id:
+        return jsonify({'success': False, 'message': 'Thiếu Resource ID hoặc Product ID', 'data': []}), 400
+
+    url = f'https://198.1.10.85:8810/api/material/history/resource-id/{resource_id}/productID/{product_id}'
+    params = {'type': query_type}
+
+    try:
+        response = fetch_mes_api_with_retry('GET', url, params=params)
+        response.raise_for_status()
+        data = response.json()
+        items = data.get('data', [])
+        return jsonify({
+            'success': True,
+            'data': items
+        })
+    except Exception as e:
+        logger.error(f"get_mes_material_history error: {e}")
+        return jsonify({
+            'success': False,
+            'message': f"Lỗi gọi API MES: {str(e)}",
+            'data': []
+        }), 500
 
 @app.route('/api/magic-winx/work-order/fetch-collect-records', methods=['POST'])
 @login_required

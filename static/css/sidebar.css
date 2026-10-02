@@ -670,12 +670,54 @@ main p {
     color: var(--text-clr);
     display: flex;
     align-items: center;
-    gap: 1em;
-    padding: .85em;
+    justify-content: space-between;
+    gap: 8px;
+    padding: .55em .75em;
     border-radius: .5em;
     font: inherit;
     box-sizing: border-box;
     user-select: none;
+}
+
+.user-badge-info {
+    display: flex;
+    align-items: center;
+    gap: .65em;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.user-profile-badge .top-quick-actions,
+.top-quick-actions.in-user-badge {
+    position: static;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    margin-left: auto;
+    flex-shrink: 0;
+    z-index: 10;
+}
+
+.top-quick-actions.in-user-badge .quick-action-btn {
+    width: 30px;
+    height: 30px;
+}
+
+.top-quick-actions.in-user-badge .quick-action-btn .quick-btn-icon {
+    font-size: 18px !important;
+    width: 18px !important;
+    height: 18px !important;
+}
+
+.top-quick-actions.in-user-badge .theme-toggle-btn-4 {
+    width: 30px;
+    height: 30px;
 }
 
 .sidebar.close a > span:not(.material-symbols-outlined),
@@ -683,7 +725,8 @@ main p {
 .sidebar.close .sidebar-btn > span:not(.material-symbols-outlined),
 .sidebar.close .density-menu-item > span:not(.material-symbols-outlined),
 .sidebar.close .logo-animated,
-.sidebar.close .user-info-text {
+.sidebar.close .user-info-text,
+.sidebar.close .top-quick-actions {
     display: none !important;
 }
 

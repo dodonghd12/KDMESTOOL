@@ -1,4 +1,4 @@
-﻿<!-- ==============================================================================
+<!-- ==============================================================================
      KDMES TOOL — SHARED MODALS & GLOBAL API LOADING INDICATOR
      Included in all SPA child iframes & standalone templates
      ============================================================================== -->
@@ -22,6 +22,10 @@
                 <span class="details-modal-title" id="detailsModalTitle">Chi tiết dữ liệu</span>
             </div>
             <div class="details-modal-header-actions">
+                <div class="details-modal-search-box">
+                    <span class="material-symbols-outlined search-icon">search</span>
+                    <input type="text" id="detailsModalSearch" placeholder="Tìm & highlight..." oninput="highlightDetailsModalText(this.value)" autocomplete="off">
+                </div>
                 <button class="details-modal-copy" id="copyDetailsBtn" title="Sao chép dữ liệu" aria-label="Sao chép toàn bộ dữ liệu chi tiết" type="button">
                     <span class="material-symbols-outlined" aria-hidden="true">content_copy</span>
                     <span>Sao chép</span>
@@ -31,6 +35,58 @@
         </div>
         <div class="details-modal-body-wrapper">
             <pre class="details-modal-body"></pre>
+        </div>
+    </div>
+</div>
+
+<!-- MES Tracking Modal (Master-Detail Hierarchical Modal) -->
+<div id="mesTrackingModal" class="comparison-modal mes-tracking-modal hidden" role="dialog" aria-modal="true" aria-labelledby="mesTrackingModalTitle">
+    <div class="comparison-modal-content mes-tracking-modal-content">
+        <div class="comparison-modal-header mes-tracking-modal-header">
+            <div class="comparison-title-wrap">
+                <div class="comparison-title-main">
+                    <span class="material-symbols-outlined comparison-icon" aria-hidden="true">account_tree</span>
+                    <span class="comparison-title" id="mesTrackingModalTitle">MES Material Tracking (Truy Xuất Phân Cấp Vật Liệu)</span>
+                </div>
+                <div class="comparison-meta-info" id="mesTrackingMetaInfo">
+                    <span class="comparison-meta-tag"><span class="material-symbols-outlined">qr_code_2</span> Barcode: <strong id="mesModalBarcode">--</strong></span>
+                    <span class="comparison-meta-tag"><span class="material-symbols-outlined">category</span> Quy cách: <strong id="mesModalProduct">--</strong></span>
+                </div>
+            </div>
+            <div class="comparison-header-actions mes-tracking-header-actions">
+                <div class="mes-modal-search-box">
+                    <span class="material-symbols-outlined search-icon">search</span>
+                    <input type="text" id="mesModalSearch" placeholder="Tìm & highlight Barcode..." oninput="highlightMesModalBarcode(this.value)" autocomplete="off">
+                </div>
+                <button class="comparison-close-btn" onclick="closeMesTrackingModal()" title="Đóng cửa sổ" aria-label="Đóng cửa sổ MES Tracking" type="button">
+                    <svg class="close-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <div class="comparison-modal-body mes-tracking-modal-body">
+            <div class="mes-tracking-table-scroll" id="mesTrackingContent">
+                <table class="mes-master-table" id="mesMasterTable">
+                    <thead>
+                        <tr>
+                            <th class="mes-toggle-th"></th>
+                            <th>Product_type</th>
+                            <th>Barcode</th>
+                            <th>Product_id</th>
+                            <th class="text-right">Số Lượng</th>
+                            <th>Số Lô</th>
+                            <th>Trạm / Máy</th>
+                            <th>Ngày SX</th>
+                            <th>Thời Gian SX</th>
+                            <th>NV Sản Xuất</th>
+                            <th>Hạn Dùng</th>
+                        </tr>
+                    </thead>
+                    <tbody id="mesMasterTableBody"></tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>

@@ -220,10 +220,10 @@
     --table-footer-px: 16px;
     --btn-export-w: 114px;
     --btn-export-h: 30px;
-    --table-container-single-min-h: 180px;
-    --table-container-single-max-h: 215px;
-    --table-scroll-single-min-h: 88px;
-    --table-scroll-single-max-h: 108px;
+    --table-container-single-min-h: auto;
+    --table-container-single-max-h: 125px;
+    --table-scroll-single-min-h: auto;
+    --table-scroll-single-max-h: 75px;
 }
 
 /* 1. COMPACT MODE (~40px) */
@@ -241,10 +241,10 @@ body.density-compact,
     --table-footer-px: 12px;
     --btn-export-w: 104px;
     --btn-export-h: 26px;
-    --table-container-single-min-h: 145px;
-    --table-container-single-max-h: 170px;
-    --table-scroll-single-min-h: 65px;
-    --table-scroll-single-max-h: 80px;
+    --table-container-single-min-h: auto;
+    --table-container-single-max-h: 105px;
+    --table-scroll-single-min-h: auto;
+    --table-scroll-single-max-h: 60px;
 }
 
 /* 2. DEFAULT MODE (~48px) */
@@ -262,10 +262,10 @@ body.density-default,
     --table-footer-px: 16px;
     --btn-export-w: 114px;
     --btn-export-h: 30px;
-    --table-container-single-min-h: 180px;
-    --table-container-single-max-h: 215px;
-    --table-scroll-single-min-h: 88px;
-    --table-scroll-single-max-h: 108px;
+    --table-container-single-min-h: auto;
+    --table-container-single-max-h: 125px;
+    --table-scroll-single-min-h: auto;
+    --table-scroll-single-max-h: 75px;
 }
 
 /* 3. COMFORTABLE MODE (~56px) */
@@ -283,10 +283,10 @@ body.density-comfortable,
     --table-footer-px: 18px;
     --btn-export-w: 122px;
     --btn-export-h: 34px;
-    --table-container-single-min-h: 210px;
-    --table-container-single-max-h: 250px;
-    --table-scroll-single-min-h: 110px;
-    --table-scroll-single-max-h: 132px;
+    --table-container-single-min-h: auto;
+    --table-container-single-max-h: 145px;
+    --table-scroll-single-min-h: auto;
+    --table-scroll-single-max-h: 90px;
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -2798,6 +2798,50 @@ body.theme-light .empty-state-icon-wrapper::after {
     display: flex;
     align-items: center;
     gap: 10px;
+}
+
+.details-modal-search-box {
+    display: flex;
+    align-items: center;
+    background: rgba(10, 16, 30, 0.9);
+    border: 1px solid var(--color-border-glass);
+    border-radius: 8px;
+    padding: 4px 10px;
+    gap: 6px;
+    outline: none;
+    box-shadow: none;
+    transition: none;
+}
+
+.details-modal-search-box:focus-within {
+    border-color: var(--color-border-glass) !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+.details-modal-search-box input {
+    background: transparent;
+    border: none;
+    outline: none;
+    box-shadow: none;
+    color: var(--color-text-primary);
+    font-size: 13px;
+    width: 170px;
+}
+
+.details-modal-search-box input:focus {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.details-modal-search-box input::placeholder {
+    color: var(--color-text-muted);
+}
+
+.details-modal-search-box .search-icon {
+    font-size: 18px;
+    color: var(--color-text-muted);
 }
 
 /* ── COPY BUTTON IN HEADER ── */
@@ -8912,4 +8956,385 @@ body.theme-light .ocr-dropzone {
     20%, 80% { transform: translate3d(2px, 0, 0); }
     30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
     40%, 60% { transform: translate3d(4px, 0, 0); }
+}
+
+/* ==========================================================================
+   MES MATERIAL TRACKING MASTER-DETAIL MODAL COMPONENT
+   ========================================================================== */
+.mes-tracking-modal.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    display: none;
+}
+
+.mes-tracking-modal.show {
+    opacity: 1;
+    visibility: visible;
+    display: flex;
+}
+
+.mes-tracking-modal .mes-tracking-modal-content {
+    max-width: 1700px !important;
+    width: 98vw !important;
+    height: 96vh !important;
+    max-height: 96vh !important;
+    margin: 2vh auto !important;
+    display: flex;
+    flex-direction: column;
+    border-radius: 14px !important;
+}
+
+.mes-tracking-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 16px;
+    border-bottom: 1px solid var(--color-border-glass);
+    background: var(--color-bg-surface-elevated);
+    border-radius: 14px 14px 0 0;
+    flex-shrink: 0;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.mes-tracking-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.mes-modal-search-box {
+    display: flex;
+    align-items: center;
+    background: rgba(10, 16, 30, 0.9);
+    border: 1px solid var(--color-border-glass);
+    border-radius: 8px;
+    padding: 4px 10px;
+    gap: 6px;
+    outline: none;
+    box-shadow: none;
+    transition: none;
+}
+
+.mes-modal-search-box:focus-within {
+    border-color: var(--color-border-glass) !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+.mes-modal-search-box input {
+    background: transparent;
+    border: none;
+    outline: none;
+    box-shadow: none;
+    color: var(--color-text-primary);
+    font-size: 13px;
+    width: 220px;
+}
+
+.mes-modal-search-box input:focus {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.mes-modal-search-box input::placeholder {
+    color: var(--color-text-muted);
+}
+
+.mes-modal-search-box .search-icon {
+    font-size: 18px;
+    color: var(--color-text-muted);
+}
+
+.mes-tracking-modal-body {
+    flex: 1 1 auto;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 8px 12px 10px 12px;
+    background: var(--color-bg-canvas);
+    border-radius: 0 0 14px 14px;
+}
+
+.mes-tracking-table-scroll {
+    flex: 1 1 auto;
+    overflow-x: auto;
+    overflow-y: auto;
+    border: 1px solid var(--color-border-glass);
+    border-radius: 12px;
+    background: var(--color-bg-surface-card);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: var(--color-shadow-glass), 0 0 20px var(--color-border-subtle);
+}
+
+.mes-tracking-table-scroll::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.mes-tracking-table-scroll::-webkit-scrollbar-track {
+    background: var(--color-bg-canvas);
+}
+
+.mes-tracking-table-scroll::-webkit-scrollbar-thumb {
+    background: var(--color-border-interactive);
+    border-radius: 8px;
+}
+
+.mes-tracking-table-scroll::-webkit-scrollbar-thumb:hover {
+    background: var(--color-text-accent);
+}
+
+/* Master Unified Tree Table (Single sticky thead, matching main table design) */
+.mes-master-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: var(--table-font-size, 13px);
+    text-align: left;
+}
+
+.mes-master-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: var(--color-bg-surface-elevated-solid, #1e293b);
+    color: var(--color-text-accent);
+    padding: var(--table-th-py, 9px) var(--table-th-px, 14px);
+    font-weight: 600;
+    font-size: var(--table-header-font-size, 12.5px);
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    border-bottom: 2px solid var(--color-border-interactive);
+    white-space: nowrap;
+    border-left: none !important;
+    border-right: none !important;
+    user-select: none;
+    box-sizing: border-box;
+}
+
+.mes-master-table tbody td {
+    padding: var(--table-cell-py, 8px) var(--table-cell-px, 14px);
+    border-bottom: 1px solid var(--color-border-subtle);
+    color: var(--color-text-secondary);
+    font-size: var(--table-font-size, 13px);
+    line-height: var(--table-line-height, 1.4);
+    white-space: nowrap;
+    background-color: var(--color-bg-surface-solid, #0f172a);
+    border-left: none !important;
+    border-right: none !important;
+    box-sizing: border-box;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.mes-master-table tbody tr:hover td {
+    background-color: var(--table-row-bg-hover) !important;
+}
+
+/* Single Outer Left Border for Level-based Hierarchy (Mẫu 2 Clean Accent) */
+.mes-tree-row.mes-level-0 > td:first-child {
+    border-left: 4px solid transparent !important;
+}
+
+.mes-tree-row.mes-level-1 > td:first-child {
+    border-left: 4px solid var(--cyan-400) !important;
+}
+
+.mes-tree-row.mes-level-2 > td:first-child {
+    border-left: 4px solid var(--amber-400) !important;
+}
+
+.mes-tree-row.mes-level-3 > td:first-child {
+    border-left: 4px solid var(--purple-400) !important;
+}
+
+.mes-tree-row.mes-level-4 > td:first-child {
+    border-left: 4px solid #f472b6 !important;
+}
+
+/* Level Background Tints */
+.mes-tree-row.mes-level-1 {
+    background-color: rgba(6, 182, 212, 0.025);
+}
+
+.mes-tree-row.mes-level-2 {
+    background-color: rgba(245, 158, 11, 0.025);
+}
+
+.mes-tree-row.mes-level-3 {
+    background-color: rgba(168, 85, 247, 0.025);
+}
+
+.mes-tree-row.mes-level-4 {
+    background-color: rgba(244, 114, 182, 0.025);
+}
+
+/* Toggle column: comfortably wide enough for level indentation without clipping */
+.mes-toggle-th {
+    width: 84px;
+    min-width: 84px;
+    text-align: left !important;
+    padding: 9px 8px 9px 12px !important;
+}
+
+.mes-toggle-td {
+    width: 84px;
+    min-width: 84px;
+    text-align: left !important;
+    padding: 7px 8px !important;
+    box-sizing: border-box;
+    overflow: visible;
+}
+
+/* Level staircase indentations */
+.mes-tree-row.mes-level-0 .mes-toggle-td {
+    padding-left: 10px !important;
+}
+
+.mes-tree-row.mes-level-1 .mes-toggle-td {
+    padding-left: 22px !important;
+}
+
+.mes-tree-row.mes-level-2 .mes-toggle-td {
+    padding-left: 34px !important;
+}
+
+.mes-tree-row.mes-level-3 .mes-toggle-td {
+    padding-left: 46px !important;
+}
+
+.mes-tree-row.mes-level-4 .mes-toggle-td {
+    padding-left: 58px !important;
+}
+
+/* Tree Toggle Button: No border, No background, Pure Chevron Icon rotating down on expand */
+.mes-tree-toggle-btn {
+    width: 18px;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent !important;
+    border: none !important;
+    color: var(--cyan-400, #22d3ee);
+    cursor: pointer;
+    padding: 0;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1;
+    user-select: none;
+    flex-shrink: 0;
+    outline: none;
+    transition: color 0.15s ease, transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.mes-tree-toggle-btn:hover {
+    color: #67e8f9;
+}
+
+.mes-toggle-arrow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), color 0.15s ease;
+    line-height: 1;
+    transform-origin: center center;
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 700;
+    color: inherit;
+}
+
+.mes-tree-toggle-btn.expanded .mes-toggle-arrow {
+    transform: rotate(90deg);
+    color: var(--emerald-400, #34d399);
+}
+
+.mes-leaf-spacer {
+    width: 18px;
+    height: 18px;
+    display: inline-block;
+}
+
+.mes-tree-spinner {
+    width: 12px;
+    height: 12px;
+    border: 2px solid rgba(61, 213, 192, 0.3);
+    border-top-color: var(--cyan-400);
+    border-radius: 50%;
+    animation: mesTreeSpin 0.7s linear infinite;
+    display: inline-block;
+}
+
+@keyframes mesTreeSpin {
+    to { transform: rotate(360deg); }
+}
+
+/* Product Type Typography: Pure colored text without badge container/borders */
+.mes-product-type-badge {
+    display: inline-block;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    font-size: 12.5px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    font-family: var(--font-mono);
+    color: var(--cyan-300);
+}
+
+.mes-badge-green_tire {
+    color: #34d399 !important; /* Emerald */
+}
+
+.mes-badge-inner_liner,
+.mes-badge-carcass_ply,
+.mes-badge-cap_ply {
+    color: #c084fc !important; /* Purple */
+}
+
+.mes-badge-belt,
+.mes-badge-steel_belt,
+.mes-badge-belt_and_edge_gum_preassembly {
+    color: #fbbf24 !important; /* Amber */
+}
+
+.mes-badge-tread,
+.mes-badge-sidewall {
+    color: #60a5fa !important; /* Blue */
+}
+
+.mes-badge-bead,
+.mes-badge-bead_and_bead_filler_preassembly,
+.mes-badge-squeeze {
+    color: #f472b6 !important; /* Pink */
+}
+
+.mes-badge-rubber {
+    color: #2dd4bf !important; /* Teal */
+}
+
+.mes-badge-accelerator_ingredient,
+.mes-badge-chemical {
+    color: #38bdf8 !important; /* Sky Blue */
+}
+
+/* Barcode Search Match Highlighting */
+mark.barcode-search-match {
+    background: rgba(245, 158, 11, 0.38) !important;
+    color: #fef08a !important;
+    padding: 1px 4px !important;
+    border-radius: 4px !important;
+    font-weight: 700 !important;
+    border: 1px solid rgba(245, 158, 11, 0.6) !important;
+    box-shadow: 0 0 8px rgba(245, 158, 11, 0.3);
+    display: inline-block;
+}
+
+.mes-tree-row.has-search-match {
+    background-color: rgba(245, 158, 11, 0.08) !important;
 }
