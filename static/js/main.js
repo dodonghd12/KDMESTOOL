@@ -4042,9 +4042,9 @@ async function copyDetailsData() {
         if (copyBtn) {
             const originalHTML = copyBtn.innerHTML;
             copyBtn.classList.add('copied');
-            copyBtn.innerHTML = '<span class="material-symbols-outlined">check</span> <span>Đã copy!</span>';
+            copyBtn.innerHTML = '<span class="material-symbols-outlined">check</span> <span>Copied!</span>';
             if (typeof Toast !== 'undefined' && Toast.success) {
-                Toast.success('Thành công', 'Đã sao chép dữ liệu vào bộ nhớ tạm');
+                Toast.success('Success', 'Data copied to clipboard');
             }
             
             // Reset button sau 2 giây
@@ -4071,7 +4071,7 @@ async function copyDetailsData() {
             if (copyBtn) {
                 const originalHTML = copyBtn.innerHTML;
                 copyBtn.classList.add('copied');
-                copyBtn.innerHTML = '<span class="material-symbols-outlined">check</span> <span>Đã copy!</span>';
+                copyBtn.innerHTML = '<span class="material-symbols-outlined">check</span> <span>Copied!</span>';
                 
                 setTimeout(() => {
                     copyBtn.classList.remove('copied');
@@ -4080,7 +4080,7 @@ async function copyDetailsData() {
             }
             
         } catch (fallbackErr) {
-            showAlert('Không thể copy dữ liệu. Vui lòng thử lại.', 'error');
+            showAlert('Unable to copy data. Please try again.', 'error');
         } finally {
             document.body.removeChild(textarea);
         }

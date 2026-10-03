@@ -51,16 +51,28 @@
             </a>
         </li>
         <li>
-            <a href="{{ url_for('reprint') }}">
-                <span class="material-symbols-outlined">feature_search</span>
-                <span>Truy vấn in bù</span>
-            </a>
-        </li>
-        <li>
-            <a href="{{ url_for('substitutions') }}">
-                <span class="material-symbols-outlined">find_replace</span>
-                <span>NVL thay thế</span>
-            </a>
+            <button class="dropdown-btn">
+                <span class="material-symbols-outlined">published_with_changes</span>
+                <span>In bù và thay thế</span>
+                <span class="material-symbols-outlined">keyboard_arrow_down</span>
+            </button>
+
+            <ul class="sub-menu">
+                <div>
+                    <li>
+                        <a href="{{ url_for('reprint') }}">
+                            <span class="material-symbols-outlined">feature_search</span>
+                            <span>Truy vấn in bù</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('substitutions') }}">
+                            <span class="material-symbols-outlined">find_replace</span>
+                            <span>NVL thay thế</span>
+                        </a>
+                    </li>
+                </div>
+            </ul>
         </li>
         <li>
             <a href="{{ url_for('check_qc_data') }}">
@@ -87,16 +99,28 @@
             </a>
         </li>
         <li>
-            <a href="{{ url_for('gitlab_deleted_files') }}">
-                <span class="material-symbols-outlined">delete_history</span>
-                <span>Gitlab Deleted Files</span>
-            </a>
-        </li>
-        <li>
-            <a href="{{ url_for('postgres_deleted_data') }}">
-                <span class="material-symbols-outlined">database</span>
-                <span>Postgres Deleted Data</span>
-            </a>
+            <button class="dropdown-btn">
+                <span class="material-symbols-outlined">delete_sweep</span>
+                <span>Deleted Data</span>
+                <span class="material-symbols-outlined">keyboard_arrow_down</span>
+            </button>
+
+            <ul class="sub-menu">
+                <div>
+                    <li>
+                        <a href="{{ url_for('gitlab_deleted_files') }}">
+                            <span class="material-symbols-outlined">delete_history</span>
+                            <span>Gitlab Deleted Files</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('postgres_deleted_data') }}">
+                            <span class="material-symbols-outlined">database</span>
+                            <span>Postgres Deleted Data</span>
+                        </a>
+                    </li>
+                </div>
+            </ul>
         </li>
         <li>
             <a href="{{ url_for('magic_winx') }}">

@@ -2765,31 +2765,33 @@ body.theme-light .empty-state-icon-wrapper::after {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 14px 20px;
+    padding: 6px 14px;
     border-bottom: 1px solid var(--color-border-glass);
     background: var(--color-bg-surface-elevated);
-    border-radius: 16px 16px 0 0;
+    border-radius: 14px 14px 0 0;
     flex-shrink: 0;
+    min-height: 42px;
+    box-sizing: border-box;
 }
 
 .details-modal-title-wrap {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
 }
 
 .details-modal-icon {
-    font-size: 22px;
+    font-size: 18px;
     color: var(--color-text-accent);
     display: flex;
     align-items: center;
 }
 
 .details-modal-title {
-    font-size: var(--font-size-md);
+    font-size: 13px;
     font-weight: 700;
     color: var(--color-text-accent);
-    letter-spacing: 0.6px;
+    letter-spacing: 0.5px;
     text-transform: uppercase;
     margin: 0;
 }
@@ -2797,7 +2799,7 @@ body.theme-light .empty-state-icon-wrapper::after {
 .details-modal-header-actions {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
 }
 
 .details-modal-search-box {
@@ -2805,9 +2807,11 @@ body.theme-light .empty-state-icon-wrapper::after {
     align-items: center;
     background: rgba(10, 16, 30, 0.9);
     border: 1px solid var(--color-border-glass);
-    border-radius: 8px;
-    padding: 4px 10px;
-    gap: 6px;
+    border-radius: 6px;
+    padding: 2px 8px;
+    gap: 5px;
+    height: 28px;
+    box-sizing: border-box;
     outline: none;
     box-shadow: none;
     transition: none;
@@ -2825,8 +2829,10 @@ body.theme-light .empty-state-icon-wrapper::after {
     outline: none;
     box-shadow: none;
     color: var(--color-text-primary);
-    font-size: 13px;
-    width: 170px;
+    font-size: 12px;
+    width: 150px;
+    padding: 0;
+    line-height: 1;
 }
 
 .details-modal-search-box input:focus {
@@ -2840,7 +2846,7 @@ body.theme-light .empty-state-icon-wrapper::after {
 }
 
 .details-modal-search-box .search-icon {
-    font-size: 18px;
+    font-size: 16px;
     color: var(--color-text-muted);
 }
 
@@ -2848,13 +2854,15 @@ body.theme-light .empty-state-icon-wrapper::after {
 .details-modal-copy {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 7px 14px;
+    gap: 5px;
+    padding: 0 10px;
+    height: 28px;
+    box-sizing: border-box;
     background: var(--color-interactive-bg-hover);
     border: 1.5px solid var(--color-border-interactive);
     color: var(--color-text-accent);
-    border-radius: 9px;
-    font-size: var(--font-size-sm);
+    border-radius: 6px;
+    font-size: 12px;
     font-weight: 600;
     font-family: inherit;
     cursor: pointer;
@@ -2864,7 +2872,7 @@ body.theme-light .empty-state-icon-wrapper::after {
 }
 
 .details-modal-copy .material-symbols-outlined {
-    font-size: 18px;
+    font-size: 16px;
     line-height: 1;
 }
 
@@ -2890,10 +2898,10 @@ body.theme-light .empty-state-icon-wrapper::after {
 
 /* ── CLOSE BUTTON IN HEADER ── */
 .details-modal-close {
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
     box-sizing: border-box;
-    border-radius: 8px;
+    border-radius: 6px;
     border: 1px solid var(--color-border-glass);
     background: var(--color-interactive-bg-hover);
     color: var(--color-text-secondary);
@@ -2909,8 +2917,8 @@ body.theme-light .empty-state-icon-wrapper::after {
 }
 
 .details-modal-close svg {
-    width: 18px;
-    height: 18px;
+    width: 15px;
+    height: 15px;
     stroke-width: 2.2;
     display: block;
     pointer-events: none;
@@ -4898,7 +4906,9 @@ body.modal-open {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 14px 22px;
+    padding: 10px 20px;
+    min-height: 48px;
+    box-sizing: border-box;
     border-bottom: 1px solid var(--color-border-glass);
     background: var(--color-bg-surface-elevated);
     border-radius: 16px 16px 0 0;
@@ -4908,28 +4918,28 @@ body.modal-open {
 .comparison-title-wrap {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 12px;
     flex-wrap: wrap;
 }
 
 .comparison-title-main {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
 }
 
 .comparison-icon {
-    font-size: 24px;
+    font-size: 20px;
     color: var(--color-text-accent);
     display: flex;
     align-items: center;
 }
 
 .comparison-title {
-    font-size: var(--font-size-md);
+    font-size: 14px;
     font-weight: 700;
     color: var(--color-text-accent);
-    letter-spacing: 0.6px;
+    letter-spacing: 0.5px;
     text-transform: uppercase;
     margin: 0;
 }
@@ -4945,14 +4955,14 @@ body.modal-open {
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    padding: 3px 10px;
-    border-radius: 8px;
-    font-size: var(--font-size-xs);
+    padding: 3px 9px;
+    border-radius: 6px;
+    font-size: 12px;
     font-weight: 500;
     color: var(--color-text-secondary);
     background: var(--color-interactive-bg-hover);
     border: 1px solid var(--color-border-interactive);
-    letter-spacing: 0.3px;
+    letter-spacing: 0.2px;
 }
 
 .comparison-meta-tag strong {
@@ -4961,7 +4971,7 @@ body.modal-open {
 }
 
 .comparison-meta-tag .material-symbols-outlined {
-    font-size: 15px;
+    font-size: 14px;
     color: var(--color-text-accent);
 }
 
@@ -4969,6 +4979,7 @@ body.modal-open {
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-shrink: 0;
 }
 
 .comparison-badge {
@@ -5397,17 +5408,24 @@ body.modal-open {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 22px;
+    padding: 10px 20px;
+    min-height: 48px;
+    box-sizing: border-box;
     border-top: 1px solid var(--color-border-glass);
     background: var(--color-bg-surface-elevated);
     border-radius: 0 0 16px 16px;
     flex-shrink: 0;
+    gap: 16px;
 }
 
 .comparison-footer-info {
     font-size: var(--font-size-sm);
     color: var(--color-text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
     flex: 1;
+    margin-left: auto;
 }
 
 .comparison-legend {
@@ -5415,6 +5433,7 @@ body.modal-open {
     align-items: center;
     gap: 12px;
     flex-wrap: wrap;
+    justify-content: flex-end;
     font-size: var(--font-size-xs);
 }
 

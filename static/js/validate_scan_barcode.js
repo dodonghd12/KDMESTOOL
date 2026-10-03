@@ -426,7 +426,8 @@ async function validateScanBarcode() {
         }
         
         if (data && data.success) {
-            displayComparison(data.result, recipeId, station);
+            const workOrderId = selectedRowData ? (selectedRowData['id'] || selectedRowData['ID'] || '') : '';
+            displayComparison(data.result, recipeId, station, workOrderId);
         } else {
             showAlert((data && data.message) || 'Có lỗi xảy ra', 'error');
         }
@@ -496,11 +497,12 @@ async function copyValidationRowText(event, btnElement) {
 }
 window.copyValidationRowText = copyValidationRowText;
 
-function displayComparison(result, recipeId, station) {
+function displayComparison(result, recipeId, station, workOrderId) {
     const modal = document.getElementById('comparisonModal');
     const content = document.getElementById('comparisonContent');
     const badgesEl = document.getElementById('comparisonBadges');
     const footerInfoEl = document.getElementById('comparisonFooterInfo');
+    const modalWorkOrderIdEl = document.getElementById('modalWorkOrderId');
     const modalStationEl = document.getElementById('modalStation');
     const modalRecipeIdEl = document.getElementById('modalRecipeId');
     
@@ -508,10 +510,14 @@ function displayComparison(result, recipeId, station) {
         result = [];
     }
 
-    // Populate Station and Recipe ID in Header
+    // Populate Work Order ID (Mã MES), Station and Recipe ID in Header
+    const currentWorkOrderId = workOrderId || (selectedRowData ? (selectedRowData['id'] || selectedRowData['ID'] || '') : '') || '--';
     const currentRecipeId = recipeId || (selectedRowData ? selectedRowData['recipe_id'] : '') || '--';
     const currentStation = station || (selectedRowData ? selectedRowData['station'] : '') || (document.getElementById('station')?.value || '') || '--';
 
+    if (modalWorkOrderIdEl) {
+        modalWorkOrderIdEl.textContent = currentWorkOrderId;
+    }
     if (modalStationEl) {
         modalStationEl.textContent = currentStation;
     }
