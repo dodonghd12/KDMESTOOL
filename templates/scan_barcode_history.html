@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lịch sử quét tem theo Máy</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v={{ version }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/smooth_input.css') }}?v={{ version }}">
 
     <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
     <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
@@ -77,8 +78,8 @@
 
     <script src="{{ url_for('static', filename='vendor/flatpickr/flatpickr.min.js') }}"></script>
     <script src="{{ url_for('static', filename='vendor/xlsx/xlsx.full.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/smooth_input.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/scan_barcode_history.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/smooth_input.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/scan_barcode_history.js') }}?v={{ version }}"></script>
 </body>
 </html>

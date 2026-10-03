@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Magic Winx</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v={{ version }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/smooth_input.css') }}?v={{ version }}">
     <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome/css/all.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/material-symbols/material-symbols.css') }}">
@@ -405,8 +406,8 @@
     {% include "components/shared_modals.html" %}
 
     <script src="{{ url_for('static', filename='vendor/xlsx/xlsx.full.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/smooth_input.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/magic_winx.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/smooth_input.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/magic_winx.js') }}?v={{ version }}"></script>
 </body>
 </html>

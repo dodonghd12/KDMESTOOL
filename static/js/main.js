@@ -1330,82 +1330,96 @@ async function checkAuth() {
     await getDepartments();
 }
 
-function initMainInputSwitcher() {
-    // 1. Barcode ⇋ Feed Record Switcher
+let _lastBarcodeSwitchTime = 0;
+function switchBarcodeMode(targetMode, focus = true) {
+    const now = Date.now();
+    if (!targetMode && now - _lastBarcodeSwitchTime < 200) return;
+    _lastBarcodeSwitchTime = now;
+
     const barcodeSwitcher = document.getElementById('mainInputSwitcher');
     const barcodeToggleBtn = document.getElementById('toggleInputModeBtn');
     const barcodeToggleLabel = document.getElementById('toggleModeLabel');
     const barcodeInput = document.getElementById('barcode');
     const feedRecordInput = document.getElementById('feed_record_id');
+    if (!barcodeSwitcher) return;
 
-    if (barcodeSwitcher && barcodeToggleBtn) {
-        function switchBarcodeMode(targetMode, focus = true) {
-            const currentMode = barcodeSwitcher.dataset.activeMode || 'barcode';
-            const newMode = targetMode || (currentMode === 'barcode' ? 'feed_record' : 'barcode');
+    const currentMode = barcodeSwitcher.dataset.activeMode || 'barcode';
+    const newMode = targetMode || (currentMode === 'barcode' ? 'feed_record' : 'barcode');
 
-            barcodeSwitcher.dataset.activeMode = newMode;
+    barcodeSwitcher.dataset.activeMode = newMode;
 
-            if (newMode === 'barcode') {
-                barcodeToggleBtn.title = 'Chuyển sang tìm kiếm theo Lịch sử hao dùng (Feed Record)';
-                if (barcodeToggleLabel) barcodeToggleLabel.textContent = 'Feed Record';
-                if (focus && barcodeInput) {
-                    setTimeout(() => barcodeInput.focus(), 60);
-                }
-            } else {
-                barcodeToggleBtn.title = 'Chuyển sang tìm kiếm theo Tem / Barcode';
-                if (barcodeToggleLabel) barcodeToggleLabel.textContent = 'Barcode';
-                if (focus && feedRecordInput) {
-                    setTimeout(() => feedRecordInput.focus(), 60);
-                }
-            }
+    if (newMode === 'barcode') {
+        if (barcodeToggleBtn) barcodeToggleBtn.title = 'Chuyển sang tìm kiếm theo Lịch sử hao dùng (Feed Record)';
+        if (barcodeToggleLabel) barcodeToggleLabel.textContent = 'Feed Record';
+        if (focus && barcodeInput) {
+            setTimeout(() => barcodeInput.focus(), 60);
         }
-
-        barcodeToggleBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            switchBarcodeMode();
-        });
-
-        window.switchBarcodeMode = switchBarcodeMode;
-        window.switchMainInputMode = switchBarcodeMode;
+    } else {
+        if (barcodeToggleBtn) barcodeToggleBtn.title = 'Chuyển sang tìm kiếm theo Tem / Barcode';
+        if (barcodeToggleLabel) barcodeToggleLabel.textContent = 'Barcode';
+        if (focus && feedRecordInput) {
+            setTimeout(() => feedRecordInput.focus(), 60);
+        }
     }
+}
+window.switchBarcodeMode = switchBarcodeMode;
+window.switchMainInputMode = switchBarcodeMode;
 
-    // 2. Recipe ⇋ Work Order Switcher
+let _lastRecipeSwitchTime = 0;
+function switchRecipeMode(targetMode, focus = true) {
+    const now = Date.now();
+    if (!targetMode && now - _lastRecipeSwitchTime < 200) return;
+    _lastRecipeSwitchTime = now;
+
     const recipeSwitcher = document.getElementById('recipeInputSwitcher');
     const recipeToggleBtn = document.getElementById('toggleRecipeModeBtn');
     const recipeToggleLabel = document.getElementById('toggleRecipeModeLabel');
     const productInput = document.getElementById('product_id');
     const workOrderInput = document.getElementById('work_order');
+    if (!recipeSwitcher) return;
 
-    if (recipeSwitcher && recipeToggleBtn) {
-        function switchRecipeMode(targetMode, focus = true) {
-            const currentMode = recipeSwitcher.dataset.activeMode || 'recipe';
-            const newMode = targetMode || (currentMode === 'recipe' ? 'work_order' : 'recipe');
+    const currentMode = recipeSwitcher.dataset.activeMode || 'recipe';
+    const newMode = targetMode || (currentMode === 'recipe' ? 'work_order' : 'recipe');
 
-            recipeSwitcher.dataset.activeMode = newMode;
+    recipeSwitcher.dataset.activeMode = newMode;
 
-            if (newMode === 'recipe') {
-                recipeToggleBtn.title = 'Chuyển sang tìm kiếm theo Đơn điều động (Work Order)';
-                if (recipeToggleLabel) recipeToggleLabel.textContent = 'Work Order';
-                if (focus && productInput) {
-                    setTimeout(() => productInput.focus(), 60);
-                }
-            } else {
-                recipeToggleBtn.title = 'Chuyển sang tìm kiếm theo Quy cách / Recipe';
-                if (recipeToggleLabel) recipeToggleLabel.textContent = 'Recipe';
-                if (focus && workOrderInput) {
-                    setTimeout(() => workOrderInput.focus(), 60);
-                }
-            }
+    if (newMode === 'recipe') {
+        if (recipeToggleBtn) recipeToggleBtn.title = 'Chuyển sang tìm kiếm theo Đơn điều động (Work Order)';
+        if (recipeToggleLabel) recipeToggleLabel.textContent = 'Work Order';
+        if (focus && productInput) {
+            setTimeout(() => productInput.focus(), 60);
         }
+    } else {
+        if (recipeToggleBtn) recipeToggleBtn.title = 'Chuyển sang tìm kiếm theo Quy cách / Recipe';
+        if (recipeToggleLabel) recipeToggleLabel.textContent = 'Recipe';
+        if (focus && workOrderInput) {
+            setTimeout(() => workOrderInput.focus(), 60);
+        }
+    }
+}
+window.switchRecipeMode = switchRecipeMode;
 
+function initMainInputSwitcher() {
+    // 1. Barcode ⇋ Feed Record Switcher
+    const barcodeToggleBtn = document.getElementById('toggleInputModeBtn');
+    if (barcodeToggleBtn && !barcodeToggleBtn._boundSwitch) {
+        barcodeToggleBtn._boundSwitch = true;
+        barcodeToggleBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            switchBarcodeMode();
+        });
+    }
+
+    // 2. Recipe ⇋ Work Order Switcher
+    const recipeToggleBtn = document.getElementById('toggleRecipeModeBtn');
+    if (recipeToggleBtn && !recipeToggleBtn._boundSwitch) {
+        recipeToggleBtn._boundSwitch = true;
         recipeToggleBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
             switchRecipeMode();
         });
-
-        window.switchRecipeMode = switchRecipeMode;
     }
 }
 

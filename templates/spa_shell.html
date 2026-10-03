@@ -7,7 +7,7 @@
     <title>{{ page_title }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v={{ version }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}?v={{ version }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/lusion_intro.css') }}?v={{ version }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/prisma_hero.css') }}?v={{ version }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/smooth_input.css') }}?v={{ version }}">
 
     <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
@@ -19,12 +19,48 @@
 </head>
 
 <body class="spa-shell-body">
-    <!-- Lusion-Style Morphing Preloader (Letter 'O' Morph & Portal Transition) -->
-    <div id="lusionPreloader" role="dialog" aria-modal="true" aria-label="Đang tải hệ thống KDMES">
-        <canvas id="lusionCanvas"></canvas>
+    <!-- Prisma-Hero Cinematic Preloader & Laptop Screen Zoom-Reveal Portal -->
+    <div id="prismaHeroPreloader" class="prisma-hero-container" role="dialog" aria-modal="true" aria-label="Đang tải hệ thống KDMES">
+        <div class="prisma-hero-inner">
+            <!-- Background Video & Poster -->
+            <video
+                id="prismaHeroVideo"
+                autoplay
+                loop
+                muted
+                playsinline
+                poster="{{ url_for('static', filename='img/prisma_hero_poster.jpg') }}"
+                class="prisma-hero-video"
+            >
+                <source src="{{ url_for('static', filename='video/prisma_hero.mp4') }}" type="video/mp4">
+                <source src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260405_170732_8a9ccda6-5cff-4628-b164-059c500a2b41.mp4" type="video/mp4">
+            </video>
+
+            <!-- Noise & Gradient Overlays -->
+            <div class="prisma-noise-overlay"></div>
+            <div class="prisma-gradient-overlay"></div>
+
+            <!-- Bottom-Left: 0 to 100 Counter & Status -->
+            <div class="prisma-hero-counter-zone">
+                <div class="prisma-counter-row">
+                    <span class="prisma-counter-number" id="prismaCounterNumber">00</span>
+                    <span class="prisma-counter-percent">%</span>
+                </div>
+                <div class="prisma-counter-status">
+                    <span class="prisma-status-dot"></span>
+                    <span class="prisma-status-text" id="prismaStatusText">INITIALIZING KDMES SYSTEM...</span>
+                </div>
+                <div class="prisma-progress-track">
+                    <div class="prisma-progress-bar" id="prismaHeroProgressBar"></div>
+                </div>
+            </div>
+
+            <!-- Expanding Portal Rim on Laptop Screen -->
+            <div class="prisma-portal-rim" id="prismaPortalRim"></div>
+        </div>
     </div>
-    <!-- Execute Lusion Preloader immediately on frame 0 -->
-    <script src="{{ url_for('static', filename='js/lusion_intro.js') }}?v={{ version }}"></script>
+    <!-- Execute Prisma Hero Preloader immediately on frame 0 -->
+    <script src="{{ url_for('static', filename='js/prisma_hero.js') }}?v={{ version }}"></script>
 
     {% include "components/sidebar.html" %}
 
