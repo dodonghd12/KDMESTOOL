@@ -1693,27 +1693,27 @@ def search_scan_barcode_history_by_barcode():
         return jsonify({'result': [], 'columns': []})
     
     query = """
-        WITH target_sites AS MATERIALIZED (
-            SELECT
-                sc.station,
-                sc.name AS site,
-                sc.updated_at AS scan_at,
-                sc.content
-            FROM kvmes.site_contents sc
-            JOIN kvmes.site s 
-              ON s.station = sc.station AND s.name = sc.name AND s.index = sc.index
-            WHERE (sc.content->'slot'->'material'->>'resource_id') = %s
-              AND NOT EXISTS (
-                  SELECT 1 
-                  FROM kvmes.site_contents newer
-                  WHERE newer.station = sc.station 
-                    AND newer.name = sc.name 
-                    AND newer.index = sc.index 
-                    AND newer.updated_at > sc.updated_at
-              )
-        )
         SELECT *
         FROM (
+            WITH target_sites AS (
+                SELECT
+                    sc.station,
+                    sc.name AS site,
+                    sc.updated_at AS scan_at,
+                    sc.content->'slot'->'material'->'material'->>'id' AS material_id
+                FROM kvmes.site_contents sc
+                JOIN kvmes.site s 
+                  ON s.station = sc.station AND s.name = sc.name AND s.index = sc.index
+                WHERE (sc.content->'slot'->'material'->>'resource_id') = %s
+                  AND NOT EXISTS (
+                      SELECT 1 
+                      FROM kvmes.site_contents newer
+                      WHERE newer.station = sc.station 
+                        AND newer.name = sc.name 
+                        AND newer.index = sc.index 
+                        AND newer.updated_at > sc.updated_at
+                  )
+            )
             SELECT DISTINCT ON (rpd.oid)
                 ts.station              AS station,
                 ts.site                 AS site,
@@ -1732,19 +1732,11 @@ def search_scan_barcode_history_by_barcode():
                AND wo.status <> 3
             JOIN kvmes.recipe_process_definition rpd
                 ON rpd.recipe_id = wo.recipe_id
-            WHERE EXISTS (
-                    SELECT 1
-                    FROM jsonb_array_elements(rpd.configs::jsonb) cfg
-                    WHERE cfg->'stations' ? ts.station
-                )
-              AND EXISTS (
-                    SELECT 1
-                    FROM jsonb_array_elements(rpd.configs::jsonb) cfg
-                    CROSS JOIN jsonb_array_elements(cfg->'steps') step
-                    CROSS JOIN jsonb_array_elements(step->'materials') mat
-                    WHERE mat->>'name' = ts.content->'slot'->'material'->'material'->>'id'
-                      AND mat->>'site' = ts.site
-                )
+            WHERE jsonb_path_exists(
+                rpd.configs::jsonb,
+                '$[*] ? (@.stations[*] == $station).steps[*].materials[*] ? (@.name == $mat_id && @.site == $site)',
+                jsonb_build_object('station', ts.station, 'mat_id', ts.material_id, 'site', ts.site)
+            )
             ORDER BY
                 rpd.oid,
                 wo.updated_at DESC,
@@ -1918,115 +1910,133 @@ def get_used_history_by_barcode():
         with get_pg_connection() as conn:
             cursor = conn.cursor()
 
-            # 1. Get product_id from material_resource
-            cursor.execute("""
-                SELECT product_id 
-                FROM kvmes.material_resource 
-                WHERE id = %s AND product_type = %s
-            """, (material_oid, material_type))
-            mr_row = cursor.fetchone()
-            if not mr_row:
-                return jsonify({'success': True, 'result': [], 'columns': columns})
-            
-            product_id = mr_row[0]
-
-            # 2. Get recipe_ids using this product_id
-            cursor.execute("""
-                SELECT DISTINCT rpd.recipe_id
-                FROM kvmes.recipe_process_definition rpd
-                CROSS JOIN LATERAL jsonb_array_elements(rpd.configs::jsonb) cfg
-                CROSS JOIN LATERAL jsonb_array_elements(cfg->'steps') step
-                CROSS JOIN LATERAL jsonb_array_elements(step->'materials') material_elem
-                WHERE material_elem->>'name' = %s
-            """, (product_id,))
-            recipes = [r[0] for r in cursor.fetchall()]
-            if not recipes:
-                return jsonify({'success': True, 'result': [], 'columns': columns})
-
-            # 3. Get candidate work orders and batches
-            cursor.execute("""
-                SELECT 
-                    b.work_order,
-                    b.number AS batch_seq,
-                    b.status,
-                    b.records_id,
-                    wo.recipe_id,
-                    wo.station,
-                    wo.reserved_date
-                FROM kvmes.work_order wo
-                JOIN kvmes.batch b ON b.work_order = wo.id
-                WHERE wo.recipe_id = ANY(%s)
-            """, (recipes,))
-            candidate_batches = cursor.fetchall()
-            if not candidate_batches:
-                return jsonify({'success': True, 'result': [], 'columns': columns})
-
-            # 4. Map candidate batches to feed_record IDs
-            feed_to_batches = {}
-            all_feed_ids = set()
-            for b in candidate_batches:
-                wo, b_seq, status, records_id, recipe_id, station, res_date = b
-                if records_id:
-                    for fid in records_id:
-                        all_feed_ids.add(fid)
-                        if fid not in feed_to_batches:
-                            feed_to_batches[fid] = []
-                        feed_to_batches[fid].append((wo, b_seq, status, recipe_id, station, res_date))
-
-            if not all_feed_ids:
-                return jsonify({'success': True, 'result': [], 'columns': columns})
-
-            # 5. Query feed_records matching material_oid
+            # 1. Query feed_records directly using GIN index on materials
             cursor.execute("""
                 SELECT 
                     f.id,
+                    f.time,
+                    site_elem->>'station' AS station,
                     (elem->>'quantity')::numeric AS fed_quantity
                 FROM kvmes.feed_record f
                 CROSS JOIN LATERAL jsonb_array_elements(f.materials) site_elem
                 CROSS JOIN LATERAL jsonb_array_elements(site_elem->'feed_resources') elem
-                WHERE f.id = ANY(%s)
+                WHERE f.materials @> jsonb_build_array(jsonb_build_object('feed_resources', jsonb_build_array(jsonb_build_object('resource_id', %s::text))))
                   AND elem->>'resource_id' = %s
-            """, (list(all_feed_ids), material_oid))
+            """, (material_oid, material_oid))
             matched_feeds = cursor.fetchall()
             if not matched_feeds:
                 return jsonify({'success': True, 'result': [], 'columns': columns})
 
-            # 6. Aggregate feed quantities for matched batches
+            feed_qty_map = {row[0]: float(row[3] or 0) for row in matched_feeds}
+            matched_feed_ids = list(feed_qty_map.keys())
+            feed_dates = [row[1] for row in matched_feeds if row[1]]
+            feed_stations = list({row[2] for row in matched_feeds if row[2]})
+
+            # 2. Query candidate work orders and batches (leveraging station and date indexes)
+            if feed_dates and feed_stations:
+                min_date = min(feed_dates).date() - timedelta(days=14)
+                max_date = max(feed_dates).date() + timedelta(days=14)
+                cursor.execute("""
+                    SELECT 
+                        b.work_order,
+                        b.number AS batch_seq,
+                        b.status,
+                        b.records_id,
+                        wo.recipe_id,
+                        wo.station,
+                        wo.reserved_date
+                    FROM kvmes.work_order wo
+                    JOIN kvmes.batch b ON b.work_order = wo.id
+                    WHERE wo.station = ANY(%s)
+                      AND wo.reserved_date BETWEEN %s AND %s
+                      AND b.records_id && %s
+                """, (feed_stations, min_date, max_date, matched_feed_ids))
+            elif feed_dates:
+                min_date = min(feed_dates).date() - timedelta(days=14)
+                max_date = max(feed_dates).date() + timedelta(days=14)
+                cursor.execute("""
+                    SELECT 
+                        b.work_order,
+                        b.number AS batch_seq,
+                        b.status,
+                        b.records_id,
+                        wo.recipe_id,
+                        wo.station,
+                        wo.reserved_date
+                    FROM kvmes.work_order wo
+                    JOIN kvmes.batch b ON b.work_order = wo.id
+                    WHERE wo.reserved_date BETWEEN %s AND %s
+                      AND b.records_id && %s
+                """, (min_date, max_date, matched_feed_ids))
+            elif feed_stations:
+                cursor.execute("""
+                    SELECT 
+                        b.work_order,
+                        b.number AS batch_seq,
+                        b.status,
+                        b.records_id,
+                        wo.recipe_id,
+                        wo.station,
+                        wo.reserved_date
+                    FROM kvmes.work_order wo
+                    JOIN kvmes.batch b ON b.work_order = wo.id
+                    WHERE wo.station = ANY(%s)
+                      AND b.records_id && %s
+                """, (feed_stations, matched_feed_ids))
+            else:
+                cursor.execute("""
+                    SELECT 
+                        b.work_order,
+                        b.number AS batch_seq,
+                        b.status,
+                        b.records_id,
+                        wo.recipe_id,
+                        wo.station,
+                        wo.reserved_date
+                    FROM kvmes.work_order wo
+                    JOIN kvmes.batch b ON b.work_order = wo.id
+                    WHERE b.records_id && %s
+                """, (matched_feed_ids,))
+
+            candidate_batches = cursor.fetchall()
+            if not candidate_batches:
+                return jsonify({'success': True, 'result': [], 'columns': columns})
+
+            # 3. Aggregate batches and fed quantities
             matched_work_orders = set()
             batch_data = {}
-            for fid, fed_qty in matched_feeds:
-                fed_qty = float(fed_qty or 0)
-                for wo, b_seq, status, recipe_id, station, res_date in feed_to_batches.get(fid, []):
-                    matched_work_orders.add(wo)
-                    key = (wo, b_seq)
-                    if key not in batch_data:
-                        batch_data[key] = {
-                            'wo': wo,
-                            'batch_seq': b_seq,
-                            'status': status,
-                            'recipe_id': recipe_id,
-                            'station': station,
-                            'reserved_date': res_date,
-                            'fed_qty': 0.0,
-                            'output_qty': 0.0
-                        }
-                    batch_data[key]['fed_qty'] += fed_qty
+            for b in candidate_batches:
+                wo, b_seq, status, records_id, recipe_id, station, res_date = b
+                matched_work_orders.add(wo)
+                fed_qty = sum(feed_qty_map[fid] for fid in (records_id or []) if fid in feed_qty_map)
+                key = (wo, b_seq)
+                batch_data[key] = {
+                    'wo': wo,
+                    'batch_seq': b_seq,
+                    'status': status,
+                    'recipe_id': recipe_id,
+                    'station': station,
+                    'reserved_date': res_date,
+                    'fed_qty': fed_qty,
+                    'output_qty': 0.0
+                }
 
-            # 7. Fetch collect_records for matched work orders to get output quantities
-            cursor.execute("""
-                SELECT 
-                    cr.work_order,
-                    cr.sequence,
-                    COALESCE((cr.detail->>'quantity')::numeric, 0) AS output_quantity
-                FROM kvmes.collect_record cr
-                WHERE cr.work_order = ANY(%s)
-            """, (list(matched_work_orders),))
-            for cr_wo, cr_seq, out_qty in cursor.fetchall():
-                key = (cr_wo, cr_seq)
-                if key in batch_data:
-                    batch_data[key]['output_qty'] = float(out_qty or 0)
+            # 4. Fetch collect_records for matched work orders to get output quantities
+            if matched_work_orders:
+                cursor.execute("""
+                    SELECT 
+                        cr.work_order,
+                        cr.sequence,
+                        COALESCE((cr.detail->>'quantity')::numeric, 0) AS output_quantity
+                    FROM kvmes.collect_record cr
+                    WHERE cr.work_order = ANY(%s)
+                """, (list(matched_work_orders),))
+                for cr_wo, cr_seq, out_qty in cursor.fetchall():
+                    key = (cr_wo, cr_seq)
+                    if key in batch_data:
+                        batch_data[key]['output_qty'] = float(out_qty or 0)
 
-            # 8. Group by work order
+            # 5. Group by work order
             summary = {}
             for (wo, b_seq), binfo in batch_data.items():
                 if wo not in summary:
@@ -2105,7 +2115,7 @@ def fetch_output_barcode_by_work_order():
             FROM kvmes.collect_record cr
             LEFT JOIN kvmes.material_resource mr
                 ON mr.oid = cr.resource_oid
-            WHERE cr.work_order = %s
+            WHERE btrim(cr.work_order) = btrim(%s)
             ORDER BY cr.sequence ASC
         """
 
@@ -2149,7 +2159,7 @@ def run_output_barcode_query_task(task_id, resource_id, work_order):
                 JOIN kvmes.feed_record fr ON fr.id = ANY(b.records_id)
                 CROSS JOIN LATERAL jsonb_array_elements(fr.materials) site_elem
                 CROSS JOIN LATERAL jsonb_array_elements(site_elem->'feed_resources') elem
-                WHERE b.work_order = %s
+                WHERE btrim(b.work_order) = btrim(%s)
                   AND elem->>'resource_id' = %s
             ),
             matched_collects AS (
@@ -2159,7 +2169,7 @@ def run_output_barcode_query_task(task_id, resource_id, work_order):
                     cr.lot_number AS cr_lot_number
                 FROM kvmes.collect_record cr
                 JOIN matched_batches mb ON mb.batch_seq = cr.sequence
-                WHERE cr.work_order = %s
+                WHERE btrim(cr.work_order) = btrim(%s)
             )
             SELECT
                 mr.id,
@@ -2327,7 +2337,7 @@ def stream_output_barcodes():
                         JOIN kvmes.feed_record fr ON fr.id = ANY(b.records_id)
                         CROSS JOIN LATERAL jsonb_array_elements(fr.materials) site_elem
                         CROSS JOIN LATERAL jsonb_array_elements(site_elem->'feed_resources') elem
-                        WHERE b.work_order = %s
+                        WHERE btrim(b.work_order) = btrim(%s)
                           AND elem->>'resource_id' = %s
                     ),
                     matched_collects AS (
@@ -2337,7 +2347,7 @@ def stream_output_barcodes():
                             cr.lot_number AS cr_lot_number
                         FROM kvmes.collect_record cr
                         JOIN matched_batches mb ON mb.batch_seq = cr.sequence
-                        WHERE cr.work_order = %s
+                        WHERE btrim(cr.work_order) = btrim(%s)
                     )
                     SELECT
                         mr.id,

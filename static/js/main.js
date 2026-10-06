@@ -815,7 +815,7 @@ function enhanceContextMenu() {
     const actionIcons = {
         'inputBarcode': 'barcode_scanner',
         'feedRecords': 'history',
-        'checkScanBarcodeHistory': 'receipt_long',
+        'checkScanBarcodeHistory': 'precision_manufacturing',
         'checkBarcodeWorkOrder': 'assignment',
         'mesTracking': 'account_tree',
         'checkBarcodeTransfer': 'local_shipping',
@@ -2236,9 +2236,6 @@ function updateContextMenu() {
             'searchActionsCommitByRecipe',
             'fetchYamlDetails'
         ],
-        'outputBarcodeByFeedRecords': [
-            'outputBarcodeByFeedRecords'
-        ],
         'work_order': [
             'fetchOutputBarcodeByWorkOrder'
         ]
@@ -2256,7 +2253,8 @@ function updateContextMenu() {
 function updateOutputContextMenu() {
     const menuConfig = {
         'workOrderOutputByBarcode': ['outputByBarcode'],
-        'workOrderOutputByRecipe': ['outputByRecipe']
+        'workOrderOutputByRecipe': ['outputByRecipe'],
+        'outputBarcodeByFeedRecords': ['outputBarcodeByFeedRecords']
     };
 
     const allowedActions = menuConfig[currentOutputTableType] || [];
@@ -2313,7 +2311,7 @@ function handleContextMenuAction(e) {
     const action = e.target.dataset.action;
       
     // Xác định sử dụng data từ table nào
-    const isOutputTable = ['outputByBarcode', 'outputByRecipe'].includes(action);
+    const isOutputTable = ['outputByBarcode', 'outputByRecipe', 'outputBarcodeByFeedRecords'].includes(action);
     const rowData = isOutputTable ? selectedOutputRowData : selectedRowData;
     
     if (!rowData) return;
@@ -2324,7 +2322,7 @@ function handleContextMenuAction(e) {
             openOutputTable('inputBarcode', rowData);
             break;
         case 'feedRecords':
-            showFeedRecords(rowData);
+            openOutputTable('feedRecords', rowData);
             break;
         case 'checkScanBarcodeHistory':
             fetchScanBarcodeHistoryByBarcode(rowData);
@@ -2348,15 +2346,15 @@ function handleContextMenuAction(e) {
             fetchPrde('prdeba', rowData);
             break;
         case 'getPrdebb':
-            fetchPrde('prdebb', rowData);
+            fetchPrde('getPrdebb', rowData);
             break;
         case 'getPrdebc':
             fetchPrde('prdebc', rowData);
             break;
 
-        // currentTableType === 'outputBarcode'
+        // currentOutputTableType === 'outputBarcodeByFeedRecords'
         case 'outputBarcodeByFeedRecords':
-            openOutputTable('outputBarcodeByFeedRecords', rowData);
+            fetchOutputBarcode(rowData ? (rowData.work_order || rowData.id) : null);
             break;
 
         // currentTableType === 'recipe'      
@@ -2539,25 +2537,52 @@ async function showFeedRecords(rowData = null) {
 
     feed_records_material_id = material_oid;
 
+    // 1. Mở outputContainer và thiết lập trạng thái giao diện
+    closeSubOutputWindow();
+    enterSingleRowMode();
+
+    const container = document.getElementById('outputContainer');
+    if (container) container.style.display = 'flex';
+
+    clearOutputBarcodeTable();
+
+    activeSearchContext = 'outputBarcodeByFeedRecords';
+    const outputHeaderContentEl = document.getElementById('outputHeaderContent');
+    if (outputHeaderContentEl) {
+        outputHeaderContentEl.textContent = `Kiểm tra tiêu thụ tem (${material_oid})`;
+    }
+
+    showLoading();
+
     try {
         const data = await apiFetch('/api/barcodes/check-used-history', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ material_oid, material_type })
         });
+        hideLoading();
 
         if (!data || !data.result || data.result.length === 0) {
             Toast.warning('Không có dữ liệu', 'Barcode chưa quét tem lần nào');
-            clearOutputBarcodeTable();
+            currentOutputTableType = null;
+            renderOutputBarcodeTable([], (data && data.columns) ? data.columns : []);
             return;
         }
 
         if (data.success) {
-            setTableData(data.result, data.columns, 'outputBarcodeByFeedRecords');
+            outputBarcodeRawData = data.result;
+            outputBarcodeColumns = data.columns;
+            currentOutputTableType = 'outputBarcodeByFeedRecords';
+            renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
+            Toast.success('Thành công', `Tìm thấy ${data.result.length} đơn điều động tiêu thụ tem`);
         } else {
-            Toast.error('Lỗi', data.message || 'Lỗi khi kiểm tra lịch sử sử dụng tem');
+            currentOutputTableType = null;
+            renderOutputBarcodeTable([], []);
+            Toast.error('Lỗi', data.message || 'Lỗi khi kiểm tra tiêu thụ tem');
         }
     } catch (err) {
+        hideLoading();
+        renderOutputBarcodeTable([], []);
         Toast.error('Lỗi', err.message || 'Lỗi kết nối');
     }
 }
@@ -2669,19 +2694,34 @@ async function fetchInputBarcode(id = null, product_type = null) {
 let currentBarcodeEventSource = null;
 
 function fetchOutputBarcode(workOrder = null) {
-    const resource_id = feed_records_material_id || (selectedRowData ? selectedRowData['id'] : null);
+    const resource_id = feed_records_material_id || (selectedOutputRowData ? selectedOutputRowData['id'] : (selectedRowData ? selectedRowData['id'] : null));
     if (!resource_id) {
         Toast.warning('Cảnh báo', 'Thiếu Resource ID');
         return;
     }
 
-    const work_order = workOrder || (selectedRowData ? selectedRowData['work_order'] : null);
+    const work_order = workOrder || (selectedOutputRowData ? (selectedOutputRowData['work_order'] || selectedOutputRowData['id']) : (selectedRowData ? (selectedRowData['work_order'] || selectedRowData['id']) : null));
     if (!work_order) {
         Toast.warning('Cảnh báo', 'Thiếu Work Order / MES ID');
         return;
     }
 
-    totalOutputBarcode = (selectedRowData && selectedRowData['total_barcode']) ? selectedRowData['total_barcode'] : 0;
+    totalOutputBarcode = (selectedOutputRowData && selectedOutputRowData['total_barcode']) ? selectedOutputRowData['total_barcode'] : ((selectedRowData && selectedRowData['total_barcode']) ? selectedRowData['total_barcode'] : 0);
+
+    // 1. Enter Output Single Row Mode on outputContainer
+    enterOutputSingleRowMode();
+
+    // 2. Open subOutputContainer
+    const subContainer = document.getElementById('subOutputContainer');
+    if (subContainer) subContainer.style.display = 'flex';
+
+    clearSubOutputBarcodeTable();
+
+    activeSearchContext = 'outputBarcodeByFeedRecordsSub';
+    const subOutputHeaderContentEl = document.getElementById('subOutputHeaderContent');
+    if (subOutputHeaderContentEl) {
+        subOutputHeaderContentEl.textContent = `Tem đầu ra của đơn điều động (${work_order})`;
+    }
 
     showLoading();
 
@@ -2710,12 +2750,12 @@ function fetchOutputBarcode(workOrder = null) {
 
             if (data.status === 'completed') {
                 if (data.result && data.result.length > 0) {
-                    outputBarcodeRawData = data.result;
-                    outputBarcodeColumns = data.columns;
-                    renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
+                    subOutputRawData = data.result;
+                    subOutputColumns = data.columns;
+                    renderSubOutputBarcodeTable(subOutputRawData, subOutputColumns);
                     Toast.success('Thành công', `Tìm thấy ${data.result.length} tem đầu ra`);
                 } else {
-                    renderOutputBarcodeTable([], data.columns || []);
+                    renderSubOutputBarcodeTable([], data.columns || []);
                     Toast.warning('Không có dữ liệu', data.message || 'Không tìm thấy tem đầu ra nào');
                 }
             } else if (data.status === 'failed') {
@@ -5323,12 +5363,14 @@ function filterClientResult(keyword) {
         return;
     }
 
-    if (['outputByBarcode', 'outputByRecipe'].includes(activeSearchContext)) {
+    const subOutputContainer = document.getElementById('subOutputContainer');
+    if (subOutputContainer && subOutputContainer.style.display === 'flex') {
         filterSubOutputBarcode(keyword);
         return;
     }
 
-    if (['inputBarcode', 'outputBarcodeByFeedRecords', 'workOrderByRecipe', 'commitGitlabByRecipe', 'workOrderByBarcode', 'commitDetailByRecipe', 'outputBarcodeByWorkOrder'].includes(activeSearchContext)) {
+    const outputContainer = document.getElementById('outputContainer');
+    if (outputContainer && outputContainer.style.display === 'flex') {
         filterOutputBarcode(keyword);
         return;
     }
@@ -5407,11 +5449,11 @@ function openOutputTable(type, rowData = null) {
     const dataObj = rowData || selectedRowData || {};
 
     if (type === 'inputBarcode') {
-        if (outputHeaderContentEl) outputHeaderContentEl.textContent = 'Tem đầu vào';
+        if (outputHeaderContentEl) outputHeaderContentEl.textContent = 'Kiểm tra tem đầu vào';
         fetchInputBarcode(dataObj.id, dataObj.product_type);
-    } else if (type === 'outputBarcodeByFeedRecords') {
-        if (outputHeaderContentEl) outputHeaderContentEl.textContent = 'Tem đầu ra';
-        fetchOutputBarcode(dataObj.work_order);
+    } else if (type === 'feedRecords' || type === 'outputBarcodeByFeedRecords') {
+        if (outputHeaderContentEl) outputHeaderContentEl.textContent = `Kiểm tra tiêu thụ tem (${dataObj.id || ''})`;
+        showFeedRecords(dataObj);
     } else if (type === 'workOrderByRecipe') {
         if (outputHeaderContentEl) outputHeaderContentEl.textContent = 'Đơn điều động theo quy cách';
         fetchWorkOrderByRecipe(dataObj.recipe_id);
@@ -6473,16 +6515,16 @@ async function fetchScanBarcodeHistoryByBarcode(rowData = null) {
 
         if (data.success) {
             if (Array.isArray(data.result) && data.result.length === 0) {
-                Toast.info('Thông báo', `Barcode ${resource_id} đang không được quét vào bất kỳ máy nào`);
+                Toast.info('Thông báo', `Barcode ${resource_id} đang không được nạp vào bất kỳ máy nào`);
                 return;
             }
             setTableData(data.result, data.columns, null);
-            Toast.success('Thành công', `Tải lịch sử quét thành công (${data.result.length} dòng)`);
+            Toast.success('Thành công', `Tải thông tin nạp tem thành công (${data.result.length} dòng)`);
         } else {
-            Toast.error('Lỗi', data.message || 'Lỗi khi tải lịch sử quét barcode');
+            Toast.error('Lỗi', data.message || 'Lỗi khi kiểm tra trạm nạp tem');
         }
     } catch (err) {
-        Toast.error('Lỗi', err.message || 'Lỗi kết nối khi tải lịch sử quét barcode');
+        Toast.error('Lỗi', err.message || 'Lỗi kết nối khi kiểm tra trạm nạp tem');
     }
 }
 

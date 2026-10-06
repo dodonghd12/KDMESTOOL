@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="221 221 580 580" width="100%" height="100%" fill="none">
+  <style>
+    :root {
+      --kd-k-fill: #0fa89b;
+      --kd-d-fill: #18181b;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --kd-k-fill: #3dd5c0;
+        --kd-d-fill: #ffffff;
+      }
+    }
+    .kd-k {
+      fill: var(--kd-k-fill, #3dd5c0);
+      shape-rendering: geometricPrecision;
+    }
+    .kd-d {
+      fill: var(--kd-d-fill, #18181b);
+      fill-rule: evenodd;
+      shape-rendering: geometricPrecision;
+    }
+  </style>
+  <path class="kd-k" d="M 233,318 L 233,704 L 322,705 L 322,543 L 324,542 L 454,705 L 564,705 L 404,507 L 551,318 L 446,318 L 323,475 L 322,319 Z" />
+  <path class="kd-d" d="M 600,318 L 453,507 L 613,703 L 618,705 L 652,698 L 688,683 L 719,662 L 746,635 L 766,606 L 782,569 L 790,529 L 790,496 L 784,461 L 774,433 L 754,398 L 726,367 L 695,344 L 664,329 L 630,320 Z M 564,407 L 615,408 L 647,419 L 662,429 L 678,445 L 687,458 L 697,481 L 701,501 L 701,522 L 697,542 L 688,563 L 676,580 L 664,592 L 650,602 L 627,612 L 604,616 L 565,616 L 563,614 Z" />
+</svg>
