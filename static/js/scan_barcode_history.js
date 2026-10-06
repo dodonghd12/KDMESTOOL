@@ -35,31 +35,55 @@ function initializeCheckScanHistoryByStationEventListeners() {
     // Department search
     const departmentInput = document.getElementById('department'); 
     departmentInput.addEventListener('click', () => {
-        document.getElementById('station').disabled = true;
-        document.getElementById('station').value = '';
+        departmentInput.value = '';
+        departmentInput.closest('.input-box')?.classList.remove('has-value');
+        departmentInput.focus();
+
+        const stationInput = document.getElementById('station');
+        stationInput.value = '';
+        stationInput.disabled = true;
+        stationInput.closest('.input-box')?.classList.remove('has-value');
         hideStationDropdown();
-        
-        document.getElementById('dateRange').disabled = true;
+
+        stations = [];
+        currentDepartmentOid = null;
+
+        const dateRange = document.getElementById('dateRange');
+        if (dateRange) {
+            dateRange.disabled = true;
+            dateRange.value = '';
+            dateRange.closest('.input-box')?.classList.remove('has-value');
+        }
         resetDateRange();
 
         clearTable();
         showDepartmentDropdown(departments);
-    })
+    });
 
     departmentInput.addEventListener('input', (e) => {
         const value = e.target.value.trim().toUpperCase();
         clearTimeout(departmentSearchTimeout);
 
         if (!value) {
-            showDepartmentDropdown(departments);
+            currentDepartmentOid = null;
+            stations = [];
 
-            document.getElementById('station').disabled = true;
-            document.getElementById('station').value = '';
+            const stationInput = document.getElementById('station');
+            stationInput.value = '';
+            stationInput.disabled = true;
+            stationInput.closest('.input-box')?.classList.remove('has-value');
             hideStationDropdown();
-            
+
+            const dateRange = document.getElementById('dateRange');
+            if (dateRange) {
+                dateRange.disabled = true;
+                dateRange.value = '';
+                dateRange.closest('.input-box')?.classList.remove('has-value');
+            }
             resetDateRange();
 
-            stations = [];
+            clearTable();
+            showDepartmentDropdown(departments);
             return;
         }
         // Filter and show dropdown immediately
@@ -112,10 +136,15 @@ function initializeCheckScanHistoryByStationEventListeners() {
 
         // Always update dropdown immediately when typing
         if (!value) {
-            showStationDropdown(stations);
-            
-            // Disable dateRange when station is empty
+            const dateRange = document.getElementById('dateRange');
+            if (dateRange) {
+                dateRange.disabled = true;
+                dateRange.value = '';
+                dateRange.closest('.input-box')?.classList.remove('has-value');
+            }
             resetDateRange();
+            clearTable();
+            showStationDropdown(stations);
             return;
         }
         
@@ -133,8 +162,9 @@ function initializeCheckScanHistoryByStationEventListeners() {
     });
     
     stationInput.addEventListener('focus', () => {
-        showStationDropdown(stations);
-
+        if (!stationInput.disabled) {
+            showStationDropdown(stations);
+        }
     });
     stationInput.addEventListener('blur', () => {
         hideStationDropdown();
@@ -166,19 +196,33 @@ function showDepartmentDropdown(items) {
         const deptId = dept.id || '';
         item.textContent = deptId;
         item.dataset.value = deptId;
-        item.addEventListener('mousedown', (e) => {
+        item.addEventListener('mousedown', async (e) => {
             e.preventDefault();
             const input = document.getElementById('department');
             input.value = deptId;
+            input.closest('.input-box')?.classList.add('has-value');
             currentDepartmentOid = dept.id;
-            input.dispatchEvent(new Event('input', { bubbles: true }));
-            input.dispatchEvent(new Event('change', { bubbles: true }));
             hideDepartmentDropdown();
             input.blur();
+
+            const stationInput = document.getElementById('station');
+            stationInput.value = '';
+            stationInput.disabled = true;
+            stationInput.closest('.input-box')?.classList.remove('has-value');
+            hideStationDropdown();
+
+            const dateRange = document.getElementById('dateRange');
+            if (dateRange) {
+                dateRange.disabled = true;
+                dateRange.value = '';
+                dateRange.closest('.input-box')?.classList.remove('has-value');
+            }
+            resetDateRange();
+            clearTable();
+
             // Load stations when department is selected
-            loadStations(currentDepartmentOid).then(() => {
-                document.getElementById('station').disabled = false;
-            });
+            await loadStations(currentDepartmentOid);
+            stationInput.disabled = false;
         });
         dropdown.appendChild(item);
     });
@@ -216,10 +260,24 @@ function handleDepartmentSearch() {
 
 async function handleDepartmentChange() {
     const departmentValue = document.getElementById('department').value.trim();
+    const stationInput = document.getElementById('station');
+    const dateRange = document.getElementById('dateRange');
+
     if (!departmentValue) {
-        document.getElementById('station').disabled = true;
-        document.getElementById('station').value = '';
+        stationInput.disabled = true;
+        stationInput.value = '';
+        stationInput.closest('.input-box')?.classList.remove('has-value');
+        hideStationDropdown();
+
+        if (dateRange) {
+            dateRange.disabled = true;
+            dateRange.value = '';
+            dateRange.closest('.input-box')?.classList.remove('has-value');
+        }
+        resetDateRange();
+        clearTable();
         stations = [];
+        currentDepartmentOid = null;
         return;
     }
     
@@ -235,19 +293,62 @@ async function handleDepartmentChange() {
     }
     
     if (!dept) {
-        document.getElementById('station').disabled = true;
+        stationInput.disabled = true;
+        stationInput.value = '';
+        stationInput.closest('.input-box')?.classList.remove('has-value');
+        hideStationDropdown();
+
+        if (dateRange) {
+            dateRange.disabled = true;
+            dateRange.value = '';
+            dateRange.closest('.input-box')?.classList.remove('has-value');
+        }
+        resetDateRange();
+        clearTable();
+        stations = [];
+        currentDepartmentOid = null;
         return;
     }
     
     currentDepartmentOid = dept.id;
+    stationInput.value = '';
+    stationInput.disabled = true;
+    stationInput.closest('.input-box')?.classList.remove('has-value');
+    hideStationDropdown();
+
+    if (dateRange) {
+        dateRange.disabled = true;
+        dateRange.value = '';
+        dateRange.closest('.input-box')?.classList.remove('has-value');
+    }
+    resetDateRange();
+    clearTable();
+
     await loadStations(currentDepartmentOid);
-    document.getElementById('station').disabled = false;
+    stationInput.disabled = false;
 }
 
 // Check if department value is complete and trigger station load
 async function checkAndLoadStations() {
     const departmentValue = document.getElementById('department').value.trim();
+    const stationInput = document.getElementById('station');
+    const dateRange = document.getElementById('dateRange');
+
     if (!departmentValue) {
+        stationInput.disabled = true;
+        stationInput.value = '';
+        stationInput.closest('.input-box')?.classList.remove('has-value');
+        hideStationDropdown();
+
+        if (dateRange) {
+            dateRange.disabled = true;
+            dateRange.value = '';
+            dateRange.closest('.input-box')?.classList.remove('has-value');
+        }
+        resetDateRange();
+        clearTable();
+        stations = [];
+        currentDepartmentOid = null;
         return;
     }
     
@@ -262,9 +363,37 @@ async function checkAndLoadStations() {
         const deptOid = dept.id;
         if (currentDepartmentOid !== deptOid || stations.length === 0) {
             currentDepartmentOid = deptOid;
+            stationInput.value = '';
+            stationInput.disabled = true;
+            stationInput.closest('.input-box')?.classList.remove('has-value');
+            hideStationDropdown();
+
+            if (dateRange) {
+                dateRange.disabled = true;
+                dateRange.value = '';
+                dateRange.closest('.input-box')?.classList.remove('has-value');
+            }
+            resetDateRange();
+            clearTable();
+
             await loadStations(currentDepartmentOid);
-            document.getElementById('station').disabled = false;
+            stationInput.disabled = false;
         }
+    } else {
+        stationInput.disabled = true;
+        stationInput.value = '';
+        stationInput.closest('.input-box')?.classList.remove('has-value');
+        hideStationDropdown();
+
+        if (dateRange) {
+            dateRange.disabled = true;
+            dateRange.value = '';
+            dateRange.closest('.input-box')?.classList.remove('has-value');
+        }
+        resetDateRange();
+        clearTable();
+        stations = [];
+        currentDepartmentOid = null;
     }
 }
 
@@ -319,9 +448,11 @@ function showStationDropdown(items) {
             e.preventDefault();
             const input = document.getElementById('station');
             input.value = stationId;
-            document.getElementById('dateRange').disabled = false;
-            input.dispatchEvent(new Event('input', { bubbles: true }));
-            input.dispatchEvent(new Event('change', { bubbles: true }));
+            input.closest('.input-box')?.classList.add('has-value');
+            const dateRange = document.getElementById('dateRange');
+            if (dateRange) {
+                dateRange.disabled = false;
+            }
             hideStationDropdown();
             input.blur();
             checkAndSearchHistoryScanByStation();

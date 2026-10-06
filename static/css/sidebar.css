@@ -1398,3 +1398,29 @@ body.theme-light .quick-action-btn:hover {
     border-color: rgba(13, 148, 136, 0.3) !important;
 }
 
+/* ===== DISABLED SIDEBAR ITEM (MAGIC WINX) ===== */
+#sidebar li.sidebar-item-disabled,
+#sidebar li.sidebar-item-disabled a,
+#sidebar a.disabled {
+    opacity: 0.38 !important;
+    cursor: not-allowed !important;
+    pointer-events: none !important;
+    user-select: none !important;
+    filter: grayscale(0.85);
+}
+
+#sidebar li.sidebar-item-disabled:hover,
+#sidebar li.sidebar-item-disabled a:hover {
+    background: transparent !important;
+    color: var(--text-clr) !important;
+    border-left-color: transparent !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+#sidebar li.sidebar-item-disabled:hover .material-symbols-outlined {
+    transform: none !important;
+    color: var(--color-text-secondary) !important;
+}
+
+

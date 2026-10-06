@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kiểm tra tem đầu vào mã MES</title>
+    <title>Kiểm tra cấp liệu</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v={{ version }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/smooth_input.css') }}?v={{ version }}">
 
@@ -63,7 +63,7 @@
     
     <!-- Context Menu -->
     <div id="contextMenu" class="context-menu">
-        <div class="context-menu-item" data-action="validate_scan_barcode">Kiểm tra tem đầu vào của mã MES</div>
+        <div class="context-menu-item" data-action="validate_scan_barcode">Kiểm tra cấp liệu</div>
     </div>
     
     <!-- Comparison Modal -->
@@ -73,7 +73,7 @@
                 <div class="comparison-title-wrap">
                     <div class="comparison-title-main">
                         <span class="material-symbols-outlined comparison-icon" aria-hidden="true">compare_arrows</span>
-                        <span class="comparison-title" id="comparisonModalTitle">Kiểm tra tem đầu vào</span>
+                        <span class="comparison-title" id="comparisonModalTitle">Kiểm tra cấp liệu</span>
                     </div>
                     <div class="comparison-meta-info" id="comparisonMetaInfo">
                         <span class="comparison-meta-tag"><span class="material-symbols-outlined">tag</span> Mã MES: <strong id="modalWorkOrderId">--</strong></span>

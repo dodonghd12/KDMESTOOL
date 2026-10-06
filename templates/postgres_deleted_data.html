@@ -43,9 +43,9 @@
                     <input placeholder="Tìm kiếm..." class="input" id="clientSearch" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text" aria-label="Tìm kiếm trong bảng">
                 </div>
 
-                <div style="color: var(--color-text-muted, #94a3b8); font-size: 13px; display: flex; align-items: center; gap: 6px; white-space: nowrap;">
-                    <span class="material-symbols-outlined" style="font-size: 16px; color: var(--color-text-accent, #38bdf8);">info</span>
-                    <span>Truy vấn dữ liệu PostgreSQL bị xóa (Audit Log)</span>
+                <div id="slotStatusContainer" style="margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 13px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 6px 14px; flex-shrink: 0;">
+                    <span id="slotStatusDot" style="width: 8px; height: 8px; border-radius: 50%; background: #94a3b8; display: inline-block;"></span>
+                    <span id="slotStatusText" style="color: #cbd5e1; font-weight: 500;">Daemon: Kiểm tra...</span>
                 </div>
             </div>
         </div>

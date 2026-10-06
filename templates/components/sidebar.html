@@ -9,10 +9,11 @@
                     <span class="actual-text">&nbsp;KDMES TOOL&nbsp;</span>
                     <span aria-hidden="true" class="hover-text">&nbsp;KDMES TOOL&nbsp;</span>
                 </span>
-                <span class="logo-badge">v{{ app_version or '2.2.0' }}</span>
+                <span class="logo-badge">v{{ app_version or '2.3.0' }}</span>
             </div>
         </li>
 
+        <!-- 1. Main -->
         <li>
             <a href="{{ url_for('main') }}">
                 <span class="material-symbols-outlined">home</span>
@@ -20,84 +21,23 @@
             </a>
         </li>
 
-        <li>
-            <button class="dropdown-btn">
-                <span class="material-symbols-outlined">history</span>
-                <span>Lịch sử quét in</span>
-                <span class="material-symbols-outlined">keyboard_arrow_down</span>
-            </button>
-
-            <ul class="sub-menu">
-                <div>
-                    <li>
-                        <a href="{{ url_for('scan_barcode_history') }}">
-                            <span class="material-symbols-outlined">barcode_scanner</span>
-                            <span>Lịch sử quét tem</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{{ url_for('print_barcode_history') }}">
-                            <span class="material-symbols-outlined">print</span>
-                            <span>Lịch sử in tem</span>
-                        </a>
-                    </li>
-                </div>
-            </ul>
-        </li>
+        <!-- 2. Kiểm tra cấp liệu -->
         <li>
             <a href="{{ url_for('validate_scan_barcode') }}">
                 <span class="material-symbols-outlined">category_search</span>
-                <span>Kiểm tra tem đầu vào</span>
+                <span>Kiểm tra cấp liệu</span>
             </a>
         </li>
-        <li>
-            <button class="dropdown-btn">
-                <span class="material-symbols-outlined">published_with_changes</span>
-                <span>In bù và thay thế</span>
-                <span class="material-symbols-outlined">keyboard_arrow_down</span>
-            </button>
 
-            <ul class="sub-menu">
-                <div>
-                    <li>
-                        <a href="{{ url_for('reprint') }}">
-                            <span class="material-symbols-outlined">feature_search</span>
-                            <span>Truy vấn in bù</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{{ url_for('substitutions') }}">
-                            <span class="material-symbols-outlined">find_replace</span>
-                            <span>NVL thay thế</span>
-                        </a>
-                    </li>
-                </div>
-            </ul>
-        </li>
-        <li>
-            <a href="{{ url_for('check_qc_data') }}">
-                <span class="material-symbols-outlined">lab_research</span>
-                <span>Check QC Data</span>
-            </a>
-        </li>
-        <li>
-            <a href="{{ url_for('check_mesync') }}">
-                <span class="material-symbols-outlined">sync</span>
-                <span>Check Mesync</span>
-            </a>
-        </li>
-        <li>
-            <a href="{{ url_for('station_configuration') }}">
-                <span class="material-symbols-outlined">display_settings</span>
-                <span>Thiết lập máy</span>
-            </a>
-        </li>
+        <!-- 3. Thông số kỹ thuật -->
         <li>
             <a href="{{ url_for('technical_specifications') }}">
                 <span class="material-symbols-outlined">tune</span>
                 <span>Thông số kỹ thuật</span>
             </a>
         </li>
+
+        <!-- 4. Deleted Data -->
         <li>
             <button class="dropdown-btn">
                 <span class="material-symbols-outlined">delete_sweep</span>
@@ -122,12 +62,8 @@
                 </div>
             </ul>
         </li>
-        <li>
-            <a href="{{ url_for('magic_winx') }}">
-                <span class="material-symbols-outlined">auto_fix_high</span>
-                <span>Magic Winx</span>
-            </a>
-        </li>
+
+        <!-- 5. Quản lý tài khoản -->
         <li>
             <button class="dropdown-btn">
                 <span class="material-symbols-outlined">manage_accounts</span>
@@ -151,6 +87,90 @@
                     </li>
                 </div>
             </ul>
+        </li>
+
+        <!-- 6. In bù và thay thế -->
+        <li>
+            <button class="dropdown-btn">
+                <span class="material-symbols-outlined">published_with_changes</span>
+                <span>In bù và thay thế</span>
+                <span class="material-symbols-outlined">keyboard_arrow_down</span>
+            </button>
+
+            <ul class="sub-menu">
+                <div>
+                    <li>
+                        <a href="{{ url_for('reprint') }}">
+                            <span class="material-symbols-outlined">feature_search</span>
+                            <span>Truy vấn in bù</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('substitutions') }}">
+                            <span class="material-symbols-outlined">find_replace</span>
+                            <span>NVL thay thế</span>
+                        </a>
+                    </li>
+                </div>
+            </ul>
+        </li>
+
+        <!-- 7. Lịch sử quét in -->
+        <li>
+            <button class="dropdown-btn">
+                <span class="material-symbols-outlined">history</span>
+                <span>Lịch sử quét in</span>
+                <span class="material-symbols-outlined">keyboard_arrow_down</span>
+            </button>
+
+            <ul class="sub-menu">
+                <div>
+                    <li>
+                        <a href="{{ url_for('scan_barcode_history') }}">
+                            <span class="material-symbols-outlined">barcode_scanner</span>
+                            <span>Lịch sử quét tem</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('print_barcode_history') }}">
+                            <span class="material-symbols-outlined">print</span>
+                            <span>Lịch sử in tem</span>
+                        </a>
+                    </li>
+                </div>
+            </ul>
+        </li>
+
+        <!-- 8. Check QC Data -->
+        <li>
+            <a href="{{ url_for('check_qc_data') }}">
+                <span class="material-symbols-outlined">lab_research</span>
+                <span>Check QC Data</span>
+            </a>
+        </li>
+
+        <!-- 9. Check Mesync -->
+        <li>
+            <a href="{{ url_for('check_mesync') }}">
+                <span class="material-symbols-outlined">sync</span>
+                <span>Check Mesync</span>
+            </a>
+        </li>
+
+        <!-- 10. Thiết lập máy -->
+        <li>
+            <a href="{{ url_for('station_configuration') }}">
+                <span class="material-symbols-outlined">display_settings</span>
+                <span>Thiết lập máy</span>
+            </a>
+        </li>
+
+        <!-- 11. Magic Winx (Disabled) -->
+        <li class="sidebar-item-disabled" title="Chức năng tạm khóa">
+            <a href="javascript:void(0);" class="disabled" tabindex="-1" aria-disabled="true" style="opacity: 0.38; cursor: not-allowed; pointer-events: none; filter: grayscale(0.85);">
+                <span class="material-symbols-outlined">auto_fix_high</span>
+                <span>Magic Winx</span>
+            </a>
         </li>
     </ul>
 
@@ -255,5 +275,5 @@
     const userId = '{{ user_id }}';
     const userIp = '{{ user_ip }}';
     const version = '{{ version }}';
-    const appVersion = '{{ app_version or "2.2.0" }}';
+    const appVersion = '{{ app_version or "2.3.0" }}';
 </script>

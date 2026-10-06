@@ -726,7 +726,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.2.0"
+APP_VERSION = "2.3.0"
 
 def get_asset_version():
     return f"{APP_VERSION}.{int(time.time())}"
@@ -1007,7 +1007,7 @@ def main():
 
 @app.route('/validate-scan-barcode')
 def validate_scan_barcode():
-    return render_page_or_shell('validate_scan_barcode.html', '/validate-scan-barcode', 'Kiểm tra tem đầu vào')
+    return render_page_or_shell('validate_scan_barcode.html', '/validate-scan-barcode', 'Kiểm tra cấp liệu')
 
 @app.route('/scan-barcode-history')
 def scan_barcode_history():
@@ -1051,7 +1051,7 @@ def postgres_deleted_data():
 
 @app.route('/magic-winx')
 def magic_winx():
-    return render_page_or_shell('magic_winx.html', '/magic-winx', 'Magic Winx')
+    return redirect(url_for('main'))
 
 @app.route('/create-kd-account')
 def create_kd_account():
@@ -1291,6 +1291,35 @@ def get_postgres_deleted_records_log():
         'result': records,
         'columns': columns
     })
+
+
+@app.route('/api/postgres/audit-slot-status', methods=['GET', 'POST'])
+@login_required
+def get_postgres_audit_slot_status():
+    try:
+        activity_rows, _ = execute_pg_select_query("""
+            SELECT pid 
+            FROM pg_stat_activity 
+            WHERE pid <> pg_backend_pid()
+              AND (
+                  query ILIKE '%%pg_logical_slot_get_changes%%'
+                  OR client_addr = '198.1.10.4'
+              )
+              AND query_start >= NOW() - INTERVAL '1 minute'
+            LIMIT 1
+        """)
+        is_online = bool(activity_rows and len(activity_rows) > 0)
+
+        return jsonify({
+            'status': 'ok',
+            'active': is_online
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
 
 
 _pg_table_columns_cache = {}
@@ -4060,7 +4089,13 @@ def fetch_original_info_by_barcode():
             """
             result, column_names = execute_pg_select_query(query, (resource_id,))
         if not result:
-            return jsonify({'success': False, 'message': 'Lỗi API'})
+            default_cols = ['barcode', 'quantity', 'work_date', 'shift_group', 'lot_number', 'station', 'created_at', 'created_by']
+            return jsonify({
+                'success': True,
+                'result': [],
+                'columns': column_names if 'column_names' in locals() and column_names else default_cols,
+                'message': 'Không tìm thấy thông tin gốc'
+            })
 
         convert_columns = ["created_at"]
         result = convert_timestamp(result, column_names, convert_columns)
@@ -6229,9 +6264,19 @@ def api_check_kd_account():
             ad_account = str(r[4] or '').strip() if r[4] is not None else '-'
 
             # Định dạng roles
+            roles_list = []
             if isinstance(roles_val, (list, tuple, set)):
-                roles_str = '{' + ','.join(str(x) for x in roles_val) + '}'
+                for x in roles_val:
+                    try:
+                        roles_list.append(int(x))
+                    except (ValueError, TypeError):
+                        pass
+                roles_str = '{' + ','.join(str(x) for x in roles_list) + '}'
             elif roles_val is not None:
+                try:
+                    roles_list = [int(roles_val)]
+                except (ValueError, TypeError):
+                    roles_list = []
                 roles_str = str(roles_val)
             else:
                 roles_str = '-'
@@ -6242,6 +6287,7 @@ def api_check_kd_account():
                 'id': acc_id,
                 'password': pwd_resolved,
                 'roles': roles_str,
+                'roles_list': roles_list,
                 'department_id': dept_id or '-',
                 'active_directory_account': ad_account or '-'
             })
@@ -6260,6 +6306,77 @@ def api_check_kd_account():
             'message': f'Lỗi hệ thống khi tra cứu tài khoản: {str(e)}',
             'error_type': 'exception'
         }), 500
+
+
+@app.route('/api/account/update-kd-accounts', methods=['POST'])
+@login_required
+def api_update_kd_accounts():
+    import hashlib
+    try:
+        data = request.get_json(silent=True) or {}
+        updates = data.get('updates') or []
+        if not updates:
+            return jsonify({
+                'success': False,
+                'message': 'Không có dữ liệu thay đổi nào để cập nhật'
+            }), 400
+
+        updated_count = 0
+        with get_pg_connection() as conn:
+            cur = conn.cursor()
+            for item in updates:
+                acc_id = str(item.get('id') or '').strip()
+                if not acc_id:
+                    continue
+
+                raw_roles = item.get('roles')
+                roles_list = []
+                if isinstance(raw_roles, (list, tuple, set)):
+                    for x in raw_roles:
+                        try:
+                            roles_list.append(int(x))
+                        except (ValueError, TypeError):
+                            pass
+                elif raw_roles is not None:
+                    try:
+                        roles_list.append(int(raw_roles))
+                    except (ValueError, TypeError):
+                        pass
+
+                new_password = item.get('password')
+                if new_password is not None and str(new_password).strip() != '':
+                    pwd_str = str(new_password).strip()
+                    pwd_hash = hashlib.sha256(pwd_str.encode('utf-8')).digest()
+                    with _MES_PASSWORD_CACHE_LOCK:
+                        _MES_PASSWORD_CACHE[pwd_hash] = pwd_str
+                    cur.execute(
+                        "UPDATE kvmes.account SET password = %s, roles = %s WHERE id = %s",
+                        (pwd_hash, roles_list, acc_id)
+                    )
+                else:
+                    cur.execute(
+                        "UPDATE kvmes.account SET roles = %s WHERE id = %s",
+                        (roles_list, acc_id)
+                    )
+                updated_count += 1
+
+            conn.commit()
+            cur.close()
+
+        return jsonify({
+            'success': True,
+            'message': f'Đã cập nhật thành công {updated_count} tài khoản',
+            'updated_count': updated_count
+        })
+
+    except Exception as e:
+        app.logger.error(f"Lỗi API update-kd-accounts: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'message': f'Lỗi hệ thống khi cập nhật tài khoản: {str(e)}',
+            'error_type': 'exception'
+        }), 500
+
 
 @app.errorhandler(404)
 def page_not_found(e):

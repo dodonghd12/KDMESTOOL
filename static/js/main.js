@@ -521,12 +521,17 @@ function initInputClearButtons() {
         }
 
         const updateClearState = () => {
-            if (input.value && input.value.trim().length > 0) {
+            if (!input.disabled && !input.readOnly && input.value && input.value.trim().length > 0) {
                 box.classList.add('has-value');
             } else {
                 box.classList.remove('has-value');
             }
         };
+
+        const observer = new MutationObserver(() => {
+            updateClearState();
+        });
+        observer.observe(input, { attributes: true, attributeFilter: ['disabled', 'readonly'] });
 
         input.addEventListener('input', updateClearState);
         input.addEventListener('change', updateClearState);
@@ -1538,11 +1543,34 @@ function initializeMainEventListeners() {
     }
 
     // ===== SUB OUTPUT TABLE EVENTS =====
+    const subOutputContainer = document.getElementById('subOutputContainer');
+    if (subOutputContainer) {
+        subOutputContainer.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        });
+    }
+
     const subOutputTableBody = document.getElementById('subOutputBarcodeTableBody');
     if (subOutputTableBody) {
         subOutputTableBody.addEventListener('click', handleSubOutputRowClick);
         subOutputTableBody.addEventListener('dblclick', handleSubOutputRowDoubleClick);
+        subOutputTableBody.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        });
     }
+
+    document.addEventListener('contextmenu', (e) => {
+        const subContainer = document.getElementById('subOutputContainer');
+        if (subContainer && subContainer.contains(e.target)) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        }
+    }, true);
 
     // ===== CONTEXT MENU =====
     const contextMenu = document.getElementById('contextMenu');
@@ -2346,7 +2374,7 @@ function handleContextMenuAction(e) {
             fetchPrde('prdeba', rowData);
             break;
         case 'getPrdebb':
-            fetchPrde('getPrdebb', rowData);
+            fetchPrde('prdebb', rowData);
             break;
         case 'getPrdebc':
             fetchPrde('prdebc', rowData);
@@ -2846,19 +2874,19 @@ async function fetchOriginalInfoByBarcode(id = null, product_type = null) {
             body: JSON.stringify({ resource_id, product_type: prod_type })
         });
 
-        if (data.success && data.result && data.result.length > 0) {
+        if (data && data.success && data.result && data.result.length > 0) {
             outputBarcodeRawData = data.result;
             outputBarcodeColumns = data.columns;
             currentOutputTableType = null;
             renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
             Toast.success('Thành công', `Tải thành công ${data.result.length} dòng thông tin gốc.`);
         } else {
-            renderOutputBarcodeTable([], data.columns || []);
+            renderOutputBarcodeTable([], data?.columns || []);
             Toast.warning('Không có dữ liệu', (data && data.message) ? data.message : 'Không tìm thấy thông tin gốc');
         }
 
     } catch (err) {
-        Toast.error('Lỗi', err.message || 'Lỗi khi tải thông tin gốc');
+        console.error('Error fetching original info:', err);
     }
 }
 
@@ -2871,21 +2899,31 @@ async function fetchPrde(type, rowData = null) {
         return;
     }
 
+    const key = (type || '').toLowerCase().replace(/^get/, '');
     const urlMap = {
         'prdeba': '/api/barcodes/get-prdeba',
         'prdebb': '/api/barcodes/get-prdebb',
-        'prdebc': '/api/barcodes/get-prdebc'
+        'prdebc': '/api/barcodes/get-prdebc',
+        'getprdeba': '/api/barcodes/get-prdeba',
+        'getprdebb': '/api/barcodes/get-prdebb',
+        'getprdebc': '/api/barcodes/get-prdebc'
     };
 
     const headerMap = {
         'prdeba': 'PRDEBA',
         'prdebb': 'PRDEBB',
-        'prdebc': 'PRDEBC'
+        'prdebc': 'PRDEBC',
+        'getprdeba': 'PRDEBA',
+        'getprdebb': 'PRDEBB',
+        'getprdebc': 'PRDEBC'
     };
+
+    const targetUrl = urlMap[key] || urlMap[type] || `/api/barcodes/get-${key}`;
+    const headerTitle = headerMap[key] || headerMap[type] || key.toUpperCase();
 
     const outputHeaderContentEl = document.getElementById('outputHeaderContent');
     if (outputHeaderContentEl) {
-        outputHeaderContentEl.textContent = headerMap[type] || type.toUpperCase();
+        outputHeaderContentEl.textContent = headerTitle;
     }
 
     // Tự động đóng và clear subOutputContainer khi outputContainer mở dữ liệu mới
@@ -2896,7 +2934,7 @@ async function fetchPrde(type, rowData = null) {
 
     enterSingleRowMode();
     clearOutputBarcodeTable();
-    activeSearchContext = type;
+    activeSearchContext = key;
 
     try {
         const payload = { resource_id };
@@ -2904,20 +2942,19 @@ async function fetchPrde(type, rowData = null) {
             payload.product_type = product_type;
         }
 
-        const data = await apiFetch(urlMap[type], {
+        const data = await apiFetch(targetUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
 
         if (!data || !data.success) {
-            Toast.error('Lỗi', (data && data.message) ? data.message : `Không tải được dữ liệu ${type.toUpperCase()}`);
             return;
         }
 
         if (!data.result || data.result.length === 0) {
             renderOutputBarcodeTable([], data.columns || []);
-            Toast.warning('Không có dữ liệu', `Không có dữ liệu ${type.toUpperCase()} cho barcode này`);
+            Toast.warning('Không có dữ liệu', `Không có dữ liệu ${headerTitle} cho barcode này`);
             return;
         }
 
@@ -2925,9 +2962,9 @@ async function fetchPrde(type, rowData = null) {
         outputBarcodeColumns = data.columns;
         currentOutputTableType = null;
         renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
-        Toast.success('Thành công', `Tải thành công ${data.result.length} dòng dữ liệu ${type.toUpperCase()}`);
+        Toast.success('Thành công', `Tải thành công ${data.result.length} dòng dữ liệu ${headerTitle}`);
     } catch (err) {
-        Toast.error('Lỗi', err.message || `Lỗi khi tải dữ liệu ${type.toUpperCase()}`);
+        console.error(`Error fetching PRDE:`, err);
     }
 }
 
@@ -4083,9 +4120,6 @@ async function copyDetailsData() {
             const originalHTML = copyBtn.innerHTML;
             copyBtn.classList.add('copied');
             copyBtn.innerHTML = '<span class="material-symbols-outlined">check</span> <span>Copied!</span>';
-            if (typeof Toast !== 'undefined' && Toast.success) {
-                Toast.success('Success', 'Data copied to clipboard');
-            }
             
             // Reset button sau 2 giây
             setTimeout(() => {
@@ -4196,7 +4230,7 @@ function closeDetailsModal() {
 
 function showAbout() {
     // Use global version variable if available, otherwise fallback
-    const appVersion = (typeof appVersion !== 'undefined' && appVersion) ? appVersion : ((typeof version !== 'undefined' && version) ? version : '2.2.0');
+    const appVersion = (typeof appVersion !== 'undefined' && appVersion) ? appVersion : ((typeof version !== 'undefined' && version) ? version : '2.3.0');
     showAlert('Tool Version: ' + appVersion, 'info');
 }
 
@@ -6967,9 +7001,6 @@ async function copyOcrResultToClipboard() {
                 if (spanText) spanText.textContent = 'Copy';
                 if (icon) icon.textContent = 'content_copy';
             }, 2000);
-        }
-        if (typeof Toast !== 'undefined' && Toast.success) {
-            Toast.success('Đã sao chép', `Đã copy: ${textToCopy}`);
         }
     } else {
         if (typeof Toast !== 'undefined' && Toast.error) {

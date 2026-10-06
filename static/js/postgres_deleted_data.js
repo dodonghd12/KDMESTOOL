@@ -69,6 +69,7 @@ function initializePostgresDeletedData() {
 
     // Tự động tải dữ liệu khi vào trang
     fetchDeletedRecordsLog();
+    fetchAuditSlotStatus();
 }
 
 function resetAllFiltersAndTable() {
@@ -132,6 +133,7 @@ function initControls() {
         checkBtn.addEventListener('click', () => {
             resetAllFiltersAndTable();
             fetchDeletedRecordsLog();
+            fetchAuditSlotStatus();
         });
     }
 
@@ -587,3 +589,38 @@ async function generateInsertQueries() {
         }
     }
 }
+
+/**
+ * ==============================================================================
+ * KVMES AUDIT DAEMON STATUS MONITORING
+ * ==============================================================================
+ */
+async function fetchAuditSlotStatus() {
+    const dot = document.getElementById('slotStatusDot');
+    const statusText = document.getElementById('slotStatusText');
+
+    if (!statusText || !dot) return;
+
+    try {
+        const res = await fetch('/api/postgres/audit-slot-status');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.status === 'ok') {
+            const isActive = data.active;
+            if (isActive) {
+                dot.style.background = '#22c55e';
+                dot.style.boxShadow = '0 0 8px #22c55e';
+                statusText.textContent = 'Daemon: Online';
+                statusText.style.color = '#4ade80';
+            } else {
+                dot.style.background = '#ef4444';
+                dot.style.boxShadow = '0 0 8px #ef4444';
+                statusText.textContent = 'Daemon: Offline';
+                statusText.style.color = '#f87171';
+            }
+        }
+    } catch (e) {
+        console.warn('Error fetching audit slot status:', e);
+    }
+}
+

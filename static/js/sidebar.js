@@ -487,6 +487,11 @@ document.addEventListener('DOMContentLoaded', () => {
         let activeSubMenu = null;
 
         sidebarLinks.forEach(link => {
+            const href = link.getAttribute('href');
+            if (!href || href === '#' || href.startsWith('javascript:') || link.classList.contains('disabled')) {
+                link.closest('li')?.classList.remove('active');
+                return;
+            }
             const linkPath = new URL(link.href, window.location.origin).pathname.replace(/\/+$/, '');
 
             if (currentPath === linkPath) {

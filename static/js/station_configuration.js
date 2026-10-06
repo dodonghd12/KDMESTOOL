@@ -30,21 +30,38 @@ function initializeValidateScanBarcodeEventListeners() {
     // Department search
     const departmentInput = document.getElementById('department'); 
     departmentInput.addEventListener('click', () => {
+        departmentInput.value = '';
+        departmentInput.closest('.input-box')?.classList.remove('has-value');
+        departmentInput.focus();
+
+        const stationInput = document.getElementById('station');
+        stationInput.value = '';
+        stationInput.disabled = true;
+        stationInput.closest('.input-box')?.classList.remove('has-value');
+        hideStationDropdown();
+
+        stations = [];
+        currentDepartmentOid = null;
+        clearTable();
         showDepartmentDropdown(departments);
-    })
+    });
 
     departmentInput.addEventListener('input', (e) => {
         const value = e.target.value.trim().toUpperCase();
         clearTimeout(departmentSearchTimeout);
 
         if (!value) {
-            showDepartmentDropdown(departments);
-            
-            document.getElementById('station').disabled = true;
-            document.getElementById('station').value = '';
-            hideStationDropdown();
-            
+            currentDepartmentOid = null;
             stations = [];
+
+            const stationInput = document.getElementById('station');
+            stationInput.value = '';
+            stationInput.disabled = true;
+            stationInput.closest('.input-box')?.classList.remove('has-value');
+            hideStationDropdown();
+
+            clearTable();
+            showDepartmentDropdown(departments);
             return;
         }
         // Filter and show dropdown immediately
@@ -98,6 +115,7 @@ function initializeValidateScanBarcodeEventListeners() {
 
         // Always update dropdown immediately when typing
         if (!value) {
+            clearTable();
             showStationDropdown(stations);
             return;
         }
@@ -148,19 +166,25 @@ function showDepartmentDropdown(items) {
         const deptId = dept.id || '';
         item.textContent = deptId;
         item.dataset.value = deptId;
-        item.addEventListener('mousedown', (e) => {
+        item.addEventListener('mousedown', async (e) => {
             e.preventDefault();
             const input = document.getElementById('department');
             input.value = deptId;
+            input.closest('.input-box')?.classList.add('has-value');
             currentDepartmentOid = dept.id;
-            input.dispatchEvent(new Event('input', { bubbles: true }));
-            input.dispatchEvent(new Event('change', { bubbles: true }));
             hideDepartmentDropdown();
             input.blur();
+
+            const stationInput = document.getElementById('station');
+            stationInput.value = '';
+            stationInput.disabled = true;
+            stationInput.closest('.input-box')?.classList.remove('has-value');
+            hideStationDropdown();
+            clearTable();
+
             // Load stations when department is selected
-            loadStations(currentDepartmentOid).then(() => {
-                document.getElementById('station').disabled = false;
-            });
+            await loadStations(currentDepartmentOid);
+            stationInput.disabled = false;
         });
         dropdown.appendChild(item);
     });
@@ -198,10 +222,16 @@ function handleDepartmentSearch() {
 
 async function handleDepartmentChange() {
     const departmentValue = document.getElementById('department').value.trim();
+    const stationInput = document.getElementById('station');
+
     if (!departmentValue) {
-        document.getElementById('station').disabled = true;
-        document.getElementById('station').value = '';
+        stationInput.disabled = true;
+        stationInput.value = '';
+        stationInput.closest('.input-box')?.classList.remove('has-value');
+        hideStationDropdown();
+        clearTable();
         stations = [];
+        currentDepartmentOid = null;
         return;
     }
     
@@ -217,19 +247,39 @@ async function handleDepartmentChange() {
     }
     
     if (!dept) {
-        document.getElementById('station').disabled = true;
+        stationInput.disabled = true;
+        stationInput.value = '';
+        stationInput.closest('.input-box')?.classList.remove('has-value');
+        hideStationDropdown();
+        clearTable();
+        stations = [];
+        currentDepartmentOid = null;
         return;
     }
     
     currentDepartmentOid = dept.id;
+    stationInput.value = '';
+    stationInput.disabled = true;
+    stationInput.closest('.input-box')?.classList.remove('has-value');
+    hideStationDropdown();
+    clearTable();
     await loadStations(currentDepartmentOid);
-    document.getElementById('station').disabled = false;
+    stationInput.disabled = false;
 }
 
 // Check if department value is complete and trigger station load
 async function checkAndLoadStations() {
     const departmentValue = document.getElementById('department').value.trim();
+    const stationInput = document.getElementById('station');
+
     if (!departmentValue) {
+        stationInput.disabled = true;
+        stationInput.value = '';
+        stationInput.closest('.input-box')?.classList.remove('has-value');
+        hideStationDropdown();
+        clearTable();
+        stations = [];
+        currentDepartmentOid = null;
         return;
     }
     
@@ -244,9 +294,22 @@ async function checkAndLoadStations() {
         const deptOid = dept.id;
         if (currentDepartmentOid !== deptOid || stations.length === 0) {
             currentDepartmentOid = deptOid;
+            stationInput.value = '';
+            stationInput.disabled = true;
+            stationInput.closest('.input-box')?.classList.remove('has-value');
+            hideStationDropdown();
+            clearTable();
             await loadStations(currentDepartmentOid);
-            document.getElementById('station').disabled = false;
+            stationInput.disabled = false;
         }
+    } else {
+        stationInput.disabled = true;
+        stationInput.value = '';
+        stationInput.closest('.input-box')?.classList.remove('has-value');
+        hideStationDropdown();
+        clearTable();
+        stations = [];
+        currentDepartmentOid = null;
     }
 }
 
@@ -296,8 +359,7 @@ function showStationDropdown(items) {
             e.preventDefault();
             const input = document.getElementById('station');
             input.value = stationId;
-            input.dispatchEvent(new Event('input', { bubbles: true }));
-            input.dispatchEvent(new Event('change', { bubbles: true }));
+            input.closest('.input-box')?.classList.add('has-value');
             hideStationDropdown();
             input.blur();
             checkAndSearchWorkOrders();

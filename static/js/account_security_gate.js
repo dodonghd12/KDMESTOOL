@@ -1,6 +1,7 @@
 /**
  * KDMES TOOL — Account Modules Security Gatekeeper
- * Protects /create-kd-account
+ * Protects /create-kd-account (auto-blocking on load)
+ * and /check-kd-account (on-demand modal with close button on sensitive edits)
  * Requires password 'Newhouse@120396'
  * Locks out & redirects to /main on 5 failed attempts with a 5s countdown
  */
@@ -10,6 +11,8 @@
     const ATTEMPTS_KEY = 'kd_account_gate_attempts';
     const MAX_ATTEMPTS = 5;
     const REDIRECT_DELAY_SEC = 5;
+
+    let pendingUnlockCallback = null;
 
     function isAlreadyUnlocked() {
         try {
@@ -40,6 +43,68 @@
         } catch (e) {}
     }
 
+    function isAutoBlockPage() {
+        // /create-kd-account is auto-blocking on page load
+        return !!document.getElementById('singleAccountInput') || window.location.pathname.includes('create-kd-account');
+    }
+
+    function closeGateModal() {
+        const overlay = document.getElementById('accountSecurityGateOverlay');
+        const form = document.getElementById('securityGateForm');
+        const input = document.getElementById('securityGateInput');
+        const inputBox = document.getElementById('securityInputBox');
+        const errorMsg = document.getElementById('securityGateErrorMsg');
+
+        if (overlay) overlay.style.display = 'none';
+        if (input) input.value = '';
+        if (inputBox) inputBox.classList.remove('error');
+        if (errorMsg && (!form || !form.dataset.locked)) errorMsg.style.display = 'none';
+        pendingUnlockCallback = null;
+    }
+
+    // Expose helpers globally
+    window.isAccountSecurityUnlocked = isAlreadyUnlocked;
+
+    window.ensureAccountSecurityUnlocked = function (callback) {
+        if (isAlreadyUnlocked()) {
+            if (typeof callback === 'function') callback();
+            return true;
+        }
+
+        pendingUnlockCallback = callback;
+
+        const overlay = document.getElementById('accountSecurityGateOverlay');
+        const closeBtn = document.getElementById('securityGateCloseBtn');
+        const form = document.getElementById('securityGateForm');
+        const input = document.getElementById('securityGateInput');
+        const inputBox = document.getElementById('securityInputBox');
+        const errorMsg = document.getElementById('securityGateErrorMsg');
+
+        if (!overlay) {
+            if (typeof callback === 'function') callback();
+            return true;
+        }
+
+        if (closeBtn) {
+            closeBtn.style.display = 'flex';
+        }
+
+        if (input) input.value = '';
+        if (inputBox) inputBox.classList.remove('error');
+        if (errorMsg && (!form || !form.dataset.locked)) errorMsg.style.display = 'none';
+
+        overlay.style.opacity = '1';
+        overlay.style.display = 'flex';
+
+        setTimeout(() => {
+            if (input && (!form || !form.dataset.locked)) {
+                input.focus();
+            }
+        }, 150);
+
+        return false;
+    };
+
     // If already unlocked before DOMContentLoaded, dismiss immediately
     if (isAlreadyUnlocked()) {
         const overlay = document.getElementById('accountSecurityGateOverlay');
@@ -48,6 +113,7 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         const overlay = document.getElementById('accountSecurityGateOverlay');
+        const closeBtn = document.getElementById('securityGateCloseBtn');
         const form = document.getElementById('securityGateForm');
         const input = document.getElementById('securityGateInput');
         const inputBox = document.getElementById('securityInputBox');
@@ -59,13 +125,41 @@
 
         if (!overlay) return;
 
+        const autoBlock = isAutoBlockPage();
+
         if (isAlreadyUnlocked()) {
             overlay.style.display = 'none';
+            if (closeBtn) closeBtn.style.display = autoBlock ? 'none' : 'flex';
             return;
         }
 
-        // Show gate overlay
-        overlay.style.display = 'flex';
+        if (autoBlock) {
+            // /create-kd-account: Show gate overlay on load, no close button
+            if (closeBtn) closeBtn.style.display = 'none';
+            overlay.style.display = 'flex';
+        } else {
+            // /check-kd-account: Hide on load, enable close button
+            if (closeBtn) closeBtn.style.display = 'flex';
+            overlay.style.display = 'none';
+        }
+
+        // Close button handler (for /check-kd-account)
+        if (closeBtn) {
+            closeBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                closeGateModal();
+            });
+        }
+
+        // Esc key closes modal when on-demand modal is open and close button is visible
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && overlay.style.display === 'flex') {
+                if (closeBtn && closeBtn.style.display !== 'none' && !form?.dataset.locked) {
+                    closeGateModal();
+                }
+            }
+        });
 
         // Password visibility toggle
         if (toggleEye && input && eyeIcon) {
@@ -98,12 +192,14 @@
             return;
         }
 
-        // Auto focus input if not locked
-        setTimeout(() => {
-            if (input && !form.dataset.locked) {
-                input.focus();
-            }
-        }, 150);
+        // Auto focus input if not locked (only on auto-block pages)
+        if (autoBlock) {
+            setTimeout(() => {
+                if (input && !form.dataset.locked) {
+                    input.focus();
+                }
+            }, 150);
+        }
 
         function validatePassword() {
             if (form.dataset.locked) return;
@@ -131,6 +227,11 @@
                 overlay.style.transition = 'opacity 0.25s ease';
                 setTimeout(() => {
                     overlay.style.display = 'none';
+                    if (typeof pendingUnlockCallback === 'function') {
+                        const cb = pendingUnlockCallback;
+                        pendingUnlockCallback = null;
+                        cb();
+                    }
                 }, 250);
 
                 // Notify other iframes in SPA Shell
@@ -211,6 +312,11 @@
             const overlay = document.getElementById('accountSecurityGateOverlay');
             if (overlay) {
                 overlay.style.display = 'none';
+            }
+            if (typeof pendingUnlockCallback === 'function') {
+                const cb = pendingUnlockCallback;
+                pendingUnlockCallback = null;
+                cb();
             }
         }
     });
