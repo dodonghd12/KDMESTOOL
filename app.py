@@ -5,14 +5,21 @@ from functools import wraps
 import pytz # type: ignore
 import urllib3 # type: ignore
 import requests # type: ignore
-import json
 import os
+import sys
+import json
+_base_dir = os.path.dirname(os.path.abspath(__file__))
+_ocr_libs_path = os.path.join(_base_dir, 'ocr_libs')
+if os.path.exists(_ocr_libs_path) and _ocr_libs_path not in sys.path:
+    sys.path.insert(0, _ocr_libs_path)
 import base64
 import yaml
 import hashlib
 from datetime import datetime, timezone, timedelta, date
 import re
 import glob
+import subprocess
+import shutil
 from typing import Optional
 from db_execute import (execute_pg_select_query, execute_pg_update_query, execute_pg_dev_select_query, execute_pg_insert_query, execute_mssql_select_query)
 from db_connections import (
@@ -1049,9 +1056,13 @@ def gitlab_deleted_files():
 def postgres_deleted_data():
     return render_page_or_shell('postgres_deleted_data.html', '/postgres-deleted-data', 'Postgres Deleted Data')
 
-@app.route('/magic-winx')
-def magic_winx():
-    return redirect(url_for('main'))
+@app.route('/avada-kedavra')
+def avada_kedavra():
+    return render_page_or_shell('avada_kedavra.html', '/avada-kedavra', 'Avada Kedavra')
+
+@app.route('/reparo-spell')
+def reparo_spell():
+    return render_page_or_shell('reparo_spell.html', '/reparo-spell', 'Reparo Spell')
 
 @app.route('/create-kd-account')
 def create_kd_account():
@@ -4350,9 +4361,9 @@ def get_mes_material_history():
             'data': []
         }), 500
 
-@app.route('/api/magic-winx/work-order/fetch-collect-records', methods=['POST'])
+@app.route('/api/reparo-spell/work-order/fetch-collect-records', methods=['POST'])
 @login_required
-def magic_winx_fetch_collect_records():
+def reparo_spell_fetch_collect_records():
 
     work_order_id = request.json.get('work_order_id', '').strip()
     if not work_order_id:
@@ -4424,9 +4435,9 @@ def magic_winx_fetch_collect_records():
     except Exception as e:
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
 
-@app.route('/api/magic-winx/collect-record/material-resource-existed', methods=['POST'])
+@app.route('/api/reparo-spell/collect-record/material-resource-existed', methods=['POST'])
 @login_required
-def magic_winx_check_material_resource_existed():
+def reparo_spell_check_material_resource_existed():
 
     data = request.get_json() or {}
     resource_ids = data.get('resource_ids', [])
@@ -4454,9 +4465,9 @@ def magic_winx_check_material_resource_existed():
     except Exception as e:
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
     
-@app.route('/api/magic-winx/prepare-insert-data', methods=['POST'])
+@app.route('/api/reparo-spell/prepare-insert-data', methods=['POST'])
 @login_required
-def magic_winx_prepare():
+def reparo_spell_prepare():
 
     data          = request.get_json() or {}
     work_order_id = data.get('work_order_id', '').strip()
@@ -4625,9 +4636,9 @@ def magic_winx_prepare():
     except Exception as e:
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
 
-@app.route('/api/magic-winx/insert-material', methods=['POST'])
+@app.route('/api/reparo-spell/insert-material', methods=['POST'])
 @login_required
-def magic_winx_execute():
+def reparo_spell_execute():
 
     data        = request.get_json() or {}
 
@@ -4729,9 +4740,9 @@ def magic_winx_execute():
     except Exception as e:
         return jsonify({'success': False, 'message': f'Lỗi kết nối DB: {str(e)}'})
     
-@app.route('/api/magic-winx/update-feed-record-material', methods=['POST'])
+@app.route('/api/reparo-spell/update-feed-record-material', methods=['POST'])
 @login_required
-def magic_winx_update():
+def reparo_spell_update():
 
     data = request.get_json() or {}
 
@@ -4867,9 +4878,9 @@ def magic_winx_update():
             'message': f'Lỗi update: {str(e)}'
         })
 
-@app.route('/api/magic-winx/update-green-tire-quantity', methods=['POST'])
+@app.route('/api/reparo-spell/update-green-tire-quantity', methods=['POST'])
 @login_required
-def magic_winx_magic():
+def reparo_spell_update_green_tire_quantity():
     API_NAME = 'update-green-tire-quantity'
     try:
         data = request.get_json() or {}
@@ -4983,9 +4994,9 @@ def magic_winx_magic():
             'message': f'{API_NAME} lỗi: {str(e)}'
         })
 
-@app.route('/api/magic-winx/check-work-orders-bulk', methods=['POST'])
+@app.route('/api/reparo-spell/check-work-orders-bulk', methods=['POST'])
 @login_required
-def magic_winx_check_work_orders_bulk():
+def reparo_spell_check_work_orders_bulk():
 
     data = request.get_json() or {}
     work_order_ids = data.get('work_order_ids', [])
@@ -5119,9 +5130,9 @@ def magic_winx_check_work_orders_bulk():
         }
     })
 
-@app.route('/api/magic-winx/prepare-material-resource', methods=['POST'])
+@app.route('/api/reparo-spell/prepare-material-resource', methods=['POST'])
 @login_required
-def magic_winx_prepare_material_resource():
+def reparo_spell_prepare_material_resource():
 
     data = request.get_json() or {}
     raw_input = data.get('raw_input', '').strip()
@@ -5628,9 +5639,9 @@ def magic_winx_prepare_material_resource():
     except Exception as e:
         return jsonify({'success': False, 'message': f'Lỗi thực thi: {str(e)}'})
 
-@app.route('/api/magic-winx/insert-material-resource', methods=['POST'])
+@app.route('/api/reparo-spell/insert-material-resource', methods=['POST'])
 @login_required
-def magic_winx_insert_material_resource():
+def reparo_spell_insert_material_resource():
 
     data = request.get_json() or {}
 
@@ -5654,7 +5665,7 @@ def magic_winx_insert_material_resource():
         id_val = str(row.get('id') or '')
     else:
         # Nếu gọi trực tiếp thì chạy prepare trước
-        prep_res = magic_winx_prepare_material_resource()
+        prep_res = reparo_spell_prepare_material_resource()
         if hasattr(prep_res, 'get_json'):
             prep_data = prep_res.get_json()
         else:
@@ -6375,6 +6386,394 @@ def api_update_kd_accounts():
             'success': False,
             'message': f'Lỗi hệ thống khi cập nhật tài khoản: {str(e)}',
             'error_type': 'exception'
+        }), 500
+
+
+# ==============================================================================
+# 🔮 AVADA KEDAVRA - MES REMOTE TOGGLE & AUDIT LOG CONTROLLER
+# ==============================================================================
+AVADA_KEDAVRA_SSH_HOST = "198.1.10.8"
+AVADA_KEDAVRA_SSH_PORT = 22
+AVADA_KEDAVRA_SSH_USER = "root"
+AVADA_KEDAVRA_SSH_PASS = "123"
+AVADA_KEDAVRA_SSH_HOSTKEY = "SHA256:AEDoTrINFBrEORA6fnbAqmG0m5hHiTRI0HkjODBUtsc"
+AVADA_KEDAVRA_SERVICE_DIR = "/srv/go/service/mes"
+AVADA_KEDAVRA_COMPOSE_FILE = "/srv/go/service/mes/docker-compose.yml"
+AVADA_KEDAVRA_RESTART_CMD = "cd /srv/go/service/mes && ./restart"
+AVADA_KEDAVRA_LOG_FILE_PATH = r"\\198.1.10.2\Vitinh\Thu\QUAN TRONG KHONG XOA\log_avada_kedavra.txt"
+
+def get_plink_binary_path():
+    """Tìm đường dẫn thực thi plink.exe hoặc ssh."""
+    candidates = [
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tools', 'plink.exe'),
+        r"C:\Program Files\PuTTY\plink.exe",
+        r"C:\Program Files (x86)\PuTTY\plink.exe",
+        "plink.exe"
+    ]
+    for p in candidates:
+        if os.path.exists(p):
+            return p
+    return "plink.exe"
+
+def run_avada_kedavra_ssh_cmd(cmd_str: str, timeout: int = 40):
+    """Thực thi SSH command sử dụng paramiko (từ ocr_libs) hoặc fallback plink.exe."""
+    try:
+        import paramiko
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        client.connect(AVADA_KEDAVRA_SSH_HOST, port=AVADA_KEDAVRA_SSH_PORT, username=AVADA_KEDAVRA_SSH_USER, password=AVADA_KEDAVRA_SSH_PASS, timeout=timeout)
+        stdin, stdout, stderr = client.exec_command(cmd_str, timeout=timeout)
+        out = stdout.read().decode('utf-8', errors='ignore')
+        err = stderr.read().decode('utf-8', errors='ignore')
+        client.close()
+        return out, err
+    except Exception as paramiko_err:
+        plink_bin = get_plink_binary_path()
+        if os.path.exists(plink_bin) or shutil.which("plink.exe"):
+            args = [
+                plink_bin,
+                "-ssh",
+                "-batch",
+                "-noagent",
+                "-noshare",
+                "-hostkey", AVADA_KEDAVRA_SSH_HOSTKEY,
+                "-l", AVADA_KEDAVRA_SSH_USER,
+                "-pw", AVADA_KEDAVRA_SSH_PASS,
+                AVADA_KEDAVRA_SSH_HOST,
+                cmd_str
+            ]
+            proc = subprocess.run(args, capture_output=True, text=True, encoding='utf-8', errors='ignore', timeout=timeout)
+            if proc.returncode != 0 and not proc.stdout:
+                raise Exception(proc.stderr.strip() or f"Lỗi thực thi lệnh SSH (Exit code {proc.returncode})")
+            return proc.stdout, proc.stderr
+        raise paramiko_err
+
+def run_avada_kedavra_ssh_write(content_str: str, remote_path: str, timeout: int = 30):
+    """Ghi nội dung file lên máy chủ từ xa qua SSH stdin hoặc SFTP."""
+    try:
+        import paramiko
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        client.connect(AVADA_KEDAVRA_SSH_HOST, port=AVADA_KEDAVRA_SSH_PORT, username=AVADA_KEDAVRA_SSH_USER, password=AVADA_KEDAVRA_SSH_PASS, timeout=timeout)
+        sftp = client.open_sftp()
+        with sftp.file(remote_path, 'w') as f:
+            f.write(content_str.encode('utf-8'))
+        sftp.close()
+        client.close()
+        return "", ""
+    except Exception as paramiko_err:
+        plink_bin = get_plink_binary_path()
+        if os.path.exists(plink_bin) or shutil.which("plink.exe"):
+            args = [
+                plink_bin,
+                "-ssh",
+                "-batch",
+                "-noagent",
+                "-noshare",
+                "-hostkey", AVADA_KEDAVRA_SSH_HOSTKEY,
+                "-l", AVADA_KEDAVRA_SSH_USER,
+                "-pw", AVADA_KEDAVRA_SSH_PASS,
+                AVADA_KEDAVRA_SSH_HOST,
+                f'cat > "{remote_path}"'
+            ]
+            proc = subprocess.run(args, input=content_str, capture_output=True, text=True, encoding='utf-8', errors='ignore', timeout=timeout)
+            if proc.returncode != 0:
+                raise Exception(proc.stderr.strip() or f"Lỗi ghi file qua SSH (Exit code {proc.returncode})")
+            return proc.stdout, proc.stderr
+        raise paramiko_err
+
+def append_avada_kedavra_log_lines(ip: str, note_lines: list, server: str = AVADA_KEDAVRA_SSH_HOST):
+    """Ghi đúng 5 dòng log kèm Máy chủ (Server), IP và thời gian (UTC+7) vào file log trên ổ mạng."""
+    try:
+        now_str = datetime.now(VN_TZ).strftime("%Y-%m-%d %H:%M:%S")
+        target_file = AVADA_KEDAVRA_LOG_FILE_PATH
+        dir_path = os.path.dirname(target_file)
+        if dir_path and not os.path.exists(dir_path):
+            os.makedirs(dir_path, exist_ok=True)
+            
+        with open(target_file, 'a', encoding='utf-8') as f:
+            for note in note_lines:
+                f.write(f"{now_str} | {server or AVADA_KEDAVRA_SSH_HOST} | {ip or 'Unknown'} | {note}\n")
+    except Exception as e:
+        app.logger.error(f"[AVADA_KEDAVRA_LOG_ERROR] Lỗi khi ghi file log Avada Kedavra: {e}", exc_info=True)
+
+def read_avada_kedavra_logs(limit: int = 1000):
+    """Đọc lịch sử log Avada Kedavra từ file trên ổ mạng, trả về newest-first."""
+    logs = []
+    lines = []
+    try:
+        if os.path.exists(AVADA_KEDAVRA_LOG_FILE_PATH):
+            try:
+                with open(AVADA_KEDAVRA_LOG_FILE_PATH, 'r', encoding='utf-8') as f:
+                    lines.extend(f.readlines())
+            except Exception:
+                pass
+
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            parts = [p.strip() for p in line.split('|')]
+            if len(parts) >= 4:
+                logs.append({
+                    'time': parts[0],
+                    'server': parts[1],
+                    'ip': parts[2],
+                    'note': '|'.join(parts[3:]).strip()
+                })
+            elif len(parts) == 3:
+                logs.append({
+                    'time': parts[0],
+                    'server': AVADA_KEDAVRA_SSH_HOST,
+                    'ip': parts[1],
+                    'note': parts[2]
+                })
+            elif len(parts) == 2:
+                logs.append({
+                    'time': parts[0],
+                    'server': AVADA_KEDAVRA_SSH_HOST,
+                    'ip': '',
+                    'note': parts[1]
+                })
+            else:
+                logs.append({
+                    'time': '',
+                    'server': AVADA_KEDAVRA_SSH_HOST,
+                    'ip': '',
+                    'note': line
+                })
+    except Exception as e:
+        app.logger.error(f"[READ_AVADA_KEDAVRA_LOGS_ERROR] Lỗi khi đọc file log: {e}", exc_info=True)
+        
+    logs.reverse()
+    if limit and len(logs) > limit:
+        logs = logs[:limit]
+    for idx, item in enumerate(logs, 1):
+        item['stt'] = idx
+    return logs
+
+def check_remote_avada_kedavra_status():
+    """Kiểm tra trạng thái máy chủ 198.1.10.8, file compose và container mes."""
+    try:
+        # 1. Đọc file docker-compose.yml
+        out, _ = run_avada_kedavra_ssh_cmd(f"cat {AVADA_KEDAVRA_COMPOSE_FILE}", timeout=8)
+        is_active = False
+        strict_mode_line = ""
+        for line in out.splitlines():
+            if '--strict-mode' in line:
+                strict_mode_line = line.strip()
+                if line.strip().startswith('#'):
+                    is_active = True
+                else:
+                    is_active = False
+                break
+
+        # 2. Lấy thông tin container mes
+        ps_out, _ = run_avada_kedavra_ssh_cmd(
+            'docker ps --filter "name=mes" --format "{{.ID}}\t{{.Image}}\t{{.Status}}\t{{.Names}}"',
+            timeout=8
+        )
+        docker_ps_lines = ps_out.strip().splitlines()
+        
+        mes_container = None
+        for d_line in docker_ps_lines:
+            d_parts = d_line.split('\t')
+            if len(d_parts) >= 4 and (d_parts[3] == 'mes' or 'mes:v0.30.11' in d_parts[1]):
+                mes_container = {
+                    'id': d_parts[0],
+                    'image': d_parts[1],
+                    'status': d_parts[2],
+                    'name': d_parts[3]
+                }
+                break
+
+        return {
+            'connected': True,
+            'is_active': is_active,
+            'strict_mode_line': strict_mode_line,
+            'container': mes_container,
+            'message': 'Kết nối máy chủ thành công'
+        }
+    except Exception as e:
+        return {
+            'connected': False,
+            'is_active': False,
+            'strict_mode_line': '',
+            'container': None,
+            'message': f'Lỗi kiểm tra SSH: {str(e)}'
+        }
+
+def toggle_remote_avada_kedavra(target_action: str, client_ip: str):
+    """Thực hiện bật/tắt Avada Kedavra trên máy chủ 198.1.10.8 và ghi 5 dòng log."""
+    logs_generated = []
+    action_label = "Kích hoạt" if target_action == 'activate' else "Ngưng kích hoạt"
+    
+    # 1. Dòng 1: Kích hoạt / Ngưng kích hoạt
+    logs_generated.append(action_label)
+    
+    # 2. Dòng 2: Kết nối SSH root@198.1.10.8
+    try:
+        run_avada_kedavra_ssh_cmd("echo ping", timeout=8)
+        logs_generated.append(f"Kết nối thành công tới root@{AVADA_KEDAVRA_SSH_HOST}")
+    except Exception as e:
+        err_msg = f"Lỗi kết nối tới root@{AVADA_KEDAVRA_SSH_HOST}: {str(e)}"
+        logs_generated.append(err_msg)
+        append_avada_kedavra_log_lines(client_ip, logs_generated)
+        return {
+            'success': False,
+            'message': err_msg,
+            'logs': logs_generated
+        }
+
+    # 3. Dòng 3: Đọc, sửa và lưu file docker-compose.yml
+    try:
+        out, _ = run_avada_kedavra_ssh_cmd(f"cat {AVADA_KEDAVRA_COMPOSE_FILE}", timeout=10)
+        lines = out.splitlines()
+        modified_lines = []
+        found_target = False
+        
+        for line in lines:
+            if '--strict-mode' in line:
+                if target_action == 'activate':
+                    new_line = re.sub(r'^(\s*)--strict-mode', r'\1# --strict-mode', line)
+                else:
+                    new_line = re.sub(r'^(\s*)#\s*--strict-mode', r'\1--strict-mode', line)
+                modified_lines.append(new_line)
+                found_target = True
+            else:
+                modified_lines.append(line)
+
+        if not found_target:
+            raise Exception("Không tìm thấy dòng --strict-mode trong docker-compose.yml")
+
+        new_content = '\n'.join(modified_lines) + '\n'
+        run_avada_kedavra_ssh_write(new_content, AVADA_KEDAVRA_COMPOSE_FILE, timeout=15)
+        logs_generated.append("Sửa file và lưu file thành công")
+    except Exception as e:
+        err_msg = f"Sửa file và lưu file lỗi: {str(e)}"
+        logs_generated.append(err_msg)
+        append_avada_kedavra_log_lines(client_ip, logs_generated)
+        return {
+            'success': False,
+            'message': err_msg,
+            'logs': logs_generated
+        }
+
+    # 4. Dòng 4: Chạy ./restart và parse output
+    try:
+        out, err = run_avada_kedavra_ssh_cmd(AVADA_KEDAVRA_RESTART_CMD, timeout=60)
+        combined = (out + "\n" + err).strip()
+        
+        removed_match = re.search(r'Container\s+mes\s+Removed(?:\s+[\d\.]+s)?', combined, re.IGNORECASE)
+        started_match = re.search(r'Container\s+mes\s+Started(?:\s+[\d\.]+s)?', combined, re.IGNORECASE)
+        
+        removed_str = removed_match.group(0) if removed_match else "Container mes Removed"
+        started_str = started_match.group(0) if started_match else "Container mes Started"
+        
+        logs_generated.append(f"{removed_str} | {started_str}")
+    except Exception as e:
+        err_msg = f"Lỗi thực thi restart: {str(e)}"
+        logs_generated.append(err_msg)
+        append_avada_kedavra_log_lines(client_ip, logs_generated)
+        return {
+            'success': False,
+            'message': err_msg,
+            'logs': logs_generated
+        }
+
+    # 5. Dòng 5: Check docker ps của image gitlab.kenda.com.tw:5555/kenda/mes:v0.30.11
+    try:
+        ps_out, _ = run_avada_kedavra_ssh_cmd(
+            'docker ps --filter "name=mes" --format "{{.ID}}\t{{.Image}}\t{{.Status}}\t{{.Names}}"',
+            timeout=10
+        )
+        container_id = "N/A"
+        container_status = "N/A"
+        container_image = "gitlab.kenda.com.tw:5555/kenda/mes:v0.30.11"
+        
+        for line in ps_out.strip().splitlines():
+            parts = line.split('\t')
+            if len(parts) >= 3 and (parts[3] == 'mes' or 'mes:v0.30.11' in parts[1]):
+                container_id = parts[0]
+                container_image = parts[1]
+                container_status = parts[2]
+                break
+        
+        logs_generated.append(f"Image: {container_image} | Container ID: {container_id} | Status: {container_status}")
+    except Exception as e:
+        logs_generated.append(f"Kiểm tra docker ps lỗi: {str(e)}")
+
+    # Ghi log 5 dòng vào file
+    append_avada_kedavra_log_lines(client_ip, logs_generated)
+
+    new_is_active = (target_action == 'activate')
+    return {
+        'success': True,
+        'is_active': new_is_active,
+        'message': f'Đã {"kích hoạt" if new_is_active else "ngưng kích hoạt"} Avada Kedavra thành công',
+        'logs': logs_generated
+    }
+
+@app.route('/api/avada-kedavra/status', methods=['GET'])
+def api_avada_kedavra_status():
+    """Lấy trạng thái hiện tại của Avada Kedavra và các dòng log gần nhất."""
+    try:
+        status_info = check_remote_avada_kedavra_status()
+        logs = read_avada_kedavra_logs(limit=200)
+        return jsonify({
+            'success': True,
+            'status': status_info,
+            'logs': logs
+        })
+    except Exception as e:
+        app.logger.error(f"Lỗi API avada-kedavra/status: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'message': f'Lỗi kiểm tra trạng thái: {str(e)}'
+        }), 500
+
+@app.route('/api/avada-kedavra/toggle', methods=['POST'])
+def api_avada_kedavra_toggle():
+    """Kích hoạt hoặc ngưng kích hoạt Avada Kedavra."""
+    try:
+        data = request.get_json(silent=True) or {}
+        action = data.get('action')
+        if action not in ['activate', 'deactivate']:
+            return jsonify({
+                'success': False,
+                'message': 'Hành động không hợp lệ (yêu cầu "activate" hoặc "deactivate")'
+            }), 400
+
+        user_ip = get_client_ip()
+        result = toggle_remote_avada_kedavra(action, user_ip)
+        
+        # Đọc lại toàn bộ log sau khi cập nhật
+        all_logs = read_avada_kedavra_logs(limit=200)
+        result['all_logs'] = all_logs
+        
+        status_code = 200 if result.get('success') else 500
+        return jsonify(result), status_code
+    except Exception as e:
+        app.logger.error(f"Lỗi API avada-kedavra/toggle: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'message': f'Lỗi hệ thống khi thao tác Avada Kedavra: {str(e)}'
+        }), 500
+
+@app.route('/api/avada-kedavra/logs', methods=['GET'])
+def api_avada_kedavra_logs():
+    """Tải toàn bộ danh sách lịch sử log Avada Kedavra."""
+    try:
+        logs = read_avada_kedavra_logs(limit=1000)
+        return jsonify({
+            'success': True,
+            'logs': logs
+        })
+    except Exception as e:
+        app.logger.error(f"Lỗi API avada-kedavra/logs: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'message': f'Lỗi tải log: {str(e)}'
         }), 500
 
 

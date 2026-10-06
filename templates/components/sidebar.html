@@ -165,12 +165,30 @@
             </a>
         </li>
 
-        <!-- 11. Magic Winx (Disabled) -->
-        <li class="sidebar-item-disabled" title="Chức năng tạm khóa">
-            <a href="javascript:void(0);" class="disabled" tabindex="-1" aria-disabled="true" style="opacity: 0.38; cursor: not-allowed; pointer-events: none; filter: grayscale(0.85);">
+        <!-- 11. Elder Wand -->
+        <li>
+            <button class="dropdown-btn">
                 <span class="material-symbols-outlined">auto_fix_high</span>
-                <span>Magic Winx</span>
-            </a>
+                <span>Elder Wand</span>
+                <span class="material-symbols-outlined">keyboard_arrow_down</span>
+            </button>
+
+            <ul class="sub-menu">
+                <div>
+                    <li>
+                        <a href="{{ url_for('reparo_spell') }}">
+                            <span class="material-symbols-outlined">magic_button</span>
+                            <span>Reparo Spell</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('avada_kedavra') }}">
+                            <span class="material-symbols-outlined">skull</span>
+                            <span>Avada Kedavra</span>
+                        </a>
+                    </li>
+                </div>
+            </ul>
         </li>
     </ul>
 

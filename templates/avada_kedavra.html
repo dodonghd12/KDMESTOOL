@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Avada Kedavra</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v={{ version }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/smooth_input.css') }}?v={{ version }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/avada_kedavra.css') }}?v={{ version }}">
+
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/favicon.svg') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome/css/all.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/flatpickr/flatpickr.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/material-symbols/material-symbols.css') }}">
+</head>
+
+<body class="avada-kedavra-page {% if is_frame %}is-spa-frame{% endif %} app-loading-state">
+    {% if not is_frame %}{% include "components/sidebar.html" %}{% endif %}
+
+    <div class="container" autocomplete="off">
+        
+        <!-- ── Top Hero Action Panel ── -->
+        <div class="avada-kedavra-hero">
+            <div class="avada-kedavra-hero-row">
+                <!-- 1. Primary Toggle Button -->
+                <button type="button" id="btnAvadaKedavraToggle" class="btn-avada-kedavra-toggle is-inactive" title="Chuyển đổi trạng thái Strict Mode của MES" aria-label="Kích hoạt hoặc ngưng kích hoạt">
+                    <span id="avadaKedavraBtnText">Kích hoạt</span>
+                </button>
+
+                <!-- 2. Status Pill -->
+                <div class="avada-kedavra-status-pill status-inactive" id="avadaKedavraStatusPill">
+                    <span class="status-indicator-dot" id="statusDot"></span>
+                    <span id="statusText">Trạng thái: Strict Mode</span>
+                </div>
+
+                <!-- 3. Sequential Live Step Badge (Nằm bên phải avadaKedavraStatusPill) -->
+                <div class="avada-kedavra-step-badge" id="containerStatusBadge" style="display: none;">
+                    <span class="material-symbols-outlined step-badge-icon" id="stepBadgeIcon">sync</span>
+                    <span id="containerStatusText">Kết nối root@198.1.10.8</span>
+                </div>
+
+                <!-- 4. Hero Right (Search Box + Meta Badge + Refresh Button) -->
+                <div class="avada-kedavra-hero-right">
+                    <div class="input-wrapper avada-kedavra-search-wrapper">
+                        <input placeholder="Tìm kiếm..." class="input" id="clientSearch" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text" aria-label="Tìm kiếm trong bảng log">
+                    </div>
+
+                    <div class="avada-kedavra-meta-badge" title="Máy chủ đích">
+                        <span class="material-symbols-outlined">dns</span>
+                        <span>root@198.1.10.8</span>
+                    </div>
+
+                    <button type="button" id="btnRefreshLogs" class="winx-btn" style="height: 38px; padding: 0 14px; font-size: 13px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--color-border-subtle); color: var(--color-text-secondary);" title="Tải lại log và trạng thái">
+                        <span class="material-symbols-outlined" style="font-size: 18px;">refresh</span>
+                        <span>Làm mới</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Table Container ── -->
+        <div class="table-container">
+            <div class="table-scroll avada-kedavra-table-scroll">
+                <table>
+                    <thead id="tableHead">
+                        <tr>
+                            <th style="width: 150px;">Máy chủ</th>
+                            <th style="width: 160px;">Địa chỉ IP</th>
+                            <th style="width: 190px;">Thời gian (UTC+7)</th>
+                            <th>Ghi chú</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <tr>
+                            <td colspan="4" style="text-align: center; padding: 40px; color: var(--color-text-muted);">
+                                Đang tải lịch sử thao tác...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="table-footer hidden">
+                <div class="table-footer-left">
+                    <div class="row-count">Số dòng: <span id="rowCount">0</span></div>
+                </div>
+                <nav aria-label="pagination" class="pagination-nav" id="paginationNav"></nav>
+                <div class="table-footer-right"></div>
+            </div>
+        </div>
+    </div>
+
+    {% include "components/shared_modals.html" %}
+
+    <script src="{{ url_for('static', filename='js/smooth_input.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/sidebar.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/avada_kedavra.js') }}?v={{ version }}"></script>
+</body>
+
+</html>

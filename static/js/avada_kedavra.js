@@ -1,0 +1,437 @@
+/**
+ * ==============================================================================
+ * KDMES TOOL — AVADA KEDAVRA CONTROLLER
+ * Quản lý Bật/Tắt chế độ Strict Mode của MES từ xa (198.1.10.8) & Lưu Audit Log
+ * ==============================================================================
+ */
+
+(function () {
+    const PAGE_SIZE = 30;
+    let isAvadaKedavraActive = false;
+    let isLoading = false;
+    let allLogs = [];
+    let filteredLogs = [];
+    let currentPage = 1;
+    let totalPages = 1;
+    let stepTimers = [];
+    let hideBadgeTimeout = null;
+
+    document.addEventListener('DOMContentLoaded', initializeAvadaKedavra);
+
+    function initializeAvadaKedavra() {
+        const toggleBtn = document.getElementById('btnAvadaKedavraToggle') || document.getElementById('btnDarkMagicToggle');
+        const refreshBtn = document.getElementById('btnRefreshLogs');
+        const searchInput = document.getElementById('clientSearch');
+
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', handleToggleAvadaKedavra);
+        }
+
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', () => {
+                fetchStatusAndLogs(true);
+            });
+        }
+
+        if (searchInput) {
+            searchInput.addEventListener('input', () => {
+                applyClientSearch(searchInput.value);
+            });
+        }
+
+        // Tự động kiểm tra trạng thái và tải log ban đầu
+        fetchStatusAndLogs();
+    }
+
+    /**
+     * Tải trạng thái máy chủ và danh sách log
+     */
+    async function fetchStatusAndLogs(showToast = false) {
+        if (showToast) {
+            showStepBadge('Đang làm mới dữ liệu...', 'sync', 'progress');
+        }
+
+        try {
+            const res = await fetch('/api/avada-kedavra/status');
+            const data = await res.json();
+
+            if (data.success) {
+                const status = data.status || {};
+                isAvadaKedavraActive = !!status.is_active;
+                updateStatusUI(isAvadaKedavraActive);
+
+                allLogs = data.logs || [];
+                applyClientSearch(document.getElementById('clientSearch')?.value || '');
+
+                if (showToast) {
+                    const cInfo = status.container ? `mes: ${status.container.status || 'Up'}` : 'Đã kết nối';
+                    showStepBadge(cInfo, 'check_circle', 'success');
+                    hideStepBadgeAfterDelay(5000);
+                    if (typeof Toast !== 'undefined') {
+                        Toast.success('Thành công', 'Đã cập nhật trạng thái và lịch sử log mới nhất');
+                    }
+                }
+            } else {
+                if (showToast) {
+                    showStepBadge('Lỗi kiểm tra trạng thái', 'error', 'error');
+                    hideStepBadgeAfterDelay(5000);
+                    if (typeof Toast !== 'undefined') {
+                        Toast.error('Lỗi', data.message || 'Không thể kiểm tra trạng thái máy chủ');
+                    }
+                }
+            }
+        } catch (err) {
+            console.error('[AVADA_KEDAVRA] Lỗi khi tải trạng thái:', err);
+            if (showToast) {
+                showStepBadge('Lỗi kết nối máy chủ', 'error', 'error');
+                hideStepBadgeAfterDelay(5000);
+                if (typeof Toast !== 'undefined') {
+                    Toast.error('Lỗi', 'Lỗi kết nối khi tải trạng thái máy chủ');
+                }
+            }
+        }
+    }
+
+    /**
+     * Cập nhật giao diện Trạng thái & Button
+     * - Trạng thái: Strict Mode -> Button: Kích hoạt
+     * - Trạng thái: Avada Kedavra -> Button: Ngưng kích hoạt
+     */
+    function updateStatusUI(isActive) {
+        const btn = document.getElementById('btnAvadaKedavraToggle') || document.getElementById('btnDarkMagicToggle');
+        const btnText = document.getElementById('avadaKedavraBtnText') || document.getElementById('darkMagicBtnText');
+        const statusPill = document.getElementById('avadaKedavraStatusPill') || document.getElementById('darkMagicStatusPill');
+        const statusText = document.getElementById('statusText');
+
+        if (btn) {
+            btn.classList.remove('is-active', 'is-inactive', 'is-loading');
+            if (isActive) {
+                btn.classList.add('is-active');
+                if (btnText) btnText.textContent = 'Ngưng kích hoạt';
+            } else {
+                btn.classList.add('is-inactive');
+                if (btnText) btnText.textContent = 'Kích hoạt';
+            }
+        }
+
+        if (statusPill && statusText) {
+            statusPill.classList.remove('status-active', 'status-inactive');
+            if (isActive) {
+                statusPill.classList.add('status-active');
+                statusText.textContent = 'Trạng thái: Avada Kedavra';
+            } else {
+                statusPill.classList.add('status-inactive');
+                statusText.textContent = 'Trạng thái: Strict Mode';
+            }
+        }
+    }
+
+    /**
+     * Hiển thị Badge tiến trình các bước cạnh statusPill
+     */
+    function showStepBadge(text, icon = 'sync', type = 'info') {
+        const badge = document.getElementById('containerStatusBadge');
+        const iconEl = document.getElementById('stepBadgeIcon');
+        const textEl = document.getElementById('containerStatusText');
+        if (!badge || !textEl) return;
+
+        if (hideBadgeTimeout) {
+            clearTimeout(hideBadgeTimeout);
+            hideBadgeTimeout = null;
+        }
+
+        badge.classList.remove('is-step-info', 'is-step-success', 'is-step-error', 'is-step-progress', 'fade-out');
+        badge.classList.add(`is-step-${type}`);
+
+        if (iconEl && icon) {
+            iconEl.textContent = icon;
+        }
+
+        textEl.textContent = text;
+        badge.style.display = 'inline-flex';
+        badge.style.opacity = '1';
+    }
+
+    /**
+     * Ẩn badge sau thời gian xác định (mặc định 5s)
+     */
+    function hideStepBadgeAfterDelay(delayMs = 5000) {
+        if (hideBadgeTimeout) clearTimeout(hideBadgeTimeout);
+        hideBadgeTimeout = setTimeout(() => {
+            const badge = document.getElementById('containerStatusBadge');
+            if (badge) {
+                badge.classList.add('fade-out');
+                setTimeout(() => {
+                    if (badge.classList.contains('fade-out')) {
+                        badge.style.display = 'none';
+                        badge.classList.remove('fade-out');
+                    }
+                }, 400);
+            }
+        }, delayMs);
+    }
+
+    function clearStepTimers() {
+        stepTimers.forEach(t => clearTimeout(t));
+        stepTimers = [];
+    }
+
+    /**
+     * Xử lý khi nhấn nút Kích hoạt / Ngưng kích hoạt
+     */
+    async function handleToggleAvadaKedavra() {
+        if (isLoading) return;
+
+        const targetAction = isAvadaKedavraActive ? 'deactivate' : 'activate';
+        const actionLabel = (targetAction === 'activate') ? 'kích hoạt' : 'ngưng kích hoạt';
+
+        // Xác nhận thao tác
+        let confirmResult = true;
+        if (typeof showModal === 'function') {
+            confirmResult = await showModal(
+                targetAction === 'activate' ? 'warning' : 'info',
+                'Xác nhận thao tác',
+                `Bạn có chắc chắn muốn ${actionLabel} Avada Kedavra trên máy chủ MES (198.1.10.8)?\n\nHệ thống sẽ tự động chỉnh sửa file docker-compose.yml và khởi động lại container MES.`,
+                [
+                    { text: 'Xác nhận', class: targetAction === 'activate' ? 'custom-modal-btn-danger' : 'custom-modal-btn-primary', value: true },
+                    { text: 'Hủy', class: 'custom-modal-btn-secondary', value: false }
+                ]
+            );
+            if (!confirmResult) return;
+        }
+
+        // Bắt đầu thực thi
+        setLoadingState(true, targetAction);
+        clearStepTimers();
+
+        // Bước 1: Kết nối tới root@198.1.10.8
+        showStepBadge('1. Kết nối root@198.1.10.8...', 'dns', 'progress');
+
+        // Lên lịch các bước chuyển tiếp trực quan trong khi API xử lý
+        stepTimers.push(setTimeout(() => {
+            if (isLoading) {
+                showStepBadge('2. Sửa file docker-compose.yml...', 'edit_document', 'progress');
+            }
+        }, 1200));
+
+        stepTimers.push(setTimeout(() => {
+            if (isLoading) {
+                showStepBadge('3. Restart container MES...', 'restart_alt', 'progress');
+            }
+        }, 2800));
+
+        stepTimers.push(setTimeout(() => {
+            if (isLoading) {
+                showStepBadge('4. Kiểm tra Docker PS...', 'deployed_code', 'progress');
+            }
+        }, 8500));
+
+        try {
+            const res = await fetch('/api/avada-kedavra/toggle', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: targetAction })
+            });
+
+            const data = await res.json();
+            clearStepTimers();
+
+            if (data.success) {
+                isAvadaKedavraActive = !!data.is_active;
+
+                // Cập nhật giao diện Trạng thái & Button
+                updateStatusUI(isAvadaKedavraActive);
+
+                // Hiển thị bước cuối cùng thành công
+                showStepBadge('mes: Up (Hoàn tất)', 'check_circle', 'success');
+                // Tự động biến mất sau 5 giây
+                hideStepBadgeAfterDelay(5000);
+
+                // Cập nhật bảng log
+                if (data.all_logs) {
+                    allLogs = data.all_logs;
+                    applyClientSearch(document.getElementById('clientSearch')?.value || '');
+                }
+
+                if (typeof Toast !== 'undefined') {
+                    Toast.success('Thành công', data.message || `Đã ${actionLabel} thành công!`);
+                }
+
+            } else {
+                clearStepTimers();
+                showStepBadge(`Lỗi: ${data.message || 'Thất bại'}`, 'error', 'error');
+                hideStepBadgeAfterDelay(5000);
+
+                if (data.all_logs) {
+                    allLogs = data.all_logs;
+                    applyClientSearch(document.getElementById('clientSearch')?.value || '');
+                }
+
+                if (typeof Toast !== 'undefined') {
+                    Toast.error('Lỗi', data.message || 'Thao tác không thành công');
+                }
+            }
+
+        } catch (err) {
+            clearStepTimers();
+            console.error('[AVADA_KEDAVRA] Lỗi thực thi toggle:', err);
+            showStepBadge(`Lỗi: ${err.message || 'Lỗi kết nối'}`, 'error', 'error');
+            hideStepBadgeAfterDelay(5000);
+
+            if (typeof Toast !== 'undefined') {
+                Toast.error('Lỗi', err.message || 'Lỗi kết nối khi gửi yêu cầu');
+            }
+        } finally {
+            setLoadingState(false, targetAction);
+        }
+    }
+
+    /**
+     * Hiển thị trạng thái đang xử lý trên nút bấm
+     * - Bấm Kích hoạt -> Đang kích hoạt...
+     * - Bấm Ngưng kích hoạt -> Đang xử lý...
+     */
+    function setLoadingState(loading, targetAction) {
+        isLoading = loading;
+        const btn = document.getElementById('btnAvadaKedavraToggle') || document.getElementById('btnDarkMagicToggle');
+        const btnText = document.getElementById('avadaKedavraBtnText') || document.getElementById('darkMagicBtnText');
+
+        if (btn) {
+            if (loading) {
+                btn.classList.add('is-loading');
+                if (btnText) {
+                    btnText.textContent = (targetAction === 'activate') ? 'Đang kích hoạt...' : 'Đang xử lý...';
+                }
+            } else {
+                btn.classList.remove('is-loading');
+                if (btnText) {
+                    btnText.textContent = isAvadaKedavraActive ? 'Ngưng kích hoạt' : 'Kích hoạt';
+                }
+            }
+        }
+    }
+
+    /**
+     * Tính tổng số trang
+     */
+    function calculateTotalPages(totalItems, pageSize) {
+        if (!totalItems || totalItems <= 0) return 0;
+        return Math.ceil(totalItems / pageSize);
+    }
+
+    /**
+     * Giới hạn trang hợp lệ
+     */
+    function clampPage(page, total) {
+        if (total <= 0) return 1;
+        return Math.max(1, Math.min(page, total));
+    }
+
+    /**
+     * Tìm kiếm và render lại bảng log kèm phân trang
+     */
+    function applyClientSearch(keyword) {
+        const kw = (keyword || '').toLowerCase().trim();
+        if (!kw) {
+            filteredLogs = [...allLogs];
+        } else {
+            filteredLogs = allLogs.filter(item => {
+                const server = (item.server || '').toLowerCase();
+                const ip = (item.ip || '').toLowerCase();
+                const time = (item.time || '').toLowerCase();
+                const note = (item.note || '').toLowerCase();
+                return server.includes(kw) || ip.includes(kw) || time.includes(kw) || note.includes(kw);
+            });
+        }
+
+        totalPages = calculateTotalPages(filteredLogs.length, PAGE_SIZE);
+        currentPage = 1;
+        renderCurrentPage();
+    }
+
+    /**
+     * Hiển thị dữ liệu của trang hiện tại và cập nhật thanh phân trang
+     */
+    function renderCurrentPage() {
+        const page0 = Math.max(0, currentPage - 1);
+        const startIdx = page0 * PAGE_SIZE;
+        const endIdx = startIdx + PAGE_SIZE;
+        const pageRows = filteredLogs.slice(startIdx, endIdx);
+
+        renderTable(pageRows);
+
+        const rowCountEl = document.getElementById('rowCount');
+        if (rowCountEl) {
+            rowCountEl.textContent = filteredLogs.length.toLocaleString();
+        }
+
+        const tableFooter = document.querySelector('.table-footer');
+        if (tableFooter) {
+            if (filteredLogs.length > 0) {
+                tableFooter.classList.remove('hidden');
+            } else {
+                tableFooter.classList.add('hidden');
+            }
+        }
+
+        const paginationNav = document.getElementById('paginationNav');
+        if (paginationNav && typeof renderShadcnPagination === 'function') {
+            renderShadcnPagination(paginationNav, currentPage, totalPages, (newPage) => {
+                currentPage = clampPage(newPage, totalPages);
+                renderCurrentPage();
+                const tableScroll = document.querySelector('.table-scroll');
+                if (tableScroll) {
+                    tableScroll.scrollTop = 0;
+                }
+            });
+        }
+    }
+
+    /**
+     * Render bảng log (4 cột: Máy chủ, IP, Thời gian, Ghi chú - dạng chữ bình thường)
+     */
+    function renderTable(logs) {
+        const tbody = document.getElementById('tableBody');
+        if (!tbody) return;
+
+        if (!logs || logs.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="4" style="text-align: center; padding: 40px; color: var(--color-text-muted);">
+                        Không có lịch sử thao tác nào phù hợp.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        const html = logs.map((row) => {
+            const server = row.server || '198.1.10.8';
+            const ip = row.ip || '--';
+            const time = row.time || '--';
+            const note = row.note || '--';
+
+            return `
+                <tr>
+                    <td class="ak-table-server">${escapeHtml(server)}</td>
+                    <td class="ak-table-ip">${escapeHtml(ip)}</td>
+                    <td class="ak-table-time">${escapeHtml(time)}</td>
+                    <td>${escapeHtml(note)}</td>
+                </tr>
+            `;
+        }).join('');
+
+        tbody.innerHTML = html;
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+})();

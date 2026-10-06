@@ -16,7 +16,9 @@
         { path: '/gitlab-deleted-files', frameId: 'view-gitlab-deleted-files', title: 'Gitlab Deleted Files' },
         { path: '/postgres-deleted-data', frameId: 'view-postgres-deleted-data', title: 'Postgres Deleted Data' },
         { path: '/create-kd-account', frameId: 'view-create-kd-account', title: 'Tạo Tài Khoản' },
-        { path: '/check-kd-account', frameId: 'view-check-kd-account', title: 'Kiểm Tra Tài Khoản' }
+        { path: '/check-kd-account', frameId: 'view-check-kd-account', title: 'Kiểm Tra Tài Khoản' },
+        { path: '/reparo-spell', frameId: 'view-reparo-spell', title: 'Reparo Spell' },
+        { path: '/avada-kedavra', frameId: 'view-avada-kedavra', title: 'Avada Kedavra' }
     ];
 
     let currentRoutePath = null;
@@ -35,10 +37,6 @@
 
     function switchPage(targetPath, pushState = true) {
         const normPath = getNormalizedPath(targetPath);
-        if (normPath === '/magic-winx') {
-            switchPage('/main', pushState);
-            return;
-        }
         let route = SPA_ROUTES.find(r => r.path === normPath);
 
         if (!route) {

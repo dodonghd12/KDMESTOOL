@@ -1,4 +1,4 @@
-let winxInsertRows   = [];
+﻿let winxInsertRows   = [];
 let winxWorkOrderId  = '';
 let winxRecipeId     = '';
 let winxProductId    = '';
@@ -54,7 +54,7 @@ async function fetchCollectRecords() {
     }
     winxWorkOrderId = wo;
 
-    const data = await apiFetch('/api/magic-winx/work-order/fetch-collect-records', {
+    const data = await apiFetch('/api/reparo-spell/work-order/fetch-collect-records', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ work_order_id: wo })
@@ -94,7 +94,7 @@ async function checkExistingMaterialResources() {
 
     const uniqueOids = [...new Set(winxCRResourceOids)];
 
-    const data = await apiFetch('/api/magic-winx/collect-record/material-resource-existed', {
+    const data = await apiFetch('/api/reparo-spell/collect-record/material-resource-existed', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ resource_ids: uniqueOids })
@@ -291,7 +291,7 @@ async function runPrepareFromSelection() {
 
     closeSelectModal();
 
-    const data = await apiFetch('/api/magic-winx/prepare-insert-data', {
+    const data = await apiFetch('/api/reparo-spell/prepare-insert-data', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({
@@ -435,7 +435,7 @@ async function runExecute() {
 
     try {
 
-        data = await apiFetch('/api/magic-winx/insert-material',
+        data = await apiFetch('/api/reparo-spell/insert-material',
             {
                 method: 'POST',
                 headers: {
@@ -573,7 +573,7 @@ async function runMagicWinxUpdate() {
 
     let data;
     try {
-        data = await apiFetch('/api/magic-winx/update-feed-record-material',
+        data = await apiFetch('/api/reparo-spell/update-feed-record-material',
             {
                 method: 'POST',
                 headers: {
@@ -632,7 +632,7 @@ async function runUpdateGreenTireQuantity() {
     let data;
     try {
 
-        data = await apiFetch('/api/magic-winx/update-green-tire-quantity',
+        data = await apiFetch('/api/reparo-spell/update-green-tire-quantity',
             {
                 method: 'POST',
                 headers: {
@@ -970,7 +970,7 @@ function downloadWorkOrderTemplate() {
 }
 
 async function runBulkCheckWorkOrders(workOrderIds) {
-    const data = await apiFetch('/api/magic-winx/check-work-orders-bulk', {
+    const data = await apiFetch('/api/reparo-spell/check-work-orders-bulk', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ work_order_ids: workOrderIds })
@@ -1401,7 +1401,7 @@ async function handleInsertMaterialResource() {
         };
 
         try {
-            const data = await apiFetch('/api/magic-winx/prepare-material-resource', {
+            const data = await apiFetch('/api/reparo-spell/prepare-material-resource', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -1450,7 +1450,7 @@ async function handleInsertMaterialResource() {
     };
 
     try {
-        const data = await apiFetch('/api/magic-winx/prepare-material-resource', {
+        const data = await apiFetch('/api/reparo-spell/prepare-material-resource', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -1579,7 +1579,7 @@ async function executeSingleInsertMaterial() {
     }
 
     try {
-        const data = await apiFetch('/api/magic-winx/insert-material-resource', {
+        const data = await apiFetch('/api/reparo-spell/insert-material-resource', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ insert_row: singleMRInsertRow })
