@@ -159,6 +159,155 @@ def validate_actions_yaml_content(content: str, recipe_id: str) -> dict:
 
     return result
 
+def validate_recipe_yaml_content(content: str, product_type: str = None, label_config_keys: list = None, all_keys_map: dict = None) -> dict:
+    """
+    Kiểm tra tính hợp lệ về cú pháp, cấu trúc và thụt lề của file Recipe YAML theo schema KDMES/DUI uploader.
+    Phát hiện các lỗi thường gặp:
+    - Tab characters thay vì spaces
+    - Lỗi cú pháp YAML (PyYAML parse error)
+    - Khóa 'configs:' hoặc các thuộc tính quá trình bị thụt lề lồng bên trong 'out-product:' (lỗi: field configs not found in type snr.RecipeOutputProduct)
+    - Thụt lề sai lệch giữa 'configs:' và 'out-product:'
+    - Khóa 'controls:' rỗng không khai báo 'controls: []'
+    - Khóa trong version.note không khớp label-config
+    - tools.type và tools.ID không hợp lệ
+    """
+    result = {
+        'is_valid': True,
+        'has_indent_error': False,
+        'errors': [],
+        'total_errors': 0
+    }
+
+    if not content or not content.strip():
+        result['is_valid'] = False
+        result['errors'].append({'lineIndex': 0, 'line_number': 1, 'type': 'empty', 'message': 'Nội dung file YAML rỗng'})
+        result['total_errors'] = len(result['errors'])
+        return result
+
+    lines = content.splitlines()
+
+    # 1. Kiểm tra ký tự TAB
+    for idx, line in enumerate(lines):
+        if line.startswith('\t') or (line.lstrip(' ').startswith('\t')):
+            result['errors'].append({
+                'lineIndex': idx,
+                'line_number': idx + 1,
+                'type': 'tab_character',
+                'message': f'Dòng {idx + 1}: Sử dụng ký tự TAB (\\t) để thụt lề. YAML yêu cầu dùng khoảng trắng (spaces).'
+            })
+
+    # 2. Parse thử với PyYAML để bắt lỗi cú pháp
+    try:
+        yaml.safe_load(content)
+    except yaml.YAMLError as e:
+        line_num = getattr(e, 'problem_mark', None)
+        line_idx = (line_num.line) if line_num else 0
+        col_idx = (line_num.column + 1) if line_num else 1
+        problem = getattr(e, 'problem', str(e))
+        result['errors'].append({
+            'lineIndex': line_idx,
+            'line_number': line_idx + 1,
+            'type': 'yaml_syntax_error',
+            'message': f'Dòng {line_idx + 1}, Cột {col_idx}: Lỗi cú pháp YAML: {problem}'
+        })
+
+    # 3. Phân tích ngữ cảnh từng dòng theo cấu trúc processes -> out-product -> configs
+    in_out_product = False
+    out_product_indent = 0
+    in_process = False
+
+    valid_tool_types = {
+        'MOLD', 'BLADDER', 'RING', 'BLOCK',
+        'PREFORMER', 'PREFORMER-1', 'PREFORMER-2', 'PREFORMER-3', 'PREFORMER-4',
+        'COLOR_LINE_LEFT_1', 'COLOR_LINE_LEFT_2', 'COLOR_LINE_LEFT_3',
+        'COLOR_LINE_MIDDLE',
+        'COLOR_LINE_RIGHT_1', 'COLOR_LINE_RIGHT_2', 'COLOR_LINE_RIGHT_3', 'COLOR_LINE_RIGHT_4',
+        'MARKING'
+    }
+
+    indent_stack = []
+
+    for idx, line in enumerate(lines):
+        trimmed = line.lstrip(' ')
+        if not trimmed or trimmed.startswith('#'):
+            continue
+        indent = len(line) - len(trimmed)
+
+        while indent_stack and indent_stack[-1]['indent'] >= indent:
+            indent_stack.pop()
+
+        key_match = re.match(r'^-?\s*([\w\-]+)\s*:', trimmed)
+        current_key = key_match.group(1) if key_match else ''
+        if current_key:
+            indent_stack.append({'indent': indent, 'type': current_key})
+
+        # Bắt đầu 1 process mới trong processes
+        if re.match(r'^\s*-\s*name\s*:', line) or (re.match(r'^\s*name\s*:', line) and indent_stack and indent_stack[-1]['type'] == 'processes'):
+            in_process = True
+            in_out_product = False
+
+        # Gặp out-product
+        if re.match(r'^\s*out-product\s*:', line):
+            in_out_product = True
+            out_product_indent = indent
+            continue
+
+        if in_out_product:
+            if indent <= out_product_indent:
+                in_out_product = False
+            else:
+                if current_key:
+                    clean_k = current_key.lower()
+                    if clean_k in {'configs', 'batch-size', 'common-properties', 'steps', 'controls', 'materials', 'tools'}:
+                        result['errors'].append({
+                            'lineIndex': idx,
+                            'line_number': idx + 1,
+                            'type': 'misplaced_configs_in_out_product',
+                            'message': f"Dòng {idx + 1}: Khóa '{current_key}:' đang bị thụt lề lồng bên trong 'out-product:' ({indent} spaces > {out_product_indent} spaces). Khóa này phải nằm ngang cấp với 'out-product:' ({out_product_indent} spaces). Lỗi này sẽ khiến Go Uploader/DUI báo lỗi: 'field {current_key} not found in type snr.RecipeOutputProduct'."
+                        })
+
+        if re.match(r'^\s*configs\s*:', line):
+            if in_process and out_product_indent > 0:
+                if indent > out_product_indent:
+                    result['errors'].append({
+                        'lineIndex': idx,
+                        'line_number': idx + 1,
+                        'type': 'configs_indent_error',
+                        'message': f"Dòng {idx + 1}: Khóa 'configs:' đang thụt lề {indent} spaces (lớn hơn 'out-product:' {out_product_indent} spaces). 'configs:' phải cùng cấp thụt lề {out_product_indent} spaces như 'out-product:'."
+                    })
+
+        # Kiểm tra controls rỗng
+        if re.match(r'^\s*controls\s*:', line):
+            after = line.split(':', 1)[1].strip()
+            if after in ('null', '~'):
+                result['errors'].append({
+                    'lineIndex': idx,
+                    'line_number': idx + 1,
+                    'type': 'controls_empty',
+                    'message': "controls: Khóa controls không có dữ liệu, bắt buộc phải khai báo là 'controls: []'"
+                })
+            elif not after or after.startswith('#'):
+                has_children = False
+                for j in range(idx + 1, len(lines)):
+                    nxt = lines[j].lstrip(' ')
+                    if not nxt or nxt.startswith('#'):
+                        continue
+                    if (len(lines[j]) - len(nxt)) > indent:
+                        has_children = True
+                    break
+                if not has_children:
+                    result['errors'].append({
+                        'lineIndex': idx,
+                        'line_number': idx + 1,
+                        'type': 'controls_empty',
+                        'message': "controls: Khóa controls không có dữ liệu, bắt buộc phải khai báo là 'controls: []'"
+                    })
+
+    result['total_errors'] = len(result['errors'])
+    result['is_valid'] = (result['total_errors'] == 0)
+    result['has_indent_error'] = any('thụt lề' in e['message'] or 'indent' in e.get('type', '') for e in result['errors'])
+    return result
+
 def get_gitlab_token():
     token = os.environ.get('GITLAB_PRIVATE_TOKEN', '').strip()
     if token:
@@ -2093,16 +2242,10 @@ def fetch_output_barcode_by_work_order():
 
     data = request.get_json() or {}
 
-    work_order_id = str(data.get('work_order_id') or '').strip()
-    if not work_order_id:
+    raw_work_order_id = str(data.get('work_order_id') or '')
+    clean_work_order_id = raw_work_order_id.strip()
+    if not clean_work_order_id:
         return jsonify({'success': False, 'message': 'Thiếu Work Order ID'})
-
-    work_order_status = str(data.get('work_order_status') or '').strip()
-    if not work_order_status:
-        return jsonify({'success': False, 'message': 'Thiếu Work Order Status'})
-
-    if work_order_status == "0":
-        return jsonify({'success': False, 'message': 'Đơn điều động chưa được sản xuất'})
 
     try:
         query = """
@@ -2115,11 +2258,11 @@ def fetch_output_barcode_by_work_order():
             FROM kvmes.collect_record cr
             LEFT JOIN kvmes.material_resource mr
                 ON mr.oid = cr.resource_oid
-            WHERE btrim(cr.work_order) = btrim(%s)
+            WHERE cr.work_order = %s OR cr.work_order = %s OR btrim(cr.work_order) = btrim(%s)
             ORDER BY cr.sequence ASC
         """
 
-        result, column_names = execute_pg_select_query(query, (work_order_id,))
+        result, column_names = execute_pg_select_query(query, (raw_work_order_id, clean_work_order_id, clean_work_order_id))
         if not result:
             return jsonify({'success': False, 'message': 'Đơn điều động không có tem đầu ra'})
 
@@ -2139,6 +2282,7 @@ def fetch_output_barcode_by_work_order():
             'message': f'Lỗi: {str(e)}'
         })
 
+
 output_barcode_tasks = {}
 tasks_lock = threading.Lock()
 
@@ -2151,6 +2295,10 @@ def cleanup_expired_barcode_tasks():
 
 def run_output_barcode_query_task(task_id, resource_id, work_order):
     try:
+        raw_wo = str(work_order or '')
+        clean_wo = raw_wo.strip()
+        clean_res_id = str(resource_id or '').strip()
+
         query = """
             WITH matched_batches AS (
                 SELECT 
@@ -2159,7 +2307,7 @@ def run_output_barcode_query_task(task_id, resource_id, work_order):
                 JOIN kvmes.feed_record fr ON fr.id = ANY(b.records_id)
                 CROSS JOIN LATERAL jsonb_array_elements(fr.materials) site_elem
                 CROSS JOIN LATERAL jsonb_array_elements(site_elem->'feed_resources') elem
-                WHERE btrim(b.work_order) = btrim(%s)
+                WHERE (b.work_order = %s OR b.work_order = %s OR btrim(b.work_order) = btrim(%s))
                   AND elem->>'resource_id' = %s
             ),
             matched_collects AS (
@@ -2169,7 +2317,7 @@ def run_output_barcode_query_task(task_id, resource_id, work_order):
                     cr.lot_number AS cr_lot_number
                 FROM kvmes.collect_record cr
                 JOIN matched_batches mb ON mb.batch_seq = cr.sequence
-                WHERE btrim(cr.work_order) = btrim(%s)
+                WHERE (cr.work_order = %s OR cr.work_order = %s OR btrim(cr.work_order) = btrim(%s))
             )
             SELECT
                 mr.id,
@@ -2182,7 +2330,8 @@ def run_output_barcode_query_task(task_id, resource_id, work_order):
             FROM kvmes.material_resource mr
             JOIN matched_collects mc ON mr.oid = mc.resource_oid;
         """
-        result, column_names = execute_pg_select_query(query, (work_order, resource_id, work_order))
+        result, column_names = execute_pg_select_query(query, (raw_wo, clean_wo, clean_wo, clean_res_id, raw_wo, clean_wo, clean_wo))
+
 
         if result:
             convert_columns = ["expiry_time", "updated_at", "created_at", "standing_time"]
@@ -2316,10 +2465,11 @@ def get_output_barcode_task_status(task_id):
 @login_required
 def stream_output_barcodes():
     
-    resource_id = str(request.args.get('resource_id') or '').strip()
-    work_order = str(request.args.get('work_order') or '').strip()
+    raw_work_order = str(request.args.get('work_order') or '')
+    clean_work_order = raw_work_order.strip()
+    clean_resource_id = str(request.args.get('resource_id') or '').strip()
     
-    if not resource_id or not work_order:
+    if not clean_resource_id or not clean_work_order:
         def err_gen():
             yield f"data: {json.dumps({'status': 'failed', 'message': 'Thiếu Resource ID hoặc MES ID'}, ensure_ascii=False)}\n\n"
         return Response(err_gen(), mimetype='text/event-stream')
@@ -2337,7 +2487,7 @@ def stream_output_barcodes():
                         JOIN kvmes.feed_record fr ON fr.id = ANY(b.records_id)
                         CROSS JOIN LATERAL jsonb_array_elements(fr.materials) site_elem
                         CROSS JOIN LATERAL jsonb_array_elements(site_elem->'feed_resources') elem
-                        WHERE btrim(b.work_order) = btrim(%s)
+                        WHERE (b.work_order = %s OR b.work_order = %s OR btrim(b.work_order) = btrim(%s))
                           AND elem->>'resource_id' = %s
                     ),
                     matched_collects AS (
@@ -2347,7 +2497,7 @@ def stream_output_barcodes():
                             cr.lot_number AS cr_lot_number
                         FROM kvmes.collect_record cr
                         JOIN matched_batches mb ON mb.batch_seq = cr.sequence
-                        WHERE btrim(cr.work_order) = btrim(%s)
+                        WHERE (cr.work_order = %s OR cr.work_order = %s OR btrim(cr.work_order) = btrim(%s))
                     )
                     SELECT
                         mr.id,
@@ -2360,7 +2510,8 @@ def stream_output_barcodes():
                     FROM kvmes.material_resource mr
                     JOIN matched_collects mc ON mr.oid = mc.resource_oid;
                 """
-                res, cols = execute_pg_select_query(query, (work_order, resource_id, work_order))
+                res, cols = execute_pg_select_query(query, (raw_work_order, clean_work_order, clean_work_order, clean_resource_id, raw_work_order, clean_work_order, clean_work_order))
+
 
                 if res:
                     convert_columns = ["expiry_time", "updated_at", "created_at", "standing_time"]
@@ -3351,6 +3502,8 @@ def fetch_yaml_content():
             else:
                 label_keys = []
 
+        validation_res = validate_recipe_yaml_content(content_decoded, actual_product_type, label_keys, keys_map)
+
         return jsonify({
             'success': True,
             'content': content_decoded,
@@ -3359,8 +3512,11 @@ def fetch_yaml_content():
             'last_commit_id': last_commit_id,
             'product_type': actual_product_type,
             'label_config_keys': label_keys,
-            'all_label_config_keys': keys_map
+            'all_label_config_keys': keys_map,
+            'validation': validation_res,
+            'errors': validation_res.get('errors', [])
         })
+
 
     except requests.RequestException as e:
         return jsonify({'success': False, 'message': f'Lỗi kết nối GitLab: {str(e)}'})

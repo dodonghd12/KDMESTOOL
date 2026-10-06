@@ -4318,15 +4318,34 @@ async function fetchYamlContent(rowData = null) {
         const resolvedProductType = data.product_type || product_type;
         const labelConfigKeys = data.label_config_keys || (data.all_label_config_keys ? data.all_label_config_keys[resolvedProductType] : null) || [];
 
-        const errors = detectYamlErrors(data.content, resolvedProductType, labelConfigKeys, data.all_label_config_keys);
+        const clientErrors = detectYamlErrors(data.content, resolvedProductType, labelConfigKeys, data.all_label_config_keys);
+        const serverErrors = (data.validation && data.validation.errors) || data.errors || [];
+        
+        // Merge and deduplicate errors by lineIndex and message
+        const combinedErrors = [...clientErrors];
+        serverErrors.forEach(sErr => {
+            const idx = (typeof sErr.lineIndex === 'number') ? sErr.lineIndex : (sErr.line_number ? sErr.line_number - 1 : 0);
+            const exists = combinedErrors.some(c => c.lineIndex === idx && (c.message === sErr.message || c.type === sErr.type));
+            if (!exists) {
+                combinedErrors.push({
+                    lineIndex: idx,
+                    type: sErr.type || 'server_validation_error',
+                    message: sErr.message
+                });
+            }
+        });
+
+        // Sort errors by lineIndex
+        combinedErrors.sort((a, b) => a.lineIndex - b.lineIndex);
         
         body.classList.add('details-modal-body-yaml');
-        body.innerHTML = renderYamlWithErrors(data.content, data.file_path, errors, resolvedProductType, labelConfigKeys);
+        body.innerHTML = renderYamlWithErrors(data.content, data.file_path, combinedErrors, resolvedProductType, labelConfigKeys);
         window._currentDetailsOriginalHTML = body.innerHTML;
         const searchInput = document.getElementById('detailsModalSearch');
         if (searchInput) searchInput.value = '';
         modal.classList.remove('hidden');
         document.body.classList.add('modal-open');
+
     } catch (err) {
         Toast.error('Lỗi', err.message || 'Lỗi kết nối khi tải nội dung YAML');
     }
@@ -5219,6 +5238,66 @@ function detectYamlErrors(content, productType = null, labelConfigKeys = null, a
                         message: 'tools.ID: null — ID phải là string, integer, hoặc number; không được để trống'
                     });
                 }
+            }
+        }
+
+        // 5. Kiểm tra ký tự TAB (\t)
+        if (line.startsWith('\t') || (line.trimStart() !== line && line.match(/^\s*\t/))) {
+            errors.push({
+                lineIndex: i,
+                type: 'tab_character',
+                message: `Dòng ${i + 1}: Sử dụng ký tự TAB (\\t) để thụt lề. YAML yêu cầu dùng khoảng trắng (spaces).`
+            });
+        }
+    }
+
+    // 6. Quét cấu trúc processes -> out-product -> configs
+    let inOutProduct = false;
+    let outProductIndent = 0;
+    let inProc = false;
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const trimmed = line.trimStart();
+        if (!trimmed || trimmed.startsWith('#')) continue;
+        const indent = line.length - trimmed.length;
+
+        if (/^\s*-\s*name\s*:/.test(line) || (/^\s*name\s*:/.test(line) && line.includes('name:'))) {
+            inProc = true;
+            inOutProduct = false;
+        }
+
+        if (/^\s*out-product\s*:/.test(line)) {
+            inOutProduct = true;
+            outProductIndent = indent;
+            continue;
+        }
+
+        const keyMatch = trimmed.match(/^-?\s*([\w\-]+)\s*:/);
+        const currentKey = keyMatch ? keyMatch[1] : '';
+
+        if (inOutProduct) {
+            if (indent <= outProductIndent) {
+                inOutProduct = false;
+            } else if (currentKey) {
+                const cleanK = currentKey.toLowerCase();
+                if (['configs', 'batch-size', 'common-properties', 'steps', 'controls', 'materials', 'tools'].includes(cleanK)) {
+                    errors.push({
+                        lineIndex: i,
+                        type: 'misplaced_configs_in_out_product',
+                        message: `Dòng ${i + 1}: Khóa '${currentKey}:' đang bị thụt lề lồng bên trong 'out-product:' (${indent} spaces > ${outProductIndent} spaces). Khóa này phải nằm ngang cấp với 'out-product:' (${outProductIndent} spaces). Lỗi này sẽ khiến Go Uploader báo lỗi: 'field ${currentKey} not found in type snr.RecipeOutputProduct'.`
+                    });
+                }
+            }
+        }
+
+        if (/^\s*configs\s*:/.test(line)) {
+            if (inProc && outProductIndent > 0 && indent > outProductIndent) {
+                errors.push({
+                    lineIndex: i,
+                    type: 'configs_indent_error',
+                    message: `Dòng ${i + 1}: Khóa 'configs:' đang thụt lề ${indent} spaces (lớn hơn 'out-product:' ${outProductIndent} spaces). 'configs:' phải cùng cấp thụt lề ${outProductIndent} spaces như 'out-product:'.`
+                });
             }
         }
     }
