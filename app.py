@@ -11,7 +11,7 @@ import json
 _base_dir = os.path.dirname(os.path.abspath(__file__))
 _ocr_libs_path = os.path.join(_base_dir, 'ocr_libs')
 if os.path.exists(_ocr_libs_path) and _ocr_libs_path not in sys.path:
-    sys.path.insert(0, _ocr_libs_path)
+    sys.path.append(_ocr_libs_path)
 import base64
 import yaml
 import hashlib
@@ -5732,7 +5732,7 @@ def get_rapid_ocr_engine():
         except Exception as _sys_err:
             if os.path.exists(_ocr_libs_dir):
                 if _ocr_libs_dir not in sys.path:
-                    sys.path.insert(0, _ocr_libs_dir)
+                    sys.path.append(_ocr_libs_dir)
                 if hasattr(os, 'add_dll_directory'):
                     for _sub in ['', 'onnxruntime', os.path.join('onnxruntime', 'capi'), 'cv2', 'numpy.libs', 'shapely.libs', 'PIL']:
                         _dll_p = os.path.join(_ocr_libs_dir, _sub) if _sub else _ocr_libs_dir

@@ -95,7 +95,7 @@
     /**
      * Cập nhật giao diện Trạng thái & Button
      * - Trạng thái: Strict Mode -> Button: Kích hoạt
-     * - Trạng thái: Avada Kedavra -> Button: Ngưng kích hoạt
+     * - Trạng thái: Hắc ám -> Button: Ngưng kích hoạt
      */
     function updateStatusUI(isActive) {
         const btn = document.getElementById('btnAvadaKedavraToggle') || document.getElementById('btnDarkMagicToggle');
@@ -118,7 +118,7 @@
             statusPill.classList.remove('status-active', 'status-inactive');
             if (isActive) {
                 statusPill.classList.add('status-active');
-                statusText.textContent = 'Trạng thái: Avada Kedavra';
+                statusText.textContent = 'Trạng thái: Hắc ám';
             } else {
                 statusPill.classList.add('status-inactive');
                 statusText.textContent = 'Trạng thái: Strict Mode';
