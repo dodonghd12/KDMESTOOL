@@ -24,47 +24,45 @@
 
     <div class="container" autocomplete="off">
         
-        <!-- ── Top Hero Action Panel ── -->
-        <div class="avada-kedavra-hero">
-            <div class="avada-kedavra-hero-row">
-                <!-- 1. Meta Badge (Ngoài cùng bên trái) -->
-                <div class="avada-kedavra-meta-badge" id="avadaKedavraMetaBadge" title="Máy chủ đích: Nhấp để chuyển đổi giữa 198.1.10.8 và 198.1.10.85">
-                    <span class="material-symbols-outlined">dns</span>
-                    <span id="currentServerLabel">root@198.1.10.8</span>
-                    <button type="button" id="btnToggleServer" class="btn-server-switch" title="Chuyển sang 198.1.10.85" aria-label="Đổi máy chủ MES">
-                        <span class="material-symbols-outlined">swap_horiz</span>
-                        <span id="btnToggleServerText">10.85</span>
-                    </button>
-                </div>
-
-                <!-- 2. Refresh Button (Chỉ hiển thị icon refresh) -->
-                <button type="button" id="btnRefreshLogs" class="winx-btn btn-refresh-compact" title="Tải lại log và trạng thái" aria-label="Làm mới">
-                    <span class="material-symbols-outlined">refresh</span>
+        <!-- ── Top Action Controls Bar (Nằm trực tiếp trên container, không bọc hero card) ── -->
+        <div class="avada-kedavra-controls-row">
+            <!-- 1. Meta Badge (Ngoài cùng bên trái) -->
+            <div class="avada-kedavra-meta-badge" id="avadaKedavraMetaBadge" title="Máy chủ đích: Nhấp để chuyển đổi giữa 198.1.10.8 và 198.1.10.85">
+                <span class="material-symbols-outlined meta-dns-icon">dns</span>
+                <span id="currentServerLabel">root@198.1.10.8</span>
+                <button type="button" id="btnToggleServer" class="input-mode-toggle-btn btn-server-switch" title="Chuyển sang 198.1.10.85" aria-label="Đổi máy chủ MES">
+                    <span class="material-symbols-outlined toggle-icon">swap_horiz</span>
+                    <span class="toggle-mode-text" id="btnToggleServerText">10.85</span>
                 </button>
+            </div>
 
-                <!-- 3. Primary Toggle Button (Bấm và giữ 3s) -->
-                <button type="button" id="btnAvadaKedavraToggle" class="btn-avada-kedavra-toggle is-inactive" title="Bấm và giữ chuột trong 3 giây để kích hoạt hoặc ngưng kích hoạt" aria-label="Kích hoạt hoặc ngưng kích hoạt">
-                    <div id="avadaHoldProgressBar" class="avada-hold-progress-bar"></div>
-                    <span id="avadaKedavraBtnText" style="position: relative; z-index: 2;">Kích hoạt</span>
-                </button>
+            <!-- 2. Refresh Button (Chỉ hiển thị icon refresh) -->
+            <button type="button" id="btnRefreshLogs" class="winx-btn btn-refresh-compact" title="Tải lại log và trạng thái" aria-label="Làm mới">
+                <span class="material-symbols-outlined">refresh</span>
+            </button>
 
-                <!-- 4. Status Pill -->
-                <div class="avada-kedavra-status-pill status-inactive" id="avadaKedavraStatusPill">
-                    <span class="status-indicator-dot" id="statusDot"></span>
-                    <span id="statusText">Trạng thái: Strict Mode</span>
-                </div>
+            <!-- 3. Primary Toggle Button (Bấm và giữ 3s) -->
+            <button type="button" id="btnAvadaKedavraToggle" class="btn-avada-kedavra-toggle is-inactive" title="Bấm và giữ chuột trong 3 giây để kích hoạt hoặc ngưng kích hoạt" aria-label="Kích hoạt hoặc ngưng kích hoạt">
+                <div id="avadaHoldProgressBar" class="avada-hold-progress-bar"></div>
+                <span id="avadaKedavraBtnText" style="position: relative; z-index: 2;">Kích hoạt</span>
+            </button>
 
-                <!-- 5. Sequential Live Step Badge -->
-                <div class="avada-kedavra-step-badge" id="containerStatusBadge" style="display: none;">
-                    <span class="material-symbols-outlined step-badge-icon" id="stepBadgeIcon">sync</span>
-                    <span id="containerStatusText">Kết nối root@198.1.10.8</span>
-                </div>
+            <!-- 4. Status Pill -->
+            <div class="avada-kedavra-status-pill status-inactive" id="avadaKedavraStatusPill">
+                <span class="status-indicator-dot" id="statusDot"></span>
+                <span id="statusText">Trạng thái: Strict Mode</span>
+            </div>
 
-                <!-- 6. Hero Right (Search Box căn lề phải) -->
-                <div class="avada-kedavra-hero-right">
-                    <div class="input-wrapper avada-kedavra-search-wrapper">
-                        <input placeholder="Tìm kiếm..." class="input" id="clientSearch" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text" aria-label="Tìm kiếm trong bảng log">
-                    </div>
+            <!-- 5. Sequential Live Step Badge -->
+            <div class="avada-kedavra-step-badge" id="containerStatusBadge" style="display: none;">
+                <span class="material-symbols-outlined step-badge-icon" id="stepBadgeIcon">sync</span>
+                <span id="containerStatusText">Kết nối root@198.1.10.8</span>
+            </div>
+
+            <!-- 6. Hero Right (Search Box căn lề phải) -->
+            <div class="avada-kedavra-hero-right">
+                <div class="input-wrapper avada-kedavra-search-wrapper">
+                    <input placeholder="Tìm kiếm..." class="input" id="clientSearch" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text" aria-label="Tìm kiếm trong bảng log">
                 </div>
             </div>
         </div>

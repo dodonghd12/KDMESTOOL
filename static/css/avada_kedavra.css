@@ -8,26 +8,15 @@
     color: var(--color-text-primary);
 }
 
-/* ── TOP HERO CONTROL PANEL ── */
-.avada-kedavra-hero {
-    background: var(--color-bg-surface);
-    border: 1px solid var(--color-border-glass);
-    border-radius: 12px;
-    padding: 12px 18px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-    backdrop-filter: blur(16px);
-    flex-shrink: 0;
-}
-
-.avada-kedavra-hero-row {
+/* ── TOP ACTION CONTROLS ROW (Nằm trực tiếp trên container, không có khung hero card) ── */
+.avada-kedavra-controls-row {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 12px;
     flex-wrap: wrap;
     width: 100%;
+    flex-shrink: 0;
+    padding: 2px 0 0 0;
 }
 
 .avada-kedavra-hero-right {
@@ -338,46 +327,87 @@
     transform: translateY(1px) scale(0.96);
 }
 
+/* ── SERVER SWITCH TOGGLE BUTTON (Kiểu dáng .input-mode-toggle-btn từ page main) ── */
+.avada-kedavra-meta-badge .input-mode-toggle-btn,
 .btn-server-switch {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    height: 26px;
-    padding: 0 8px;
-    border-radius: 6px;
-    background: rgba(14, 165, 233, 0.12);
-    border: 1px solid rgba(14, 165, 233, 0.35);
-    color: #38bdf8;
-    font-family: var(--font-mono);
-    font-size: 11.5px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-    outline: none;
-    margin-left: 2px;
+    position: relative !important;
+    left: auto !important;
+    bottom: auto !important;
+    transform: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    padding: 0 10px !important;
+    height: 22px !important;
+    line-height: 20px !important;
+    font-family: var(--font-family-base, 'Plus Jakarta Sans', sans-serif) !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.25px !important;
+    color: var(--color-text-secondary) !important;
+    background: var(--color-bg-surface) !important;
+    border: 1.5px solid var(--color-border-interactive) !important;
+    border-radius: 9999px !important;
+    cursor: pointer !important;
+    outline: none !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    user-select: none !important;
+    white-space: nowrap !important;
+    margin-left: 6px !important;
 }
 
+.avada-kedavra-meta-badge .input-mode-toggle-btn:hover,
 .btn-server-switch:hover {
-    background: rgba(14, 165, 233, 0.25);
-    border-color: #38bdf8;
-    color: #ffffff;
-    box-shadow: 0 0 10px rgba(14, 165, 233, 0.4);
-    transform: scale(1.03);
+    color: var(--color-text-accent) !important;
+    border-color: var(--color-border-focus) !important;
+    background: var(--color-bg-input) !important;
+    box-shadow: 0 0 12px var(--color-border-glow), 0 4px 14px rgba(0, 0, 0, 0.45) !important;
+    transform: translateY(-1px) scale(1.04) !important;
 }
 
+.avada-kedavra-meta-badge .input-mode-toggle-btn:active,
 .btn-server-switch:active {
-    transform: scale(0.97);
+    transform: translateY(0) scale(0.95) !important;
 }
 
-.btn-server-switch .material-symbols-outlined {
-    font-size: 14px;
-    color: #38bdf8;
-    transition: transform 0.3s ease;
+.avada-kedavra-meta-badge .input-mode-toggle-btn .toggle-icon,
+.btn-server-switch .toggle-icon {
+    font-size: 13px !important;
+    width: 13px !important;
+    height: 13px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: var(--cyan-400) !important;
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.22s ease !important;
 }
 
-.btn-server-switch:hover .material-symbols-outlined {
-    color: #ffffff;
+.avada-kedavra-meta-badge .input-mode-toggle-btn:hover .toggle-icon,
+.btn-server-switch:hover .toggle-icon {
+    transform: rotate(180deg) !important;
+    color: var(--cyan-300, #67e8f9) !important;
+}
+
+/* Khi đang kết nối 10.85 -> icon chuyển sang purple như mode work_order ở main */
+.avada-kedavra-meta-badge[data-active-server="10.85"] .input-mode-toggle-btn .toggle-icon,
+.avada-kedavra-meta-badge[data-active-server="10.85"] .btn-server-switch .toggle-icon {
     transform: rotate(180deg);
+    color: var(--purple-400, #c084fc) !important;
+}
+
+.avada-kedavra-meta-badge[data-active-server="10.85"] .input-mode-toggle-btn,
+.avada-kedavra-meta-badge[data-active-server="10.85"] .btn-server-switch {
+    border-color: rgba(192, 132, 252, 0.4) !important;
+}
+
+.avada-kedavra-meta-badge[data-active-server="10.85"] .input-mode-toggle-btn:hover,
+.avada-kedavra-meta-badge[data-active-server="10.85"] .btn-server-switch:hover {
+    border-color: #c084fc !important;
+    box-shadow: 0 0 12px rgba(192, 132, 252, 0.45), 0 4px 14px rgba(0, 0, 0, 0.45) !important;
+    color: #c084fc !important;
 }
 
 /* ── TABLE OVERRIDE & RESET FOR AVADA KEDAVRA ── */

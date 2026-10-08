@@ -79,6 +79,7 @@
         const labelEl = document.getElementById('currentServerLabel');
         const btnTextEl = document.getElementById('btnToggleServerText');
         const btnEl = document.getElementById('btnToggleServer');
+        const serverBadge = document.getElementById('avadaKedavraMetaBadge');
 
         if (labelEl) {
             labelEl.textContent = `root@${server}`;
@@ -92,6 +93,9 @@
         }
         if (btnEl) {
             btnEl.title = `Chuyển sang ${otherServer}`;
+        }
+        if (serverBadge) {
+            serverBadge.setAttribute('data-active-server', (server === '198.1.10.85') ? '10.85' : '10.8');
         }
     }
 
