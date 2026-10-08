@@ -41,11 +41,12 @@
 /* ── PRIMARY ACTION TOGGLE BUTTON ── */
 .btn-avada-kedavra-toggle {
     position: relative;
+    overflow: hidden;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    height: 42px;
-    padding: 0 24px;
+    height: 40px;
+    padding: 0 22px;
     font-family: var(--font-stack);
     font-size: 14px;
     font-weight: 700;
@@ -58,6 +59,18 @@
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
     user-select: none;
     flex-shrink: 0;
+}
+
+.avada-hold-progress-bar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 0%;
+    background: rgba(255, 255, 255, 0.32);
+    pointer-events: none;
+    z-index: 1;
+    transition: width 0.05s linear;
 }
 
 /* Inactive State: "Kích hoạt" */
@@ -159,15 +172,25 @@
 }
 
 .avada-kedavra-search-wrapper {
-    width: 180px !important;
-    min-width: 150px !important;
-    max-width: 200px !important;
+    width: 200px !important;
+    min-width: 160px !important;
+    max-width: 240px !important;
     flex: 0 0 auto !important;
 }
 
 .avada-kedavra-search-wrapper .input {
-    height: 38px;
+    height: 40px;
     font-size: 13px;
+    cursor: text !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+}
+
+.avada-kedavra-search-wrapper .input:disabled {
+    opacity: 1 !important;
+    cursor: text !important;
+    pointer-events: auto !important;
+    background: transparent !important;
 }
 
 .avada-kedavra-step-badge {
@@ -242,13 +265,13 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    height: 38px;
+    height: 40px;
     padding: 0 6px 0 12px;
     border-radius: 8px;
-    font-size: 12.5px;
+    font-size: 13px;
     color: var(--color-text-secondary);
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid var(--color-border-subtle);
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.35);
     font-family: var(--font-mono);
     flex-shrink: 0;
     cursor: pointer;
@@ -257,14 +280,62 @@
 }
 
 .avada-kedavra-meta-badge:hover {
-    background: rgba(255, 255, 255, 0.06);
-    border-color: rgba(14, 165, 233, 0.4);
-    box-shadow: 0 0 12px rgba(14, 165, 233, 0.15);
+    background: rgba(16, 185, 129, 0.15);
+    border-color: rgba(16, 185, 129, 0.6);
+    box-shadow: 0 0 16px rgba(16, 185, 129, 0.3);
 }
 
 .avada-kedavra-meta-badge .material-symbols-outlined {
-    font-size: 16px;
-    color: var(--cyan-400);
+    font-size: 18px;
+    color: #10b981;
+}
+
+#currentServerLabel {
+    color: #34d399;
+    font-weight: 700;
+    letter-spacing: 0.35px;
+    text-shadow: 0 0 12px rgba(52, 211, 153, 0.45);
+}
+
+/* ── COMPACT REFRESH BUTTON ── */
+.btn-refresh-compact {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 8px;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    user-select: none;
+    outline: none;
+}
+
+.btn-refresh-compact .material-symbols-outlined {
+    font-size: 20px;
+    transition: transform 0.35s ease, color 0.2s ease;
+}
+
+.btn-refresh-compact:hover {
+    background: rgba(56, 189, 248, 0.16);
+    border-color: #38bdf8;
+    color: #ffffff;
+    box-shadow: 0 0 16px rgba(56, 189, 248, 0.38);
+    transform: translateY(-1px);
+}
+
+.btn-refresh-compact:hover .material-symbols-outlined {
+    transform: rotate(72deg);
+    color: #38bdf8;
+}
+
+.btn-refresh-compact:active {
+    transform: translateY(1px) scale(0.96);
 }
 
 .btn-server-switch {

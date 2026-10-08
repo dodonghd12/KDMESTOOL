@@ -7,6 +7,9 @@
 
 (function () {
     const PAGE_SIZE = 30;
+    const HOLD_DURATION_MS = 3000;
+    let holdStartTime = null;
+    let holdAnimFrame = null;
     let isAvadaKedavraActive = false;
     let isLoading = false;
     let currentServer = (localStorage.getItem('ak_selected_server') === '198.1.10.85') ? '198.1.10.85' : '198.1.10.8';
@@ -20,7 +23,6 @@
     document.addEventListener('DOMContentLoaded', initializeAvadaKedavra);
 
     function initializeAvadaKedavra() {
-        const toggleBtn = document.getElementById('btnAvadaKedavraToggle') || document.getElementById('btnDarkMagicToggle');
         const refreshBtn = document.getElementById('btnRefreshLogs');
         const searchInput = document.getElementById('clientSearch');
         const toggleServerBtn = document.getElementById('btnToggleServer');
@@ -29,9 +31,19 @@
         // Khởi tạo nhãn máy chủ ban đầu
         updateServerBadgeUI(currentServer);
 
-        if (toggleBtn) {
-            toggleBtn.addEventListener('click', handleToggleAvadaKedavra);
-        }
+        // Khởi tạo nút bấm giữ 3 giây (Hold 3s)
+        initAvadaHoldButton();
+
+        // Đảm bảo clientSearch luôn luôn enable, không bị main.js vô hiệu hóa
+        ensureClientSearchEnabled();
+        window.updateClientSearchState = function () {
+            ensureClientSearchEnabled();
+        };
+        window.customClientSearchHandler = function (keyword) {
+            applyClientSearch(keyword);
+        };
+        setTimeout(ensureClientSearchEnabled, 50);
+        setTimeout(ensureClientSearchEnabled, 250);
 
         if (refreshBtn) {
             refreshBtn.addEventListener('click', () => {
@@ -151,6 +163,8 @@
                     Toast.error('Lỗi', `Lỗi kết nối khi tải trạng thái máy chủ ${currentServer}`);
                 }
             }
+        } finally {
+            ensureClientSearchEnabled();
         }
     }
 
@@ -239,30 +253,65 @@
     }
 
     /**
-     * Xử lý khi nhấn nút Kích hoạt / Ngưng kích hoạt
+     * Khởi tạo nút bấm giữ 3 giây (Hold 3s) để kích hoạt / ngưng kích hoạt
+     * Tương tự cơ chế của btnSaveHold, không hiển thị confirmation modal
      */
-    async function handleToggleAvadaKedavra() {
+    function initAvadaHoldButton() {
+        const btn = document.getElementById('btnAvadaKedavraToggle') || document.getElementById('btnDarkMagicToggle');
+        const progressBar = document.getElementById('avadaHoldProgressBar');
+        if (!btn || !progressBar) return;
+
+        function startHold(e) {
+            if (e.button !== 0 && e.type !== 'touchstart') return; // Chỉ chuột trái hoặc cảm ứng
+            if (isLoading) return;
+            e.preventDefault();
+
+            holdStartTime = performance.now();
+
+            function updateProgress(now) {
+                const elapsed = now - holdStartTime;
+                const pct = Math.min(100, (elapsed / HOLD_DURATION_MS) * 100);
+                progressBar.style.width = `${pct}%`;
+
+                if (elapsed >= HOLD_DURATION_MS) {
+                    cancelHold();
+                    executeToggleAvadaKedavra();
+                } else {
+                    holdAnimFrame = requestAnimationFrame(updateProgress);
+                }
+            }
+
+            holdAnimFrame = requestAnimationFrame(updateProgress);
+        }
+
+        function cancelHold() {
+            if (holdAnimFrame) {
+                cancelAnimationFrame(holdAnimFrame);
+                holdAnimFrame = null;
+            }
+            holdStartTime = null;
+            if (progressBar) progressBar.style.width = '0%';
+        }
+
+        btn.addEventListener('mousedown', startHold);
+        btn.addEventListener('touchstart', startHold, { passive: false });
+
+        btn.addEventListener('mouseup', cancelHold);
+        btn.addEventListener('mouseleave', cancelHold);
+        btn.addEventListener('touchend', cancelHold);
+        btn.addEventListener('touchcancel', cancelHold);
+    }
+
+    /**
+     * Thực thi Kích hoạt / Ngưng kích hoạt sau khi giữ đủ 3 giây
+     */
+    async function executeToggleAvadaKedavra() {
         if (isLoading) return;
 
         const targetAction = isAvadaKedavraActive ? 'deactivate' : 'activate';
         const actionLabel = (targetAction === 'activate') ? 'kích hoạt' : 'ngưng kích hoạt';
 
-        // Xác nhận thao tác kèm tên máy chủ hiện tại
-        let confirmResult = true;
-        if (typeof showModal === 'function') {
-            confirmResult = await showModal(
-                targetAction === 'activate' ? 'warning' : 'info',
-                'Xác nhận thao tác',
-                `Bạn có chắc chắn muốn ${actionLabel} Avada Kedavra trên máy chủ MES (${currentServer})?\n\nHệ thống sẽ tự động chỉnh sửa file docker-compose.yml và khởi động lại container MES.`,
-                [
-                    { text: 'Xác nhận', class: targetAction === 'activate' ? 'custom-modal-btn-danger' : 'custom-modal-btn-primary', value: true },
-                    { text: 'Hủy', class: 'custom-modal-btn-secondary', value: false }
-                ]
-            );
-            if (!confirmResult) return;
-        }
-
-        // Bắt đầu thực thi
+        // Bắt đầu thực thi trực tiếp, không qua customModal
         setLoadingState(true, targetAction);
         clearStepTimers();
 
@@ -357,6 +406,11 @@
         isLoading = loading;
         const btn = document.getElementById('btnAvadaKedavraToggle') || document.getElementById('btnDarkMagicToggle');
         const btnText = document.getElementById('avadaKedavraBtnText') || document.getElementById('darkMagicBtnText');
+        const progressBar = document.getElementById('avadaHoldProgressBar');
+
+        if (progressBar) {
+            progressBar.style.width = '0%';
+        }
 
         if (btn) {
             if (loading) {
@@ -370,6 +424,17 @@
                     btnText.textContent = isAvadaKedavraActive ? 'Ngưng kích hoạt' : 'Kích hoạt';
                 }
             }
+        }
+    }
+
+    /**
+     * Đảm bảo ô tìm kiếm clientSearch luôn luôn enable, không bị main.js disable
+     */
+    function ensureClientSearchEnabled() {
+        const searchInput = document.getElementById('clientSearch');
+        if (searchInput) {
+            searchInput.disabled = false;
+            searchInput.removeAttribute('disabled');
         }
     }
 
