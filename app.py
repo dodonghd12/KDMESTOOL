@@ -3193,40 +3193,117 @@ def fetch_commit_gitlab():
 
     s = get_gitlab_session()
 
+    clean_id = recipe_id.replace('.yaml', '').strip()
+
     try:
         # Step 1: Resolve the yaml file path in GitLab (using cache and direct check)
         path = resolve_recipe_path(project_id, recipe_id, product_type)
+        is_historical = False
+        commits = []
+
         if not path:
-            return jsonify({'success': False, 'message': f'Không tìm thấy file YAML cho quy cách {recipe_id} trên GitLab'})
+            # Fallback for deleted or renamed files:
+            # 1. Check candidate paths directly against repository/commits endpoint
+            candidate_paths = []
+            if product_type:
+                pt_folder = product_type.lower().replace(' ', '_').replace('-', '_')
+                for prefix in [f'yamls/{pt_folder}/KV/KV2', f'yamls/{pt_folder}/KV', f'yamls/{pt_folder}']:
+                    candidate_paths.append(f'{prefix}/{clean_id}.yaml')
+            candidate_paths.append(f'yamls/{clean_id}.yaml')
+
+            for cand in candidate_paths:
+                try:
+                    c_resp = s.get(
+                        f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits',
+                        params={'path': cand, 'ref_name': 'master', 'per_page': 50},
+                        timeout=12
+                    )
+                    if c_resp.status_code == 200 and isinstance(c_resp.json(), list) and len(c_resp.json()) > 0:
+                        path = cand
+                        commits = c_resp.json()
+                        is_historical = True
+                        break
+                except Exception:
+                    pass
+
+            # 2. If candidate paths didn't find commits, search commits by recipe name
+            if not path or not commits:
+                try:
+                    sr_resp = s.get(
+                        f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/search',
+                        params={'scope': 'commits', 'search': clean_id},
+                        timeout=10
+                    )
+                    if sr_resp.ok and isinstance(sr_resp.json(), list) and len(sr_resp.json()) > 0:
+                        found_sr = sr_resp.json()
+                        # Discover historical path from diff of these commits
+                        for sc in found_sr[:5]:
+                            cid = sc.get('id', '')
+                            df_resp = s.get(
+                                f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits/{cid}/diff',
+                                timeout=6
+                            )
+                            if df_resp.ok and isinstance(df_resp.json(), list):
+                                for d in df_resp.json():
+                                    op = d.get('old_path', '')
+                                    np = d.get('new_path', '')
+                                    if clean_id in op or clean_id in np:
+                                        path = op if (clean_id in op) else np
+                                        break
+                            if path:
+                                break
+
+                        if path:
+                            try:
+                                c_resp = s.get(
+                                    f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits',
+                                    params={'path': path, 'ref_name': 'master', 'per_page': 50},
+                                    timeout=12
+                                )
+                                if c_resp.status_code == 200 and isinstance(c_resp.json(), list) and len(c_resp.json()) > 0:
+                                    commits = c_resp.json()
+                                else:
+                                    commits = found_sr
+                            except Exception:
+                                commits = found_sr
+                        else:
+                            path = candidate_paths[0] if candidate_paths else f'yamls/{clean_id}.yaml'
+                            commits = found_sr
+                        is_historical = True
+                except Exception:
+                    pass
+
+        if not path:
+            return jsonify({'success': False, 'message': f'Không tìm thấy file YAML (hoặc lịch sử commit) cho quy cách {recipe_id} trên GitLab'})
 
         encoded_path = path.replace('/', '%2F')
 
         # Step 2: Fetch commit history (Blame first for sub-second speed, fallback to commits endpoint)
-        commits = []
-        try:
-            blame_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/files/{encoded_path}/blame'
-            blame_resp = s.get(blame_url, params={'ref': 'master'}, timeout=12)
-            if blame_resp.ok:
-                blame_data = blame_resp.json()
-                seen_commit_ids = set()
-                if isinstance(blame_data, list):
-                    for blame_entry in blame_data:
-                        commit = blame_entry.get('commit', {})
-                        commit_id = commit.get('id', '')
-                        if commit_id and commit_id not in seen_commit_ids:
-                            seen_commit_ids.add(commit_id)
-                            commits.append(commit)
-        except Exception:
-            pass
-
         if not commits:
             try:
-                commits_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits'
-                commits_resp = s.get(commits_url, params={'path': path, 'ref_name': 'master', 'per_page': 50}, timeout=15)
-                if commits_resp.status_code == 200 and isinstance(commits_resp.json(), list):
-                    commits = commits_resp.json()
+                blame_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/files/{encoded_path}/blame'
+                blame_resp = s.get(blame_url, params={'ref': 'master'}, timeout=12)
+                if blame_resp.ok:
+                    blame_data = blame_resp.json()
+                    seen_commit_ids = set()
+                    if isinstance(blame_data, list):
+                        for blame_entry in blame_data:
+                            commit = blame_entry.get('commit', {})
+                            commit_id = commit.get('id', '')
+                            if commit_id and commit_id not in seen_commit_ids:
+                                seen_commit_ids.add(commit_id)
+                                commits.append(commit)
             except Exception:
                 pass
+
+            if not commits:
+                try:
+                    commits_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits'
+                    commits_resp = s.get(commits_url, params={'path': path, 'ref_name': 'master', 'per_page': 50}, timeout=15)
+                    if commits_resp.status_code == 200 and isinstance(commits_resp.json(), list):
+                        commits = commits_resp.json()
+                except Exception:
+                    pass
 
         if not commits:
             return jsonify({'success': False, 'message': 'Không tìm thấy lịch sử commit nào cho quy cách này'})
@@ -3275,7 +3352,7 @@ def fetch_commit_gitlab():
                 for d in diff_data:
                     new_p = d.get('new_path', '')
                     old_p = d.get('old_path', '')
-                    if new_p == path or old_p == path or new_p.endswith('/' + recipe_id + '.yaml') or old_p.endswith('/' + recipe_id + '.yaml') or new_p.endswith(recipe_id + '.yaml'):
+                    if new_p == path or old_p == path or new_p.endswith('/' + clean_id + '.yaml') or old_p.endswith('/' + clean_id + '.yaml') or new_p.endswith(clean_id + '.yaml') or new_p.endswith('/' + recipe_id) or old_p.endswith('/' + recipe_id):
                         return commit_item, d, pipeline_info
 
             # Tier 2: Fallback for giant commits or commits where file was not on page 1
@@ -3719,6 +3796,46 @@ def search_actions_commit():
                                     rec_dates.append(dt)
                 except Exception as e:
                     print(f"Error getting recipe blame: {e}")
+            else:
+                # Fallback for deleted / renamed files: find historical commits and dates
+                candidate_paths = []
+                if product_type:
+                    pt_folder = product_type.lower().replace(' ', '_').replace('-', '_')
+                    for prefix in [f'yamls/{pt_folder}/KV/KV2', f'yamls/{pt_folder}/KV', f'yamls/{pt_folder}']:
+                        candidate_paths.append(f'{prefix}/{clean_recipe_id}.yaml')
+                candidate_paths.append(f'yamls/{clean_recipe_id}.yaml')
+
+                for cand in candidate_paths:
+                    try:
+                        c_resp = s.get(
+                            f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits',
+                            params={'path': cand, 'ref_name': 'master', 'per_page': 20},
+                            timeout=8
+                        )
+                        if c_resp.status_code == 200 and isinstance(c_resp.json(), list) and len(c_resp.json()) > 0:
+                            r_path = cand
+                            for c in c_resp.json():
+                                dt = c.get('authored_date') or c.get('committed_date')
+                                if dt:
+                                    rec_dates.append(dt)
+                            break
+                    except Exception:
+                        pass
+
+                if not rec_dates:
+                    try:
+                        sr_resp = s.get(
+                            f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/search',
+                            params={'scope': 'commits', 'search': clean_recipe_id},
+                            timeout=6
+                        )
+                        if sr_resp.ok and isinstance(sr_resp.json(), list):
+                            for sc in sr_resp.json()[:10]:
+                                dt = sc.get('authored_date') or sc.get('committed_date')
+                                if dt:
+                                    rec_dates.append(dt)
+                    except Exception:
+                        pass
             return r_path, rec_dates
 
         with ThreadPoolExecutor(max_workers=2) as ex:
@@ -3817,6 +3934,9 @@ def search_actions_commit():
                     if line.startswith('+') and not line.startswith('+++'):
                         if any(cand in line.lower() for cand in search_candidates):
                             return (commit_item, d, 'add')
+                    elif line.startswith('-') and not line.startswith('---'):
+                        if any(cand in line.lower() for cand in search_candidates):
+                            return (commit_item, d, 'remove')
             return None
 
         matched_commits = []
@@ -3833,7 +3953,7 @@ def search_actions_commit():
         if not matched_commits:
             return jsonify({
                 'success': False,
-                'message': f'Không tìm thấy commit thêm mới (add) của {clean_recipe_id} trong lịch sử actions.yaml'
+                'message': f'Không tìm thấy commit của {clean_recipe_id} trong lịch sử actions.yaml'
             })
 
         # Step 4: Concurrently fetch Merge Request, Pipeline, and actions.yaml Validation

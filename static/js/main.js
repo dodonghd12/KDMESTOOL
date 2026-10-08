@@ -4290,10 +4290,11 @@ async function fetchCommitGitlabByRecipe(recipeId = null, productType = null) {
         const data = await apiFetch('/api/recipes/fetch-commit-gitlab', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ recipe_id, product_type })
+            body: JSON.stringify({ recipe_id, product_type }),
+            showErrorToast: false
         });
 
-        if (data.success) {
+        if (data && data.success) {
             if (data.result && data.result.length > 0) {
                 outputBarcodeRawData = mapWorkOrderStatus(data.result, data.columns);
                 outputBarcodeColumns = data.columns;
@@ -4306,10 +4307,12 @@ async function fetchCommitGitlabByRecipe(recipeId = null, productType = null) {
                 Toast.warning('Không có dữ liệu', data.message || 'Không tìm thấy Commit ở Gitlab nào!');
             }
         } else {
-            Toast.error('Lỗi', data.message || 'Lỗi khi tải Gitlab commit');
+            Toast.error('Lỗi', (data && data.message) || 'Lỗi khi tải Gitlab commit');
         }
     } catch (err) {
-        Toast.error('Lỗi', err.message || 'Lỗi kết nối khi tải Gitlab commit');
+        if (!err.toastShown) {
+            Toast.error('Lỗi', err.message || 'Lỗi kết nối khi tải Gitlab commit');
+        }
     }
 }
 
@@ -4328,7 +4331,8 @@ async function fetchYamlContent(rowData = null) {
         const data = await apiFetch('/api/recipes/fetch-yaml-content', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ recipe_id, product_type })
+            body: JSON.stringify({ recipe_id, product_type }),
+            showErrorToast: false
         });
 
         if (!data || !data.success) {
@@ -4408,7 +4412,8 @@ async function fetchActionsCommitByRecipe(rowData = null) {
         const data = await apiFetch('/api/recipes/search-actions-commit', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ recipe_id, product_type })
+            body: JSON.stringify({ recipe_id, product_type }),
+            showErrorToast: false
         });
 
         if (!data || !data.success) {
@@ -4455,7 +4460,9 @@ async function fetchActionsCommitByRecipe(rowData = null) {
         document.body.classList.add('modal-open');
 
     } catch (err) {
-        Toast.error('Lỗi', err.message || 'Lỗi kết nối khi tìm kiếm commit actions.yaml');
+        if (!err.toastShown) {
+            Toast.error('Lỗi', err.message || 'Lỗi kết nối khi tìm kiếm commit actions.yaml');
+        }
     }
 }
 
@@ -6067,11 +6074,20 @@ async function apiFetch(url, options = {}) {
         }
 
         if (!res.ok || (data && data.success === false)) {
-            const errMsg = (data && data.message) ? data.message : `Lỗi kết nối cơ sở dữ liệu (${res.status})`;
-            if (typeof Toast !== 'undefined' && Toast.error) {
-                Toast.error('Lỗi kết nối cơ sở dữ liệu', errMsg);
+            const errMsg = (data && data.message) ? data.message : `Lỗi hệ thống (${res.status})`;
+            let toastShown = false;
+            if (options.showErrorToast !== false && !options.silent) {
+                const errTitle = options.errorTitle || 'Lỗi';
+                if (typeof Toast !== 'undefined' && Toast.error) {
+                    Toast.error(errTitle, errMsg);
+                    toastShown = true;
+                }
             }
-            throw new Error(errMsg);
+            const err = new Error(errMsg);
+            err.data = data;
+            err.status = res.status;
+            err.toastShown = toastShown;
+            throw err;
         }
 
         return data;
