@@ -6511,16 +6511,50 @@ def api_update_kd_accounts():
 
 # ==============================================================================
 # 🔮 AVADA KEDAVRA - MES REMOTE TOGGLE & AUDIT LOG CONTROLLER
+# Hỗ trợ đa máy chủ: 198.1.10.8 và 198.1.10.85
 # ==============================================================================
-AVADA_KEDAVRA_SSH_HOST = "198.1.10.8"
-AVADA_KEDAVRA_SSH_PORT = 22
-AVADA_KEDAVRA_SSH_USER = "root"
-AVADA_KEDAVRA_SSH_PASS = "123"
-AVADA_KEDAVRA_SSH_HOSTKEY = "SHA256:AEDoTrINFBrEORA6fnbAqmG0m5hHiTRI0HkjODBUtsc"
-AVADA_KEDAVRA_SERVICE_DIR = "/srv/go/service/mes"
-AVADA_KEDAVRA_COMPOSE_FILE = "/srv/go/service/mes/docker-compose.yml"
-AVADA_KEDAVRA_RESTART_CMD = "cd /srv/go/service/mes && ./restart"
+AVADA_KEDAVRA_SERVERS = {
+    "198.1.10.8": {
+        "host": "198.1.10.8",
+        "port": 22,
+        "user": "root",
+        "pass": "123",
+        "hostkey": "SHA256:AEDoTrINFBrEORA6fnbAqmG0m5hHiTRI0HkjODBUtsc",
+        "service_dir": "/srv/go/service/mes",
+        "compose_file": "/srv/go/service/mes/docker-compose.yml",
+        "restart_cmd": "cd /srv/go/service/mes && ./restart",
+    },
+    "198.1.10.85": {
+        "host": "198.1.10.85",
+        "port": 22,
+        "user": "root",
+        "pass": "kenda",
+        "hostkey": "SHA256:JXdCoBAoNiOJYpiLW9GOe+vX3SIrASpAE8AU3qQSaUY",
+        "service_dir": "/srv/go/service/mes",
+        "compose_file": "/srv/go/service/mes/docker-compose.yml",
+        "restart_cmd": "cd /srv/go/service/mes && ./restart",
+    }
+}
+DEFAULT_AVADA_KEDAVRA_SERVER = "198.1.10.8"
+AVADA_KEDAVRA_SSH_HOST = DEFAULT_AVADA_KEDAVRA_SERVER
 AVADA_KEDAVRA_LOG_FILE_PATH = r"\\198.1.10.2\Vitinh\Thu\QUAN TRONG KHONG XOA\log_avada_kedavra.txt"
+
+def normalize_avada_kedavra_server(server_ip: str = None) -> str:
+    """Chuẩn hóa địa chỉ máy chủ đích (hỗ trợ '198.1.10.8' và '198.1.10.85')."""
+    if not server_ip:
+        return DEFAULT_AVADA_KEDAVRA_SERVER
+    s = str(server_ip).strip()
+    if s in AVADA_KEDAVRA_SERVERS:
+        return s
+    if s.endswith('.85') or s == '85' or s == '10.85':
+        return '198.1.10.85'
+    if s.endswith('.8') or s == '8' or s == '10.8':
+        return '198.1.10.8'
+    return DEFAULT_AVADA_KEDAVRA_SERVER
+
+def get_avada_kedavra_server_config(server_ip: str = None) -> dict:
+    norm = normalize_avada_kedavra_server(server_ip)
+    return AVADA_KEDAVRA_SERVERS.get(norm, AVADA_KEDAVRA_SERVERS[DEFAULT_AVADA_KEDAVRA_SERVER])
 
 def get_plink_binary_path():
     """Tìm đường dẫn thực thi plink.exe hoặc ssh."""
@@ -6535,13 +6569,20 @@ def get_plink_binary_path():
             return p
     return "plink.exe"
 
-def run_avada_kedavra_ssh_cmd(cmd_str: str, timeout: int = 40):
-    """Thực thi SSH command sử dụng paramiko (từ ocr_libs) hoặc fallback plink.exe."""
+def run_avada_kedavra_ssh_cmd(cmd_str: str, server_ip: str = None, timeout: int = 40):
+    """Thực thi SSH command sử dụng paramiko (từ ocr_libs) hoặc fallback plink.exe trên máy chủ chỉ định."""
+    cfg = get_avada_kedavra_server_config(server_ip)
+    target_host = cfg["host"]
+    target_port = cfg["port"]
+    target_user = cfg["user"]
+    target_pass = cfg["pass"]
+    target_hostkey = cfg["hostkey"]
+
     try:
         import paramiko
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        client.connect(AVADA_KEDAVRA_SSH_HOST, port=AVADA_KEDAVRA_SSH_PORT, username=AVADA_KEDAVRA_SSH_USER, password=AVADA_KEDAVRA_SSH_PASS, timeout=timeout)
+        client.connect(target_host, port=target_port, username=target_user, password=target_pass, timeout=timeout)
         stdin, stdout, stderr = client.exec_command(cmd_str, timeout=timeout)
         out = stdout.read().decode('utf-8', errors='ignore')
         err = stderr.read().decode('utf-8', errors='ignore')
@@ -6556,25 +6597,32 @@ def run_avada_kedavra_ssh_cmd(cmd_str: str, timeout: int = 40):
                 "-batch",
                 "-noagent",
                 "-noshare",
-                "-hostkey", AVADA_KEDAVRA_SSH_HOSTKEY,
-                "-l", AVADA_KEDAVRA_SSH_USER,
-                "-pw", AVADA_KEDAVRA_SSH_PASS,
-                AVADA_KEDAVRA_SSH_HOST,
+                "-hostkey", target_hostkey,
+                "-l", target_user,
+                "-pw", target_pass,
+                target_host,
                 cmd_str
             ]
             proc = subprocess.run(args, capture_output=True, text=True, encoding='utf-8', errors='ignore', timeout=timeout)
             if proc.returncode != 0 and not proc.stdout:
-                raise Exception(proc.stderr.strip() or f"Lỗi thực thi lệnh SSH (Exit code {proc.returncode})")
+                raise Exception(proc.stderr.strip() or f"Lỗi thực thi lệnh SSH tới {target_host} (Exit code {proc.returncode})")
             return proc.stdout, proc.stderr
         raise paramiko_err
 
-def run_avada_kedavra_ssh_write(content_str: str, remote_path: str, timeout: int = 30):
+def run_avada_kedavra_ssh_write(content_str: str, remote_path: str, server_ip: str = None, timeout: int = 30):
     """Ghi nội dung file lên máy chủ từ xa qua SSH stdin hoặc SFTP."""
+    cfg = get_avada_kedavra_server_config(server_ip)
+    target_host = cfg["host"]
+    target_port = cfg["port"]
+    target_user = cfg["user"]
+    target_pass = cfg["pass"]
+    target_hostkey = cfg["hostkey"]
+
     try:
         import paramiko
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        client.connect(AVADA_KEDAVRA_SSH_HOST, port=AVADA_KEDAVRA_SSH_PORT, username=AVADA_KEDAVRA_SSH_USER, password=AVADA_KEDAVRA_SSH_PASS, timeout=timeout)
+        client.connect(target_host, port=target_port, username=target_user, password=target_pass, timeout=timeout)
         sftp = client.open_sftp()
         with sftp.file(remote_path, 'w') as f:
             f.write(content_str.encode('utf-8'))
@@ -6590,21 +6638,22 @@ def run_avada_kedavra_ssh_write(content_str: str, remote_path: str, timeout: int
                 "-batch",
                 "-noagent",
                 "-noshare",
-                "-hostkey", AVADA_KEDAVRA_SSH_HOSTKEY,
-                "-l", AVADA_KEDAVRA_SSH_USER,
-                "-pw", AVADA_KEDAVRA_SSH_PASS,
-                AVADA_KEDAVRA_SSH_HOST,
+                "-hostkey", target_hostkey,
+                "-l", target_user,
+                "-pw", target_pass,
+                target_host,
                 f'cat > "{remote_path}"'
             ]
             proc = subprocess.run(args, input=content_str, capture_output=True, text=True, encoding='utf-8', errors='ignore', timeout=timeout)
             if proc.returncode != 0:
-                raise Exception(proc.stderr.strip() or f"Lỗi ghi file qua SSH (Exit code {proc.returncode})")
+                raise Exception(proc.stderr.strip() or f"Lỗi ghi file qua SSH tới {target_host} (Exit code {proc.returncode})")
             return proc.stdout, proc.stderr
         raise paramiko_err
 
-def append_avada_kedavra_log_lines(ip: str, note_lines: list, server: str = AVADA_KEDAVRA_SSH_HOST):
+def append_avada_kedavra_log_lines(ip: str, note_lines: list, server: str = None):
     """Ghi đúng 5 dòng log kèm Máy chủ (Server), IP và thời gian (UTC+7) vào file log trên ổ mạng."""
     try:
+        target_server = normalize_avada_kedavra_server(server)
         now_str = datetime.now(VN_TZ).strftime("%Y-%m-%d %H:%M:%S")
         target_file = AVADA_KEDAVRA_LOG_FILE_PATH
         dir_path = os.path.dirname(target_file)
@@ -6613,7 +6662,7 @@ def append_avada_kedavra_log_lines(ip: str, note_lines: list, server: str = AVAD
             
         with open(target_file, 'a', encoding='utf-8') as f:
             for note in note_lines:
-                f.write(f"{now_str} | {server or AVADA_KEDAVRA_SSH_HOST} | {ip or 'Unknown'} | {note}\n")
+                f.write(f"{now_str} | {target_server} | {ip or 'Unknown'} | {note}\n")
     except Exception as e:
         app.logger.error(f"[AVADA_KEDAVRA_LOG_ERROR] Lỗi khi ghi file log Avada Kedavra: {e}", exc_info=True)
 
@@ -6644,21 +6693,21 @@ def read_avada_kedavra_logs(limit: int = 1000):
             elif len(parts) == 3:
                 logs.append({
                     'time': parts[0],
-                    'server': AVADA_KEDAVRA_SSH_HOST,
+                    'server': DEFAULT_AVADA_KEDAVRA_SERVER,
                     'ip': parts[1],
                     'note': parts[2]
                 })
             elif len(parts) == 2:
                 logs.append({
                     'time': parts[0],
-                    'server': AVADA_KEDAVRA_SSH_HOST,
+                    'server': DEFAULT_AVADA_KEDAVRA_SERVER,
                     'ip': '',
                     'note': parts[1]
                 })
             else:
                 logs.append({
                     'time': '',
-                    'server': AVADA_KEDAVRA_SSH_HOST,
+                    'server': DEFAULT_AVADA_KEDAVRA_SERVER,
                     'ip': '',
                     'note': line
                 })
@@ -6672,11 +6721,15 @@ def read_avada_kedavra_logs(limit: int = 1000):
         item['stt'] = idx
     return logs
 
-def check_remote_avada_kedavra_status():
-    """Kiểm tra trạng thái máy chủ 198.1.10.8, file compose và container mes."""
+def check_remote_avada_kedavra_status(server_ip: str = None):
+    """Kiểm tra trạng thái máy chủ chỉ định (198.1.10.8 hoặc 198.1.10.85), file compose và container mes."""
+    cfg = get_avada_kedavra_server_config(server_ip)
+    target_host = cfg["host"]
+    compose_file = cfg["compose_file"]
+
     try:
         # 1. Đọc file docker-compose.yml
-        out, _ = run_avada_kedavra_ssh_cmd(f"cat {AVADA_KEDAVRA_COMPOSE_FILE}", timeout=8)
+        out, _ = run_avada_kedavra_ssh_cmd(f"cat {compose_file}", server_ip=target_host, timeout=8)
         is_active = False
         strict_mode_line = ""
         for line in out.splitlines():
@@ -6691,6 +6744,7 @@ def check_remote_avada_kedavra_status():
         # 2. Lấy thông tin container mes
         ps_out, _ = run_avada_kedavra_ssh_cmd(
             'docker ps --filter "name=mes" --format "{{.ID}}\t{{.Image}}\t{{.Status}}\t{{.Names}}"',
+            server_ip=target_host,
             timeout=8
         )
         docker_ps_lines = ps_out.strip().splitlines()
@@ -6698,7 +6752,7 @@ def check_remote_avada_kedavra_status():
         mes_container = None
         for d_line in docker_ps_lines:
             d_parts = d_line.split('\t')
-            if len(d_parts) >= 4 and (d_parts[3] == 'mes' or 'mes:v0.30.11' in d_parts[1]):
+            if len(d_parts) >= 4 and (d_parts[3] == 'mes' or '/mes:' in d_parts[1]):
                 mes_container = {
                     'id': d_parts[0],
                     'image': d_parts[1],
@@ -6708,46 +6762,54 @@ def check_remote_avada_kedavra_status():
                 break
 
         return {
+            'server': target_host,
             'connected': True,
             'is_active': is_active,
             'strict_mode_line': strict_mode_line,
             'container': mes_container,
-            'message': 'Kết nối máy chủ thành công'
+            'message': f'Kết nối máy chủ {target_host} thành công'
         }
     except Exception as e:
         return {
+            'server': target_host,
             'connected': False,
             'is_active': False,
             'strict_mode_line': '',
             'container': None,
-            'message': f'Lỗi kiểm tra SSH: {str(e)}'
+            'message': f'Lỗi kiểm tra SSH ({target_host}): {str(e)}'
         }
 
-def toggle_remote_avada_kedavra(target_action: str, client_ip: str):
-    """Thực hiện bật/tắt Avada Kedavra trên máy chủ 198.1.10.8 và ghi 5 dòng log."""
+def toggle_remote_avada_kedavra(target_action: str, client_ip: str, server_ip: str = None):
+    """Thực hiện bật/tắt Avada Kedavra trên máy chủ chỉ định và ghi 5 dòng log."""
+    cfg = get_avada_kedavra_server_config(server_ip)
+    target_host = cfg["host"]
+    compose_file = cfg["compose_file"]
+    restart_cmd = cfg["restart_cmd"]
+
     logs_generated = []
     action_label = "Kích hoạt" if target_action == 'activate' else "Ngưng kích hoạt"
     
     # 1. Dòng 1: Kích hoạt / Ngưng kích hoạt
     logs_generated.append(action_label)
     
-    # 2. Dòng 2: Kết nối SSH root@198.1.10.8
+    # 2. Dòng 2: Kết nối SSH root@<target_host>
     try:
-        run_avada_kedavra_ssh_cmd("echo ping", timeout=8)
-        logs_generated.append(f"Kết nối thành công tới root@{AVADA_KEDAVRA_SSH_HOST}")
+        run_avada_kedavra_ssh_cmd("echo ping", server_ip=target_host, timeout=8)
+        logs_generated.append(f"Kết nối thành công tới root@{target_host}")
     except Exception as e:
-        err_msg = f"Lỗi kết nối tới root@{AVADA_KEDAVRA_SSH_HOST}: {str(e)}"
+        err_msg = f"Lỗi kết nối tới root@{target_host}: {str(e)}"
         logs_generated.append(err_msg)
-        append_avada_kedavra_log_lines(client_ip, logs_generated)
+        append_avada_kedavra_log_lines(client_ip, logs_generated, server=target_host)
         return {
             'success': False,
+            'server': target_host,
             'message': err_msg,
             'logs': logs_generated
         }
 
     # 3. Dòng 3: Đọc, sửa và lưu file docker-compose.yml
     try:
-        out, _ = run_avada_kedavra_ssh_cmd(f"cat {AVADA_KEDAVRA_COMPOSE_FILE}", timeout=10)
+        out, _ = run_avada_kedavra_ssh_cmd(f"cat {compose_file}", server_ip=target_host, timeout=10)
         lines = out.splitlines()
         modified_lines = []
         found_target = False
@@ -6767,53 +6829,68 @@ def toggle_remote_avada_kedavra(target_action: str, client_ip: str):
             raise Exception("Không tìm thấy dòng --strict-mode trong docker-compose.yml")
 
         new_content = '\n'.join(modified_lines) + '\n'
-        run_avada_kedavra_ssh_write(new_content, AVADA_KEDAVRA_COMPOSE_FILE, timeout=15)
+        run_avada_kedavra_ssh_write(new_content, compose_file, server_ip=target_host, timeout=15)
         logs_generated.append("Sửa file và lưu file thành công")
     except Exception as e:
         err_msg = f"Sửa file và lưu file lỗi: {str(e)}"
         logs_generated.append(err_msg)
-        append_avada_kedavra_log_lines(client_ip, logs_generated)
+        append_avada_kedavra_log_lines(client_ip, logs_generated, server=target_host)
         return {
             'success': False,
+            'server': target_host,
             'message': err_msg,
             'logs': logs_generated
         }
 
     # 4. Dòng 4: Chạy ./restart và parse output
     try:
-        out, err = run_avada_kedavra_ssh_cmd(AVADA_KEDAVRA_RESTART_CMD, timeout=60)
+        out, err = run_avada_kedavra_ssh_cmd(restart_cmd, server_ip=target_host, timeout=60)
         combined = (out + "\n" + err).strip()
         
-        removed_match = re.search(r'Container\s+mes\s+Removed(?:\s+[\d\.]+s)?', combined, re.IGNORECASE)
-        started_match = re.search(r'Container\s+mes\s+Started(?:\s+[\d\.]+s)?', combined, re.IGNORECASE)
+        # Hỗ trợ cả Docker Compose v1 ("Removing mes ... done") và v2 ("Container mes Removed")
+        removed_match = re.search(r'Container\s+mes\s+Removed(?:\s+[\d\.]+s)?|Removing\s+mes\s+\.\.\.\s+done', combined, re.IGNORECASE)
+        started_match = re.search(r'Container\s+mes\s+Started(?:\s+[\d\.]+s)?|Creating\s+mes\s+\.\.\.\s+done', combined, re.IGNORECASE)
         
-        removed_str = removed_match.group(0) if removed_match else "Container mes Removed"
-        started_str = started_match.group(0) if started_match else "Container mes Started"
+        if re.search(r'Removing\s+mes\s+\.\.\.\s+done', combined, re.IGNORECASE):
+            removed_str = "Removing mes ... done"
+        elif removed_match:
+            removed_str = removed_match.group(0)
+        else:
+            removed_str = "Container mes Removed"
+
+        if re.search(r'Creating\s+mes\s+\.\.\.\s+done', combined, re.IGNORECASE):
+            started_str = "Creating mes ... done"
+        elif started_match:
+            started_str = started_match.group(0)
+        else:
+            started_str = "Container mes Started"
         
         logs_generated.append(f"{removed_str} | {started_str}")
     except Exception as e:
         err_msg = f"Lỗi thực thi restart: {str(e)}"
         logs_generated.append(err_msg)
-        append_avada_kedavra_log_lines(client_ip, logs_generated)
+        append_avada_kedavra_log_lines(client_ip, logs_generated, server=target_host)
         return {
             'success': False,
+            'server': target_host,
             'message': err_msg,
             'logs': logs_generated
         }
 
-    # 5. Dòng 5: Check docker ps của image gitlab.kenda.com.tw:5555/kenda/mes:v0.30.11
+    # 5. Dòng 5: Check docker ps của container mes
     try:
         ps_out, _ = run_avada_kedavra_ssh_cmd(
             'docker ps --filter "name=mes" --format "{{.ID}}\t{{.Image}}\t{{.Status}}\t{{.Names}}"',
+            server_ip=target_host,
             timeout=10
         )
         container_id = "N/A"
         container_status = "N/A"
-        container_image = "gitlab.kenda.com.tw:5555/kenda/mes:v0.30.11"
+        container_image = "gitlab.kenda.com.tw:5555/kenda/mes:v0.30.10"
         
         for line in ps_out.strip().splitlines():
             parts = line.split('\t')
-            if len(parts) >= 3 and (parts[3] == 'mes' or 'mes:v0.30.11' in parts[1]):
+            if len(parts) >= 4 and (parts[3] == 'mes' or '/mes:' in parts[1]):
                 container_id = parts[0]
                 container_image = parts[1]
                 container_status = parts[2]
@@ -6823,14 +6900,15 @@ def toggle_remote_avada_kedavra(target_action: str, client_ip: str):
     except Exception as e:
         logs_generated.append(f"Kiểm tra docker ps lỗi: {str(e)}")
 
-    # Ghi log 5 dòng vào file
-    append_avada_kedavra_log_lines(client_ip, logs_generated)
+    # Ghi log 5 dòng vào file kèm server
+    append_avada_kedavra_log_lines(client_ip, logs_generated, server=target_host)
 
     new_is_active = (target_action == 'activate')
     return {
         'success': True,
+        'server': target_host,
         'is_active': new_is_active,
-        'message': f'Đã {"kích hoạt" if new_is_active else "ngưng kích hoạt"} Avada Kedavra thành công',
+        'message': f'Đã {"kích hoạt" if new_is_active else "ngưng kích hoạt"} Avada Kedavra trên máy chủ {target_host} thành công',
         'logs': logs_generated
     }
 
@@ -6838,10 +6916,12 @@ def toggle_remote_avada_kedavra(target_action: str, client_ip: str):
 def api_avada_kedavra_status():
     """Lấy trạng thái hiện tại của Avada Kedavra và các dòng log gần nhất."""
     try:
-        status_info = check_remote_avada_kedavra_status()
+        server_ip = request.args.get('server', DEFAULT_AVADA_KEDAVRA_SERVER)
+        status_info = check_remote_avada_kedavra_status(server_ip)
         logs = read_avada_kedavra_logs(limit=200)
         return jsonify({
             'success': True,
+            'server': status_info.get('server', server_ip),
             'status': status_info,
             'logs': logs
         })
@@ -6858,6 +6938,7 @@ def api_avada_kedavra_toggle():
     try:
         data = request.get_json(silent=True) or {}
         action = data.get('action')
+        server_ip = data.get('server', DEFAULT_AVADA_KEDAVRA_SERVER)
         if action not in ['activate', 'deactivate']:
             return jsonify({
                 'success': False,
@@ -6865,7 +6946,7 @@ def api_avada_kedavra_toggle():
             }), 400
 
         user_ip = get_client_ip()
-        result = toggle_remote_avada_kedavra(action, user_ip)
+        result = toggle_remote_avada_kedavra(action, user_ip, server_ip=server_ip)
         
         # Đọc lại toàn bộ log sau khi cập nhật
         all_logs = read_avada_kedavra_logs(limit=200)

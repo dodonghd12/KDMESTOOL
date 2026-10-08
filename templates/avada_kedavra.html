@@ -50,9 +50,13 @@
                         <input placeholder="Tìm kiếm..." class="input" id="clientSearch" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text" aria-label="Tìm kiếm trong bảng log">
                     </div>
 
-                    <div class="avada-kedavra-meta-badge" title="Máy chủ đích">
+                    <div class="avada-kedavra-meta-badge" id="avadaKedavraMetaBadge" title="Máy chủ đích: Nhấp để chuyển đổi giữa 198.1.10.8 và 198.1.10.85">
                         <span class="material-symbols-outlined">dns</span>
-                        <span>root@198.1.10.8</span>
+                        <span id="currentServerLabel">root@198.1.10.8</span>
+                        <button type="button" id="btnToggleServer" class="btn-server-switch" title="Chuyển sang 198.1.10.85" aria-label="Đổi máy chủ MES">
+                            <span class="material-symbols-outlined">swap_horiz</span>
+                            <span id="btnToggleServerText">10.85</span>
+                        </button>
                     </div>
 
                     <button type="button" id="btnRefreshLogs" class="winx-btn" style="height: 38px; padding: 0 14px; font-size: 13px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--color-border-subtle); color: var(--color-text-secondary);" title="Tải lại log và trạng thái">

@@ -241,9 +241,9 @@
 .avada-kedavra-meta-badge {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     height: 38px;
-    padding: 0 12px;
+    padding: 0 6px 0 12px;
     border-radius: 8px;
     font-size: 12.5px;
     color: var(--color-text-secondary);
@@ -251,11 +251,62 @@
     border: 1px solid var(--color-border-subtle);
     font-family: var(--font-mono);
     flex-shrink: 0;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.avada-kedavra-meta-badge:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(14, 165, 233, 0.4);
+    box-shadow: 0 0 12px rgba(14, 165, 233, 0.15);
 }
 
 .avada-kedavra-meta-badge .material-symbols-outlined {
     font-size: 16px;
     color: var(--cyan-400);
+}
+
+.btn-server-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 26px;
+    padding: 0 8px;
+    border-radius: 6px;
+    background: rgba(14, 165, 233, 0.12);
+    border: 1px solid rgba(14, 165, 233, 0.35);
+    color: #38bdf8;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    outline: none;
+    margin-left: 2px;
+}
+
+.btn-server-switch:hover {
+    background: rgba(14, 165, 233, 0.25);
+    border-color: #38bdf8;
+    color: #ffffff;
+    box-shadow: 0 0 10px rgba(14, 165, 233, 0.4);
+    transform: scale(1.03);
+}
+
+.btn-server-switch:active {
+    transform: scale(0.97);
+}
+
+.btn-server-switch .material-symbols-outlined {
+    font-size: 14px;
+    color: #38bdf8;
+    transition: transform 0.3s ease;
+}
+
+.btn-server-switch:hover .material-symbols-outlined {
+    color: #ffffff;
+    transform: rotate(180deg);
 }
 
 /* ── TABLE OVERRIDE & RESET FOR AVADA KEDAVRA ── */

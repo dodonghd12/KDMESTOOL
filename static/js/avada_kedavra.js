@@ -9,6 +9,7 @@
     const PAGE_SIZE = 30;
     let isAvadaKedavraActive = false;
     let isLoading = false;
+    let currentServer = (localStorage.getItem('ak_selected_server') === '198.1.10.85') ? '198.1.10.85' : '198.1.10.8';
     let allLogs = [];
     let filteredLogs = [];
     let currentPage = 1;
@@ -22,6 +23,11 @@
         const toggleBtn = document.getElementById('btnAvadaKedavraToggle') || document.getElementById('btnDarkMagicToggle');
         const refreshBtn = document.getElementById('btnRefreshLogs');
         const searchInput = document.getElementById('clientSearch');
+        const toggleServerBtn = document.getElementById('btnToggleServer');
+        const serverBadge = document.getElementById('avadaKedavraMetaBadge');
+
+        // Khởi tạo nhãn máy chủ ban đầu
+        updateServerBadgeUI(currentServer);
 
         if (toggleBtn) {
             toggleBtn.addEventListener('click', handleToggleAvadaKedavra);
@@ -29,7 +35,7 @@
 
         if (refreshBtn) {
             refreshBtn.addEventListener('click', () => {
-                fetchStatusAndLogs(true);
+                fetchStatusAndLogs(true, false);
             });
         }
 
@@ -39,20 +45,71 @@
             });
         }
 
-        // Tự động kiểm tra trạng thái và tải log ban đầu
-        fetchStatusAndLogs();
+        // Bắt sự kiện chuyển đổi máy chủ (198.1.10.8 <-> 198.1.10.85)
+        if (toggleServerBtn) {
+            toggleServerBtn.addEventListener('click', handleToggleServerClick);
+        }
+        if (serverBadge) {
+            serverBadge.addEventListener('click', (e) => {
+                if (e.target.closest('#btnToggleServer')) return;
+                handleToggleServerClick(e);
+            });
+        }
+
+        // Tự động kiểm tra trạng thái và tải log ban đầu theo máy chủ đã chọn
+        fetchStatusAndLogs(false, false);
+    }
+
+    /**
+     * Cập nhật giao diện badge máy chủ đích
+     */
+    function updateServerBadgeUI(server) {
+        const labelEl = document.getElementById('currentServerLabel');
+        const btnTextEl = document.getElementById('btnToggleServerText');
+        const btnEl = document.getElementById('btnToggleServer');
+
+        if (labelEl) {
+            labelEl.textContent = `root@${server}`;
+        }
+
+        const otherServer = (server === '198.1.10.8') ? '198.1.10.85' : '198.1.10.8';
+        const otherShort = (server === '198.1.10.8') ? '10.85' : '10.8';
+
+        if (btnTextEl) {
+            btnTextEl.textContent = otherShort;
+        }
+        if (btnEl) {
+            btnEl.title = `Chuyển sang ${otherServer}`;
+        }
+    }
+
+    /**
+     * Xử lý khi nhấn nút chuyển đổi máy chủ
+     */
+    function handleToggleServerClick(e) {
+        if (e) e.stopPropagation();
+        if (isLoading) return;
+
+        currentServer = (currentServer === '198.1.10.8') ? '198.1.10.85' : '198.1.10.8';
+        localStorage.setItem('ak_selected_server', currentServer);
+        updateServerBadgeUI(currentServer);
+
+        // Nạp lại trạng thái máy chủ mới với thông báo toast
+        fetchStatusAndLogs(false, true);
     }
 
     /**
      * Tải trạng thái máy chủ và danh sách log
      */
-    async function fetchStatusAndLogs(showToast = false) {
+    async function fetchStatusAndLogs(showToast = false, isSwitchingServer = false) {
         if (showToast) {
-            showStepBadge('Đang làm mới dữ liệu...', 'sync', 'progress');
+            showStepBadge(`Đang làm mới dữ liệu (${currentServer})...`, 'sync', 'progress');
+        } else if (isSwitchingServer) {
+            showStepBadge(`Đang kiểm tra root@${currentServer}...`, 'dns', 'progress');
         }
 
         try {
-            const res = await fetch('/api/avada-kedavra/status');
+            const res = await fetch(`/api/avada-kedavra/status?server=${encodeURIComponent(currentServer)}`);
             const data = await res.json();
 
             if (data.success) {
@@ -63,30 +120,35 @@
                 allLogs = data.logs || [];
                 applyClientSearch(document.getElementById('clientSearch')?.value || '');
 
-                if (showToast) {
-                    const cInfo = status.container ? `mes: ${status.container.status || 'Up'}` : 'Đã kết nối';
+                if (showToast || isSwitchingServer) {
+                    const cInfo = status.container ? `mes: ${status.container.status || 'Up'}` : `Đã kết nối root@${currentServer}`;
                     showStepBadge(cInfo, 'check_circle', 'success');
                     hideStepBadgeAfterDelay(5000);
+
                     if (typeof Toast !== 'undefined') {
-                        Toast.success('Thành công', 'Đã cập nhật trạng thái và lịch sử log mới nhất');
+                        if (isSwitchingServer) {
+                            Toast.info('Máy chủ', `Đã chuyển sang máy chủ ${currentServer}`);
+                        } else if (showToast) {
+                            Toast.success('Thành công', `Đã cập nhật trạng thái (${currentServer}) và lịch sử log mới nhất`);
+                        }
                     }
                 }
             } else {
-                if (showToast) {
-                    showStepBadge('Lỗi kiểm tra trạng thái', 'error', 'error');
+                if (showToast || isSwitchingServer) {
+                    showStepBadge(`Lỗi kiểm tra root@${currentServer}`, 'error', 'error');
                     hideStepBadgeAfterDelay(5000);
                     if (typeof Toast !== 'undefined') {
-                        Toast.error('Lỗi', data.message || 'Không thể kiểm tra trạng thái máy chủ');
+                        Toast.error('Lỗi', data.message || `Không thể kiểm tra trạng thái máy chủ ${currentServer}`);
                     }
                 }
             }
         } catch (err) {
             console.error('[AVADA_KEDAVRA] Lỗi khi tải trạng thái:', err);
-            if (showToast) {
-                showStepBadge('Lỗi kết nối máy chủ', 'error', 'error');
+            if (showToast || isSwitchingServer) {
+                showStepBadge(`Lỗi kết nối root@${currentServer}`, 'error', 'error');
                 hideStepBadgeAfterDelay(5000);
                 if (typeof Toast !== 'undefined') {
-                    Toast.error('Lỗi', 'Lỗi kết nối khi tải trạng thái máy chủ');
+                    Toast.error('Lỗi', `Lỗi kết nối khi tải trạng thái máy chủ ${currentServer}`);
                 }
             }
         }
@@ -185,13 +247,13 @@
         const targetAction = isAvadaKedavraActive ? 'deactivate' : 'activate';
         const actionLabel = (targetAction === 'activate') ? 'kích hoạt' : 'ngưng kích hoạt';
 
-        // Xác nhận thao tác
+        // Xác nhận thao tác kèm tên máy chủ hiện tại
         let confirmResult = true;
         if (typeof showModal === 'function') {
             confirmResult = await showModal(
                 targetAction === 'activate' ? 'warning' : 'info',
                 'Xác nhận thao tác',
-                `Bạn có chắc chắn muốn ${actionLabel} Avada Kedavra trên máy chủ MES (198.1.10.8)?\n\nHệ thống sẽ tự động chỉnh sửa file docker-compose.yml và khởi động lại container MES.`,
+                `Bạn có chắc chắn muốn ${actionLabel} Avada Kedavra trên máy chủ MES (${currentServer})?\n\nHệ thống sẽ tự động chỉnh sửa file docker-compose.yml và khởi động lại container MES.`,
                 [
                     { text: 'Xác nhận', class: targetAction === 'activate' ? 'custom-modal-btn-danger' : 'custom-modal-btn-primary', value: true },
                     { text: 'Hủy', class: 'custom-modal-btn-secondary', value: false }
@@ -204,8 +266,8 @@
         setLoadingState(true, targetAction);
         clearStepTimers();
 
-        // Bước 1: Kết nối tới root@198.1.10.8
-        showStepBadge('1. Kết nối root@198.1.10.8...', 'dns', 'progress');
+        // Bước 1: Kết nối tới root@<currentServer>
+        showStepBadge(`1. Kết nối root@${currentServer}...`, 'dns', 'progress');
 
         // Lên lịch các bước chuyển tiếp trực quan trong khi API xử lý
         stepTimers.push(setTimeout(() => {
@@ -230,7 +292,7 @@
             const res = await fetch('/api/avada-kedavra/toggle', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: targetAction })
+                body: JSON.stringify({ action: targetAction, server: currentServer })
             });
 
             const data = await res.json();
@@ -243,7 +305,7 @@
                 updateStatusUI(isAvadaKedavraActive);
 
                 // Hiển thị bước cuối cùng thành công
-                showStepBadge('mes: Up (Hoàn tất)', 'check_circle', 'success');
+                showStepBadge(`mes (${currentServer}): Up (Hoàn tất)`, 'check_circle', 'success');
                 // Tự động biến mất sau 5 giây
                 hideStepBadgeAfterDelay(5000);
 
@@ -254,7 +316,7 @@
                 }
 
                 if (typeof Toast !== 'undefined') {
-                    Toast.success('Thành công', data.message || `Đã ${actionLabel} thành công!`);
+                    Toast.success('Thành công', data.message || `Đã ${actionLabel} thành công trên máy chủ ${currentServer}!`);
                 }
 
             } else {
@@ -268,7 +330,7 @@
                 }
 
                 if (typeof Toast !== 'undefined') {
-                    Toast.error('Lỗi', data.message || 'Thao tác không thành công');
+                    Toast.error('Lỗi', data.message || `Thao tác không thành công trên máy chủ ${currentServer}`);
                 }
             }
 
@@ -279,7 +341,7 @@
             hideStepBadgeAfterDelay(5000);
 
             if (typeof Toast !== 'undefined') {
-                Toast.error('Lỗi', err.message || 'Lỗi kết nối khi gửi yêu cầu');
+                Toast.error('Lỗi', err.message || `Lỗi kết nối khi gửi yêu cầu tới ${currentServer}`);
             }
         } finally {
             setLoadingState(false, targetAction);
