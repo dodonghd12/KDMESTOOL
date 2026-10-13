@@ -39,6 +39,8 @@ let currentOutputTableType = null;
 let rawTableData = [];
 let rawTableColumns = [];
 let filteredTableData = [];
+let filteredOutputBarcodeData = [];
+let filteredSubOutputBarcodeData = [];
 let feed_records_material_id = null;
 let tableViewStack = [];
 let outputBarcodeRawData = [];
@@ -5499,6 +5501,7 @@ function filterClientResult(keyword) {
     closeShowBarcodeWindow();
 
     if (!keyword) {
+        filteredTableData = rawTableData;
         displayTable(rawTableData, rawTableColumns);
         return;
     }
@@ -5511,11 +5514,13 @@ function filterClientResult(keyword) {
         )
     );
 
+    filteredTableData = filtered;
     displayTable(filtered, rawTableColumns);
 }
 
 function filterOutputBarcode(keyword) {
     if (!keyword) {
+        filteredOutputBarcodeData = outputBarcodeRawData;
         renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
         return;
     }
@@ -5528,11 +5533,13 @@ function filterOutputBarcode(keyword) {
         )
     );
 
+    filteredOutputBarcodeData = filtered;
     renderOutputBarcodeTable(filtered, outputBarcodeColumns);
 }
 
 function filterSubOutputBarcode(keyword) {
     if (!keyword) {
+        filteredSubOutputBarcodeData = subOutputRawData;
         renderSubOutputBarcodeTable(subOutputRawData, subOutputColumns);
         return;
     }
@@ -5545,6 +5552,7 @@ function filterSubOutputBarcode(keyword) {
         )
     );
 
+    filteredSubOutputBarcodeData = filtered;
     renderSubOutputBarcodeTable(filtered, subOutputColumns);
 }
 
@@ -5928,6 +5936,7 @@ function setTableData(result, columns, tableType = null, customEmptyMsg = null, 
 
     rawTableData = result || [];
     rawTableColumns = columns || [];
+    filteredTableData = rawTableData;
     currentTableType = tableType;
 
     // Reset ô client search mỗi khi nhận tập dữ liệu mới từ backend
@@ -6154,151 +6163,291 @@ document.addEventListener('click', function (e) {
 
     const buttonId = button.id;
     if (buttonId === 'exportExcelBtn') {
-        handleExportExcel();
+        handleExportExcel(button);
     }
 
     if (buttonId === 'exportOutputExcelBtn') {
-        handleExportOutputBarcodeExcel();
+        handleExportOutputBarcodeExcel(button);
     }
 
     if (buttonId === 'exportSubOutputExcelBtn') {
-        handleExportSubOutputBarcodeExcel();
+        handleExportSubOutputBarcodeExcel(button);
     }
 });
 
-async function handleExportExcel() {
-    const tbody = document.getElementById('tableBody');
-    if (!tbody) return;
+/**
+ * Xuất dữ liệu ra file Excel (.xlsx) chuẩn SheetJS
+ * Hỗ trợ xuất toàn bộ trang (all pages / filtered pages) cho cả bảng phân trang và bảng thông thường
+ * Tự động đồng bộ các cột hiển thị, định dạng text/object, loại bỏ cột ẩn
+ * 
+ * @param {Object} options
+ * @param {Array} options.rows - Dữ liệu các dòng cần xuất (toàn bộ các dòng sau khi lọc)
+ * @param {Array} options.columns - Danh sách tên cột
+ * @param {HTMLElement} options.tableElement - Phần tử <table> trong DOM (để tham chiếu header hiển thị)
+ * @param {string} options.sheetName - Tên sheet trong file Excel (mặc định 'Data')
+ * @param {string} options.defaultFileName - Tên file tải về
+ */
+function exportDatasetToExcel({ rows = null, columns = null, tableElement = null, sheetName = 'Data', defaultFileName = null }) {
+    const hiddenColumns = ['diff', 'new_path', 'old_path', 'new_file', 'renamed_file', 'deleted_file', 'a_mode', 'b_mode', 'web_url'];
 
-    const rows = tbody.querySelectorAll('tr:not(.table-empty-state)');
-    if (rows.length === 0) {
-        Toast.warning('Cảnh báo', 'Không có dữ liệu để xuất file Excel.');
+    // 1. Xác định danh sách cột hiển thị (Visible Headers)
+    const visibleColIndices = [];
+    const visibleHeaders = [];
+
+    const ths = tableElement ? Array.from(tableElement.querySelectorAll('thead th')) : [];
+    if (ths.length > 0) {
+        ths.forEach((th, idx) => {
+            if (th.style.display !== 'none') {
+                visibleColIndices.push(idx);
+                visibleHeaders.push(th.textContent.trim());
+            }
+        });
+    }
+
+    if (visibleHeaders.length === 0 && Array.isArray(columns) && columns.length > 0) {
+        columns.forEach((col, idx) => {
+            if (!hiddenColumns.includes(col)) {
+                visibleColIndices.push(idx);
+                visibleHeaders.push(String(col));
+            }
+        });
+    }
+
+    // 2. Nếu có mảng rows (dữ liệu nguồn đầy đủ hoặc sau khi lọc)
+    if (Array.isArray(rows) && rows.length > 0) {
+        const wsData = [visibleHeaders];
+
+        rows.forEach(row => {
+            const rowValues = [];
+            visibleColIndices.forEach((colIdx) => {
+                let cell = null;
+                if (Array.isArray(row)) {
+                    cell = row[colIdx];
+                } else if (row && typeof row === 'object') {
+                    const colName = (columns && columns[colIdx]) || visibleHeaders[rowValues.length];
+                    cell = (colName && row[colName] !== undefined) ? row[colName] : row[colIdx];
+                }
+
+                let valStr = '';
+                if (cell !== null && cell !== undefined) {
+                    if (typeof cell === 'object') {
+                        try {
+                            valStr = JSON.stringify(cell, null, 2);
+                        } catch (e) {
+                            valStr = String(cell);
+                        }
+                    } else {
+                        valStr = String(cell);
+                    }
+                }
+
+                if (cell === null || cell === undefined || valStr.trim() === '' || valStr.trim().toLowerCase() === 'null' || valStr.trim().toLowerCase() === 'undefined') {
+                    valStr = '-';
+                }
+
+                rowValues.push(valStr);
+            });
+            wsData.push(rowValues);
+        });
+
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+        XLSX.utils.book_append_sheet(wb, ws, sheetName);
+        XLSX.writeFile(wb, defaultFileName || ('KDMES_TOOL_' + getVietnamTimestamp() + '.xlsx'));
         return;
     }
 
-    const confirmed = await showConfirm('Bạn có chắc chắn muốn xuất file Excel của dữ liệu trên?');
-    if (!confirmed) return;
+    // 3. Fallback: Nếu không có mảng rows, clone bảng trong DOM
+    if (tableElement) {
+        const cloneTable = tableElement.cloneNode(true);
+        cloneTable.querySelectorAll('th, td').forEach(el => {
+            if (el.style.display === 'none') {
+                el.remove();
+            }
+        });
+        cloneTable.querySelectorAll('td[data-full-value]').forEach(td => {
+            td.textContent = td.dataset.fullValue;
+        });
 
-    exportTableToExcel();
-    Toast.success('Thành công', 'Xuất file Excel thành công!');
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.table_to_sheet(cloneTable, { raw: true });
+        XLSX.utils.book_append_sheet(wb, ws, sheetName);
+        XLSX.writeFile(wb, defaultFileName || ('KDMES_TOOL_' + getVietnamTimestamp() + '.xlsx'));
+    }
 }
 
-function exportTableToExcel() {
-    const table = document.querySelector('.table-container table');
-    if (!table) return;
+async function handleExportExcel(button = null) {
+    // 1. Kiểm tra hook cung cấp dữ liệu riêng của trang (nếu có)
+    let exportInfo = null;
+    if (typeof window.getPageExportData === 'function') {
+        try {
+            exportInfo = window.getPageExportData();
+        } catch (e) {
+            console.error('Lỗi khi gọi window.getPageExportData():', e);
+        }
+    }
 
-    const cloneTable = table.cloneNode(true);
+    // 2. Xác định tập dữ liệu cần xuất
+    let rowsToExport = null;
+    let colsToExport = null;
+    let customFileName = null;
+    let customSheetName = null;
 
-    cloneTable.querySelectorAll('td[data-full-value]').forEach(td => {
-        td.textContent = td.dataset.fullValue;
-    });
+    if (exportInfo && Array.isArray(exportInfo.rows)) {
+        rowsToExport = exportInfo.rows;
+        colsToExport = exportInfo.columns || rawTableColumns;
+        customFileName = exportInfo.filename;
+        customSheetName = exportInfo.sheetName;
+    } else if (Array.isArray(filteredTableData) && filteredTableData.length > 0) {
+        rowsToExport = filteredTableData;
+        colsToExport = rawTableColumns;
+    } else if (Array.isArray(rawTableData) && rawTableData.length > 0) {
+        rowsToExport = rawTableData;
+        colsToExport = rawTableColumns;
+    }
 
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.table_to_sheet(cloneTable, { raw: true });
-    XLSX.utils.book_append_sheet(wb, ws, 'Data');
+    // 3. Kiểm tra số dòng từ dataset hoặc fallback DOM
+    const container = button ? button.closest('.table-container') : document.querySelector('.table-container');
+    const tbody = document.getElementById('tableBody') || (container ? container.querySelector('tbody') : null);
+    const domRows = tbody ? tbody.querySelectorAll('tr:not(.table-empty-state)') : [];
 
-    const fileName =
-        'KDMES_TOOL_' +
-        getVietnamTimestamp() +
-        '.xlsx';
+    const totalCount = (rowsToExport && rowsToExport.length > 0) ? rowsToExport.length : domRows.length;
 
-    XLSX.writeFile(wb, fileName);
-}
-
-async function handleExportOutputBarcodeExcel() {
-    const tbody = document.getElementById('outputBarcodeTableBody');
-    if (!tbody) return;
-
-    const rows = tbody.querySelectorAll('tr:not(.table-empty-state)');
-    if (rows.length === 0) {
+    if (totalCount === 0) {
         Toast.warning('Cảnh báo', 'Không có dữ liệu để xuất file Excel.');
         return;
     }
 
     const confirmed = await showConfirm(
-        'Bạn có chắc chắn muốn xuất file Excel của dữ liệu trên?'
+        `Bạn có chắc chắn muốn xuất file Excel cho toàn bộ ${totalCount.toLocaleString()} dòng dữ liệu?`
+    );
+    if (!confirmed) return;
+
+    exportTableToExcel(rowsToExport, colsToExport, customFileName, customSheetName);
+    Toast.success('Thành công', `Xuất file Excel thành công (${totalCount.toLocaleString()} dòng)!`);
+}
+
+function exportTableToExcel(rows = null, columns = null, customFileName = null, customSheetName = null) {
+    const table = document.querySelector('.table-container table');
+
+    let dataRows = rows;
+    let dataCols = columns;
+
+    if (!dataRows) {
+        if (typeof window.getPageExportData === 'function') {
+            try {
+                const info = window.getPageExportData();
+                if (info && Array.isArray(info.rows)) {
+                    dataRows = info.rows;
+                    dataCols = info.columns || rawTableColumns;
+                    if (!customFileName) customFileName = info.filename;
+                    if (!customSheetName) customSheetName = info.sheetName;
+                }
+            } catch (e) {}
+        }
+    }
+
+    if (!dataRows) {
+        if (Array.isArray(filteredTableData) && filteredTableData.length > 0) {
+            dataRows = filteredTableData;
+            dataCols = rawTableColumns;
+        } else if (Array.isArray(rawTableData) && rawTableData.length > 0) {
+            dataRows = rawTableData;
+            dataCols = rawTableColumns;
+        }
+    }
+
+    exportDatasetToExcel({
+        rows: dataRows,
+        columns: dataCols,
+        tableElement: table,
+        sheetName: customSheetName || 'Data',
+        defaultFileName: customFileName || ('KDMES_TOOL_' + getVietnamTimestamp() + '.xlsx')
+    });
+}
+
+async function handleExportOutputBarcodeExcel(button = null) {
+    const tbody = document.getElementById('outputBarcodeTableBody');
+    if (!tbody) return;
+
+    const dataRows = (Array.isArray(filteredOutputBarcodeData) && filteredOutputBarcodeData.length > 0)
+        ? filteredOutputBarcodeData
+        : outputBarcodeRawData;
+
+    const domRows = tbody.querySelectorAll('tr:not(.table-empty-state)');
+    const totalCount = (Array.isArray(dataRows) && dataRows.length > 0) ? dataRows.length : domRows.length;
+
+    if (totalCount === 0) {
+        Toast.warning('Cảnh báo', 'Không có dữ liệu để xuất file Excel.');
+        return;
+    }
+
+    const confirmed = await showConfirm(
+        `Bạn có chắc chắn muốn xuất file Excel cho toàn bộ ${totalCount.toLocaleString()} dòng dữ liệu tem đầu ra?`
     );
     if (!confirmed) return;
 
     exportOutputBarcodeToExcel();
-    Toast.success('Thành công', 'Xuất file Excel thành công!');
+    Toast.success('Thành công', `Xuất file Excel thành công (${totalCount.toLocaleString()} dòng)!`);
 }
 
 function exportOutputBarcodeToExcel() {
     const table = document.getElementById('outputBarcodeTable');
     if (!table) return;
 
-    const cloneTable = table.cloneNode(true);
+    const dataRows = (Array.isArray(filteredOutputBarcodeData) && filteredOutputBarcodeData.length > 0)
+        ? filteredOutputBarcodeData
+        : outputBarcodeRawData;
 
-    // Remove hidden columns from export
-    cloneTable.querySelectorAll('th, td').forEach(el => {
-        if (el.style.display === 'none') {
-            el.remove();
-        }
+    exportDatasetToExcel({
+        rows: dataRows,
+        columns: outputBarcodeColumns,
+        tableElement: table,
+        sheetName: 'Barcode_Detail',
+        defaultFileName: 'KDMES_TOOL_' + getVietnamTimestamp() + '.xlsx'
     });
-
-    cloneTable.querySelectorAll('td[data-full-value]').forEach(td => {
-        td.textContent = td.dataset.fullValue;
-    });
-
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.table_to_sheet(cloneTable, { raw: true });
-    XLSX.utils.book_append_sheet(wb, ws, 'Barcode_Detail');
-
-    const fileName =
-        'KDMES_TOOL_' +
-        getVietnamTimestamp() +
-        '.xlsx';
-
-    XLSX.writeFile(wb, fileName);
 }
 
-async function handleExportSubOutputBarcodeExcel() {
+async function handleExportSubOutputBarcodeExcel(button = null) {
     const tbody = document.getElementById('subOutputBarcodeTableBody');
     if (!tbody) return;
 
-    const rows = tbody.querySelectorAll('tr:not(.table-empty-state)');
-    if (rows.length === 0) {
+    const dataRows = (Array.isArray(filteredSubOutputBarcodeData) && filteredSubOutputBarcodeData.length > 0)
+        ? filteredSubOutputBarcodeData
+        : subOutputRawData;
+
+    const domRows = tbody.querySelectorAll('tr:not(.table-empty-state)');
+    const totalCount = (Array.isArray(dataRows) && dataRows.length > 0) ? dataRows.length : domRows.length;
+
+    if (totalCount === 0) {
         Toast.warning('Cảnh báo', 'Không có dữ liệu để xuất file Excel.');
         return;
     }
 
     const confirmed = await showConfirm(
-        'Bạn có chắc chắn muốn xuất file Excel của dữ liệu trên?'
+        `Bạn có chắc chắn muốn xuất file Excel cho toàn bộ ${totalCount.toLocaleString()} dòng dữ liệu tem đầu ra cấp 2?`
     );
     if (!confirmed) return;
 
     exportSubOutputBarcodeToExcel();
-    Toast.success('Thành công', 'Xuất file Excel thành công!');
+    Toast.success('Thành công', `Xuất file Excel thành công (${totalCount.toLocaleString()} dòng)!`);
 }
 
 function exportSubOutputBarcodeToExcel() {
     const table = document.getElementById('subOutputBarcodeTable');
     if (!table) return;
 
-    const cloneTable = table.cloneNode(true);
+    const dataRows = (Array.isArray(filteredSubOutputBarcodeData) && filteredSubOutputBarcodeData.length > 0)
+        ? filteredSubOutputBarcodeData
+        : subOutputRawData;
 
-    // Remove hidden columns from export
-    cloneTable.querySelectorAll('th, td').forEach(el => {
-        if (el.style.display === 'none') {
-            el.remove();
-        }
+    exportDatasetToExcel({
+        rows: dataRows,
+        columns: subOutputColumns,
+        tableElement: table,
+        sheetName: 'MES_Output_Barcode',
+        defaultFileName: 'KDMES_TOOL_' + getVietnamTimestamp() + '.xlsx'
     });
-
-    cloneTable.querySelectorAll('td[data-full-value]').forEach(td => {
-        td.textContent = td.dataset.fullValue;
-    });
-
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.table_to_sheet(cloneTable, { raw: true });
-    XLSX.utils.book_append_sheet(wb, ws, 'MES_Output_Barcode');
-
-    const fileName =
-        'KDMES_TOOL_' +
-        getVietnamTimestamp() +
-        '.xlsx';
-
-    XLSX.writeFile(wb, fileName);
 }
 
 function getVietnamTimestamp() {

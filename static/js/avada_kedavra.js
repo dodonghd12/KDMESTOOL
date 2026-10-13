@@ -42,6 +42,22 @@
         window.customClientSearchHandler = function (keyword) {
             applyClientSearch(keyword);
         };
+
+        // Hook cung cấp dữ liệu xuất Excel toàn bộ trang (All Pages / Filtered Logs)
+        window.getPageExportData = function () {
+            return {
+                rows: filteredLogs.map(r => [
+                    r.server || '198.1.10.8',
+                    r.ip || '--',
+                    r.time || '--',
+                    r.note || '--'
+                ]),
+                columns: ['Máy chủ', 'Địa chỉ IP', 'Thời gian (UTC+7)', 'Ghi chú'],
+                filename: 'KDMES_Avada_Kedavra_Log_' + (typeof getVietnamTimestamp === 'function' ? getVietnamTimestamp() : new Date().toISOString().slice(0, 10)) + '.xlsx',
+                sheetName: 'Avada_Kedavra_Log'
+            };
+        };
+
         setTimeout(ensureClientSearchEnabled, 50);
         setTimeout(ensureClientSearchEnabled, 250);
 

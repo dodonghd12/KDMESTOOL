@@ -66,6 +66,16 @@ function initializeGitlabDeletedFiles() {
         applyAllFilters(true);
     };
 
+    // Hook cung cấp dữ liệu xuất Excel toàn bộ trang (All Pages / Filtered Records)
+    window.getPageExportData = function () {
+        return {
+            rows: currentFilteredRecords,
+            columns: tableColumns,
+            filename: 'KDMES_GitLab_Deleted_Files_' + (typeof getVietnamTimestamp === 'function' ? getVietnamTimestamp() : new Date().toISOString().slice(0, 10)) + '.xlsx',
+            sheetName: 'GitLab_Deleted_Files'
+        };
+    };
+
     // Tự động tải dữ liệu ban đầu khi mở trang
     fetchDeletedFilesLog();
 }
@@ -265,6 +275,9 @@ function applyAllFilters(resetPageToOne = false) {
     // rawTableData luôn chứa toàn bộ danh sách đã lọc (phục vụ Xuất Excel toàn bộ)
     rawTableData = currentFilteredRecords;
     rawTableColumns = tableColumns;
+    if (typeof filteredTableData !== 'undefined') {
+        filteredTableData = currentFilteredRecords;
+    }
 
     // 1. Tính toán lại tổng số trang (total pages)
     totalPages = calculateTotalPages(currentFilteredRecords.length, PAGE_SIZE);

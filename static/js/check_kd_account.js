@@ -88,6 +88,7 @@
         if (exportBtn) {
             exportBtn.addEventListener('click', (e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 exportAccountListToExcel();
             });
         }
@@ -827,9 +828,10 @@
             return;
         }
 
+        const totalCount = currentFilteredRecords.length;
         const confirmed = (typeof showConfirm === 'function')
-            ? await showConfirm('Bạn có chắc chắn muốn xuất dữ liệu tài khoản ra file Excel?')
-            : confirm('Bạn có chắc chắn muốn xuất dữ liệu tài khoản ra file Excel?');
+            ? await showConfirm(`Bạn có chắc chắn muốn xuất file Excel cho toàn bộ ${totalCount.toLocaleString()} tài khoản?`)
+            : confirm(`Bạn có chắc chắn muốn xuất file Excel cho toàn bộ ${totalCount.toLocaleString()} tài khoản?`);
         if (!confirmed) return;
 
         try {
@@ -853,9 +855,9 @@
             const ws = XLSX.utils.aoa_to_sheet(wsData);
             XLSX.utils.book_append_sheet(wb, ws, 'TaiKhoanMES');
 
-            const dateStr = new Date().toISOString().slice(0, 10);
+            const dateStr = (typeof getVietnamTimestamp === 'function') ? getVietnamTimestamp() : new Date().toISOString().slice(0, 10);
             XLSX.writeFile(wb, `danh_sach_tai_khoan_kdmes_${dateStr}.xlsx`);
-            Toast.success('Thành công', 'Xuất file Excel danh sách tài khoản thành công!');
+            Toast.success('Thành công', `Xuất file Excel thành công (${totalCount.toLocaleString()} tài khoản)!`);
         } catch (err) {
             console.error('Lỗi khi xuất Excel:', err);
             Toast.error('Lỗi', 'Không thể tạo file Excel');

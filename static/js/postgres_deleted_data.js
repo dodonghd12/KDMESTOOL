@@ -67,6 +67,16 @@ function initializePostgresDeletedData() {
         applyAllFilters(true);
     };
 
+    // Hook cung cấp dữ liệu xuất Excel toàn bộ trang (All Pages / Filtered Records)
+    window.getPageExportData = function () {
+        return {
+            rows: currentFilteredRecords,
+            columns: tableColumns,
+            filename: 'KDMES_Postgres_Deleted_Data_' + (typeof getVietnamTimestamp === 'function' ? getVietnamTimestamp() : new Date().toISOString().slice(0, 10)) + '.xlsx',
+            sheetName: 'Postgres_Deleted_Data'
+        };
+    };
+
     // Tự động tải dữ liệu khi vào trang
     fetchDeletedRecordsLog();
     fetchAuditSlotStatus();
@@ -380,6 +390,9 @@ function applyAllFilters(resetPageToOne = false) {
     // rawTableData luôn chứa toàn bộ danh sách đã lọc (phục vụ Xuất Excel & Insert Query toàn bộ)
     rawTableData = currentFilteredRecords;
     rawTableColumns = tableColumns;
+    if (typeof filteredTableData !== 'undefined') {
+        filteredTableData = currentFilteredRecords;
+    }
 
     // 1. Tính toán lại tổng số trang (total pages)
     totalPages = calculateTotalPages(currentFilteredRecords.length, PAGE_SIZE);
