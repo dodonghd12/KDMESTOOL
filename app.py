@@ -720,7 +720,7 @@ def serialize_row(row, column_names=None):
             serialized.append(json.dumps(value, indent=2, ensure_ascii=False, default=json_serial_fallback))
         elif isinstance(value, (list, tuple)) and value and isinstance(value[0], (dict, list)):
             serialized.append(json.dumps(value, indent=2, ensure_ascii=False, default=json_serial_fallback))
-        elif isinstance(value, (datetime, date, timedelta)):
+        elif isinstance(value, (datetime, date, timedelta, uuid.UUID)):
             serialized.append(str(value))
         else:
             serialized.append(value)
@@ -1123,6 +1123,10 @@ def print_barcode_history():
 @app.route('/reprint')
 def reprint():
     return render_page_or_shell('reprint.html', '/reprint', 'Truy vấn in bù')
+
+@app.route('/shipping-labels')
+def shipping_labels():
+    return render_page_or_shell('shipping_labels.html', '/shipping-labels', 'Tem vận chuyển')
 
 @app.route('/check-qc-data')
 def check_qc_data():
@@ -3263,6 +3267,64 @@ def search_substitutions():
             'result': [],
             'columns': column_names
         })
+
+@app.route('/api/barcodes/shipping-labels', methods=['POST'])
+@app.route('/api/shipping-labels', methods=['POST'])
+@login_required
+def get_shipping_labels():
+    columns_default = [
+        'id', 'from_location_oid', 'to_location_oid', 'status',
+        'product_id', 'product_type', 'quantity', 'transaction_time',
+        'created_at', 'created_by', 'material_resource_oid'
+    ]
+    data = request.get_json(silent=True) or {}
+    keyword = (data.get('keyword') or data.get('barcode') or '').strip()
+    if not keyword:
+        return jsonify({'success': True, 'result': [], 'columns': columns_default})
+    
+    # Escape SQL ILIKE pattern wildcards so literal %, _, \ are treated literally
+    clean_keyword = keyword.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+    
+    query = """
+        SELECT 
+            mr.id,
+            mrt.from_location_oid,
+            mrt.to_location_oid,
+            mrt.status,
+            mr.product_id,
+            mr.product_type,
+            mr.quantity,
+            mrt.transaction_time,
+            mrt.created_at,
+            mrt.created_by,
+            mrt.material_resource_oid
+        FROM kvmes.material_resource mr
+        JOIN kvmes.material_resource_transaction mrt 
+            ON mr.oid = mrt.material_resource_oid
+        WHERE mr.id ILIKE %s
+        ORDER BY mrt.transaction_time DESC, mrt.created_at DESC
+        LIMIT 500;
+    """
+    try:
+        result, column_names = execute_pg_select_query(query, (f"%{clean_keyword}%",))
+        if result:
+            convert_columns = ["transaction_time", "created_at"]
+            result = convert_timestamp(result, column_names, convert_columns)
+            serialized_result = [serialize_row(list(row), column_names) for row in result]
+            return jsonify({
+                'success': True,
+                'result': serialized_result,
+                'columns': column_names
+            })
+        else:
+            return jsonify({
+                'success': True,
+                'result': [],
+                'columns': column_names
+            })
+    except Exception as e:
+        logger.error(f"Error fetching shipping labels: {e}")
+        return jsonify({'success': False, 'message': f'Lỗi truy vấn: {str(e)}'}), 500
     
 @app.route('/api/recipes/fetch-work-orders', methods=['POST'])
 @login_required

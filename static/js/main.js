@@ -1440,7 +1440,7 @@ function initializeMainEventListeners() {
     const feedRecordInput = document.getElementById('feed_record_id');
     const workOrderInput = document.getElementById('work_order');
 
-    if (barcodeInput) {
+    if (barcodeInput && !document.body.classList.contains('shipping-labels')) {
         barcodeInput.addEventListener(
             'input',
             debounceSearch(searchBarcode, 500)
@@ -7168,13 +7168,13 @@ async function processOcrImageFile(file, targetInput = null) {
         if (pctEl) pctEl.textContent = '100%';
         if (barEl) barEl.style.width = '100%';
 
-        // Loại bỏ toàn bộ ký tự đặc biệt (*, #, $, @, etc.), chỉ giữ lại ký tự chữ cái và chữ số
+        // Loại bỏ toàn bộ ký tự gây nhiễu (*, #, $, @, etc.), giữ lại ký tự chữ cái, số, gạch ngang, gạch dưới, gạch đứng
         if (rawText) {
-            rawText = rawText.replace(/[^a-zA-Z0-9]/g, '').trim();
+            rawText = rawText.replace(/[^a-zA-Z0-9\-_|]/g, '').trim();
         }
 
         if (!rawText) {
-            Toast.warning('Không có ký tự', 'Không tìm thấy ký tự chữ hoặc số nào trong hình ảnh.');
+            Toast.warning('Không có ký tự', 'Không tìm thấy ký tự hợp lệ nào trong hình ảnh.');
             resetOcrDropzone();
             return;
         }
@@ -7191,9 +7191,11 @@ async function processOcrImageFile(file, targetInput = null) {
             resultTextEl.setAttribute('title', rawText);
         }
 
-        // Điền tự động vào input đang được focus (ví dụ #barcode) nếu có
+        // Điền tự động vào input đang được focus (hoặc mặc định #barcode)
         const barcodeEl = document.getElementById('barcode');
-        const fillTarget = targetInput || (barcodeEl && barcodeEl === document.activeElement ? barcodeEl : null);
+        const activeEl = document.activeElement;
+        const isActiveInput = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA') && !activeEl.disabled && !activeEl.readOnly;
+        const fillTarget = targetInput || (isActiveInput ? activeEl : (barcodeEl || null));
 
         if (fillTarget) {
             fillTarget.value = rawText.toUpperCase();

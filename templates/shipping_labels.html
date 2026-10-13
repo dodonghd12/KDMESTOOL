@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tem vận chuyển</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v={{ version }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/smooth_input.css') }}?v={{ version }}">
+
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/favicon.svg') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome/css/all.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/flatpickr/flatpickr.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/material-symbols/material-symbols.css') }}">
+</head>
+<body class="shipping-labels {% if is_frame %}is-spa-frame{% endif %} app-loading-state">
+    {% if not is_frame %}{% include "components/sidebar.html" %}{% endif %}
+    <!-- <canvas id="starfield"></canvas> -->
+    <div class="container" autocomplete="off">
+        <div class="search-section">
+            <div class="search-row">
+                <div class="input-box" id="barcodeInputBox">
+                    <input required placeholder=" " type="text" id="barcode" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="input">
+                    <label class="user-label">Tem / Barcode</label>
+                </div>
+            </div>
+            <div class="search-row search-row-client">
+                <div class="input-wrapper">
+                    <input placeholder="Tìm kiếm trong bảng..." class="input" id="clientSearch" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text" aria-label="Tìm kiếm trong bảng">
+                </div>
+            </div>
+            <div class="search-row search-row-ocr">
+                <div class="ocr-dropzone" id="ocrDropzone" tabindex="0" role="button" aria-label="Kéo thả, dán ảnh (Ctrl+V) hoặc nhấp để nhận diện chữ" title="Nhấp chuột để chọn file ảnh | Nhấn Ctrl+V để dán ảnh bất kỳ lúc nào | Kéo thả ảnh vào đây">
+                    <input type="file" id="ocrFileInput" accept="image/*" style="display:none;" onchange="handleOcrFileSelected(event)">
+
+                    <!-- State 1: Chờ ảnh (Idle) -->
+                    <div class="ocr-state ocr-state-idle" id="ocrStateIdle">
+                        <div class="ocr-icon-wrap">
+                            <span class="material-symbols-outlined ocr-cloud-icon">document_scanner</span>
+                        </div>
+                        <div class="ocr-text-wrap">
+                            <span class="ocr-title">Image to Text</span>
+                            <span class="ocr-subtitle">Drop / Ctrl+V / Click to upload</span>
+                        </div>
+                    </div>
+
+                    <!-- State 2: Đang quét nhận diện chữ (Loading) -->
+                    <div class="ocr-state ocr-state-loading" id="ocrStateLoading" style="display:none;">
+                        <div class="ocr-loading-meta">
+                            <div class="ocr-loading-badge">
+                                <span class="material-symbols-outlined ocr-spin-icon">progress_activity</span>
+                            </div>
+                            <div class="ocr-loading-info">
+                                <span class="ocr-loading-name" id="ocrLoadingFileName">Đang đọc ảnh...</span>
+                                <span class="ocr-loading-desc" id="ocrLoadingStatus">Nhận diện ký tự OCR</span>
+                            </div>
+                            <span class="ocr-loading-pct" id="ocrLoadingPercent">0%</span>
+                        </div>
+                        <div class="ocr-progress-track">
+                            <div class="ocr-progress-bar" id="ocrProgressBar"></div>
+                        </div>
+                    </div>
+
+                    <!-- State 3: Preview kết quả đã nhận diện (Preview) -->
+                    <div class="ocr-state ocr-state-preview" id="ocrStatePreview" style="display:none;">
+                        <div class="ocr-result-box" id="ocrResultBox" title="Nhấp để sao chép nhanh">
+                            <span class="ocr-result-text" id="ocrResultText">...</span>
+                        </div>
+                        <button type="button" class="details-modal-copy ocr-copy-btn" id="ocrCopyBtn" title="Sao chép nội dung" aria-label="Sao chép văn bản đã nhận diện">
+                            <span class="material-symbols-outlined" aria-hidden="true">content_copy</span>
+                            <span>Copy</span>
+                        </button>
+                        <button type="button" class="ocr-remove-btn" id="ocrRemoveBtn" onclick="resetOcrDropzone(event)" title="Quét ảnh khác" aria-label="Xóa kết quả">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <div class="table-scroll">
+                <table>
+                    <thead id="tableHead"></thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+
+            <div class="table-footer hidden">
+                <div class="row-count">Số dòng: <span id="rowCount">0</span></div>
+                <button class="btn-export-excel" id="exportExcelBtn" aria-label="Xuất dữ liệu ra file Excel">
+                    <div class="btn-export-excel-wrapper">
+                        <div class="text">Xuất Excel</div>
+                        <span class="icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" width="2em" height="2em" preserveAspectRatio="xMidYMid meet" viewBox="0 0 24 24">
+                                <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 0 0 4.561 21h14.878a2 2 0 0 0 1.94-1.515L22 17"></path>
+                            </svg>
+                        </span>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    {% include "components/shared_modals.html" %}
+
+    <script src="{{ url_for('static', filename='vendor/xlsx/xlsx.full.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='vendor/tesseract.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/smooth_input.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/shipping_labels.js') }}?v={{ version }}"></script>
+</body>
+</html>

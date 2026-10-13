@@ -8,6 +8,7 @@
         { path: '/print-barcode-history', frameId: 'view-print-barcode-history', title: 'Lịch sử in tem theo Máy' },
         { path: '/validate-scan-barcode', frameId: 'view-validate-scan-barcode', title: 'Kiểm tra cấp liệu' },
         { path: '/reprint', frameId: 'view-reprint', title: 'Truy vấn in bù' },
+        { path: '/shipping-labels', frameId: 'view-shipping-labels', title: 'Tem vận chuyển' },
         { path: '/substitutions', frameId: 'view-substitutions', title: 'NVL thay thế' },
         { path: '/check-qc-data', frameId: 'view-check-qc-data', title: 'Check QC Data' },
         { path: '/check-mesync', frameId: 'view-check-mesync', title: 'Check Mesync' },
