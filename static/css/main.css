@@ -9523,65 +9523,37 @@ mark.barcode-search-match {
 }
 
 /* ===== TEM VẬN CHUYỂN (SHIPPING LABELS) STYLES ===== */
-.shipping-status-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 3px 10px;
-    border-radius: 9999px;
-    font-size: 12px;
+.shipping-status-text {
+    font-size: 13px;
     font-weight: 600;
-    line-height: 1.2;
-    letter-spacing: 0.02em;
+    line-height: 1.4;
     user-select: none;
     white-space: nowrap;
+    background: transparent !important;
+    border: none !important;
 }
 
-.shipping-status-badge .badge-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background-color: currentColor;
-    box-shadow: 0 0 6px currentColor;
-    flex-shrink: 0;
-}
-
-.shipping-status-badge.status-succeeded {
-    background: rgba(16, 185, 129, 0.15);
+.shipping-status-text.status-succeeded {
     color: #10b981;
-    border: 1px solid rgba(16, 185, 129, 0.35);
 }
 
-.shipping-status-badge.status-failed {
-    background: rgba(239, 68, 68, 0.15);
+.shipping-status-text.status-failed {
     color: #ef4444;
-    border: 1px solid rgba(239, 68, 68, 0.35);
 }
 
-.shipping-status-badge.status-pending {
-    background: rgba(245, 158, 11, 0.15);
+.shipping-status-text.status-pending {
     color: #f59e0b;
-    border: 1px solid rgba(245, 158, 11, 0.35);
 }
 
-.shipping-location-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 3px 8px;
-    border-radius: 6px;
-    font-size: 12px;
-    font-weight: 500;
-    background: rgba(56, 189, 248, 0.12);
+.shipping-location-text {
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.4;
     color: #38bdf8;
-    border: 1px solid rgba(56, 189, 248, 0.25);
     user-select: none;
     white-space: nowrap;
-}
-
-.shipping-location-pill .location-icon {
-    font-size: 14px;
-    line-height: 1;
+    background: transparent !important;
+    border: none !important;
 }
 
 .shipping-barcode-code {
@@ -9592,32 +9564,24 @@ mark.barcode-search-match {
 }
 
 /* Light Theme overrides for Shipping Labels */
-:root[data-theme="light"] .shipping-status-badge.status-succeeded,
-body.theme-light .shipping-status-badge.status-succeeded {
-    background: rgba(16, 185, 129, 0.12);
+:root[data-theme="light"] .shipping-status-text.status-succeeded,
+body.theme-light .shipping-status-text.status-succeeded {
     color: #059669;
-    border-color: rgba(5, 150, 105, 0.3);
 }
 
-:root[data-theme="light"] .shipping-status-badge.status-failed,
-body.theme-light .shipping-status-badge.status-failed {
-    background: rgba(239, 68, 68, 0.12);
+:root[data-theme="light"] .shipping-status-text.status-failed,
+body.theme-light .shipping-status-text.status-failed {
     color: #dc2626;
-    border-color: rgba(220, 38, 38, 0.3);
 }
 
-:root[data-theme="light"] .shipping-status-badge.status-pending,
-body.theme-light .shipping-status-badge.status-pending {
-    background: rgba(245, 158, 11, 0.12);
+:root[data-theme="light"] .shipping-status-text.status-pending,
+body.theme-light .shipping-status-text.status-pending {
     color: #d97706;
-    border-color: rgba(217, 119, 6, 0.3);
 }
 
-:root[data-theme="light"] .shipping-location-pill,
-body.theme-light .shipping-location-pill {
-    background: rgba(2, 132, 199, 0.1);
+:root[data-theme="light"] .shipping-location-text,
+body.theme-light .shipping-location-text {
     color: #0284c7;
-    border-color: rgba(2, 132, 199, 0.3);
 }
 
 :root[data-theme="light"] .shipping-barcode-code,

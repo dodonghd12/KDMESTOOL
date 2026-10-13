@@ -19,12 +19,12 @@ const LOCATION_NAME_MAP = {
 };
 
 const COLUMN_HEADERS_MAP = {
-    'id': 'Mã Tem / Barcode',
-    'from_location_oid': 'Kho chuyển (Từ)',
-    'to_location_oid': 'Kho nhận (Đến)',
+    'id': 'Barcode',
+    'from_location_oid': 'Kho chuyển',
+    'to_location_oid': 'Kho nhận',
     'status': 'Trạng thái',
-    'product_id': 'Quy cách (Product ID)',
-    'product_type': 'Loại SP (Type)',
+    'product_id': 'Quy cách',
+    'product_type': 'Loại SP',
     'quantity': 'Số lượng',
     'transaction_time': 'Thời gian giao dịch',
     'created_at': 'Thời gian tạo',
@@ -217,28 +217,28 @@ function applyShippingTableEnhancements() {
             const cells = tr.querySelectorAll('td');
             if (cells.length < currentRawCols.length) return;
 
-            // 1. Status Badge
+            // 1. Status Text (no background, no border, no icon)
             if (statusIdx !== -1 && cells[statusIdx]) {
                 const cell = cells[statusIdx];
                 const statusText = cell.textContent.trim().toUpperCase();
                 const safeStatus = (typeof escapeHtml === 'function') ? escapeHtml(statusText) : statusText;
-                if (statusText === 'SUCCEEDED' && !cell.querySelector('.shipping-status-badge')) {
-                    cell.innerHTML = `<span class="shipping-status-badge status-succeeded"><span class="badge-dot"></span>SUCCEEDED</span>`;
-                } else if (statusText === 'FAILED' && !cell.querySelector('.shipping-status-badge')) {
-                    cell.innerHTML = `<span class="shipping-status-badge status-failed"><span class="badge-dot"></span>FAILED</span>`;
-                } else if (statusText && statusText !== '-' && !cell.querySelector('.shipping-status-badge')) {
-                    cell.innerHTML = `<span class="shipping-status-badge status-pending"><span class="badge-dot"></span>${safeStatus}</span>`;
+                if (statusText === 'SUCCEEDED' && !cell.querySelector('.shipping-status-text')) {
+                    cell.innerHTML = `<span class="shipping-status-text status-succeeded">SUCCEEDED</span>`;
+                } else if (statusText === 'FAILED' && !cell.querySelector('.shipping-status-text')) {
+                    cell.innerHTML = `<span class="shipping-status-text status-failed">FAILED</span>`;
+                } else if (statusText && statusText !== '-' && !cell.querySelector('.shipping-status-text')) {
+                    cell.innerHTML = `<span class="shipping-status-text status-pending">${safeStatus}</span>`;
                 }
             }
 
-            // 2. Location Pills
+            // 2. Location Text (no background, no border, no icon)
             [fromLocIdx, toLocIdx].forEach(locIdx => {
                 if (locIdx !== -1 && cells[locIdx]) {
                     const cell = cells[locIdx];
                     const locText = cell.textContent.trim();
                     const safeLoc = (typeof escapeHtml === 'function') ? escapeHtml(locText) : locText;
-                    if (locText && locText !== '-' && !cell.querySelector('.shipping-location-pill')) {
-                        cell.innerHTML = `<span class="shipping-location-pill"><span class="material-symbols-outlined location-icon">warehouse</span>${safeLoc}</span>`;
+                    if (locText && locText !== '-' && !cell.querySelector('.shipping-location-text')) {
+                        cell.innerHTML = `<span class="shipping-location-text">${safeLoc}</span>`;
                     }
                 }
             });
