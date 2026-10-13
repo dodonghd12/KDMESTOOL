@@ -617,10 +617,67 @@ def json_serial_fallback(obj):
         return str(obj)
     return str(obj)
 
-def serialize_row(row):
+def format_pg_array_literal(val):
+    """
+    Format a value into a valid PostgreSQL array literal string (e.g. '{elem1,elem2}' or '{}').
+    Handles lists, tuples, sets, strings (including JSON arrays or existing PG arrays), and empty/None values.
+    """
+    if val is None or isinstance(val, bool):
+        return '{}'
+    if isinstance(val, (list, tuple, set)):
+        items = []
+        for x in val:
+            if x is not None:
+                sx = str(x).strip().strip("'\"")
+                if sx and sx not in ('None', 'null', 'NULL', '-'):
+                    items.append(sx)
+        if not items:
+            return '{}'
+        return f"{{{','.join(items)}}}"
+    
+    s = str(val).strip()
+    if not s or s in ('-', 'null', 'NULL', 'None'):
+        return '{}'
+    
+    # Unwrap matching outer quotes if any
+    while len(s) >= 2 and ((s.startswith("'") and s.endswith("'")) or (s.startswith('"') and s.endswith('"'))):
+        s = s[1:-1].strip()
+        
+    if not s or s in ('-', 'null', 'NULL', 'None'):
+        return '{}'
+    
+    if s.startswith('[') and s.endswith(']'):
+        try:
+            parsed = json.loads(s)
+            if isinstance(parsed, list):
+                return format_pg_array_literal(parsed)
+        except Exception:
+            pass
+        inner = s[1:-1].strip()
+        if not inner:
+            return '{}'
+        elements = [e.strip().strip("'\"") for e in inner.split(',') if e.strip().strip("'\"") and e.strip().strip("'\"") not in ('None', 'null', 'NULL', '-')]
+        return f"{{{','.join(elements)}}}" if elements else '{}'
+        
+    if s.startswith('{') and s.endswith('}'):
+        inner = s[1:-1].strip()
+        if not inner:
+            return '{}'
+        elements = [e.strip().strip("'\"") for e in inner.split(',') if e.strip().strip("'\"") and e.strip().strip("'\"") not in ('None', 'null', 'NULL', '-')]
+        return f"{{{','.join(elements)}}}" if elements else '{}'
+        
+    cleaned = s.strip("'\"")
+    if not cleaned or cleaned in ('-', 'null', 'NULL', 'None'):
+        return '{}'
+    return f"{{{cleaned}}}"
+
+def serialize_row(row, column_names=None):
     serialized = []
-    for value in row:
-        if isinstance(value, Decimal):
+    for idx, value in enumerate(row):
+        col_name = column_names[idx] if column_names and idx < len(column_names) else None
+        if col_name in ('feed_records_id', 'records_id'):
+            serialized.append(format_pg_array_literal(value))
+        elif isinstance(value, Decimal):
             serialized.append(float(value) if value % 1 else int(value))
         elif isinstance(value, dict):
             serialized.append(json.dumps(value, indent=2, ensure_ascii=False, default=json_serial_fallback))
@@ -1274,6 +1331,18 @@ def get_postgres_deleted_records_log():
                         record_oid = item.get('record_oid') or ''
                         data = item.get('data') or {}
                         
+                        if isinstance(data, str):
+                            try:
+                                data = json.loads(data)
+                            except Exception:
+                                pass
+
+                        if isinstance(data, dict):
+                            if 'feed_records_id' in data:
+                                data['feed_records_id'] = format_pg_array_literal(data['feed_records_id'])
+                            if 'records_id' in data:
+                                data['records_id'] = format_pg_array_literal(data['records_id'])
+                        
                         unique_key = (raw_ts, schema, table, client_ip, record_oid, str(data))
                         if unique_key in seen:
                             continue
@@ -1359,6 +1428,19 @@ def get_pg_table_columns_meta(schema_name, table_name):
     return cols
 
 def format_pg_sql_literal(val, col_meta=None):
+    if col_meta:
+        col_name = col_meta.get('name', '')
+        col_type = col_meta.get('type', '')
+        col_udt = str(col_meta.get('udt', ''))
+        is_array_col = (col_name in ('feed_records_id', 'records_id')) or (col_type == 'ARRAY') or col_udt.startswith('_')
+    else:
+        is_array_col = False
+
+    if is_array_col:
+        arr_lit = format_pg_array_literal(val)
+        escaped = arr_lit.replace("'", "''")
+        return f"'{escaped}'"
+
     if val is None:
         return 'NULL'
     if isinstance(val, bool):
@@ -1412,6 +1494,11 @@ def generate_postgres_insert_query():
             if not isinstance(data, dict):
                 continue
             
+            if 'feed_records_id' in data:
+                data['feed_records_id'] = format_pg_array_literal(data['feed_records_id'])
+            if 'records_id' in data:
+                data['records_id'] = format_pg_array_literal(data['records_id'])
+            
             k = (schema, table)
             if k not in grouped:
                 grouped[k] = []
@@ -1440,7 +1527,10 @@ def generate_postgres_insert_query():
                     for k in d.keys():
                         if k not in all_keys:
                             all_keys.append(k)
-                active_cols = [{'name': k, 'type': 'text', 'udt': 'text'} for k in all_keys]
+                active_cols = [
+                    {'name': k, 'type': 'ARRAY' if k in ('feed_records_id', 'records_id') else 'text', 'udt': '_text' if k in ('feed_records_id', 'records_id') else 'text'}
+                    for k in all_keys
+                ]
                 
             col_names = [c['name'] for c in active_cols]
             col_names_str = ', '.join(col_names)
@@ -1489,7 +1579,13 @@ def search_barcode():
     if result:
         convert_columns = ["expiry_time", "updated_at", "created_at", "standing_time"]
         result = convert_timestamp(result, column_names, convert_columns)
-        serialized_result = [serialize_row(list(row)) for row in result]
+        if 'feed_records_id' in column_names:
+            fr_idx = column_names.index('feed_records_id')
+            result = [
+                tuple(format_pg_array_literal(v) if i == fr_idx else v for i, v in enumerate(row))
+                for row in result
+            ]
+        serialized_result = [serialize_row(list(row), column_names) for row in result]
         return jsonify({
             'success': True,
             'result': serialized_result,
@@ -1579,7 +1675,13 @@ def search_feed_record():
     if result:
         convert_columns = ["expiry_time", "updated_at", "created_at", "standing_time"]
         result = convert_timestamp(result, column_names, convert_columns)
-        serialized_result = [serialize_row(list(row)) for row in result]
+        if 'feed_records_id' in column_names:
+            fr_idx = column_names.index('feed_records_id')
+            result = [
+                tuple(format_pg_array_literal(v) if i == fr_idx else v for i, v in enumerate(row))
+                for row in result
+            ]
+        serialized_result = [serialize_row(list(row), column_names) for row in result]
         return jsonify({
             'success': True,
             'result': serialized_result,

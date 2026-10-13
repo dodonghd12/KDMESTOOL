@@ -483,7 +483,29 @@ async function fetchDeletedRecordsLog() {
         }
 
         if (data && Array.isArray(data.result)) {
-            allFetchedRecords = data.result;
+            allFetchedRecords = data.result.map(row => {
+                if (row && row.length >= 5 && row[4]) {
+                    try {
+                        const parsedData = (typeof row[4] === 'string') ? JSON.parse(row[4]) : row[4];
+                        if (parsedData && typeof parsedData === 'object') {
+                            if ('feed_records_id' in parsedData) {
+                                parsedData.feed_records_id = (typeof formatPgArrayString === 'function')
+                                    ? formatPgArrayString(parsedData.feed_records_id)
+                                    : (Array.isArray(parsedData.feed_records_id)
+                                        ? (parsedData.feed_records_id.length > 0 ? `{${parsedData.feed_records_id.join(',')}}` : '{}')
+                                        : String(parsedData.feed_records_id || '{}'));
+                            }
+                            if ('records_id' in parsedData) {
+                                parsedData.records_id = (typeof formatPgArrayString === 'function')
+                                    ? formatPgArrayString(parsedData.records_id)
+                                    : String(parsedData.records_id || '{}');
+                            }
+                            row[4] = JSON.stringify(parsedData);
+                        }
+                    } catch (e) {}
+                }
+                return row;
+            });
             tableColumns = data.columns || ['Table', 'Time', 'client_ip', 'Database', 'Data'];
 
             applyAllFilters(true);

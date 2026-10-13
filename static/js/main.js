@@ -1846,6 +1846,63 @@ async function searchRecipeYamlFiles(keyword, projectId = 135, projectName = 'Gi
     }
 }
 
+function formatPgArrayString(val) {
+    if (val === null || val === undefined) {
+        return '{}';
+    }
+    if (typeof val === 'boolean') {
+        return '{}';
+    }
+    if (Array.isArray(val)) {
+        const items = val
+            .filter(x => x !== null && x !== undefined)
+            .map(x => String(x).trim().replace(/^['"]|['"]$/g, ''))
+            .filter(x => x.length > 0 && x !== 'null' && x !== 'NULL' && x !== 'None' && x !== '-');
+        if (items.length === 0) return '{}';
+        return `{${items.join(',')}}`;
+    }
+    let s = String(val).trim();
+    if (!s || s === '-' || s === 'null' || s === 'NULL' || s === 'None') {
+        return '{}';
+    }
+    // Unwrap outer quotes if any (e.g. "'...'" or '"..."')
+    while (s.length >= 2 && ((s.startsWith("'") && s.endsWith("'")) || (s.startsWith('"') && s.endsWith('"')))) {
+        s = s.slice(1, -1).trim();
+    }
+    if (!s || s === '-' || s === 'null' || s === 'NULL' || s === 'None') {
+        return '{}';
+    }
+    if (s.startsWith('[') && s.endsWith(']')) {
+        try {
+            const parsed = JSON.parse(s);
+            if (Array.isArray(parsed)) {
+                return formatPgArrayString(parsed);
+            }
+        } catch (e) {}
+        const inner = s.slice(1, -1).trim();
+        if (!inner) return '{}';
+        const elements = inner.split(',')
+            .map(e => e.trim().replace(/^['"]|['"]$/g, ''))
+            .filter(e => e.length > 0 && e !== 'null' && e !== 'NULL' && e !== 'None');
+        return elements.length > 0 ? `{${elements.join(',')}}` : '{}';
+    }
+    if (s.startsWith('{') && s.endsWith('}')) {
+        const inner = s.slice(1, -1).trim();
+        if (!inner) return '{}';
+        const elements = inner.split(',')
+            .map(e => e.trim().replace(/^['"]|['"]$/g, ''))
+            .filter(e => e.length > 0 && e !== 'null' && e !== 'NULL' && e !== 'None');
+        return elements.length > 0 ? `{${elements.join(',')}}` : '{}';
+    }
+    // Single bare element
+    const cleaned = s.replace(/^['"]|['"]$/g, '').trim();
+    if (!cleaned || cleaned === '-' || cleaned === 'null' || cleaned === 'NULL' || cleaned === 'None') {
+        return '{}';
+    }
+    return `{${cleaned}}`;
+}
+window.formatPgArrayString = formatPgArrayString;
+
 function displayTable(result, columns) {
     const thead = document.getElementById('tableHead');
     const tbody = document.getElementById('tableBody');
@@ -1936,12 +1993,16 @@ function displayTable(result, columns) {
         tr.dataset.index = index;
         row.forEach((cell, cellIndex) => {
             const td = document.createElement('td');
+            const colName = (columns && columns.length > cellIndex) ? String(columns[cellIndex]).trim() : '';
 
             // Format cell value - if it's an object, convert to JSON
             let cellValue = '';
             let fullValue = '';
 
-            if (cell !== null && cell !== undefined) {
+            if (colName === 'feed_records_id') {
+                fullValue = formatPgArrayString(cell);
+                cellValue = fullValue;
+            } else if (cell !== null && cell !== undefined) {
                 if (typeof cell === 'object') {
                     try {
                         fullValue = JSON.stringify(cell, null, 2);
@@ -1956,7 +2017,12 @@ function displayTable(result, columns) {
                 }
             }
 
-            if (cell === null || cell === undefined || cellValue.trim() === '' || cellValue.trim().toLowerCase() === 'null' || cellValue.trim().toLowerCase() === 'undefined') {
+            if (colName === 'feed_records_id') {
+                if (!cellValue || cellValue === '-' || cellValue.toLowerCase() === 'null') {
+                    cellValue = '{}';
+                    fullValue = '{}';
+                }
+            } else if (cell === null || cell === undefined || cellValue.trim() === '' || cellValue.trim().toLowerCase() === 'null' || cellValue.trim().toLowerCase() === 'undefined') {
                 cellValue = '-';
                 fullValue = '-';
             }
@@ -3781,8 +3847,28 @@ function showDetailsModal(data) {
     }
     window._currentRawYamlContent = null;
 
+    function normalizePgArraysInObject(obj) {
+        if (!obj || typeof obj !== 'object') return obj;
+        if (Array.isArray(obj)) {
+            return obj.map(item => normalizePgArraysInObject(item));
+        }
+        for (const k of Object.keys(obj)) {
+            if (k === 'feed_records_id' || k === 'records_id') {
+                obj[k] = formatPgArrayString(obj[k]);
+            } else if (obj[k] && typeof obj[k] === 'object') {
+                normalizePgArraysInObject(obj[k]);
+            }
+        }
+        return obj;
+    }
+
     const processedData = {};
     for (const [key, value] of Object.entries(data)) {
+        if (key === 'feed_records_id' || key === 'records_id') {
+            processedData[key] = formatPgArrayString(value);
+            continue;
+        }
+
         if (typeof value === 'string') {
             const trimmed = value.trim();
             if (
@@ -3799,6 +3885,10 @@ function showDetailsModal(data) {
             }
         } else {
             processedData[key] = value;
+        }
+
+        if (processedData[key] && typeof processedData[key] === 'object') {
+            normalizePgArraysInObject(processedData[key]);
         }
     }
 
@@ -5696,7 +5786,7 @@ function renderOutputBarcodeTable(rows, columns) {
         const tr = document.createElement('tr');
         row.forEach((val, valIdx) => {
             const td = document.createElement('td');
-            const colName = (columns && columns.length > valIdx) ? columns[valIdx] : null;
+            const colName = (columns && columns.length > valIdx) ? String(columns[valIdx]).trim() : '';
             if (colName && hiddenColumns.includes(colName)) {
                 td.style.display = 'none';
             }
@@ -5704,7 +5794,10 @@ function renderOutputBarcodeTable(rows, columns) {
             let cellValue = '';
             let fullValue = '';
 
-            if (val !== null && val !== undefined) {
+            if (colName === 'feed_records_id') {
+                fullValue = formatPgArrayString(val);
+                cellValue = fullValue;
+            } else if (val !== null && val !== undefined) {
                 if (typeof val === 'object') {
                     try {
                         fullValue = JSON.stringify(val, null, 2);
@@ -5719,7 +5812,12 @@ function renderOutputBarcodeTable(rows, columns) {
                 }
             }
 
-            if (val === null || val === undefined || cellValue.trim() === '' || cellValue.trim().toLowerCase() === 'null' || cellValue.trim().toLowerCase() === 'undefined') {
+            if (colName === 'feed_records_id') {
+                if (!cellValue || cellValue === '-' || cellValue.toLowerCase() === 'null') {
+                    cellValue = '{}';
+                    fullValue = '{}';
+                }
+            } else if (val === null || val === undefined || cellValue.trim() === '' || cellValue.trim().toLowerCase() === 'null' || cellValue.trim().toLowerCase() === 'undefined') {
                 cellValue = '-';
                 fullValue = '-';
             }
@@ -5849,7 +5947,7 @@ function renderSubOutputBarcodeTable(rows, columns) {
         const tr = document.createElement('tr');
         row.forEach((val, valIdx) => {
             const td = document.createElement('td');
-            const colName = (columns && columns.length > valIdx) ? columns[valIdx] : null;
+            const colName = (columns && columns.length > valIdx) ? String(columns[valIdx]).trim() : '';
             if (colName && hiddenColumns.includes(colName)) {
                 td.style.display = 'none';
             }
@@ -5857,7 +5955,10 @@ function renderSubOutputBarcodeTable(rows, columns) {
             let cellValue = '';
             let fullValue = '';
 
-            if (val !== null && val !== undefined) {
+            if (colName === 'feed_records_id') {
+                fullValue = formatPgArrayString(val);
+                cellValue = fullValue;
+            } else if (val !== null && val !== undefined) {
                 if (typeof val === 'object') {
                     try {
                         fullValue = JSON.stringify(val, null, 2);
@@ -5872,7 +5973,12 @@ function renderSubOutputBarcodeTable(rows, columns) {
                 }
             }
 
-            if (val === null || val === undefined || cellValue.trim() === '' || cellValue.trim().toLowerCase() === 'null' || cellValue.trim().toLowerCase() === 'undefined') {
+            if (colName === 'feed_records_id') {
+                if (!cellValue || cellValue === '-' || cellValue.toLowerCase() === 'null') {
+                    cellValue = '{}';
+                    fullValue = '{}';
+                }
+            } else if (val === null || val === undefined || cellValue.trim() === '' || cellValue.trim().toLowerCase() === 'null' || cellValue.trim().toLowerCase() === 'undefined') {
                 cellValue = '-';
                 fullValue = '-';
             }
