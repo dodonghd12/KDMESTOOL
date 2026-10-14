@@ -6194,7 +6194,7 @@ def get_rapid_ocr_engine():
             return _rapid_ocr_engine, None
         try:
             from rapidocr_onnxruntime import RapidOCR
-            _rapid_ocr_engine = RapidOCR(Det_limit_type='max', Det_limit_side_len=720, use_angle_cls=False)
+            _rapid_ocr_engine = RapidOCR(det_model_path=None, det_limit_type='max', det_limit_side_len=960)
             print("[INFO] RapidOCR Engine initialized successfully from system packages.")
             return _rapid_ocr_engine, None
         except Exception as _sys_err:
@@ -6213,7 +6213,7 @@ def get_rapid_ocr_engine():
                 os.environ["PATH"] = os.pathsep.join(_extra_paths) + os.pathsep + os.environ.get("PATH", "")
                 try:
                     from rapidocr_onnxruntime import RapidOCR
-                    _rapid_ocr_engine = RapidOCR(Det_limit_type='max', Det_limit_side_len=720, use_angle_cls=False)
+                    _rapid_ocr_engine = RapidOCR(det_model_path=None, det_limit_type='max', det_limit_side_len=960)
                     print("[INFO] RapidOCR Engine initialized successfully from bundled ocr_libs.")
                     return _rapid_ocr_engine, None
                 except Exception as _ocr_init_err:
@@ -6376,11 +6376,18 @@ def ocr_recognize():
         t0 = time.perf_counter()
 
         img = Image.open(io.BytesIO(image_bytes))
-        if img.mode != 'RGB':
+        if img.mode in ('RGBA', 'LA') or (img.mode == 'P' and 'transparency' in img.info):
+            bg = Image.new('RGB', img.size, (255, 255, 255))
+            if img.mode != 'RGBA':
+                img = img.convert('RGBA')
+            bg.paste(img, mask=img.split()[3])
+            img = bg
+        elif img.mode != 'RGB':
             img = img.convert('RGB')
-        # Tối ưu kích thước: Nếu ảnh quá lớn từ điện thoại/camera (>1280px), resize để tăng tốc độ nhận diện
-        if max(img.width, img.height) > 1280:
-            img.thumbnail((1280, 1280), Image.Resampling.LANCZOS)
+
+        # Tối ưu kích thước: Nếu ảnh quá lớn từ điện thoại/camera (>960px), resize nhanh để tăng tốc độ nhận diện
+        if max(img.width, img.height) > 960:
+            img.thumbnail((960, 960), Image.Resampling.BILINEAR)
         img_np = np.array(img)
 
         result, elapse = engine(img_np, use_angle_cls=False)
