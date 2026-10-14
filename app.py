@@ -1124,9 +1124,9 @@ def print_barcode_history():
 def reprint():
     return render_page_or_shell('reprint.html', '/reprint', 'Truy vấn in bù')
 
-@app.route('/shipping-labels')
-def shipping_labels():
-    return render_page_or_shell('shipping_labels.html', '/shipping-labels', 'Tem vận chuyển')
+@app.route('/material-transfer')
+def material_transfer():
+    return render_page_or_shell('material_transfer.html', '/material-transfer', 'Tem vận chuyển')
 
 @app.route('/check-qc-data')
 def check_qc_data():
@@ -3268,10 +3268,10 @@ def search_substitutions():
             'columns': column_names
         })
 
-@app.route('/api/barcodes/shipping-labels', methods=['POST'])
-@app.route('/api/shipping-labels', methods=['POST'])
+@app.route('/api/barcodes/material-transfer', methods=['POST'])
+@app.route('/api/material-transfer', methods=['POST'])
 @login_required
-def get_shipping_labels():
+def get_material_transfer():
     columns_default = [
         'id', 'from_location_oid', 'to_location_oid', 'status',
         'product_id', 'product_type', 'quantity', 'transaction_time',
@@ -3323,8 +3323,72 @@ def get_shipping_labels():
                 'columns': column_names
             })
     except Exception as e:
-        logger.error(f"Error fetching shipping labels: {e}")
+        logger.error(f"Error fetching material transfer: {e}")
         return jsonify({'success': False, 'message': f'Lỗi truy vấn: {str(e)}'}), 500
+
+@app.route('/api/material-transfer/retry-failed', methods=['POST'])
+@login_required
+def retry_failed_material_transfer():
+    data = request.get_json(silent=True) or {}
+    oid = (data.get('material_resource_oid') or '').strip()
+    quantity_val = data.get('quantity')
+    if not oid:
+        return jsonify({'success': False, 'message': 'Thiếu mã material_resource_oid'}), 400
+
+    query_mrt = """
+        UPDATE kvmes.material_resource_transaction
+        SET status = 'PREPARED'
+        WHERE material_resource_oid = %s AND UPPER(TRIM(status)) = 'FAILED';
+    """
+
+    if quantity_val is not None and str(quantity_val).strip() not in ('', '-'):
+        try:
+            clean_qty = float(str(quantity_val).replace(',', ''))
+            query_mr = """
+                UPDATE kvmes.material_resource
+                SET initial_quantity = %s
+                WHERE oid = %s;
+            """
+            mr_params = (clean_qty, oid)
+        except (ValueError, TypeError):
+            query_mr = """
+                UPDATE kvmes.material_resource
+                SET initial_quantity = quantity
+                WHERE oid = %s;
+            """
+            mr_params = (oid,)
+    else:
+        query_mr = """
+            UPDATE kvmes.material_resource
+            SET initial_quantity = quantity
+            WHERE oid = %s;
+        """
+        mr_params = (oid,)
+
+    try:
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                # 1. Update status trong kvmes.material_resource_transaction sang PREPARED
+                cur.execute(query_mrt, (oid,))
+                updated_mrt_count = cur.rowcount
+
+                # 2. Update initial_quantity = quantity trong kvmes.material_resource
+                cur.execute(query_mr, mr_params)
+                updated_mr_count = cur.rowcount
+            conn.commit()
+
+        logger.info(f"Updated status to PREPARED (mrt={updated_mrt_count}) and initial_quantity=quantity (mr={updated_mr_count}) for oid={oid}")
+        return jsonify({
+            'success': True,
+            'message': f'Đã cập nhật trạng thái sang PREPARED và initial_quantity thành công',
+            'updated_count': updated_mrt_count,
+            'updated_mr_count': updated_mr_count,
+            'material_resource_oid': oid,
+            'new_status': 'PREPARED'
+        })
+    except Exception as e:
+        logger.error(f"Error updating material transfer status for oid={oid}: {e}", exc_info=True)
+        return jsonify({'success': False, 'message': f'Lỗi cập nhật CSDL: {str(e)}'}), 500
     
 @app.route('/api/recipes/fetch-work-orders', methods=['POST'])
 @login_required

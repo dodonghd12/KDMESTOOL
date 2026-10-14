@@ -16,7 +16,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/flatpickr/flatpickr.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/material-symbols/material-symbols.css') }}">
 </head>
-<body class="shipping-labels {% if is_frame %}is-spa-frame{% endif %} app-loading-state">
+<body class="material-transfer {% if is_frame %}is-spa-frame{% endif %} app-loading-state">
     {% if not is_frame %}{% include "components/sidebar.html" %}{% endif %}
     <!-- <canvas id="starfield"></canvas> -->
     <div class="container" autocomplete="off">
@@ -111,6 +111,6 @@
     <script src="{{ url_for('static', filename='vendor/tesseract.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/smooth_input.js') }}?v={{ version }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}?v={{ version }}"></script>
-    <script src="{{ url_for('static', filename='js/shipping_labels.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/material_transfer.js') }}?v={{ version }}"></script>
 </body>
 </html>

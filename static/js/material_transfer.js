@@ -1,6 +1,6 @@
 /**
  * ══════════════════════════════════════════════════════════════════════════
- * KDMES Tem Vận Chuyển (Shipping Labels) Controller
+ * KDMES Tem Vận Chuyển (Material Transfer) Controller
  * Real-time query, debounced search, OCR paste/drop support, status badges,
  * race condition protection, Excel export hook, and light/dark theme support.
  * ══════════════════════════════════════════════════════════════════════════
@@ -38,17 +38,17 @@ let currentSearchSeq = 0;
 let currentAbortController = null;
 
 document.addEventListener('DOMContentLoaded', function () {
-    initializeShippingLabelsEventListeners();
+    initializeMaterialTransferEventListeners();
     initTableBodyObserver();
 });
 
-function initializeShippingLabelsEventListeners() {
+function initializeMaterialTransferEventListeners() {
     const barcodeInput = document.getElementById('barcode');
     if (barcodeInput) {
         // 1. Debounced search on input typing / pasting (500ms delay)
         barcodeInput.addEventListener(
             'input',
-            debounceSearch(searchShippingLabels, 500)
+            debounceSearch(searchMaterialTransfer, 500)
         );
 
         // 2. Immediate visual feedback: uppercase + skeleton / clear
@@ -70,13 +70,105 @@ function initializeShippingLabelsEventListeners() {
         barcodeInput.addEventListener('keydown', e => {
             if (e.key === 'Enter') {
                 e.preventDefault();
-                searchShippingLabels();
+                searchMaterialTransfer();
             }
         });
     }
+
+    // 4. Handle click on retry button in FAILED status rows
+    document.addEventListener('click', async function (e) {
+        const btn = e.target.closest('.material-transfer-retry-btn');
+        if (!btn) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (btn.disabled || btn.classList.contains('is-spinning')) return;
+
+        const oid = (btn.getAttribute('data-oid') || '').trim();
+        const quantity = (btn.getAttribute('data-quantity') || '').trim();
+        if (!oid) {
+            if (typeof Toast !== 'undefined') Toast.error('Lỗi', 'Không tìm thấy mã material_resource_oid');
+            return;
+        }
+
+        // 1. Icon xoay vòng
+        btn.disabled = true;
+        btn.classList.add('is-spinning');
+
+        try {
+            const response = await fetch('/api/material-transfer/retry-failed', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ material_resource_oid: oid, quantity: quantity })
+            });
+            const data = await response.json();
+
+            if (!response.ok || !data || data.success === false) {
+                btn.classList.remove('is-spinning');
+                btn.disabled = false;
+                const errMsg = (data && data.message) ? data.message : `Lỗi cập nhật (${response.status})`;
+                if (typeof Toast !== 'undefined') Toast.error('Thất bại', errMsg);
+                return;
+            }
+
+            // Dừng xoay
+            btn.classList.remove('is-spinning');
+
+            // 2. Cập nhật text trạng thái dòng hiển thị sang PREPARED
+            const statusCell = btn.closest('td');
+            const tr = btn.closest('tr');
+
+            if (statusCell) {
+                statusCell.setAttribute('data-full-value', 'PREPARED');
+                const statusTextEl = statusCell.querySelector('.material-transfer-status-text');
+                if (statusTextEl) {
+                    statusTextEl.textContent = 'PREPARED';
+                    statusTextEl.className = 'material-transfer-status-text status-pending';
+                }
+            }
+
+            // Đồng bộ dữ liệu cache trong bộ nhớ
+            if (tr && currentRawCols) {
+                const statusIdx = currentRawCols.indexOf('status');
+                const rowIndex = parseInt(tr.dataset.index, 10);
+                if (!isNaN(rowIndex)) {
+                    if (typeof rawTableData !== 'undefined' && Array.isArray(rawTableData) && rawTableData[rowIndex]) {
+                        rawTableData[rowIndex][statusIdx] = 'PREPARED';
+                    }
+                    if (typeof filteredTableData !== 'undefined' && Array.isArray(filteredTableData) && filteredTableData[rowIndex]) {
+                        filteredTableData[rowIndex][statusIdx] = 'PREPARED';
+                    }
+                }
+            }
+
+            // 3. Nút refresh đổi thành nút Dấu tích V (check)
+            btn.classList.add('is-success');
+            btn.title = 'Đã cập nhật PREPARED thành công';
+            btn.innerHTML = '<span class="material-symbols-outlined check-icon">check</span>';
+
+            if (typeof Toast !== 'undefined') {
+                Toast.success('Thành công', 'Đã chuyển trạng thái sang PREPARED');
+            }
+
+            // 4. Sau tầm 3 giây thì nút dấu V thành công đó sẽ biến mất
+            setTimeout(() => {
+                btn.classList.add('fade-out');
+                setTimeout(() => {
+                    btn.remove();
+                }, 300);
+            }, 3000);
+
+        } catch (err) {
+            console.error('Lỗi khi cập nhật trạng thái tem vận chuyển:', err);
+            btn.classList.remove('is-spinning');
+            btn.disabled = false;
+            if (typeof Toast !== 'undefined') Toast.error('Lỗi kết nối', 'Không thể gửi yêu cầu cập nhật trạng thái');
+        }
+    });
 }
 
-async function searchShippingLabels() {
+async function searchMaterialTransfer() {
     const barcodeInput = document.getElementById('barcode');
     if (!barcodeInput) return;
 
@@ -101,7 +193,7 @@ async function searchShippingLabels() {
     }
 
     try {
-        const response = await fetch('/api/barcodes/shipping-labels', {
+        const response = await fetch('/api/barcodes/material-transfer', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ keyword }),
@@ -159,17 +251,17 @@ async function searchShippingLabels() {
         setTableData(
             formattedRows,
             displayColumns,
-            'shipping_labels',
+            'material_transfer',
             `Không tìm thấy tem vận chuyển nào với từ khóa "${keyword}"`,
             `Tìm thấy ${formattedRows.length} lượt vận chuyển cho tem "${keyword}"`
         );
 
         // Enhance cells with status badges & location pills
-        applyShippingTableEnhancements();
+        applyMaterialTransferTableEnhancements();
 
     } catch (error) {
         if (error.name === 'AbortError') return;
-        console.error('Error searching shipping labels:', error);
+        console.error('Error searching material transfer:', error);
         Toast.error('Lỗi', 'Lỗi kết nối khi tìm kiếm Tem vận chuyển');
         clearTable();
     }
@@ -198,7 +290,7 @@ window.getPageExportData = function () {
 /**
  * Apply status badges, location pills, product type badges, and monospaced font to table cells
  */
-function applyShippingTableEnhancements() {
+function applyMaterialTransferTableEnhancements() {
     if (isDecorating) return;
     const tbody = document.getElementById('tableBody');
     if (!tbody || !currentRawCols || currentRawCols.length === 0) return;
@@ -211,23 +303,48 @@ function applyShippingTableEnhancements() {
         const idIdx = currentRawCols.indexOf('id');
         const productTypeIdx = currentRawCols.indexOf('product_type');
         const qtyIdx = currentRawCols.indexOf('quantity');
+        const oidIdx = currentRawCols.indexOf('material_resource_oid');
 
         const rows = tbody.querySelectorAll('tr');
         rows.forEach(tr => {
             const cells = tr.querySelectorAll('td');
             if (cells.length < currentRawCols.length) return;
 
-            // 1. Status Text (no background, no border, no icon)
+            // 1. Status Text (no background, no border, no icon) + Refresh button for FAILED
             if (statusIdx !== -1 && cells[statusIdx]) {
                 const cell = cells[statusIdx];
-                const statusText = cell.textContent.trim().toUpperCase();
-                const safeStatus = (typeof escapeHtml === 'function') ? escapeHtml(statusText) : statusText;
-                if (statusText === 'SUCCEEDED' && !cell.querySelector('.shipping-status-text')) {
-                    cell.innerHTML = `<span class="shipping-status-text status-succeeded">SUCCEEDED</span>`;
-                } else if (statusText === 'FAILED' && !cell.querySelector('.shipping-status-text')) {
-                    cell.innerHTML = `<span class="shipping-status-text status-failed">FAILED</span>`;
-                } else if (statusText && statusText !== '-' && !cell.querySelector('.shipping-status-text')) {
-                    cell.innerHTML = `<span class="shipping-status-text status-pending">${safeStatus}</span>`;
+                const statusVal = (cell.getAttribute('data-full-value') || cell.textContent || '').trim().toUpperCase();
+                const safeStatus = (typeof escapeHtml === 'function') ? escapeHtml(statusVal) : statusVal;
+
+                // Lấy OID của material_resource từ ô material_resource_oid
+                let rowOid = '';
+                if (oidIdx !== -1 && cells[oidIdx]) {
+                    rowOid = (cells[oidIdx].getAttribute('data-full-value') || cells[oidIdx].textContent || '').trim();
+                }
+
+                // Lấy giá trị quantity của dòng dữ liệu
+                let rowQty = '';
+                if (qtyIdx !== -1 && cells[qtyIdx]) {
+                    rowQty = (cells[qtyIdx].getAttribute('data-full-value') || cells[qtyIdx].textContent || '').trim();
+                }
+
+                if (statusVal === 'SUCCEEDED' && !cell.querySelector('.material-transfer-status-text')) {
+                    cell.innerHTML = `<span class="material-transfer-status-text status-succeeded">SUCCEEDED</span>`;
+                } else if (statusVal === 'FAILED') {
+                    if (!cell.querySelector('.material-transfer-retry-btn') && !cell.querySelector('.material-transfer-status-cell')) {
+                        const safeOid = (typeof escapeHtml === 'function') ? escapeHtml(rowOid) : rowOid;
+                        const safeQty = (typeof escapeHtml === 'function') ? escapeHtml(rowQty) : rowQty;
+                        cell.innerHTML = `
+                            <div class="material-transfer-status-cell">
+                                <span class="material-transfer-status-text status-failed">FAILED</span>
+                                <button type="button" class="material-transfer-retry-btn" data-oid="${safeOid}" data-quantity="${safeQty}" title="Đổi trạng thái sang PREPARED" aria-label="Đổi trạng thái sang PREPARED">
+                                    <span class="material-symbols-outlined">refresh</span>
+                                </button>
+                            </div>
+                        `;
+                    }
+                } else if (statusVal && statusVal !== '-' && !cell.querySelector('.material-transfer-status-text')) {
+                    cell.innerHTML = `<span class="material-transfer-status-text status-pending">${safeStatus}</span>`;
                 }
             }
 
@@ -237,8 +354,8 @@ function applyShippingTableEnhancements() {
                     const cell = cells[locIdx];
                     const locText = cell.textContent.trim();
                     const safeLoc = (typeof escapeHtml === 'function') ? escapeHtml(locText) : locText;
-                    if (locText && locText !== '-' && !cell.querySelector('.shipping-location-text')) {
-                        cell.innerHTML = `<span class="shipping-location-text">${safeLoc}</span>`;
+                    if (locText && locText !== '-' && !cell.querySelector('.material-transfer-location-text')) {
+                        cell.innerHTML = `<span class="material-transfer-location-text">${safeLoc}</span>`;
                     }
                 }
             });
@@ -246,7 +363,7 @@ function applyShippingTableEnhancements() {
             // 3. Barcode text monospaced
             if (idIdx !== -1 && cells[idIdx]) {
                 const cell = cells[idIdx];
-                cell.classList.add('shipping-barcode-code');
+                cell.classList.add('material-transfer-barcode-code');
             }
 
             // 4. Product Type Badge
@@ -278,7 +395,7 @@ function initTableBodyObserver() {
 
     const observer = new MutationObserver(() => {
         if (!isDecorating) {
-            applyShippingTableEnhancements();
+            applyMaterialTransferTableEnhancements();
         }
     });
 

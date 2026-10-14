@@ -495,9 +495,10 @@ function showCountdownConfirm(type, title, message, seconds) {
 
 // ===== INPUT CLEAR BUTTONS (x) & FLOATING LABELS TRACKER =====
 function initInputClearButtons() {
-    document.querySelectorAll('.input-box').forEach(box => {
-        const input = box.querySelector('.input');
-        if (!input) return;
+    function setupClearButton(box) {
+        if (!box) return;
+        const input = box.querySelector('.input, .winx-input, input[type="text"], input[type="search"], input[type="password"]');
+        if (!input || input.type === 'hidden' || input.type === 'checkbox' || input.type === 'file') return;
 
         // Ensure placeholder is set for CSS :not(:placeholder-shown) floating label support
         if (!input.placeholder || input.placeholder === '') {
@@ -509,46 +510,136 @@ function initInputClearButtons() {
             clearBtn = document.createElement('button');
             clearBtn.type = 'button';
             clearBtn.className = 'clear-btn';
+            clearBtn.setAttribute('tabindex', '-1');
+            clearBtn.setAttribute('aria-label', 'Xóa nội dung');
             clearBtn.innerHTML = '<svg class="clear-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
             clearBtn.title = 'Xóa nội dung';
             box.appendChild(clearBtn);
 
-            clearBtn.addEventListener('click', (e) => {
-                e.preventDefault();
+            const handleClear = (e) => {
+                if (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+
+                // Unlock readOnly if autofill guarded so input can be cleared cleanly
+                if (input.readOnly && input.dataset.autofillGuarded) {
+                    input.readOnly = false;
+                }
+
                 input.value = '';
                 box.classList.remove('has-value');
+
+                // Nếu có Flatpickr (ví dụ ô dateRange)
+                if (input._flatpickr) {
+                    try {
+                        input._flatpickr.clear();
+                    } catch (err) {}
+                }
+
+                // Nếu là dateRange, xóa luôn 2 input ẩn fromDate và toDate
+                if (input.id === 'dateRange') {
+                    const fromDateEl = document.getElementById('fromDate');
+                    const toDateEl = document.getElementById('toDate');
+                    if (fromDateEl) fromDateEl.value = '';
+                    if (toDateEl) toDateEl.value = '';
+                }
+
+                // Dispatch sự kiện input và change để các listener filter/search cập nhật kết quả
                 input.dispatchEvent(new Event('input', { bubbles: true }));
-                input.focus();
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+
+                // Refocus vào input sau khi xóa
+                try {
+                    input.focus();
+                } catch (err) {}
+
+                updateClearState();
+            };
+
+            // Ngăn chặn blur làm ẩn nút hoặc hủy bỏ sự kiện click khi người dùng bấm chuột vào clearBtn
+            clearBtn.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleClear(e);
+            });
+
+            clearBtn.addEventListener('pointerdown', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            });
+
+            clearBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (input.value !== '') {
+                    handleClear(e);
+                }
             });
         }
 
         const updateClearState = () => {
-            if (!input.disabled && !input.readOnly && input.value && input.value.trim().length > 0) {
+            // Không kiểm tra !input.readOnly vì autofill guard đặt readOnly=true khi input không active
+            const hasText = input.value != null && String(input.value).trim().length > 0;
+            if (!input.disabled && hasText) {
                 box.classList.add('has-value');
             } else {
                 box.classList.remove('has-value');
             }
         };
 
-        const observer = new MutationObserver(() => {
-            updateClearState();
-        });
-        observer.observe(input, { attributes: true, attributeFilter: ['disabled', 'readonly'] });
+        if (!input._clearEventsBound) {
+            input._clearEventsBound = true;
+            input.addEventListener('input', updateClearState);
+            input.addEventListener('change', updateClearState);
+            input.addEventListener('keyup', updateClearState);
+            input.addEventListener('blur', updateClearState);
+            input.addEventListener('focus', updateClearState);
 
-        input.addEventListener('input', updateClearState);
-        input.addEventListener('change', updateClearState);
-        input.addEventListener('keyup', updateClearState);
-        input.addEventListener('blur', updateClearState);
-        input.addEventListener('focus', updateClearState);
+            box.addEventListener('mouseenter', updateClearState);
+
+            const observer = new MutationObserver(() => {
+                updateClearState();
+            });
+            observer.observe(input, { attributes: true, attributeFilter: ['disabled', 'value'] });
+        }
+
         updateClearState();
+    }
+
+    // Áp dụng cho cả .input-box, .input-wrapper và các container input khác
+    document.querySelectorAll('.input-box, .input-wrapper, .winx-search-bar, .winx-input-row').forEach(box => {
+        setupClearButton(box);
     });
+
+    // Đồng bộ định kỳ để bắt kịp cả các trường hợp cập nhật input.value bằng code JS mà không bắn event
+    if (!window._inputClearIntervalStarted) {
+        window._inputClearIntervalStarted = true;
+        setInterval(() => {
+            document.querySelectorAll('.input-box, .input-wrapper, .winx-search-bar, .winx-input-row').forEach(box => {
+                const input = box.querySelector('.input, .winx-input, input[type="text"], input[type="search"], input[type="password"]');
+                if (!input || input.type === 'hidden' || input.type === 'checkbox' || input.type === 'file') return;
+                
+                if (!box.querySelector('.clear-btn')) {
+                    setupClearButton(box);
+                }
+
+                const hasText = input.value != null && String(input.value).trim().length > 0;
+                if (!input.disabled && hasText) {
+                    if (!box.classList.contains('has-value')) box.classList.add('has-value');
+                } else {
+                    if (box.classList.contains('has-value')) box.classList.remove('has-value');
+                }
+            });
+        }, 300);
+    }
 }
 
 // ===== CLEAR INPUT HELPER =====
 function clearInputBox(inputEl) {
     if (!inputEl) return;
     inputEl.value = '';
-    const box = inputEl.closest('.input-box');
+    const box = inputEl.closest('.input-box, .input-wrapper, .winx-search-bar, .winx-input-row');
     if (box) {
         box.classList.remove('has-value');
     }
@@ -1440,7 +1531,7 @@ function initializeMainEventListeners() {
     const feedRecordInput = document.getElementById('feed_record_id');
     const workOrderInput = document.getElementById('work_order');
 
-    if (barcodeInput && !document.body.classList.contains('shipping-labels')) {
+    if (barcodeInput && !document.body.classList.contains('material-transfer')) {
         barcodeInput.addEventListener(
             'input',
             debounceSearch(searchBarcode, 500)

@@ -1155,7 +1155,10 @@ span.flatpickr-weekday {
 }
 
 /* Clear button (x) for inputs */
-.input-box .clear-btn {
+.input-box .clear-btn,
+.input-wrapper .clear-btn,
+.winx-search-bar .clear-btn,
+.winx-input-row .clear-btn {
     position: absolute;
     right: 12px;
     top: 50%;
@@ -1175,11 +1178,14 @@ span.flatpickr-weekday {
     margin: 0;
     line-height: 0;
     transition: all 0.2s ease;
-    z-index: 5;
+    z-index: 10;
     user-select: none;
 }
 
-.input-box .clear-btn svg {
+.input-box .clear-btn svg,
+.input-wrapper .clear-btn svg,
+.winx-search-bar .clear-btn svg,
+.winx-input-row .clear-btn svg {
     width: 12px;
     height: 12px;
     stroke-width: 2.5;
@@ -1189,7 +1195,10 @@ span.flatpickr-weekday {
     color: inherit;
 }
 
-.input-box .clear-btn .material-symbols-outlined {
+.input-box .clear-btn .material-symbols-outlined,
+.input-wrapper .clear-btn .material-symbols-outlined,
+.winx-search-bar .clear-btn .material-symbols-outlined,
+.winx-input-row .clear-btn .material-symbols-outlined {
     font-size: 14px !important;
     width: 14px !important;
     min-width: 14px !important;
@@ -1204,13 +1213,19 @@ span.flatpickr-weekday {
     pointer-events: none;
 }
 
-.input-box .clear-btn:hover {
+.input-box .clear-btn:hover,
+.input-wrapper .clear-btn:hover,
+.winx-search-bar .clear-btn:hover,
+.winx-input-row .clear-btn:hover {
     background: var(--rose-600);
     color: var(--color-text-inverse);
     transform: translateY(-50%) scale(1.1);
 }
 
-.input-box.has-value .clear-btn {
+.input-box.has-value .clear-btn,
+.input-wrapper.has-value .clear-btn,
+.winx-search-bar.has-value .clear-btn,
+.winx-input-row.has-value .clear-btn {
     display: inline-flex;
 }
 
@@ -1218,7 +1233,14 @@ span.flatpickr-weekday {
 .input-box:has(.input[disabled]) .clear-btn,
 .input-box .input:disabled ~ .clear-btn,
 .input-box .input[disabled] ~ .clear-btn,
-.input-box.disabled .clear-btn {
+.input-box.disabled .clear-btn,
+.input-wrapper:has(.input:disabled) .clear-btn,
+.input-wrapper:has(.input[disabled]) .clear-btn,
+.input-wrapper .input:disabled ~ .clear-btn,
+.input-wrapper .input[disabled] ~ .clear-btn,
+.input-wrapper.disabled .clear-btn,
+.winx-search-bar:has(.input:disabled) .clear-btn,
+.winx-input-row:has(.winx-input:disabled) .clear-btn {
     display: none !important;
 }
 
@@ -1227,6 +1249,10 @@ span.flatpickr-weekday {
     opacity: 0.6;
     cursor: not-allowed;
     box-shadow: none !important;
+}
+
+.input-wrapper.has-value .input {
+    padding-right: 36px;
 }
 
 /* ===== MAIN PAGE DUAL INPUT SWITCHER (BARCODE ⇋ FEED RECORD) ===== */
@@ -9522,8 +9548,8 @@ mark.barcode-search-match {
     background-color: rgba(245, 158, 11, 0.08) !important;
 }
 
-/* ===== TEM VẬN CHUYỂN (SHIPPING LABELS) STYLES ===== */
-.shipping-status-text {
+/* ===== TEM VẬN CHUYỂN (MATERIAL TRANSFER) STYLES ===== */
+.material-transfer-status-text {
     font-size: 13px;
     font-weight: 600;
     line-height: 1.4;
@@ -9533,19 +9559,19 @@ mark.barcode-search-match {
     border: none !important;
 }
 
-.shipping-status-text.status-succeeded {
+.material-transfer-status-text.status-succeeded {
     color: #10b981;
 }
 
-.shipping-status-text.status-failed {
+.material-transfer-status-text.status-failed {
     color: #ef4444;
 }
 
-.shipping-status-text.status-pending {
+.material-transfer-status-text.status-pending {
     color: #f59e0b;
 }
 
-.shipping-location-text {
+.material-transfer-location-text {
     font-size: 13px;
     font-weight: 600;
     line-height: 1.4;
@@ -9556,35 +9582,151 @@ mark.barcode-search-match {
     border: none !important;
 }
 
-.shipping-barcode-code {
+.material-transfer-barcode-code {
     font-family: var(--font-mono, monospace);
     font-weight: 600;
     letter-spacing: 0.03em;
     color: #38bdf8;
 }
 
-/* Light Theme overrides for Shipping Labels */
-:root[data-theme="light"] .shipping-status-text.status-succeeded,
-body.theme-light .shipping-status-text.status-succeeded {
+/* Light Theme overrides for Material Transfer */
+:root[data-theme="light"] .material-transfer-status-text.status-succeeded,
+body.theme-light .material-transfer-status-text.status-succeeded {
     color: #059669;
 }
 
-:root[data-theme="light"] .shipping-status-text.status-failed,
-body.theme-light .shipping-status-text.status-failed {
+:root[data-theme="light"] .material-transfer-status-text.status-failed,
+body.theme-light .material-transfer-status-text.status-failed {
     color: #dc2626;
 }
 
-:root[data-theme="light"] .shipping-status-text.status-pending,
-body.theme-light .shipping-status-text.status-pending {
+:root[data-theme="light"] .material-transfer-status-text.status-pending,
+body.theme-light .material-transfer-status-text.status-pending {
     color: #d97706;
 }
 
-:root[data-theme="light"] .shipping-location-text,
-body.theme-light .shipping-location-text {
+:root[data-theme="light"] .material-transfer-location-text,
+body.theme-light .material-transfer-location-text {
     color: #0284c7;
 }
 
-:root[data-theme="light"] .shipping-barcode-code,
-body.theme-light .shipping-barcode-code {
+:root[data-theme="light"] .material-transfer-barcode-code,
+body.theme-light .material-transfer-barcode-code {
     color: #0284c7;
+}
+
+/* Status Cell with retry button */
+.material-transfer-status-cell {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    vertical-align: middle;
+}
+
+/* Retry Button for FAILED status */
+.material-transfer-retry-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    margin: 0;
+    border: none;
+    background: transparent;
+    color: #ef4444;
+    border-radius: 4px;
+    cursor: pointer;
+    line-height: 1;
+    vertical-align: middle;
+    transition: color 0.15s ease, background-color 0.15s ease, opacity 0.3s ease, transform 0.3s ease;
+    outline: none;
+}
+
+.material-transfer-retry-btn:hover:not(:disabled) {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+}
+
+.material-transfer-retry-btn:active:not(:disabled) {
+    transform: scale(0.92);
+}
+
+.material-transfer-retry-btn .material-symbols-outlined {
+    font-size: 16px;
+    line-height: 1;
+    display: inline-block;
+}
+
+/* Spinning state during API call */
+.material-transfer-retry-btn.is-spinning {
+    cursor: wait;
+    pointer-events: none;
+    color: #f59e0b;
+}
+
+.material-transfer-retry-btn.is-spinning .material-symbols-outlined {
+    animation: material-transfer-spin 0.75s linear infinite;
+}
+
+@keyframes material-transfer-spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Success Checkmark state */
+.material-transfer-retry-btn.is-success {
+    color: #10b981;
+    cursor: default;
+    pointer-events: none;
+}
+
+.material-transfer-retry-btn.is-success .material-symbols-outlined {
+    animation: material-transfer-check-pop 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes material-transfer-check-pop {
+    0% {
+        transform: scale(0.4);
+        opacity: 0;
+    }
+    60% {
+        transform: scale(1.25);
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* Disappear / Fade out after 3 seconds */
+.material-transfer-retry-btn.fade-out {
+    opacity: 0;
+    transform: scale(0.6);
+    pointer-events: none;
+}
+
+:root[data-theme="light"] .material-transfer-retry-btn,
+body.theme-light .material-transfer-retry-btn {
+    color: #dc2626;
+}
+
+:root[data-theme="light"] .material-transfer-retry-btn:hover:not(:disabled),
+body.theme-light .material-transfer-retry-btn:hover:not(:disabled) {
+    background: rgba(220, 38, 38, 0.1);
+    color: #b91c1c;
+}
+
+:root[data-theme="light"] .material-transfer-retry-btn.is-spinning,
+body.theme-light .material-transfer-retry-btn.is-spinning {
+    color: #d97706;
+}
+
+:root[data-theme="light"] .material-transfer-retry-btn.is-success,
+body.theme-light .material-transfer-retry-btn.is-success {
+    color: #059669;
 }
