@@ -128,6 +128,23 @@
                 <span>Không tìm thấy station phù hợp</span>
             </div>
         </div>
+
+        <!-- Floating Dropdown for Selecting Printers -->
+        <div id="printerFloatingDropdown" class="printer-floating-dropdown" style="display: none;">
+            <div class="floating-dropdown-header">
+                <input type="text" id="printerDropdownSearch" class="floating-search-input" placeholder="Tìm kiếm..." autocomplete="off" spellcheck="false">
+                <button type="button" id="printerDropdownClearSearch" class="floating-clear-btn" style="display: none;" title="Xóa tìm kiếm">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <div class="floating-dropdown-list" id="printerDropdownList">
+                <!-- Printer items will be rendered here -->
+            </div>
+            <div class="floating-dropdown-empty" id="printerDropdownEmpty" style="display: none;">
+                <span class="material-symbols-outlined">search_off</span>
+                <span>Không tìm thấy máy in phù hợp</span>
+            </div>
+        </div>
     </div>
 
     {% include "components/shared_modals.html" %}

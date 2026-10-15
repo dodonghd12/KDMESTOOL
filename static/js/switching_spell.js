@@ -20,6 +20,11 @@
     let activeAnchorBtn = null;
     const newlyAddedStations = new Set();
 
+    // Quản lý printers & floating dropdown
+    const availablePrintersCache = {}; // folder -> array of { queue_name, status }
+    let activeGroupIndexForPrinter = null;
+    let activePrinterAnchorBtn = null;
+
     document.addEventListener('DOMContentLoaded', initializeSwitchingSpell);
 
     function initializeSwitchingSpell() {
@@ -77,8 +82,9 @@
             }, true);
         }
 
-        // 7. Khởi tạo các bộ điều khiển Station Floating Dropdown, Undo, SaveHold
+        // 7. Khởi tạo các bộ điều khiển Station Floating Dropdown, Printer Floating Dropdown, Undo, SaveHold
         initFloatingDropdown();
+        initPrinterFloatingDropdown();
         initUndoButton();
         initSaveHoldButton();
 
@@ -149,6 +155,7 @@
         showStepBadge(`Đang đọc cấu hình (${folder})...`, 'sync', 'progress');
         showTableLoading(folder);
         closeStationFloatingDropdown();
+        closePrinterFloatingDropdown();
 
         try {
             const res = await fetch(`/api/switching-spell/printers?folder=${encodeURIComponent(folder)}&server=${encodeURIComponent(currentServer)}`);
@@ -272,7 +279,11 @@
                 `;
             }).join('');
 
-            const safePrinter = escapeHtml(String(group.printerName || '--').trim());
+            const curPrinter = String(group.printerName || '--').trim();
+            const defPrinter = String(group.defaultPrinterName || group.printerName || '--').trim();
+            const isCustom = Boolean(group.isCustomPrinter) || (curPrinter !== defPrinter && defPrinter !== '--');
+            const safePrinter = escapeHtml(curPrinter);
+            const safeDefault = escapeHtml(defPrinter);
 
             html += `
                 <tr data-group-index="${targetGroupIndex}">
@@ -286,10 +297,23 @@
                         </div>
                     </td>
                     <td>
-                        <span class="printer-name-tag">
-                            <span class="material-symbols-outlined printer-icon">print</span>
-                            ${safePrinter}
-                        </span>
+                        <div class="printer-cell-wrapper">
+                            <div class="printer-badge-group">
+                                <span class="printer-name-tag ${isCustom ? 'is-custom' : ''}">
+                                    <span class="material-symbols-outlined printer-icon">print</span>
+                                    <span class="printer-name-text">${safePrinter}</span>
+                                </span>
+                                ${isCustom ? `
+                                    <span class="printer-custom-badge" title="Mặc định: ${safeDefault}">(Đã đổi)</span>
+                                    <button type="button" class="btn-return-default-printer" data-group-index="${targetGroupIndex}" title="Khôi phục máy in mặc định (${safeDefault})" aria-label="Khôi phục mặc định">
+                                        <span class="material-symbols-outlined">replay</span>
+                                    </button>
+                                ` : ''}
+                            </div>
+                            <button type="button" class="btn-change-printer" data-group-index="${targetGroupIndex}" title="Chọn máy in từ danh sách CUPS" aria-label="Đổi máy in">
+                                <span class="material-symbols-outlined">edit</span>
+                            </button>
+                        </div>
                     </td>
                 </tr>
             `;
@@ -368,14 +392,45 @@
                 return;
             }
 
-            // 2. Bấm nút '+' ở mỗi dòng để mở dropdown
+            // 2. Bấm nút '+' ở mỗi dòng để mở station dropdown
             const addBtn = e.target.closest('.btn-add-station');
             if (addBtn) {
                 e.preventDefault();
                 e.stopPropagation();
-
+                closePrinterFloatingDropdown();
                 const groupIndex = parseInt(addBtn.dataset.groupIndex, 10);
                 toggleStationFloatingDropdown(groupIndex, addBtn);
+                return;
+            }
+
+            // 3. Bấm nút return default printer để khôi phục máy in mặc định
+            const returnBtn = e.target.closest('.btn-return-default-printer');
+            if (returnBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                const groupIndex = parseInt(returnBtn.dataset.groupIndex, 10);
+                if (isNaN(groupIndex) || !currentGroups[groupIndex]) return;
+                const defP = currentGroups[groupIndex].defaultPrinterName || currentGroups[groupIndex].printerName;
+                currentGroups[groupIndex].printerName = defP;
+                currentGroups[groupIndex].isCustomPrinter = false;
+                closePrinterFloatingDropdown();
+                closeStationFloatingDropdown();
+                renderTable(currentGroups);
+                checkDirtyAndUpdateFooter();
+                if (typeof Toast !== 'undefined' && Toast.info) {
+                    Toast.info('Đã hoàn tác máy in', `Đã khôi phục máy in mặc định (${defP}) cho nhóm #${groupIndex + 1}`);
+                }
+                return;
+            }
+
+            // 4. Bấm nút đổi máy in để mở printer floating dropdown
+            const changePrinterBtn = e.target.closest('.btn-change-printer');
+            if (changePrinterBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                closeStationFloatingDropdown();
+                const groupIndex = parseInt(changePrinterBtn.dataset.groupIndex, 10);
+                togglePrinterFloatingDropdown(groupIndex, changePrinterBtn);
                 return;
             }
         });
@@ -662,6 +717,297 @@
     }
 
     /**
+     * Khởi tạo Floating Dropdown cho việc chọn Máy in từ CUPS
+     */
+    function initPrinterFloatingDropdown() {
+        const dropdown = document.getElementById('printerFloatingDropdown');
+        const searchInput = document.getElementById('printerDropdownSearch');
+        const clearBtn = document.getElementById('printerDropdownClearSearch');
+        const listEl = document.getElementById('printerDropdownList');
+        if (!dropdown) return;
+
+        // Tìm kiếm trong printer floating dropdown
+        if (searchInput) {
+            searchInput.addEventListener('input', () => {
+                if (clearBtn) clearBtn.style.display = searchInput.value ? 'inline-flex' : 'none';
+                filterAndRenderDropdownPrinters();
+            });
+        }
+
+        // Xóa text tìm kiếm
+        if (clearBtn) {
+            clearBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (searchInput) {
+                    searchInput.value = '';
+                    clearBtn.style.display = 'none';
+                    filterAndRenderDropdownPrinters();
+                    searchInput.focus();
+                }
+            });
+        }
+
+        // Chọn printer từ list
+        if (listEl) {
+            listEl.addEventListener('click', (e) => {
+                const item = e.target.closest('.printer-dropdown-item');
+                if (!item || item.classList.contains('is-disabled')) return;
+                e.preventDefault();
+                e.stopPropagation();
+
+                const printerName = item.dataset.printer;
+                if (printerName && activeGroupIndexForPrinter != null) {
+                    selectPrinterForGroup(activeGroupIndexForPrinter, printerName);
+                }
+            });
+        }
+
+        // Bấm ngoài để đóng
+        document.addEventListener('click', (e) => {
+            if (dropdown.style.display === 'none') return;
+            if (!dropdown.contains(e.target) && !e.target.closest('.btn-change-printer')) {
+                closePrinterFloatingDropdown();
+            }
+        });
+
+        // Phím Escape để đóng
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && dropdown.style.display !== 'none') {
+                closePrinterFloatingDropdown();
+            }
+        });
+
+        // Căn chỉnh khi scroll / resize
+        window.addEventListener('scroll', () => {
+            if (activePrinterAnchorBtn && dropdown.style.display !== 'none') {
+                positionPrinterFloatingDropdown(activePrinterAnchorBtn);
+            }
+        }, { passive: true });
+
+        window.addEventListener('resize', () => {
+            if (activePrinterAnchorBtn && dropdown.style.display !== 'none') {
+                positionPrinterFloatingDropdown(activePrinterAnchorBtn);
+            }
+        }, { passive: true });
+    }
+
+    /**
+     * Bật/Tắt Printer Floating Dropdown
+     */
+    async function togglePrinterFloatingDropdown(groupIndex, anchorBtn) {
+        const dropdown = document.getElementById('printerFloatingDropdown');
+        if (!dropdown) return;
+
+        if (dropdown.style.display !== 'none' && activeGroupIndexForPrinter === groupIndex) {
+            closePrinterFloatingDropdown();
+            return;
+        }
+
+        closeStationFloatingDropdown();
+
+        activeGroupIndexForPrinter = groupIndex;
+        activePrinterAnchorBtn = anchorBtn;
+
+        dropdown.style.display = 'flex';
+        positionPrinterFloatingDropdown(anchorBtn);
+
+        const searchInput = document.getElementById('printerDropdownSearch');
+        const clearBtn = document.getElementById('printerDropdownClearSearch');
+        if (searchInput) {
+            searchInput.value = '';
+            if (clearBtn) clearBtn.style.display = 'none';
+            setTimeout(() => searchInput.focus(), 30);
+        }
+
+        const currentPrinters = availablePrintersCache[selectedFolder];
+        if (currentPrinters == null) {
+            await loadAvailablePrinters(selectedFolder);
+        } else {
+            filterAndRenderDropdownPrinters();
+        }
+    }
+
+    function closePrinterFloatingDropdown() {
+        const dropdown = document.getElementById('printerFloatingDropdown');
+        if (dropdown) dropdown.style.display = 'none';
+        activeGroupIndexForPrinter = null;
+        activePrinterAnchorBtn = null;
+    }
+
+    function positionPrinterFloatingDropdown(anchorBtn) {
+        const dropdown = document.getElementById('printerFloatingDropdown');
+        if (!dropdown || !anchorBtn) return;
+
+        const rect = anchorBtn.getBoundingClientRect();
+        const dropdownWidth = 330;
+        const dropdownHeight = dropdown.offsetHeight || 320;
+
+        let top = rect.bottom + 4;
+        let left = rect.left - dropdownWidth + rect.width;
+
+        if (top + dropdownHeight > window.innerHeight - 10) {
+            top = Math.max(10, rect.top - dropdownHeight - 4);
+        }
+
+        if (left < 10) {
+            left = Math.max(10, rect.left);
+        }
+
+        if (left + dropdownWidth > window.innerWidth - 10) {
+            left = Math.max(10, window.innerWidth - dropdownWidth - 10);
+        }
+
+        dropdown.style.top = `${top}px`;
+        dropdown.style.left = `${left}px`;
+    }
+
+    /**
+     * Gọi API lấy danh sách máy in CUPS theo folder hiện tại
+     */
+    async function loadAvailablePrinters(folder) {
+        const targetFolder = folder || selectedFolder || '';
+        const listEl = document.getElementById('printerDropdownList');
+        const emptyEl = document.getElementById('printerDropdownEmpty');
+        if (emptyEl) emptyEl.style.display = 'none';
+        if (listEl) {
+            listEl.innerHTML = `
+                <div style="padding: 24px; text-align: center; color: var(--color-text-muted);">
+                    <span class="material-symbols-outlined" style="animation: akStepSpin 1s infinite linear; font-size: 24px; color: #38bdf8;">progress_activity</span>
+                    <div style="margin-top: 6px; font-size: 12px;">Đang tải danh sách máy in từ CUPS...</div>
+                </div>
+            `;
+        }
+
+        try {
+            const url = targetFolder 
+                ? `/api/switching-spell/available-printers?folder=${encodeURIComponent(targetFolder)}`
+                : '/api/switching-spell/available-printers';
+            const res = await fetch(url);
+            const data = await res.json();
+            if (data.success && Array.isArray(data.printers)) {
+                availablePrintersCache[targetFolder] = data.printers;
+                filterAndRenderDropdownPrinters();
+            } else {
+                if (listEl) {
+                    listEl.innerHTML = `
+                        <div style="padding: 16px; text-align: center; color: #fb7185; font-size: 12px;">
+                            ${escapeHtml(data.message || 'Không thể tải danh sách máy in')}
+                        </div>
+                    `;
+                }
+            }
+        } catch (err) {
+            console.error('[SWITCHING_SPELL] Lỗi tải printers:', err);
+            if (listEl) {
+                listEl.innerHTML = `
+                    <div style="padding: 16px; text-align: center; color: #fb7185; font-size: 12px;">
+                        Lỗi kết nối khi tải danh sách máy in CUPS
+                    </div>
+                `;
+            }
+        }
+    }
+
+    /**
+     * Lọc và render danh sách máy in trong floating dropdown
+     */
+    function filterAndRenderDropdownPrinters() {
+        const listEl = document.getElementById('printerDropdownList');
+        const emptyEl = document.getElementById('printerDropdownEmpty');
+        const searchInput = document.getElementById('printerDropdownSearch');
+        const currentPrinters = availablePrintersCache[selectedFolder] || [];
+        if (!listEl) return;
+
+        // Thu thập các máy in đang được sử dụng ở bất kỳ nhóm nào
+        const inUsePrintersMap = new Map(); // printerNameUpper -> groupIndex
+        currentGroups.forEach((g, gIdx) => {
+            const p = String(g.printerName || '').trim();
+            if (p && p !== '--') {
+                inUsePrintersMap.set(p.toUpperCase(), gIdx);
+            }
+        });
+
+        const kw = (searchInput?.value || '').trim().toUpperCase();
+        const filtered = currentPrinters.filter(p => !kw || p.queue_name.toUpperCase().includes(kw));
+
+        if (filtered.length === 0) {
+            listEl.innerHTML = '';
+            if (emptyEl) emptyEl.style.display = 'flex';
+            return;
+        }
+
+        if (emptyEl) emptyEl.style.display = 'none';
+
+        // Đưa các máy in khả dụng lên đầu, các máy in đã được dùng (is-disabled) xuống cuối danh sách
+        const enabledPrinters = [];
+        const disabledPrinters = [];
+
+        filtered.forEach(p => {
+            if (inUsePrintersMap.has(p.queue_name.toUpperCase())) {
+                disabledPrinters.push(p);
+            } else {
+                enabledPrinters.push(p);
+            }
+        });
+
+        const sortedPrinters = enabledPrinters.concat(disabledPrinters);
+
+        const html = sortedPrinters.map(p => {
+            const pUpper = p.queue_name.toUpperCase();
+            const inUseInGroupIdx = inUsePrintersMap.get(pUpper);
+            const isInUse = inUseInGroupIdx !== undefined;
+            const isCurrentGroup = inUseInGroupIdx === activeGroupIndexForPrinter;
+            const tooltip = isInUse 
+                ? (isCurrentGroup 
+                    ? 'Máy in đang được chọn cho nhóm này' 
+                    : `Máy in đang được gán cho nhóm #${inUseInGroupIdx + 1}`)
+                : `Chọn máy in (${p.status})`;
+
+            const isIdle = (p.status || '').toLowerCase() === 'idle';
+
+            return `
+                <div class="printer-dropdown-item ${isInUse ? 'is-disabled' : ''}" data-printer="${escapeHtml(p.queue_name)}" title="${escapeHtml(tooltip)}">
+                    <div class="printer-dropdown-item-main">
+                        <span class="material-symbols-outlined printer-item-icon">print</span>
+                        <span class="printer-queue-name">${escapeHtml(p.queue_name)}</span>
+                    </div>
+                    <div class="printer-dropdown-item-meta">
+                        <span class="printer-status-badge ${isIdle ? 'is-idle' : ''}">${escapeHtml(p.status || 'Idle')}</span>
+                        ${isInUse ? '<span class="already-badge">(Đang dùng)</span>' : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        listEl.innerHTML = html;
+    }
+
+    /**
+     * Gán máy in cho nhóm
+     */
+    function selectPrinterForGroup(groupIndex, printerName) {
+        const group = currentGroups[groupIndex];
+        if (!group) return;
+
+        if (group.printerName === printerName) {
+            closePrinterFloatingDropdown();
+            return;
+        }
+
+        const def = group.defaultPrinterName || group.printerName;
+        group.printerName = printerName;
+        group.isCustomPrinter = (printerName !== def);
+
+        closePrinterFloatingDropdown();
+        renderTable(currentGroups);
+        checkDirtyAndUpdateFooter();
+
+        if (typeof Toast !== 'undefined' && Toast.success) {
+            Toast.success('Đã chọn máy in', `Đã gán ${printerName} cho nhóm #${groupIndex + 1}`);
+        }
+    }
+
+    /**
      * Kiểm tra trạng thái thay đổi và cập nhật hiển thị nút Undo, SaveHold
      */
     function checkDirtyAndUpdateFooter() {
@@ -678,8 +1024,17 @@
         if (currentGroups.length !== originalGroups.length) return true;
 
         for (let i = 0; i < currentGroups.length; i++) {
-            const curSt = Array.isArray(currentGroups[i].stations) ? currentGroups[i].stations : [currentGroups[i].stations];
-            const origSt = Array.isArray(originalGroups[i].stations) ? originalGroups[i].stations : [originalGroups[i].stations];
+            const curG = currentGroups[i];
+            const origG = originalGroups[i];
+
+            // 1. So sánh printerName
+            const curP = String(curG.printerName || '').trim();
+            const origP = String(origG.printerName || '').trim();
+            if (curP !== origP) return true;
+
+            // 2. So sánh stations
+            const curSt = Array.isArray(curG.stations) ? curG.stations : [curG.stations];
+            const origSt = Array.isArray(origG.stations) ? origG.stations : [origG.stations];
 
             if (curSt.length !== origSt.length) return true;
 
@@ -702,11 +1057,12 @@
             currentGroups = JSON.parse(JSON.stringify(originalGroups));
             newlyAddedStations.clear();
             closeStationFloatingDropdown();
+            closePrinterFloatingDropdown();
             renderTable(currentGroups);
             checkDirtyAndUpdateFooter();
 
             if (typeof Toast !== 'undefined' && Toast.info) {
-                Toast.info('Đã hoàn tác', 'Đã khôi phục lại cấu hình stations ban đầu');
+                Toast.info('Đã hoàn tác', 'Đã khôi phục lại cấu hình máy in và stations ban đầu');
             }
         });
     }
@@ -814,6 +1170,7 @@
                 originalGroups = JSON.parse(JSON.stringify(currentGroups));
                 newlyAddedStations.clear();
                 closeStationFloatingDropdown();
+                closePrinterFloatingDropdown();
                 renderTable(currentGroups);
                 checkDirtyAndUpdateFooter();
 

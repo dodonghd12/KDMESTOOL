@@ -423,139 +423,258 @@ def get_prdexp_expdays() -> dict:
 
     return expday_map
 
+SPECS_CACHE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'technical_specifications_cache.json')
+
+def load_specs_from_disk_cache() -> dict:
+    if os.path.exists(SPECS_CACHE_FILE):
+        try:
+            with open(SPECS_CACHE_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                if data and isinstance(data, dict) and data.get('product_types'):
+                    return data
+        except Exception as e:
+            app.logger.warning(f"Không thể đọc file cache specs từ đĩa: {e}")
+    return None
+
+def save_specs_to_disk_cache(data: dict):
+    if not data or not isinstance(data, dict) or not data.get('product_types'):
+        return
+    try:
+        with open(SPECS_CACHE_FILE, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        app.logger.warning(f"Không thể ghi file cache specs vào đĩa: {e}")
+
+def load_specs_from_postgres() -> dict:
+    """
+    Truy vấn cấu hình kỹ thuật từ kvmes.material_resource_config và kvmes.limitary_hour
+    trực tiếp trên PostgreSQL 198.1.10.85 (mạng LAN nội bộ) kết hợp hạn sử dụng từ SQL Server 10.33.
+    Đảm bảo 100% không phụ thuộc kết nối Internet/WAN sang máy chủ GitLab Đài Loan.
+    """
+    try:
+        rows, _ = execute_pg_select_query(
+            "SELECT product_type, config FROM kvmes.material_resource_config ORDER BY product_type;"
+        )
+        if not rows:
+            return None
+
+        preferred_order = [
+            'INNER_LINER', 'CARCASS_PLY', 'SIDEWALL', 'TREAD', 'BEAD',
+            'BEAD_AND_BEAD_FILLER_PREASSEMBLY', 'CHAFER', 'GREEN_TIRE',
+            'STEEL_BELT', 'PLY', 'BELT_AND_EDGE_GUM_PREASSEMBLY', 'SQUEEZE', 'CAP_PLY'
+        ]
+
+        raw_product_types = []
+        config_map = {}
+        keys_by_product_type = {}
+
+        for ptype, cfg in rows:
+            if not ptype:
+                continue
+            pt_clean = str(ptype).strip()
+            raw_product_types.append(pt_clean)
+            if isinstance(cfg, str):
+                try:
+                    cfg = json.loads(cfg)
+                except Exception:
+                    cfg = {}
+            req_labels = cfg.get('required_labels', []) if isinstance(cfg, dict) else []
+            r_list = []
+            k_list = []
+            for lbl in req_labels:
+                if isinstance(lbl, dict):
+                    key = lbl.get('key', '')
+                    langs = lbl.get('languages', {}) or {}
+                    l_lower = {str(k).lower(): str(v).strip() for k, v in langs.items() if v}
+                    if key:
+                        k_list.append(key)
+                    if key or langs:
+                        r_list.append([
+                            key,
+                            l_lower.get('vi') or l_lower.get('vn') or '',
+                            l_lower.get('cn') or '',
+                            l_lower.get('tw') or '',
+                            l_lower.get('en') or '',
+                            l_lower.get('id') or ''
+                        ])
+            config_map[pt_clean] = r_list
+            keys_by_product_type[pt_clean] = k_list
+
+        def sort_key(pt):
+            pt_u = pt.upper()
+            if pt_u in preferred_order:
+                return (0, preferred_order.index(pt_u))
+            return (1, pt_u)
+
+        product_types = sorted(raw_product_types, key=sort_key)
+
+        # 2. Limitary hours từ kvmes.limitary_hour
+        limitary_hours = {}
+        try:
+            lh_rows, _ = execute_pg_select_query("SELECT product_type, min, max FROM kvmes.limitary_hour;")
+            for pt, min_v, max_v in (lh_rows or []):
+                if pt:
+                    limitary_hours[str(pt).strip().upper()] = {
+                        'standing_time': min_v,
+                        'limitary_hour': max_v
+                    }
+        except Exception as lh_err:
+            app.logger.warning(f"Lỗi truy vấn kvmes.limitary_hour: {lh_err}")
+
+        # 3. Expdays từ SQL Server 10.33/erp
+        expdays = get_prdexp_expdays()
+
+        return {
+            'product_types': product_types,
+            'config_map': config_map,
+            'keys_by_product_type': keys_by_product_type,
+            'limitary_hours': limitary_hours,
+            'expdays': expdays,
+            'source': 'database'
+        }
+    except Exception as e:
+        app.logger.error(f"Lỗi load_specs_from_postgres: {e}", exc_info=True)
+        return None
+
 def get_technical_specifications_data(force_refresh: bool = False) -> dict:
     global _technical_specifications_cache
     now = time.time()
     with _technical_specifications_lock:
         cached = _technical_specifications_cache.get('data')
-        if not force_refresh and cached and cached.get('expdays') and (now - _technical_specifications_cache.get('timestamp', 0) < 600):
+        if not force_refresh and cached and cached.get('product_types') and (now - _technical_specifications_cache.get('timestamp', 0) < 600):
             return cached
 
+    # 1. Nếu không phải force_refresh, kiểm tra cache file trên ổ đĩa để phản hồi tức thì (0ms)
+    if not force_refresh:
+        disk_data = load_specs_from_disk_cache()
+        if disk_data and disk_data.get('product_types'):
+            with _technical_specifications_lock:
+                _technical_specifications_cache['timestamp'] = now
+                _technical_specifications_cache['data'] = disk_data
+            return disk_data
+
+    # 2. Ưu tiên lấy trực tiếp từ database PostgreSQL 198.1.10.85 (LAN nội bộ, siêu nhanh và luôn sẵn sàng)
+    pg_data = load_specs_from_postgres()
+    if pg_data and pg_data.get('product_types'):
+        with _technical_specifications_lock:
+            _technical_specifications_cache['timestamp'] = now
+            _technical_specifications_cache['data'] = pg_data
+        save_specs_to_disk_cache(pg_data)
+        return pg_data
+
+    # 3. Fallback dự phòng: Gọi GitLab CE nếu PostgreSQL tạm thời không có dữ liệu
     s = get_gitlab_session()
-    
-    # 1. Fetch label-config.yml (Project 113)
     project_id_lc = 113
     encoded_path_lc = 'yamls%2Flabel-config.yml'
     ref = 'master'
-
     content_raw_lc = ''
     try:
         raw_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id_lc}/repository/files/{encoded_path_lc}/raw'
-        r = s.get(raw_url, params={'ref': ref}, timeout=8)
+        r = s.get(raw_url, params={'ref': ref}, timeout=2.5)
         if r.status_code == 200:
             content_raw_lc = r.text
-        elif r.status_code in [401, 403]:
-            return {'auth_error': True}
-        else:
+        elif r.status_code not in [401, 403]:
             file_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id_lc}/repository/files/{encoded_path_lc}'
-            r2 = s.get(file_url, params={'ref': ref}, timeout=8)
-            if r2.status_code in [401, 403]:
-                return {'auth_error': True}
+            r2 = s.get(file_url, params={'ref': ref}, timeout=2.5)
             if r2.ok:
                 c_b64 = r2.json().get('content', '')
                 if c_b64:
                     content_raw_lc = base64.b64decode(c_b64).decode('utf-8')
     except Exception as e:
-        print(f"Error fetching technical-specifications (label-config): {e}")
+        app.logger.warning(f"GitLab label-config unreachable: {e}")
 
-    # 2. Fetch limitary-hour.yaml (Project 99: tc/limitary-hour)
     project_id_lh = 99
     encoded_path_lh = 'yamls%2Flimitary-hour.yaml'
     content_raw_lh = ''
     try:
         raw_url_lh = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id_lh}/repository/files/{encoded_path_lh}/raw'
-        r_lh = s.get(raw_url_lh, params={'ref': ref}, timeout=8)
+        r_lh = s.get(raw_url_lh, params={'ref': ref}, timeout=2.5)
         if r_lh.status_code == 200:
             content_raw_lh = r_lh.text
-        elif r_lh.status_code in [401, 403]:
-            return {'auth_error': True}
-        else:
-            file_url_lh = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id_lh}/repository/files/{encoded_path_lh}'
-            r2_lh = s.get(file_url_lh, params={'ref': ref}, timeout=8)
-            if r2_lh.status_code in [401, 403]:
-                return {'auth_error': True}
-            if r2_lh.ok:
-                c_b64 = r2_lh.json().get('content', '')
-                if c_b64:
-                    content_raw_lh = base64.b64decode(c_b64).decode('utf-8')
     except Exception as e:
-        print(f"Error fetching limitary-hour: {e}")
+        app.logger.warning(f"GitLab limitary-hour unreachable: {e}")
 
-    if not content_raw_lc:
-        with _technical_specifications_lock:
-            return _technical_specifications_cache.get('data') or {'product_types': [], 'config_map': {}, 'keys_by_product_type': {}, 'limitary_hours': {}, 'expdays': {}}
+    if content_raw_lc:
+        try:
+            parsed_yaml = yaml.safe_load(content_raw_lc)
+            product_types = []
+            config_map = {}
+            keys_by_product_type = {}
 
-    try:
-        parsed_yaml = yaml.safe_load(content_raw_lc)
-        product_types = []
-        config_map = {}
-        keys_by_product_type = {}
+            if isinstance(parsed_yaml, list):
+                for item in parsed_yaml:
+                    if not isinstance(item, dict):
+                        continue
+                    ptype = item.get('product-type')
+                    if ptype:
+                        product_types.append(ptype)
+                        configs = item.get('configs', {})
+                        req_labels = configs.get('required-labels', []) if isinstance(configs, dict) else []
+                        rows = []
+                        keys = []
+                        for lbl in req_labels:
+                            if isinstance(lbl, dict):
+                                key = lbl.get('key', '')
+                                langs = lbl.get('languages', {}) if isinstance(lbl.get('languages'), dict) else {}
+                                l_lower = {str(k).lower(): str(v).strip() for k, v in langs.items() if v}
+                                if key:
+                                    keys.append(key)
+                                if key or langs:
+                                    rows.append([
+                                        key,
+                                        l_lower.get('vi') or l_lower.get('vn') or '',
+                                        l_lower.get('cn') or '',
+                                        l_lower.get('tw') or '',
+                                        l_lower.get('en') or '',
+                                        l_lower.get('id') or ''
+                                    ])
+                        config_map[ptype] = rows
+                        keys_by_product_type[ptype] = keys
 
-        if isinstance(parsed_yaml, list):
-            for item in parsed_yaml:
-                if not isinstance(item, dict):
-                    continue
-                ptype = item.get('product-type')
-                if ptype:
-                    product_types.append(ptype)
-                    configs = item.get('configs', {})
-                    req_labels = configs.get('required-labels', []) if isinstance(configs, dict) else []
-                    rows = []
-                    keys = []
-                    for lbl in req_labels:
-                        if isinstance(lbl, dict):
-                            key = lbl.get('key', '')
-                            langs = lbl.get('languages', {}) if isinstance(lbl.get('languages'), dict) else {}
-                            if key:
-                                keys.append(key)
-                            if key or langs:
-                                rows.append([
-                                    key,
-                                    langs.get('VI') or langs.get('VN') or '',
-                                    langs.get('CN') or '',
-                                    langs.get('TW') or '',
-                                    langs.get('EN') or '',
-                                    langs.get('ID') or ''
-                                ])
-                    config_map[ptype] = rows
-                    keys_by_product_type[ptype] = keys
+            limitary_hours = {}
+            if content_raw_lh:
+                try:
+                    parsed_lh = yaml.safe_load(content_raw_lh)
+                    if isinstance(parsed_lh, list):
+                        for item in parsed_lh:
+                            if isinstance(item, dict) and item.get('product-type'):
+                                pt = str(item.get('product-type')).strip()
+                                lh_obj = item.get('limitary-hour', {})
+                                if isinstance(lh_obj, dict):
+                                    min_v = lh_obj.get('min')
+                                    max_v = lh_obj.get('max')
+                                    limitary_hours[pt.upper()] = {
+                                        'standing_time': min_v,
+                                        'limitary_hour': max_v
+                                    }
+                except Exception as lh_err:
+                    app.logger.warning(f"Error parsing limitary-hour yaml: {lh_err}")
 
-        limitary_hours = {}
-        if content_raw_lh:
-            try:
-                parsed_lh = yaml.safe_load(content_raw_lh)
-                if isinstance(parsed_lh, list):
-                    for item in parsed_lh:
-                        if isinstance(item, dict) and item.get('product-type'):
-                            pt = str(item.get('product-type')).strip()
-                            lh_obj = item.get('limitary-hour', {})
-                            if isinstance(lh_obj, dict):
-                                min_v = lh_obj.get('min')
-                                max_v = lh_obj.get('max')
-                                limitary_hours[pt.upper()] = {
-                                    'standing_time': min_v,
-                                    'limitary_hour': max_v
-                                }
-            except Exception as lh_err:
-                print(f"Error parsing limitary-hour yaml: {lh_err}")
+            expdays = get_prdexp_expdays()
 
-        # 3. Fetch expday from SQL Server 10.33/erp
-        expdays = get_prdexp_expdays()
+            data = {
+                'product_types': product_types,
+                'config_map': config_map,
+                'keys_by_product_type': keys_by_product_type,
+                'limitary_hours': limitary_hours,
+                'expdays': expdays,
+                'source': 'gitlab'
+            }
+            with _technical_specifications_lock:
+                _technical_specifications_cache['timestamp'] = now
+                _technical_specifications_cache['data'] = data
+            save_specs_to_disk_cache(data)
+            return data
+        except Exception as e:
+            app.logger.error(f"Error parsing technical-specifications yaml: {e}")
 
-        data = {
-            'product_types': product_types,
-            'config_map': config_map,
-            'keys_by_product_type': keys_by_product_type,
-            'limitary_hours': limitary_hours,
-            'expdays': expdays
-        }
-        with _technical_specifications_lock:
-            _technical_specifications_cache['timestamp'] = now
-            _technical_specifications_cache['data'] = data
-        return data
-    except Exception as e:
-        print(f"Error parsing technical-specifications data: {e}")
-        return {'product_types': [], 'config_map': {}, 'keys_by_product_type': {}, 'limitary_hours': {}, 'expdays': {}}
+    # Fallback cuối cùng: disk cache hoặc memory cache cũ
+    disk_data = load_specs_from_disk_cache()
+    if disk_data and disk_data.get('product_types'):
+        return disk_data
+
+    with _technical_specifications_lock:
+        return _technical_specifications_cache.get('data') or {'product_types': [], 'config_map': {}, 'keys_by_product_type': {}, 'limitary_hours': {}, 'expdays': {}}
 
 def get_recipe_id_variants(recipe_id: str) -> list:
     """
@@ -4561,7 +4680,7 @@ def fetch_technical_specifications():
     force = request.json.get('force', False) if request.is_json and request.json else False
     data = get_technical_specifications_data(force_refresh=force)
     
-    if data.get('auth_error'):
+    if data.get('auth_error') and not data.get('product_types'):
         return jsonify({
             'success': False,
             'error_type': 'auth',
@@ -7401,6 +7520,34 @@ def api_avada_kedavra_logs():
         }), 500
 
 
+def extract_group_printers_from_yaml(raw_yaml: str) -> list:
+    """
+    Trích xuất printerName và defaultPrinterName (từ dòng comment) cho từng group trong raw YAML.
+    """
+    lines = raw_yaml.splitlines()
+    groups_meta = []
+    cur_g = None
+    for idx, line in enumerate(lines):
+        if re.match(r'^\s*-\s+stations:', line):
+            if cur_g is not None:
+                groups_meta.append(cur_g)
+            cur_g = {'printerName': '', 'defaultPrinterName': '', 'isCustomPrinter': False}
+        elif cur_g is not None:
+            m_p = re.match(r'^\s*printerName\s*:\s*([^\s#]+)', line)
+            if m_p:
+                cur_g['printerName'] = m_p.group(1).strip()
+            m_cp = re.match(r'^\s*(?:#|--)\s*(?:--\s*)?printerName\s*:\s*([^\s#]+)', line)
+            if m_cp:
+                cur_g['defaultPrinterName'] = m_cp.group(1).strip()
+                cur_g['isCustomPrinter'] = True
+            elif re.match(r'^[a-zA-Z0-9_-]+:', line) or line.startswith('---'):
+                groups_meta.append(cur_g)
+                cur_g = None
+    if cur_g is not None:
+        groups_meta.append(cur_g)
+    return groups_meta
+
+
 def fetch_remote_printers_manager(folder: str, server_ip: str = None) -> dict:
     """Đọc và parse file printers-manager.yaml trên server MES (mặc định 198.1.10.85)."""
     allowed_folders = ['p5300_ic', 'p8300', 'p8400', 'p9100']
@@ -7441,6 +7588,18 @@ def fetch_remote_printers_manager(folder: str, server_ip: str = None) -> dict:
                                     'timeout': timeout
                                 })
                     break
+
+            # Gắn defaultPrinterName và isCustomPrinter cho từng nhóm dựa trên raw_yaml
+            groups_meta = extract_group_printers_from_yaml(out)
+            for idx, g in enumerate(groups):
+                if idx < len(groups_meta):
+                    meta = groups_meta[idx]
+                    def_name = meta.get('defaultPrinterName') or g.get('printerName') or ''
+                    g['defaultPrinterName'] = def_name
+                    g['isCustomPrinter'] = bool(meta.get('isCustomPrinter')) or (g.get('printerName') != def_name)
+                else:
+                    g['defaultPrinterName'] = g.get('printerName') or ''
+                    g['isCustomPrinter'] = False
 
             total_stations = sum(len(g['stations']) for g in groups)
             return {
@@ -7493,45 +7652,87 @@ def api_switching_spell_printers():
         return jsonify({'success': False, 'message': f'Lỗi hệ thống: {str(e)}'}), 500
 
 
-def update_yaml_stations_content(raw_yaml: str, updated_groups: list) -> str:
+def update_yaml_printers_manager_content(raw_yaml: str, updated_groups: list) -> str:
     """
-    Cập nhật danh sách stations cho các groups trong file printers-manager.yaml
+    Cập nhật danh sách stations và printerName cho các groups trong file printers-manager.yaml
     đồng thời bảo tồn nguyên vẹn 100% comment, khoảng trắng và thụt lề (indent).
+    Nếu máy in khác mặc định, ghi:
+        printerName: <newPrinter>
+        # -- printerName: <defaultPrinter>
+    Nếu máy in trùng mặc định (hoặc được revert), ghi:
+        printerName: <defaultPrinter>
     """
     lines = raw_yaml.splitlines()
     groups_info = []
-    current_group = None
+    cur_g = None
     
     for idx, line in enumerate(lines):
         if re.match(r'^\s*-\s+stations:', line):
-            if current_group is not None:
-                groups_info.append(current_group)
-            current_group = {
+            if cur_g is not None:
+                groups_info.append(cur_g)
+            cur_g = {
                 'header_idx': idx,
-                'header_line': line,
                 'station_lines': [],
-                'station_indices': []
+                'station_indices': [],
+                'ended_stations': False,
+                'printer_idx': None,
+                'printer_indent': '    ',
+                'comment_printer_idx': None,
+                'orig_printer_name': '',
+                'orig_default_printer_name': ''
             }
             continue
-            
-        if current_group is not None:
-            if re.match(r'^\s{2,6}-\s+', line) and not current_group.get('ended_stations'):
-                current_group['station_lines'].append(line)
-                current_group['station_indices'].append(idx)
+        if cur_g is not None:
+            if re.match(r'^\s{2,6}-\s+', line) and not cur_g.get('ended_stations'):
+                cur_g['station_lines'].append(line)
+                cur_g['station_indices'].append(idx)
             elif re.match(r'^\s{2,6}[a-zA-Z0-9_-]+:', line):
-                current_group['ended_stations'] = True
+                cur_g['ended_stations'] = True
+                m_p = re.match(r'^(\s*)printerName\s*:\s*([^\s#]+)', line)
+                if m_p:
+                    cur_g['printer_idx'] = idx
+                    cur_g['printer_indent'] = m_p.group(1)
+                    cur_g['orig_printer_name'] = m_p.group(2).strip()
+            elif re.match(r'^\s*(?:#|--)\s*(?:--\s*)?printerName\s*:\s*([^\s#]+)', line):
+                if cur_g.get('printer_idx') is not None and idx == cur_g['printer_idx'] + 1:
+                    cur_g['comment_printer_idx'] = idx
+                    m_cp = re.match(r'^\s*(?:#|--)\s*(?:--\s*)?printerName\s*:\s*([^\s#]+)', line)
+                    cur_g['orig_default_printer_name'] = m_cp.group(1).strip()
             elif re.match(r'^[a-zA-Z0-9_-]+:', line) or line.startswith('---'):
-                groups_info.append(current_group)
-                current_group = None
-    if current_group is not None:
-        groups_info.append(current_group)
+                groups_info.append(cur_g)
+                cur_g = None
+    if cur_g is not None:
+        groups_info.append(cur_g)
 
     if len(groups_info) != len(updated_groups):
         raise ValueError(f"Số lượng nhóm không khớp: YAML gốc có {len(groups_info)} nhóm, dữ liệu gửi lên có {len(updated_groups)} nhóm")
 
+    # Xử lý các nhóm từ dưới lên trên (bottom to top) để chỉ số dòng không bị lệch
     for g_idx in range(len(groups_info) - 1, -1, -1):
         g_info = groups_info[g_idx]
         new_g = updated_groups[g_idx]
+
+        # 1. Cập nhật printerName và comment máy in mặc định
+        new_printer = str(new_g.get('printerName') or g_info['orig_printer_name']).strip()
+        default_printer = str(new_g.get('defaultPrinterName') or g_info['orig_default_printer_name'] or new_printer).strip()
+
+        p_indent = g_info['printer_indent'] or '    '
+        if g_info['printer_idx'] is not None:
+            if new_printer != default_printer:
+                p_lines = [
+                    f'{p_indent}printerName: {new_printer}',
+                    f'{p_indent}# -- printerName: {default_printer}'
+                ]
+            else:
+                p_lines = [
+                    f'{p_indent}printerName: {default_printer}'
+                ]
+            
+            start_p = g_info['printer_idx']
+            end_p = g_info['comment_printer_idx'] if g_info['comment_printer_idx'] is not None else start_p
+            lines[start_p:end_p+1] = p_lines
+
+        # 2. Cập nhật stations
         new_stations = new_g.get('stations') or []
         if isinstance(new_stations, str):
             new_stations = [new_stations]
@@ -7602,7 +7803,7 @@ def save_remote_printers_manager(folder: str, updated_groups: list, server_ip: s
     raw_yaml = fetch_res['raw_yaml']
 
     try:
-        new_yaml_content = update_yaml_stations_content(raw_yaml, updated_groups)
+        new_yaml_content = update_yaml_printers_manager_content(raw_yaml, updated_groups)
     except Exception as patch_err:
         app.logger.error(f"Lỗi tạo YAML printers-manager ({clean_folder}): {patch_err}", exc_info=True)
         return {
@@ -7766,9 +7967,6 @@ def api_switching_spell_save_printers():
     except Exception as e:
         app.logger.error(f"Lỗi API /api/switching-spell/save-printers: {e}", exc_info=True)
         return jsonify({'success': False, 'message': f'Lỗi hệ thống: {str(e)}'}), 500
-    except Exception as e:
-        app.logger.error(f"Lỗi API /api/switching-spell/save-printers: {e}", exc_info=True)
-        return jsonify({'success': False, 'message': f'Lỗi hệ thống: {str(e)}'}), 500
 
 
 @app.route('/api/switching-spell/available-stations', methods=['GET'])
@@ -7808,6 +8006,96 @@ def api_switching_spell_available_stations():
             'success': False,
             'message': f'Lỗi truy vấn danh sách station: {str(e)}',
             'stations': []
+        }), 500
+
+
+_cups_printers_cache = {
+    'timestamp': 0,
+    'data': []
+}
+
+
+def fetch_cups_printers_list(folder: str = None) -> list:
+    """
+    Lấy danh sách máy in từ CUPS 2.4.7 tại https://198.1.10.85:631/printers/.
+    Bỏ 3 máy in đầu tiên (Brother HL-L2360D...).
+    Lưu dữ liệu gồm queue_name và status.
+    Lọc theo folder nếu được cung cấp:
+      - p8300: KV2_P83...
+      - p5300_ic: KV2_P5...
+      - p8400: KV2_P84...
+      - p9100: KV2_P9... hoặc KV2_P87...
+    """
+    now = time.time()
+    printers = []
+
+    if _cups_printers_cache['data'] and (now - _cups_printers_cache['timestamp'] < 30):
+        printers = _cups_printers_cache['data']
+    else:
+        try:
+            import urllib3
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+            import requests
+            url = "https://198.1.10.85:631/printers/"
+            resp = requests.get(url, verify=False, timeout=6)
+            if resp.status_code == 200:
+                raw_html = resp.text
+                m = re.search(r'<TABLE[^>]*>(.*?)</TABLE>', raw_html, re.DOTALL | re.IGNORECASE)
+                if m:
+                    table_html = m.group(1)
+                    trs = re.findall(r'<TR[^>]*>(.*?)</TR>', table_html, re.DOTALL | re.IGNORECASE)
+                    for tr in trs[4:]:
+                        tds = re.findall(r'<T[DH][^>]*>(.*?)</T[DH]>', tr, re.DOTALL | re.IGNORECASE)
+                        clean_tds = [re.sub(r'<[^>]+>', '', td).strip() for td in tds]
+                        if clean_tds:
+                            queue_name = clean_tds[0]
+                            status = clean_tds[4] if len(clean_tds) > 4 else (clean_tds[-1] if len(clean_tds) > 1 else 'Idle')
+                            if queue_name:
+                                printers.append({
+                                    'queue_name': queue_name,
+                                    'status': status or 'Idle'
+                                })
+                    if printers:
+                        _cups_printers_cache['data'] = printers
+                        _cups_printers_cache['timestamp'] = now
+        except Exception as e:
+            app.logger.error(f"Lỗi fetch printers từ CUPS 198.1.10.85:631: {e}")
+            if _cups_printers_cache['data']:
+                printers = _cups_printers_cache['data']
+
+    clean_folder = (folder or '').strip().lower()
+    if clean_folder == 'p8300':
+        return [p for p in printers if p['queue_name'].upper().startswith('KV2_P83') or p['queue_name'].upper().startswith('KV2-P83')]
+    elif clean_folder == 'p5300_ic':
+        return [p for p in printers if p['queue_name'].upper().startswith('KV2_P5') or p['queue_name'].upper().startswith('KV2-P5')]
+    elif clean_folder == 'p8400':
+        return [p for p in printers if p['queue_name'].upper().startswith('KV2_P84') or p['queue_name'].upper().startswith('KV2-P84')]
+    elif clean_folder == 'p9100':
+        return [p for p in printers if (
+            p['queue_name'].upper().startswith('KV2_P9') or p['queue_name'].upper().startswith('KV2-P9') or
+            p['queue_name'].upper().startswith('KV2_P87') or p['queue_name'].upper().startswith('KV2-P87')
+        )]
+    return printers
+
+
+@app.route('/api/switching-spell/available-printers', methods=['GET'])
+def api_switching_spell_available_printers():
+    """Lấy danh sách các máy in từ CUPS 2.4.7 (198.1.10.85:631) theo thư mục được chọn."""
+    try:
+        folder = (request.args.get('folder') or request.args.get('item') or '').strip().lower()
+        printers = fetch_cups_printers_list(folder)
+        return jsonify({
+            'success': True,
+            'folder': folder,
+            'printers': printers,
+            'count': len(printers)
+        })
+    except Exception as e:
+        app.logger.error(f"Lỗi API /api/switching-spell/available-printers: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'message': f'Lỗi truy vấn danh sách máy in CUPS: {str(e)}',
+            'printers': []
         }), 500
 
 
