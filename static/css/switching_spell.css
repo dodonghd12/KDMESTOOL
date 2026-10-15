@@ -276,21 +276,6 @@
     color: #f59e0b;
 }
 
-.printer-custom-badge {
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-    color: #fbbf24;
-    background: rgba(245, 158, 11, 0.15);
-    border: 1px solid rgba(245, 158, 11, 0.35);
-    padding: 1px 5px;
-    border-radius: 4px;
-    line-height: 1.2;
-    flex-shrink: 0;
-    user-select: none;
-}
-
 .btn-return-default-printer {
     display: inline-flex;
     align-items: center;
@@ -299,9 +284,8 @@
     height: 20px;
     padding: 0;
     margin: 0;
-    border-radius: 4px;
-    background: rgba(245, 158, 11, 0.12);
-    border: 1px solid rgba(245, 158, 11, 0.4);
+    border: none;
+    background: transparent;
     color: #fbbf24;
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
@@ -311,19 +295,17 @@
 }
 
 .btn-return-default-printer:hover {
-    background: rgba(245, 158, 11, 0.28);
-    border-color: #fbbf24;
-    color: #fef3c7;
-    box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
-    transform: rotate(-30deg) scale(1.05);
+    color: #fef08a;
+    transform: rotate(-35deg) scale(1.15);
+    text-shadow: 0 0 8px rgba(251, 191, 36, 0.6);
 }
 
 .btn-return-default-printer:active {
-    transform: scale(0.92);
+    transform: rotate(-35deg) scale(0.92);
 }
 
 .btn-return-default-printer .material-symbols-outlined {
-    font-size: 14px;
+    font-size: 16px;
     line-height: 1;
     font-weight: 600;
 }
@@ -981,17 +963,15 @@ body.theme-light .printer-name-tag.is-custom {
     text-shadow: none;
 }
 
-:root[data-theme="light"] .printer-custom-badge,
-body.theme-light .printer-custom-badge {
-    color: #b45309;
-    background: rgba(245, 158, 11, 0.12);
-    border-color: rgba(245, 158, 11, 0.3);
-}
-
 :root[data-theme="light"] .btn-return-default-printer,
 body.theme-light .btn-return-default-printer {
-    background: rgba(245, 158, 11, 0.1);
-    border-color: rgba(245, 158, 11, 0.4);
+    background: transparent;
+    border: none;
+    color: #d97706;
+}
+
+:root[data-theme="light"] .btn-return-default-printer:hover,
+body.theme-light .btn-return-default-printer:hover {
     color: #b45309;
 }
 

@@ -304,7 +304,6 @@
                                     <span class="printer-name-text">${safePrinter}</span>
                                 </span>
                                 ${isCustom ? `
-                                    <span class="printer-custom-badge" title="Mặc định: ${safeDefault}">(Đã đổi)</span>
                                     <button type="button" class="btn-return-default-printer" data-group-index="${targetGroupIndex}" title="Khôi phục máy in mặc định (${safeDefault})" aria-label="Khôi phục mặc định">
                                         <span class="material-symbols-outlined">replay</span>
                                     </button>
