@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Switching Spell</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v={{ version }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/smooth_input.css') }}?v={{ version }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/avada_kedavra.css') }}?v={{ version }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/switching_spell.css') }}?v={{ version }}">
+
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/favicon.svg') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome/css/all.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/material-symbols/material-symbols.css') }}">
+</head>
+
+<body class="switching-spell-page {% if is_frame %}is-spa-frame{% endif %} app-loading-state">
+    {% if not is_frame %}{% include "components/sidebar.html" %}{% endif %}
+
+    <div class="container" autocomplete="off">
+        
+        <!-- ── Top Action Controls Bar ── -->
+        <div class="avada-kedavra-controls-row switching-spell-controls-row">
+            <!-- 1. Meta Badge: Server Connection Status (Static 198.1.10.85) -->
+            <div class="avada-kedavra-meta-badge static-server-badge" id="avadaKedavraMetaBadge" title="Máy chủ đích: 198.1.10.85">
+                <span class="material-symbols-outlined meta-dns-icon">dns</span>
+                <span id="currentServerLabel">root@198.1.10.85</span>
+            </div>
+
+            <!-- 2. Refresh Button -->
+            <button type="button" id="btnRefreshLogs" class="winx-btn btn-refresh-compact" title="Tải lại trạng thái và cấu hình máy in" aria-label="Làm mới">
+                <span class="material-symbols-outlined">refresh</span>
+            </button>
+
+            <!-- 3. Folder Input Dropdown (KV2) -->
+            <div class="folder-select-box" id="folderSelectBox">
+                <div class="folder-dropdown-wrapper">
+                    <span class="material-symbols-outlined folder-icon">folder_open</span>
+                    <select id="folderSelect" class="folder-select" aria-label="Chọn thư mục máy in">
+                        <option value="" disabled selected>-- Chọn thư mục máy in (KV2) --</option>
+                        <option value="p5300_ic">p5300_ic</option>
+                        <option value="p8300">p8300</option>
+                        <option value="p8400">p8400</option>
+                        <option value="p9100">p9100</option>
+                    </select>
+                    <span class="material-symbols-outlined dropdown-arrow">expand_more</span>
+                </div>
+            </div>
+
+            <!-- 4. Container Status Badge (Live Step) -->
+            <div class="avada-kedavra-step-badge" id="containerStatusBadge" style="display: none;">
+                <span class="material-symbols-outlined step-badge-icon" id="stepBadgeIcon">sync</span>
+                <span id="containerStatusText">Kết nối root@198.1.10.85</span>
+            </div>
+
+            <!-- 5. Search Box (căn phải) -->
+            <div class="switching-spell-hero-right">
+                <div class="input-wrapper switching-spell-search-wrapper">
+                    <input placeholder="Tìm kiếm stations / printer..." class="input" id="clientSearch" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text" aria-label="Tìm kiếm trong bảng">
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Table Container ── -->
+        <div class="table-container">
+            <div class="table-scroll switching-spell-table-scroll">
+                <table>
+                    <thead id="tableHead">
+                        <tr>
+                            <th style="width: 50px; text-align: center;">#</th>
+                            <th>Stations</th>
+                            <th style="width: 280px; min-width: 240px; white-space: nowrap;">Printer Name</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <tr>
+                            <td colspan="3" class="switching-spell-empty-state">
+                                <div class="empty-placeholder-box">
+                                    <span class="material-symbols-outlined empty-icon">print_connect</span>
+                                    <span class="empty-title">Vui lòng chọn thư mục cấu hình máy in</span>
+                                    <span class="empty-subtitle">Chọn một trong các mục (p5300_ic, p8300, p8400, p9100) để hiển thị chi tiết</span>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="table-footer hidden" id="tableFooter">
+                <div class="row-count">Số nhóm: <span id="rowCount">0</span></div>
+                <div id="stationCountBadge" class="station-count-badge"></div>
+
+                <div class="table-footer-actions" id="tableFooterActions">
+                    <!-- Undo Button -->
+                    <button type="button" class="winx-btn btn-undo-changes" id="btnUndoChanges" style="display: none;" title="Khôi phục lại tất cả các thay đổi chưa lưu">
+                        <span class="material-symbols-outlined" style="font-size: 14px; line-height: 1;">undo</span>
+                        <span>Undo</span>
+                    </button>
+
+                    <!-- Save Button (Hold 3s) -->
+                    <button type="button" class="winx-btn btn-save-hold" id="btnSaveHold" style="display: none;" title="Bấm và giữ chuột trong 3 giây để lưu thay đổi">
+                        <div id="saveProgressBar" class="save-progress-bar"></div>
+                        <span class="material-symbols-outlined save-icon" style="font-size: 14px; line-height: 1; position: relative; z-index: 2;">save</span>
+                        <span id="saveBtnText" style="position: relative; z-index: 2;">Save</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Floating Dropdown for Selecting Stations -->
+        <div id="stationFloatingDropdown" class="station-floating-dropdown" style="display: none;">
+            <div class="floating-dropdown-header">
+                <input type="text" id="stationDropdownSearch" class="floating-search-input" placeholder="Tìm kiếm..." autocomplete="off" spellcheck="false">
+                <button type="button" id="stationDropdownClearSearch" class="floating-clear-btn" style="display: none;" title="Xóa tìm kiếm">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <div class="floating-dropdown-list" id="stationDropdownList">
+                <!-- Station items will be rendered here -->
+            </div>
+            <div class="floating-dropdown-empty" id="stationDropdownEmpty" style="display: none;">
+                <span class="material-symbols-outlined">search_off</span>
+                <span>Không tìm thấy station phù hợp</span>
+            </div>
+        </div>
+    </div>
+
+    {% include "components/shared_modals.html" %}
+
+    <script src="{{ url_for('static', filename='js/smooth_input.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/sidebar.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/switching_spell.js') }}?v={{ version }}"></script>
+</body>
+
+</html>

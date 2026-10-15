@@ -1164,6 +1164,10 @@ def avada_kedavra():
 def reparo_spell():
     return render_page_or_shell('reparo_spell.html', '/reparo-spell', 'Reparo Spell')
 
+@app.route('/switching-spell')
+def switching_spell():
+    return render_page_or_shell('switching_spell.html', '/switching-spell', 'Switching Spell')
+
 @app.route('/create-kd-account')
 def create_kd_account():
     return render_page_or_shell('create_kd_account.html', '/create-kd-account', 'Tạo Tài Khoản')
@@ -6954,7 +6958,7 @@ AVADA_KEDAVRA_SERVERS = {
         "restart_cmd": "cd /srv/go/service/mes && ./restart",
     }
 }
-DEFAULT_AVADA_KEDAVRA_SERVER = "198.1.10.8"
+DEFAULT_AVADA_KEDAVRA_SERVER = "198.1.10.85"
 AVADA_KEDAVRA_SSH_HOST = DEFAULT_AVADA_KEDAVRA_SERVER
 AVADA_KEDAVRA_LOG_FILE_PATH = r"\\198.1.10.2\Vitinh\Thu\QUAN TRONG KHONG XOA\log_avada_kedavra.txt"
 
@@ -7394,6 +7398,416 @@ def api_avada_kedavra_logs():
         return jsonify({
             'success': False,
             'message': f'Lỗi tải log: {str(e)}'
+        }), 500
+
+
+def fetch_remote_printers_manager(folder: str, server_ip: str = None) -> dict:
+    """Đọc và parse file printers-manager.yaml trên server MES (mặc định 198.1.10.85)."""
+    allowed_folders = ['p5300_ic', 'p8300', 'p8400', 'p9100']
+    clean_folder = str(folder or '').strip()
+    if clean_folder not in allowed_folders:
+        return {
+            'success': False,
+            'message': f'Thư mục không hợp lệ: {clean_folder}. Các mục hợp lệ: {", ".join(allowed_folders)}'
+        }
+
+    target_server = normalize_avada_kedavra_server(server_ip or DEFAULT_AVADA_KEDAVRA_SERVER)
+    yaml_path = f"/srv/go/service/mesage/KV2/{clean_folder}/assets/services/printers/printers-manager.yaml"
+    cmd = f"test -f '{yaml_path}' && cat '{yaml_path}' || echo '__FILE_NOT_FOUND__'"
+    out, err = run_avada_kedavra_ssh_cmd(cmd, server_ip=target_server, timeout=15)
+
+    if '__FILE_NOT_FOUND__' not in out and out.strip():
+        try:
+            import yaml
+            docs = list(yaml.safe_load_all(out))
+            groups = []
+            for d in docs:
+                if isinstance(d, dict) and 'networkGroups' in d:
+                    raw_groups = d.get('networkGroups')
+                    if isinstance(raw_groups, list):
+                        for g in raw_groups:
+                            if isinstance(g, dict):
+                                stations = g.get('stations') or []
+                                if isinstance(stations, str):
+                                    stations = [stations]
+                                elif not isinstance(stations, list):
+                                    stations = [str(stations)]
+                                stations = [str(s).strip() for s in stations if s and str(s).strip()]
+                                printer_name = str(g.get('printerName') or '').strip()
+                                timeout = g.get('timeout', 2)
+                                groups.append({
+                                    'stations': stations,
+                                    'printerName': printer_name,
+                                    'timeout': timeout
+                                })
+                    break
+
+            total_stations = sum(len(g['stations']) for g in groups)
+            return {
+                'success': True,
+                'folder': clean_folder,
+                'server': target_server,
+                'yaml_path': yaml_path,
+                'groups': groups,
+                'total_groups': len(groups),
+                'total_stations': total_stations,
+                'raw_yaml': out
+            }
+        except Exception as parse_err:
+            app.logger.error(f"Lỗi parse YAML printers-manager.yaml ({clean_folder}): {parse_err}")
+            return {
+                'success': False,
+                'message': f'Lỗi đọc cấu trúc YAML: {str(parse_err)}',
+                'folder': clean_folder,
+                'server': target_server,
+                'raw_yaml': out
+            }
+
+    return {
+        'success': False,
+        'message': f'Không tìm thấy file printers-manager.yaml tại đường dẫn {yaml_path}',
+        'folder': clean_folder,
+        'server': target_server
+    }
+
+@app.route('/api/switching-spell/printers', methods=['GET', 'POST'])
+def api_switching_spell_printers():
+    """Lấy danh sách cấu hình máy in và công đoạn từ printers-manager.yaml."""
+    try:
+        if request.method == 'POST':
+            data = request.get_json(silent=True) or {}
+            folder = data.get('folder') or data.get('item')
+            server_ip = data.get('server', DEFAULT_AVADA_KEDAVRA_SERVER)
+        else:
+            folder = request.args.get('folder') or request.args.get('item')
+            server_ip = request.args.get('server', DEFAULT_AVADA_KEDAVRA_SERVER)
+
+        if not folder:
+            return jsonify({'success': False, 'message': 'Thiếu tham số thư mục máy in (folder/item)'}), 400
+
+        res = fetch_remote_printers_manager(folder, server_ip=server_ip)
+        status_code = 200 if res.get('success') else 500
+        return jsonify(res), status_code
+    except Exception as e:
+        app.logger.error(f"Lỗi API /api/switching-spell/printers: {e}", exc_info=True)
+        return jsonify({'success': False, 'message': f'Lỗi hệ thống: {str(e)}'}), 500
+
+
+def update_yaml_stations_content(raw_yaml: str, updated_groups: list) -> str:
+    """
+    Cập nhật danh sách stations cho các groups trong file printers-manager.yaml
+    đồng thời bảo tồn nguyên vẹn 100% comment, khoảng trắng và thụt lề (indent).
+    """
+    lines = raw_yaml.splitlines()
+    groups_info = []
+    current_group = None
+    
+    for idx, line in enumerate(lines):
+        if re.match(r'^\s*-\s+stations:', line):
+            if current_group is not None:
+                groups_info.append(current_group)
+            current_group = {
+                'header_idx': idx,
+                'header_line': line,
+                'station_lines': [],
+                'station_indices': []
+            }
+            continue
+            
+        if current_group is not None:
+            if re.match(r'^\s{2,6}-\s+', line) and not current_group.get('ended_stations'):
+                current_group['station_lines'].append(line)
+                current_group['station_indices'].append(idx)
+            elif re.match(r'^\s{2,6}[a-zA-Z0-9_-]+:', line):
+                current_group['ended_stations'] = True
+            elif re.match(r'^[a-zA-Z0-9_-]+:', line) or line.startswith('---'):
+                groups_info.append(current_group)
+                current_group = None
+    if current_group is not None:
+        groups_info.append(current_group)
+
+    if len(groups_info) != len(updated_groups):
+        raise ValueError(f"Số lượng nhóm không khớp: YAML gốc có {len(groups_info)} nhóm, dữ liệu gửi lên có {len(updated_groups)} nhóm")
+
+    for g_idx in range(len(groups_info) - 1, -1, -1):
+        g_info = groups_info[g_idx]
+        new_g = updated_groups[g_idx]
+        new_stations = new_g.get('stations') or []
+        if isinstance(new_stations, str):
+            new_stations = [new_stations]
+        new_stations = [str(s).strip() for s in new_stations if str(s).strip()]
+
+        indent = "    "
+        if g_info['station_lines']:
+            m = re.match(r'^(\s+)-\s+', g_info['station_lines'][0])
+            if m:
+                indent = m.group(1)
+
+        existing_map = {}
+        for line in g_info['station_lines']:
+            st_name = re.sub(r'^\s*-\s*', '', re.split(r'\s+#', line)[0]).strip()
+            existing_map[st_name] = line
+
+        new_station_lines = []
+        for st in new_stations:
+            if st in existing_map:
+                new_station_lines.append(existing_map[st])
+            else:
+                new_station_lines.append(f"{indent}- {st}")
+
+        if g_info['station_indices']:
+            start_i = g_info['station_indices'][0]
+            end_i = g_info['station_indices'][-1]
+            lines[start_i:end_i+1] = new_station_lines
+        else:
+            ins_i = g_info['header_idx'] + 1
+            lines[ins_i:ins_i] = new_station_lines
+
+    trailing_newline = raw_yaml.endswith('\n') or raw_yaml.endswith('\r\n')
+    sep = '\r\n' if '\r\n' in raw_yaml else '\n'
+    result = sep.join(lines)
+    if trailing_newline and not (result.endswith('\n') or result.endswith('\r\n')):
+        result += sep
+
+    list(yaml.safe_load_all(result))
+    return result
+
+
+def save_remote_printers_manager(folder: str, updated_groups: list, server_ip: str = None, client_ip: str = None) -> dict:
+    """Lưu cấu hình printers-manager.yaml lên server MES (mặc định 198.1.10.85)."""
+    allowed_folders = ['p5300_ic', 'p8300', 'p8400', 'p9100']
+    clean_folder = str(folder or '').strip()
+    if clean_folder not in allowed_folders:
+        return {
+            'success': False,
+            'message': f'Thư mục không hợp lệ: {clean_folder}. Các mục hợp lệ: {", ".join(allowed_folders)}'
+        }
+
+    if not isinstance(updated_groups, list):
+        return {
+            'success': False,
+            'message': 'Dữ liệu cấu hình groups không hợp lệ (yêu cầu dạng mảng/list)'
+        }
+
+    target_server = normalize_avada_kedavra_server(server_ip or DEFAULT_AVADA_KEDAVRA_SERVER)
+    yaml_path = f"/srv/go/service/mesage/KV2/{clean_folder}/assets/services/printers/printers-manager.yaml"
+
+    fetch_res = fetch_remote_printers_manager(clean_folder, server_ip=target_server)
+    if not fetch_res.get('success') or not fetch_res.get('raw_yaml'):
+        return {
+            'success': False,
+            'message': f'Không thể đọc file printers-manager.yaml hiện tại: {fetch_res.get("message")}'
+        }
+
+    raw_yaml = fetch_res['raw_yaml']
+
+    try:
+        new_yaml_content = update_yaml_stations_content(raw_yaml, updated_groups)
+    except Exception as patch_err:
+        app.logger.error(f"Lỗi tạo YAML printers-manager ({clean_folder}): {patch_err}", exc_info=True)
+        return {
+            'success': False,
+            'message': f'Lỗi tạo cấu trúc YAML mới: {str(patch_err)}'
+        }
+
+    try:
+        backup_cmd = f"test -f '{yaml_path}' && cp '{yaml_path}' '{yaml_path}.bak' || true"
+        run_avada_kedavra_ssh_cmd(backup_cmd, server_ip=target_server, timeout=10)
+    except Exception as bak_err:
+        app.logger.warning(f"Không thể tạo file backup YAML: {bak_err}")
+
+    try:
+        run_avada_kedavra_ssh_write(new_yaml_content, yaml_path, server_ip=target_server, timeout=20)
+    except Exception as write_err:
+        app.logger.error(f"Lỗi ghi file YAML lên server {target_server}: {write_err}", exc_info=True)
+        return {
+            'success': False,
+            'message': f'Lỗi khi lưu file lên server: {str(write_err)}'
+        }
+
+    # 5. Khởi động lại dịch vụ trong thư mục tương ứng (cd /srv/go/service/mesage/KV2/{clean_folder} && ./restart)
+    container_name = f"mesage_kv2_{clean_folder}"
+    service_dir = f"/srv/go/service/mesage/KV2/{clean_folder}"
+    restart_cmd = f"cd '{service_dir}' && ./restart"
+
+    out_restart = ""
+    err_restart = ""
+    try:
+        out_restart, err_restart = run_avada_kedavra_ssh_cmd(restart_cmd, server_ip=target_server, timeout=60)
+    except Exception as restart_exc:
+        app.logger.error(f"Lỗi chạy ./restart trong {service_dir}: {restart_exc}", exc_info=True)
+        return {
+            'success': True,
+            'yaml_saved': True,
+            'restart_success': False,
+            'is_running': False,
+            'container_name': container_name,
+            'container_status': 'Error restarting',
+            'message': f'Đã lưu printers-manager.yaml nhưng lỗi khi chạy restart: {str(restart_exc)}',
+            'folder': clean_folder,
+            'server': target_server,
+            'yaml_path': yaml_path
+        }
+
+    # 6. Kiểm tra trạng thái docker ps của container
+    time.sleep(1.5)
+    container_id = "N/A"
+    container_image = "gitlab.kenda.com.tw:5555/kenda/mesage:v0.21.13-fix.0"
+    container_status = "N/A"
+
+    format_ps_cmd = f"docker ps --filter name=^{container_name}$ --format '{{{{.ID}}}}\t{{{{.Image}}}}\t{{{{.Status}}}}\t{{{{.Names}}}}'"
+    out_format_ps, _ = run_avada_kedavra_ssh_cmd(format_ps_cmd, server_ip=target_server, timeout=15)
+    ps_cmd = f"docker ps --filter name={container_name}"
+    out_ps, _ = run_avada_kedavra_ssh_cmd(ps_cmd, server_ip=target_server, timeout=15)
+
+    for line in (out_format_ps or '').strip().splitlines():
+        parts = line.split('\t')
+        if len(parts) >= 3 and parts[0]:
+            container_id = parts[0].strip()
+            container_image = parts[1].strip()
+            container_status = parts[2].strip()
+            break
+
+    is_running = bool(container_status != 'N/A' and ('Up' in container_status or 'running' in container_status.lower()))
+
+    if not is_running:
+        time.sleep(2.0)
+        out_format_ps, _ = run_avada_kedavra_ssh_cmd(format_ps_cmd, server_ip=target_server, timeout=15)
+        out_ps, _ = run_avada_kedavra_ssh_cmd(ps_cmd, server_ip=target_server, timeout=15)
+        for line in (out_format_ps or '').strip().splitlines():
+            parts = line.split('\t')
+            if len(parts) >= 3 and parts[0]:
+                container_id = parts[0].strip()
+                container_image = parts[1].strip()
+                container_status = parts[2].strip()
+                break
+        is_running = bool(container_status != 'N/A' and ('Up' in container_status or 'running' in container_status.lower()))
+
+    if not is_running:
+        out_format_ps_a, _ = run_avada_kedavra_ssh_cmd(f"docker ps -a --filter name=^{container_name}$ --format '{{{{.ID}}}}\t{{{{.Image}}}}\t{{{{.Status}}}}\t{{{{.Names}}}}'", server_ip=target_server, timeout=10)
+        out_ps, _ = run_avada_kedavra_ssh_cmd(f"docker ps -a --filter name={container_name}", server_ip=target_server, timeout=10)
+        for line in (out_format_ps_a or '').strip().splitlines():
+            parts = line.split('\t')
+            if len(parts) >= 3 and parts[0]:
+                container_id = parts[0].strip()
+                container_image = parts[1].strip()
+                container_status = parts[2].strip()
+                break
+
+    simple_status = container_status if container_status != 'N/A' else 'Exited'
+
+    # 7. Phân tích output restart
+    combined_restart = (out_restart + "\n" + err_restart).strip()
+    removed_match = re.search(r'Container\s+' + re.escape(container_name) + r'\s+Removed(?:\s+[\d\.]+s)?|Removing\s+' + re.escape(container_name) + r'\s+\.\.\.\s+done', combined_restart, re.IGNORECASE)
+    started_match = re.search(r'Container\s+' + re.escape(container_name) + r'\s+Started(?:\s+[\d\.]+s)?|Creating\s+' + re.escape(container_name) + r'\s+\.\.\.\s+done|Starting\s+' + re.escape(container_name) + r'\s+\.\.\.\s+done', combined_restart, re.IGNORECASE)
+
+    if removed_match:
+        removed_str = removed_match.group(0)
+    elif re.search(r'Removing\s+\.\.\.\s+done', combined_restart, re.IGNORECASE):
+        removed_str = f"Removing {container_name} ... done"
+    else:
+        removed_str = f"Container {container_name} Removed"
+
+    if started_match:
+        started_str = started_match.group(0)
+    elif re.search(r'Creating\s+\.\.\.\s+done', combined_restart, re.IGNORECASE):
+        started_str = f"Creating {container_name} ... done"
+    else:
+        started_str = f"Container {container_name} Started"
+
+    # 8. Ghi 4 dòng log chuẩn format Avada Kedavra
+    from flask import has_request_context
+    user_ip = client_ip or (get_client_ip() if has_request_context() else '198.1.10.72')
+    note_lines = [
+        f"Kết nối thành công tới root@{target_server}",
+        "Sửa file và lưu file thành công",
+        f"{removed_str} | {started_str}",
+        f"Image: {container_image} | Container ID: {container_id} | Status: {simple_status}"
+    ]
+    append_avada_kedavra_log_lines(user_ip, note_lines, server=target_server)
+
+    return {
+        'success': True,
+        'yaml_saved': True,
+        'restart_success': is_running,
+        'is_running': is_running,
+        'container_name': container_name,
+        'container_status': simple_status,
+        'container_image': container_image,
+        'container_id': container_id,
+        'docker_ps': (out_ps or '').strip(),
+        'message': f'Đã lưu printers-manager.yaml và khởi động lại {container_name} ({simple_status}) thành công' if is_running else f'Đã lưu printers-manager.yaml nhưng container {container_name} đang ở trạng thái {simple_status}',
+        'folder': clean_folder,
+        'server': target_server,
+        'yaml_path': yaml_path,
+        'restart_output': (out_restart or '').strip(),
+        'logs': note_lines
+    }
+
+
+@app.route('/api/switching-spell/save-printers', methods=['POST'])
+def api_switching_spell_save_printers():
+    """Lưu cấu hình máy in và công đoạn vào printers-manager.yaml trên server MES."""
+    try:
+        data = request.get_json(silent=True) or {}
+        folder = data.get('folder') or data.get('item')
+        groups = data.get('groups')
+        server_ip = data.get('server', DEFAULT_AVADA_KEDAVRA_SERVER)
+        client_ip = get_client_ip()
+
+        if not folder:
+            return jsonify({'success': False, 'message': 'Thiếu tham số thư mục máy in (folder)'}), 400
+        if groups is None:
+            return jsonify({'success': False, 'message': 'Thiếu tham số cấu hình groups'}), 400
+
+        res = save_remote_printers_manager(folder, groups, server_ip=server_ip, client_ip=client_ip)
+        status_code = 200 if res.get('success') else 500
+        return jsonify(res), status_code
+    except Exception as e:
+        app.logger.error(f"Lỗi API /api/switching-spell/save-printers: {e}", exc_info=True)
+        return jsonify({'success': False, 'message': f'Lỗi hệ thống: {str(e)}'}), 500
+    except Exception as e:
+        app.logger.error(f"Lỗi API /api/switching-spell/save-printers: {e}", exc_info=True)
+        return jsonify({'success': False, 'message': f'Lỗi hệ thống: {str(e)}'}), 500
+
+
+@app.route('/api/switching-spell/available-stations', methods=['GET'])
+def api_switching_spell_available_stations():
+    """Lấy danh sách các station từ kvmes.station theo thư mục được chọn."""
+    try:
+        folder = (request.args.get('folder') or request.args.get('item') or '').strip().lower()
+
+        if folder == 'p8300':
+            where_clause = "WHERE id LIKE 'KV-P83%'"
+        elif folder == 'p9100':
+            where_clause = "WHERE id LIKE 'KV-P9%' OR id LIKE 'KV-P87%'"
+        elif folder == 'p5300_ic':
+            where_clause = "WHERE id LIKE 'KV-P5%'"
+        elif folder == 'p8400':
+            where_clause = "WHERE id LIKE 'KV-P84%'"
+        else:
+            where_clause = "WHERE id LIKE 'KV-P5%' OR id LIKE 'KV-P8%' OR id LIKE 'KV-P9%'"
+
+        query = f"""
+            SELECT id
+            FROM kvmes.station
+            {where_clause}
+            ORDER BY id;
+        """
+        result, column_names = execute_pg_select_query(query)
+        stations = [row[0] for row in (result or []) if row and row[0]]
+        return jsonify({
+            'success': True,
+            'folder': folder,
+            'stations': stations,
+            'count': len(stations)
+        })
+    except Exception as e:
+        app.logger.error(f"Lỗi API /api/switching-spell/available-stations: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'message': f'Lỗi truy vấn danh sách station: {str(e)}',
+            'stations': []
         }), 500
 
 

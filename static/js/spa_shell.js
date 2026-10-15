@@ -19,7 +19,8 @@
         { path: '/create-kd-account', frameId: 'view-create-kd-account', title: 'Tạo Tài Khoản' },
         { path: '/check-kd-account', frameId: 'view-check-kd-account', title: 'Kiểm Tra Tài Khoản' },
         { path: '/reparo-spell', frameId: 'view-reparo-spell', title: 'Reparo Spell' },
-        { path: '/avada-kedavra', frameId: 'view-avada-kedavra', title: 'Avada Kedavra' }
+        { path: '/avada-kedavra', frameId: 'view-avada-kedavra', title: 'Avada Kedavra' },
+        { path: '/switching-spell', frameId: 'view-switching-spell', title: 'Switching Spell' }
     ];
 
     let currentRoutePath = null;

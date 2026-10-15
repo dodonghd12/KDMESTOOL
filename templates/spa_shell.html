@@ -98,6 +98,7 @@
         <iframe id="view-check-kd-account" class="spa-view-frame {% if initial_path == '/check-kd-account' %}active{% endif %}" {% if initial_path == '/check-kd-account' %}src="{{ url_for('check_kd_account', frame='1') }}"{% else %}data-src="{{ url_for('check_kd_account', frame='1') }}"{% endif %} title="Kiểm Tra Tài Khoản"></iframe>
         <iframe id="view-reparo-spell" class="spa-view-frame {% if initial_path == '/reparo-spell' %}active{% endif %}" {% if initial_path == '/reparo-spell' %}src="{{ url_for('reparo_spell', frame='1') }}"{% else %}data-src="{{ url_for('reparo_spell', frame='1') }}"{% endif %} title="Reparo Spell"></iframe>
         <iframe id="view-avada-kedavra" class="spa-view-frame {% if initial_path == '/avada-kedavra' %}active{% endif %}" {% if initial_path == '/avada-kedavra' %}src="{{ url_for('avada_kedavra', frame='1') }}"{% else %}data-src="{{ url_for('avada_kedavra', frame='1') }}"{% endif %} title="Avada Kedavra"></iframe>
+        <iframe id="view-switching-spell" class="spa-view-frame {% if initial_path == '/switching-spell' %}active{% endif %}" {% if initial_path == '/switching-spell' %}src="{{ url_for('switching_spell', frame='1') }}"{% else %}data-src="{{ url_for('switching_spell', frame='1') }}"{% endif %} title="Switching Spell"></iframe>
     </main>
 
     {% include "components/shared_modals.html" %}

@@ -12,7 +12,7 @@
     let holdAnimFrame = null;
     let isAvadaKedavraActive = false;
     let isLoading = false;
-    let currentServer = (localStorage.getItem('ak_selected_server') === '198.1.10.85') ? '198.1.10.85' : '198.1.10.8';
+    let currentServer = (localStorage.getItem('ak_selected_server') === '198.1.10.8') ? '198.1.10.8' : '198.1.10.85';
     let allLogs = [];
     let filteredLogs = [];
     let currentPage = 1;
@@ -148,6 +148,12 @@
                 const status = data.status || {};
                 isAvadaKedavraActive = !!status.is_active;
                 updateStatusUI(isAvadaKedavraActive);
+
+                try {
+                    const topWin = (window.parent && window.parent !== window) ? window.parent : window;
+                    topWin.__ak_server_status_cache = topWin.__ak_server_status_cache || {};
+                    topWin.__ak_server_status_cache[currentServer] = { data: data, timestamp: Date.now() };
+                } catch (e) {}
 
                 allLogs = data.logs || [];
                 applyClientSearch(document.getElementById('clientSearch')?.value || '');

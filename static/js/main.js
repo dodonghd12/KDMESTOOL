@@ -2249,6 +2249,7 @@ function handleOutputRowClick(e) {
 function handleRowDoubleClick(e) {
     const row = e.target.closest('tr');
     if (!row || row.querySelector('.table-empty-state') || row.classList.contains('skeleton-row')) return;
+    if (document.body.classList.contains('switching-spell-page')) return;
 
     handleRowClick(e);
     showDetails();
