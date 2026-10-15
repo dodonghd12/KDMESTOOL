@@ -956,13 +956,18 @@
             const inUseInGroupIdx = inUsePrintersMap.get(pUpper);
             const isInUse = inUseInGroupIdx !== undefined;
             const isCurrentGroup = inUseInGroupIdx === activeGroupIndexForPrinter;
+
+            const rawStatus = String(p.status || 'Idle').trim();
+            const isIdle = rawStatus.toLowerCase() === 'idle';
+            const statusText = isIdle ? 'Idle' : 'Error';
+            const statusClass = isIdle ? 'is-idle' : 'is-error';
+            const errorSuffix = isIdle ? '' : ` [Lỗi: ${rawStatus}]`;
+
             const tooltip = isInUse 
                 ? (isCurrentGroup 
-                    ? 'Máy in đang được chọn cho nhóm này' 
-                    : `Máy in đang được gán cho nhóm #${inUseInGroupIdx + 1}`)
-                : `Chọn máy in (${p.status})`;
-
-            const isIdle = (p.status || '').toLowerCase() === 'idle';
+                    ? `Máy in đang được chọn cho nhóm này${errorSuffix}` 
+                    : `Máy in đang được gán cho nhóm #${inUseInGroupIdx + 1}${errorSuffix}`)
+                : (isIdle ? 'Chọn máy in (Sẵn sàng)' : `Máy in đang bị lỗi: ${rawStatus}`);
 
             return `
                 <div class="printer-dropdown-item ${isInUse ? 'is-disabled' : ''}" data-printer="${escapeHtml(p.queue_name)}" title="${escapeHtml(tooltip)}">
@@ -971,7 +976,7 @@
                         <span class="printer-queue-name">${escapeHtml(p.queue_name)}</span>
                     </div>
                     <div class="printer-dropdown-item-meta">
-                        <span class="printer-status-badge ${isIdle ? 'is-idle' : ''}">${escapeHtml(p.status || 'Idle')}</span>
+                        <span class="printer-status-badge ${statusClass}" title="${isIdle ? 'Trạng thái: Sẵn sàng (Idle)' : escapeHtml('Lỗi máy in: ' + rawStatus)}">${statusText}</span>
                         ${isInUse ? '<span class="already-badge">(Đang dùng)</span>' : ''}
                     </div>
                 </div>
