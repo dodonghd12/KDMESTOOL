@@ -54,8 +54,6 @@ _actions_mr_lock = threading.Lock()
 _actions_pipeline_cache = {}
 _actions_pipeline_lock = threading.Lock()
 
-_technical_specifications_cache = {'timestamp': 0, 'data': None}
-_technical_specifications_lock = threading.Lock()
 
 LOG_YAML_DELETED_NETWORK_PATH = r"\\198.1.10.2\Vitinh\Thu\QUAN TRONG KHONG XOA\log_yaml_deleted_alerts.jsonl"
 LOG_YAML_DELETED_LOCAL_PATH = os.path.join(os.path.dirname(__file__), "log_yaml_deleted_alerts.jsonl")
@@ -423,184 +421,71 @@ def get_prdexp_expdays() -> dict:
 
     return expday_map
 
-SPECS_CACHE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'technical_specifications_cache.json')
-
-def load_specs_from_disk_cache() -> dict:
-    if os.path.exists(SPECS_CACHE_FILE):
-        try:
-            with open(SPECS_CACHE_FILE, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                if data and isinstance(data, dict) and data.get('product_types'):
-                    return data
-        except Exception as e:
-            app.logger.warning(f"Không thể đọc file cache specs từ đĩa: {e}")
-    return None
-
-def save_specs_to_disk_cache(data: dict):
-    if not data or not isinstance(data, dict) or not data.get('product_types'):
-        return
-    try:
-        with open(SPECS_CACHE_FILE, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        app.logger.warning(f"Không thể ghi file cache specs vào đĩa: {e}")
-
-def load_specs_from_postgres() -> dict:
-    """
-    Truy vấn cấu hình kỹ thuật từ kvmes.material_resource_config và kvmes.limitary_hour
-    trực tiếp trên PostgreSQL 198.1.10.85 (mạng LAN nội bộ) kết hợp hạn sử dụng từ SQL Server 10.33.
-    Đảm bảo 100% không phụ thuộc kết nối Internet/WAN sang máy chủ GitLab Đài Loan.
-    """
-    try:
-        rows, _ = execute_pg_select_query(
-            "SELECT product_type, config FROM kvmes.material_resource_config ORDER BY product_type;"
-        )
-        if not rows:
-            return None
-
-        preferred_order = [
-            'INNER_LINER', 'CARCASS_PLY', 'SIDEWALL', 'TREAD', 'BEAD',
-            'BEAD_AND_BEAD_FILLER_PREASSEMBLY', 'CHAFER', 'GREEN_TIRE',
-            'STEEL_BELT', 'PLY', 'BELT_AND_EDGE_GUM_PREASSEMBLY', 'SQUEEZE', 'CAP_PLY'
-        ]
-
-        raw_product_types = []
-        config_map = {}
-        keys_by_product_type = {}
-
-        for ptype, cfg in rows:
-            if not ptype:
-                continue
-            pt_clean = str(ptype).strip()
-            raw_product_types.append(pt_clean)
-            if isinstance(cfg, str):
-                try:
-                    cfg = json.loads(cfg)
-                except Exception:
-                    cfg = {}
-            req_labels = cfg.get('required_labels', []) if isinstance(cfg, dict) else []
-            r_list = []
-            k_list = []
-            for lbl in req_labels:
-                if isinstance(lbl, dict):
-                    key = lbl.get('key', '')
-                    langs = lbl.get('languages', {}) or {}
-                    l_lower = {str(k).lower(): str(v).strip() for k, v in langs.items() if v}
-                    if key:
-                        k_list.append(key)
-                    if key or langs:
-                        r_list.append([
-                            key,
-                            l_lower.get('vi') or l_lower.get('vn') or '',
-                            l_lower.get('cn') or '',
-                            l_lower.get('tw') or '',
-                            l_lower.get('en') or '',
-                            l_lower.get('id') or ''
-                        ])
-            config_map[pt_clean] = r_list
-            keys_by_product_type[pt_clean] = k_list
-
-        def sort_key(pt):
-            pt_u = pt.upper()
-            if pt_u in preferred_order:
-                return (0, preferred_order.index(pt_u))
-            return (1, pt_u)
-
-        product_types = sorted(raw_product_types, key=sort_key)
-
-        # 2. Limitary hours từ kvmes.limitary_hour
-        limitary_hours = {}
-        try:
-            lh_rows, _ = execute_pg_select_query("SELECT product_type, min, max FROM kvmes.limitary_hour;")
-            for pt, min_v, max_v in (lh_rows or []):
-                if pt:
-                    limitary_hours[str(pt).strip().upper()] = {
-                        'standing_time': min_v,
-                        'limitary_hour': max_v
-                    }
-        except Exception as lh_err:
-            app.logger.warning(f"Lỗi truy vấn kvmes.limitary_hour: {lh_err}")
-
-        # 3. Expdays từ SQL Server 10.33/erp
-        expdays = get_prdexp_expdays()
-
-        return {
-            'product_types': product_types,
-            'config_map': config_map,
-            'keys_by_product_type': keys_by_product_type,
-            'limitary_hours': limitary_hours,
-            'expdays': expdays,
-            'source': 'database'
-        }
-    except Exception as e:
-        app.logger.error(f"Lỗi load_specs_from_postgres: {e}", exc_info=True)
-        return None
-
 def get_technical_specifications_data(force_refresh: bool = False) -> dict:
-    global _technical_specifications_cache
-    now = time.time()
-    with _technical_specifications_lock:
-        cached = _technical_specifications_cache.get('data')
-        if not force_refresh and cached and cached.get('product_types') and (now - _technical_specifications_cache.get('timestamp', 0) < 600):
-            return cached
-
-    # 1. Nếu không phải force_refresh, kiểm tra cache file trên ổ đĩa để phản hồi tức thì (0ms)
-    if not force_refresh:
-        disk_data = load_specs_from_disk_cache()
-        if disk_data and disk_data.get('product_types'):
-            with _technical_specifications_lock:
-                _technical_specifications_cache['timestamp'] = now
-                _technical_specifications_cache['data'] = disk_data
-            return disk_data
-
-    # 2. Ưu tiên lấy trực tiếp từ database PostgreSQL 198.1.10.85 (LAN nội bộ, siêu nhanh và luôn sẵn sàng)
-    pg_data = load_specs_from_postgres()
-    if pg_data and pg_data.get('product_types'):
-        with _technical_specifications_lock:
-            _technical_specifications_cache['timestamp'] = now
-            _technical_specifications_cache['data'] = pg_data
-        save_specs_to_disk_cache(pg_data)
-        return pg_data
-
-    # 3. Fallback dự phòng: Gọi GitLab CE nếu PostgreSQL tạm thời không có dữ liệu
+    """
+    Tải trực tiếp cấu hình kỹ thuật từ GitLab CE API (label-config.yml và limitary-hour.yaml)
+    kết hợp hạn sử dụng từ SQL Server 10.33 (get_prdexp_expdays).
+    Không dùng cache tĩnh/đĩa để đảm bảo dữ liệu luôn cập nhật trực tiếp theo thời gian thực.
+    """
     s = get_gitlab_session()
+    ref = 'master'
+    auth_error = False
+
+    # 1. Tải label-config.yml từ Project 113
     project_id_lc = 113
     encoded_path_lc = 'yamls%2Flabel-config.yml'
-    ref = 'master'
     content_raw_lc = ''
     try:
         raw_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id_lc}/repository/files/{encoded_path_lc}/raw'
-        r = s.get(raw_url, params={'ref': ref}, timeout=2.5)
+        r = s.get(raw_url, params={'ref': ref}, timeout=10)
         if r.status_code == 200:
             content_raw_lc = r.text
-        elif r.status_code not in [401, 403]:
+        elif r.status_code in [401, 403]:
+            auth_error = True
+        else:
             file_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id_lc}/repository/files/{encoded_path_lc}'
-            r2 = s.get(file_url, params={'ref': ref}, timeout=2.5)
+            r2 = s.get(file_url, params={'ref': ref}, timeout=10)
             if r2.ok:
                 c_b64 = r2.json().get('content', '')
                 if c_b64:
                     content_raw_lc = base64.b64decode(c_b64).decode('utf-8')
+            elif r2.status_code in [401, 403]:
+                auth_error = True
     except Exception as e:
-        app.logger.warning(f"GitLab label-config unreachable: {e}")
+        app.logger.warning(f"GitLab label-config fetch error: {e}")
 
+    # 2. Tải limitary-hour.yaml từ Project 99
     project_id_lh = 99
     encoded_path_lh = 'yamls%2Flimitary-hour.yaml'
     content_raw_lh = ''
     try:
         raw_url_lh = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id_lh}/repository/files/{encoded_path_lh}/raw'
-        r_lh = s.get(raw_url_lh, params={'ref': ref}, timeout=2.5)
+        r_lh = s.get(raw_url_lh, params={'ref': ref}, timeout=10)
         if r_lh.status_code == 200:
             content_raw_lh = r_lh.text
+        elif r_lh.status_code in [401, 403]:
+            auth_error = True
     except Exception as e:
-        app.logger.warning(f"GitLab limitary-hour unreachable: {e}")
+        app.logger.warning(f"GitLab limitary-hour fetch error: {e}")
+
+    if auth_error and not content_raw_lc:
+        return {
+            'auth_error': True,
+            'product_types': [],
+            'config_map': {},
+            'keys_by_product_type': {},
+            'limitary_hours': {},
+            'expdays': {},
+            'source': 'gitlab'
+        }
+
+    product_types = []
+    config_map = {}
+    keys_by_product_type = {}
 
     if content_raw_lc:
         try:
             parsed_yaml = yaml.safe_load(content_raw_lc)
-            product_types = []
-            config_map = {}
-            keys_by_product_type = {}
-
             if isinstance(parsed_yaml, list):
                 for item in parsed_yaml:
                     if not isinstance(item, dict):
@@ -630,51 +515,38 @@ def get_technical_specifications_data(force_refresh: bool = False) -> dict:
                                     ])
                         config_map[ptype] = rows
                         keys_by_product_type[ptype] = keys
-
-            limitary_hours = {}
-            if content_raw_lh:
-                try:
-                    parsed_lh = yaml.safe_load(content_raw_lh)
-                    if isinstance(parsed_lh, list):
-                        for item in parsed_lh:
-                            if isinstance(item, dict) and item.get('product-type'):
-                                pt = str(item.get('product-type')).strip()
-                                lh_obj = item.get('limitary-hour', {})
-                                if isinstance(lh_obj, dict):
-                                    min_v = lh_obj.get('min')
-                                    max_v = lh_obj.get('max')
-                                    limitary_hours[pt.upper()] = {
-                                        'standing_time': min_v,
-                                        'limitary_hour': max_v
-                                    }
-                except Exception as lh_err:
-                    app.logger.warning(f"Error parsing limitary-hour yaml: {lh_err}")
-
-            expdays = get_prdexp_expdays()
-
-            data = {
-                'product_types': product_types,
-                'config_map': config_map,
-                'keys_by_product_type': keys_by_product_type,
-                'limitary_hours': limitary_hours,
-                'expdays': expdays,
-                'source': 'gitlab'
-            }
-            with _technical_specifications_lock:
-                _technical_specifications_cache['timestamp'] = now
-                _technical_specifications_cache['data'] = data
-            save_specs_to_disk_cache(data)
-            return data
         except Exception as e:
             app.logger.error(f"Error parsing technical-specifications yaml: {e}")
 
-    # Fallback cuối cùng: disk cache hoặc memory cache cũ
-    disk_data = load_specs_from_disk_cache()
-    if disk_data and disk_data.get('product_types'):
-        return disk_data
+    limitary_hours = {}
+    if content_raw_lh:
+        try:
+            parsed_lh = yaml.safe_load(content_raw_lh)
+            if isinstance(parsed_lh, list):
+                for item in parsed_lh:
+                    if isinstance(item, dict) and item.get('product-type'):
+                        pt = str(item.get('product-type')).strip()
+                        lh_obj = item.get('limitary-hour', {})
+                        if isinstance(lh_obj, dict):
+                            min_v = lh_obj.get('min')
+                            max_v = lh_obj.get('max')
+                            limitary_hours[pt.upper()] = {
+                                'standing_time': min_v,
+                                'limitary_hour': max_v
+                            }
+        except Exception as lh_err:
+            app.logger.warning(f"Error parsing limitary-hour yaml: {lh_err}")
 
-    with _technical_specifications_lock:
-        return _technical_specifications_cache.get('data') or {'product_types': [], 'config_map': {}, 'keys_by_product_type': {}, 'limitary_hours': {}, 'expdays': {}}
+    expdays = get_prdexp_expdays()
+
+    return {
+        'product_types': product_types,
+        'config_map': config_map,
+        'keys_by_product_type': keys_by_product_type,
+        'limitary_hours': limitary_hours,
+        'expdays': expdays,
+        'source': 'gitlab'
+    }
 
 def get_recipe_id_variants(recipe_id: str) -> list:
     """
