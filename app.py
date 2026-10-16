@@ -818,10 +818,11 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.0"
+APP_VERSION = "2.3.1"
+_SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
-    return f"{APP_VERSION}.{int(time.time())}"
+    return f"{APP_VERSION}.{_SERVER_BOOT_TIME}"
 VN_TZ = timezone(timedelta(hours=7))
 API_LOG_FILE_PATH = r"\\198.1.10.2\Vitinh\Thu\QUAN TRONG KHONG XOA\log_kd_mes_tool.txt"
 
@@ -958,10 +959,10 @@ def suppress_browser_auth_popup(response):
     response.headers.pop('WWW-Authenticate', None)
     response.headers.pop('www-authenticate', None)
 
-    if request.path.startswith('/static/vendor/'):
-        response.headers['Cache-Control'] = 'public, max-age=86400'
+    if request.path.startswith(('/static/vendor/', '/static/fonts/', '/static/img/', '/static/video/')):
+        response.headers['Cache-Control'] = 'public, max-age=2592000, immutable'
     elif request.path.startswith('/static/'):
-        response.headers['Cache-Control'] = 'no-cache, must-revalidate, max-age=0'
+        response.headers['Cache-Control'] = 'public, max-age=86400'
     elif request.path.startswith('/api/'):
         response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
     else:

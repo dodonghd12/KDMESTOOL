@@ -192,11 +192,12 @@
 
     function initPreloadTracker() {
         const allFrames = document.querySelectorAll('.spa-view-frame');
+        const activeFrame = document.querySelector('.spa-view-frame.active') || allFrames[0];
         const total = allFrames.length || SPA_ROUTES.length;
         let loadedCount = 0;
         const loadedSet = new Set();
 
-        const introEngine = window.LusionIntro || window.SupercarIntro;
+        const introEngine = window.PrismaHeroIntro || window.LusionIntro || window.SupercarIntro;
         if (introEngine && typeof introEngine.setTotalPages === 'function') {
             introEngine.setTotalPages(total);
         }
@@ -229,8 +230,13 @@
                 progressBar.style.width = `${percent}%`;
             }
 
-            // Đồng bộ tiến trình với Lusion Preloader Overlay
-            if (introEngine && typeof introEngine.onProgress === 'function') {
+            // Fast-track preloader reveal as soon as the active view is ready
+            const isCurrentActiveFrame = activeFrame && (frameId === activeFrame.id);
+            if (isCurrentActiveFrame) {
+                if (introEngine && typeof introEngine.onAllLoaded === 'function') {
+                    introEngine.onAllLoaded(total);
+                }
+            } else if (introEngine && typeof introEngine.onProgress === 'function') {
                 introEngine.onProgress(loadedCount, total);
             }
 
@@ -254,18 +260,32 @@
             });
         });
 
-        // Staggered background preloading for deferred data-src iframes
-        const lazyFrames = Array.from(document.querySelectorAll('.spa-view-frame[data-src]'));
-        let staggerDelay = 80;
-        lazyFrames.forEach((frame) => {
-            setTimeout(() => {
-                if (frame.dataset.src && (!frame.src || frame.src.endsWith('about:blank') || frame.src === window.location.href)) {
-                    frame.src = frame.dataset.src;
-                    frame.removeAttribute('data-src');
-                }
-            }, staggerDelay);
-            staggerDelay += 90; // Gentle 90ms interval with cached assets finishes all frames in < 1s
-        });
+        // Staggered background preloading: Start background frames AFTER intro reveal so active view loads at full speed
+        let bgPreloadingStarted = false;
+        function startBackgroundPreloading() {
+            if (bgPreloadingStarted) return;
+            bgPreloadingStarted = true;
+
+            const lazyFrames = Array.from(document.querySelectorAll('.spa-view-frame[data-src]'));
+            let staggerDelay = 80;
+            lazyFrames.forEach((frame) => {
+                setTimeout(() => {
+                    if (frame.dataset.src && (!frame.src || frame.src.endsWith('about:blank') || frame.src === window.location.href)) {
+                        frame.src = frame.dataset.src;
+                        frame.removeAttribute('data-src');
+                    }
+                }, staggerDelay);
+                staggerDelay += 180;
+            });
+        }
+
+        if (window.__kd_intro_finished) {
+            startBackgroundPreloading();
+        } else {
+            document.addEventListener('kd_intro_finished', startBackgroundPreloading, { once: true });
+            // Safety timeout: start background preloading after 1.8s even if intro was delayed
+            setTimeout(startBackgroundPreloading, 1800);
+        }
 
         // Listen for frame readiness messages
         window.addEventListener('message', (e) => {

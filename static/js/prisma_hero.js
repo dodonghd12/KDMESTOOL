@@ -58,8 +58,13 @@
             this.statusTextEl = document.getElementById('prismaStatusText');
             this.portalRim = document.getElementById('prismaPortalRim');
 
-            // Attempt video playback
+            // Attempt video playback smoothly without blocking initial UI paint
             if (this.video) {
+                const srcEl = this.video.querySelector('source[data-src]');
+                if (srcEl && !srcEl.src) {
+                    srcEl.src = srcEl.dataset.src;
+                    try { this.video.load(); } catch (e) {}
+                }
                 this.video.muted = true;
                 const playPromise = this.video.play();
                 if (playPromise !== undefined) {
@@ -199,7 +204,9 @@
     window.LusionIntro = syncAPI;
     window.SupercarIntro = syncAPI;
 
-    if (document.readyState === 'loading') {
+    if (document.getElementById('prismaHeroPreloader')) {
+        engine.init();
+    } else if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => engine.init());
     } else {
         engine.init();
