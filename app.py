@@ -6597,6 +6597,15 @@ def strip_accents(text):
     nfkd = unicodedata.normalize('NFKD', str(text))
     return ''.join([c for c in nfkd if not unicodedata.combining(c)]).lower()
 
+def clean_label_datetime_str(d_str):
+    if not d_str:
+        return d_str
+    m = re.search(r'(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:\s+|T|(?=\d{2}:))(\d{1,2}):(\d{1,2})[:\s]*(\d{1,2})', str(d_str))
+    if m:
+        y, mo, d, h, mi, sec = map(int, m.groups())
+        return f"{y:04d}-{mo:02d}-{d:02d} {h:02d}:{mi:02d}:{sec:02d}"
+    return str(d_str).strip()
+
 def parse_headerless_label(lines_list):
     """
     Trích xuất thuộc tính tem khi người dùng chụp/crop chỉ phần giá trị (không có tên header như Mã máy, Số lượng, ...).
@@ -6649,10 +6658,10 @@ def parse_headerless_label(lines_list):
 
     if len(dates) >= 2:
         dates.sort()
-        hl_fields['production_time'] = dates[0]
-        hl_fields['expiry_time'] = dates[1]
+        hl_fields['production_time'] = clean_label_datetime_str(dates[0])
+        hl_fields['expiry_time'] = clean_label_datetime_str(dates[1])
     elif len(dates) == 1:
-        hl_fields['production_time'] = dates[0]
+        hl_fields['production_time'] = clean_label_datetime_str(dates[0])
 
     match_cnt = sum(1 for k in ['product_id', 'station', 'lot_number', 'quantity', 'production_time'] if k in hl_fields)
     hl_fields['is_label'] = (match_cnt >= 2)
@@ -6740,6 +6749,12 @@ def extract_label_info(boxes_with_text, lines, full_text, final_lines=None):
             fields['is_label'] = True
         else:
             fields['is_label'] = False
+
+    if fields.get('production_time'):
+        fields['production_time'] = clean_label_datetime_str(fields['production_time'])
+    if fields.get('expiry_time'):
+        fields['expiry_time'] = clean_label_datetime_str(fields['expiry_time'])
+
     return fields
 
 def clean_and_merge_ocr_results(result):
