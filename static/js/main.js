@@ -7215,6 +7215,8 @@ async function processOcrImageFile(file, targetInput = null) {
             }
         }
 
+        let detectedLabelData = null;
+
         // Stage 2: Nếu chưa có barcode, gọi Server-side AI OCR (RapidOCR / PaddleOCR ONNX)
         if (!rawText) {
             if (statusEl) statusEl.textContent = 'Đang nhận diện ký tự AI...';
@@ -7228,8 +7230,9 @@ async function processOcrImageFile(file, targetInput = null) {
 
             if (res.ok) {
                 const data = await res.json();
-                if (data && data.success && data.text) {
-                    rawText = data.text.trim();
+                if (data && data.success) {
+                    rawText = data.text ? data.text.trim() : '';
+                    detectedLabelData = data.label_data || null;
                 }
             }
         }
@@ -7260,9 +7263,9 @@ async function processOcrImageFile(file, targetInput = null) {
         if (pctEl) pctEl.textContent = '100%';
         if (barEl) barEl.style.width = '100%';
 
-        // Loại bỏ toàn bộ ký tự gây nhiễu (*, #, $, @, etc.), giữ lại ký tự chữ cái, số, gạch ngang, gạch dưới, gạch đứng
+        // Giữ lại chữ cái Unicode (Tiếng Việt), chữ số, khoảng trắng và các ký tự đặc biệt: -, *, _, /, :, .
         if (rawText) {
-            rawText = rawText.replace(/[^a-zA-Z0-9\-_|]/g, '').trim();
+            rawText = rawText.replace(/[^a-zA-Z0-9\u00C0-\u1EF9\-_*\/:\. \n]/g, '').trim();
         }
 
         if (!rawText) {
@@ -7278,16 +7281,93 @@ async function processOcrImageFile(file, targetInput = null) {
         dropzone.classList.add('is-preview');
 
         const resultTextEl = document.getElementById('ocrResultText');
-        if (resultTextEl) {
-            resultTextEl.textContent = rawText;
-            resultTextEl.setAttribute('title', rawText);
-        }
-
-        // Điền tự động vào input đang được focus (hoặc mặc định #barcode)
         const barcodeEl = document.getElementById('barcode');
         const activeEl = document.activeElement;
         const isActiveInput = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA') && !activeEl.disabled && !activeEl.readOnly;
         const fillTarget = targetInput || (isActiveInput ? activeEl : (barcodeEl || null));
+
+        // KIỂM TRA & XỬ LÝ TEM CHỨA THÔNG TIN CHI TIẾT (Mã máy, Mã SP, Lô SX, Số lượng)
+        if (detectedLabelData && (detectedLabelData.is_label || detectedLabelData.station || detectedLabelData.product_id || detectedLabelData.lot_number)) {
+            const isMaterialTransferPage = window.location.pathname.includes('material-transfer') ||
+                (typeof searchMaterialTransfer === 'function' && typeof formatStatusCell === 'function');
+
+            const infoSummary = `Mã SP: ${detectedLabelData.product_id || ''} | Máy: ${detectedLabelData.station || ''} | Lô: ${detectedLabelData.lot_number || ''} | SL: ${detectedLabelData.quantity || ''}`;
+
+            if (isMaterialTransferPage) {
+                // Trang Tem vận chuyển: Tra cứu barcode từ material_resource rồi hiển thị lượt chuyển
+                try {
+                    const mtRes = await fetch('/api/barcodes/material-transfer', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ label_data: detectedLabelData })
+                    });
+                    const mtData = await mtRes.json();
+                    const resolvedBc = (mtData && mtData.resolved_barcode) ? mtData.resolved_barcode : '';
+                    if (resolvedBc && fillTarget) {
+                        fillTarget.value = resolvedBc;
+                        if (typeof searchMaterialTransfer === 'function') {
+                            searchMaterialTransfer();
+                        }
+                    } else if (fillTarget && detectedLabelData.product_id) {
+                        fillTarget.value = detectedLabelData.product_id;
+                    }
+                    if (resultTextEl) {
+                        resultTextEl.textContent = resolvedBc ? `${resolvedBc} (${infoSummary})` : infoSummary;
+                        resultTextEl.setAttribute('title', infoSummary);
+                    }
+                    if (resolvedBc) {
+                        Toast.success('Nhận diện tem thành công', `Đã tìm thấy mã tem: ${resolvedBc}`);
+                    } else {
+                        Toast.warning('Không tìm thấy', 'Không tìm thấy dữ liệu vận chuyển khớp với thông tin trên tem');
+                    }
+                    return;
+                } catch (err) {
+                    console.error('Error querying material transfer by label:', err);
+                }
+            } else {
+                // Trang Main: Tra cứu trực tiếp bảng kvmes.material_resource theo các thuộc tính tem
+                showTableSkeleton(10, 5);
+                try {
+                    const bcRes = await fetch('/api/barcodes', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ label_data: detectedLabelData })
+                    });
+                    const bcData = await bcRes.json();
+                    const resolvedBc = (bcData && bcData.resolved_barcode) ? bcData.resolved_barcode : (bcData && bcData.result && bcData.result[0] ? bcData.result[0].id : '');
+                    if (resolvedBc && fillTarget) {
+                        fillTarget.value = resolvedBc;
+                    } else if (fillTarget && detectedLabelData.product_id) {
+                        fillTarget.value = detectedLabelData.product_id;
+                    }
+                    if (bcData && Array.isArray(bcData.result) && bcData.result.length > 0) {
+                        if (typeof setTableData === 'function') {
+                            setTableData(bcData.result, bcData.columns, 'barcode');
+                        }
+                    } else {
+                        if (typeof clearTable === 'function') clearTable();
+                    }
+                    if (resultTextEl) {
+                        resultTextEl.textContent = resolvedBc ? `${resolvedBc} (${infoSummary})` : infoSummary;
+                        resultTextEl.setAttribute('title', infoSummary);
+                    }
+                    if (resolvedBc) {
+                        Toast.success('Nhận diện tem thành công', `Đã tìm thấy mã tem: ${resolvedBc}`);
+                    } else {
+                        Toast.warning('Không tìm thấy', 'Không tìm thấy tem trong CSDL khớp với thông tin nhận diện');
+                    }
+                    return;
+                } catch (err) {
+                    console.error('Error querying barcode by label:', err);
+                }
+            }
+        }
+
+        // Trường hợp tem thông thường hoặc văn bản đơn lẻ
+        if (resultTextEl) {
+            resultTextEl.textContent = rawText;
+            resultTextEl.setAttribute('title', rawText);
+        }
 
         if (fillTarget) {
             fillTarget.value = rawText.toUpperCase();

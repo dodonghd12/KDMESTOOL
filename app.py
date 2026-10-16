@@ -1596,11 +1596,124 @@ def generate_postgres_insert_query():
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
+def query_material_resource_by_label_fields(label_data):
+    """
+    Truy vấn bảng kvmes.material_resource theo các thuộc tính trích xuất từ nhãn tem:
+    - station (info->'production_info'->>'station')
+    - product_id (product_id)
+    - lot_number (info->>'lot_number')
+    - quantity (quantity)
+    - production_time (created_at fast-path)
+    """
+    if not label_data:
+        return [], []
+
+    station = (label_data.get('station') or '').strip()
+    product_id = (label_data.get('product_id') or '').strip()
+    lot_number = (label_data.get('lot_number') or '').strip()
+    qty_raw = label_data.get('quantity')
+    prod_time_str = (label_data.get('production_time') or '').strip()
+
+    where_clauses = ['1=1']
+    params = []
+
+    if station:
+        clean_st = re.sub(r'[^A-Za-z0-9\-_]', '', station)
+        where_clauses.append('''REPLACE(REPLACE(COALESCE(info->'production_info'->>'station', ''), ' ', ''), '_', '-') ILIKE %s''')
+        params.append(f'%{clean_st}%')
+
+    if product_id:
+        clean_pid = re.sub(r'\s+', '', product_id)
+        where_clauses.append('product_id ILIKE %s')
+        params.append(f'%{clean_pid}%')
+
+    if lot_number:
+        clean_lot = re.sub(r'\s+', '', lot_number)
+        where_clauses.append('''REPLACE(COALESCE(info->>'lot_number', ''), ' ', '') ILIKE %s''')
+        params.append(f'%{clean_lot}%')
+
+    if qty_raw is not None and str(qty_raw).strip():
+        m_q = re.search(r'(\d+(?:\.\d+)?)', str(qty_raw))
+        if m_q:
+            where_clauses.append('quantity = %s')
+            params.append(float(m_q.group(1)))
+
+    # Fast-path: Tận dụng index created_at nếu nhận diện được Ngày sản xuất
+    parsed_sec = parse_label_datetime(prod_time_str)
+    if parsed_sec:
+        t_start = (parsed_sec - 10) * 1000000000
+        t_end = (parsed_sec + 10) * 1000000000
+        fast_where = list(where_clauses) + ['created_at BETWEEN %s AND %s']
+        fast_params = list(params) + [t_start, t_end]
+        q_fast = f"""
+            SELECT id, product_id, product_type, 
+                   quantity, status, expiry_time, 
+                   created_at, updated_at, updated_by, created_by, 
+                   standing_time, feed_records_id, info, oid,
+                   reprint_reason, collected, erp_tire_barcode_synced
+            FROM kvmes.material_resource
+            WHERE {' AND '.join(fast_where)}
+            ORDER BY created_at DESC
+            LIMIT 100;
+        """
+        try:
+            res_fast, col_fast = execute_pg_select_query(q_fast, tuple(fast_params))
+            if res_fast:
+                return res_fast, col_fast
+        except Exception as _fe:
+            logger.warning(f"Fast path label query failed, falling back: {_fe}")
+
+    # Fallback tiêu chuẩn
+    query = f"""
+        SELECT id, product_id, product_type, 
+               quantity, status, expiry_time, 
+               created_at, updated_at, updated_by, created_by, 
+               standing_time, feed_records_id, info, oid,
+               reprint_reason, collected, erp_tire_barcode_synced
+        FROM kvmes.material_resource
+        WHERE {' AND '.join(where_clauses)}
+        ORDER BY created_at DESC
+        LIMIT 100;
+    """
+    return execute_pg_select_query(query, tuple(params))
+
+
 @app.route('/api/barcodes', methods=['POST'])
 @login_required
 def search_barcode():
-    
-    keyword = request.json.get('keyword', '').strip()
+    data = request.get_json(silent=True) or {}
+    keyword = (data.get('keyword') or data.get('barcode') or '').strip()
+    label_data = data.get('label_data')
+
+    # 1. Trường hợp truy vấn từ tem nhận diện OCR (Mã máy, Mã SP, Lô SX, Số lượng)
+    if label_data and (label_data.get('is_label') or any(label_data.get(k) for k in ('station', 'product_id', 'lot_number', 'quantity'))):
+        result, column_names = query_material_resource_by_label_fields(label_data)
+        if result:
+            convert_columns = ["expiry_time", "updated_at", "created_at", "standing_time"]
+            result = convert_timestamp(result, column_names, convert_columns)
+            if 'feed_records_id' in column_names:
+                fr_idx = column_names.index('feed_records_id')
+                result = [
+                    tuple(format_pg_array_literal(v) if i == fr_idx else v for i, v in enumerate(row))
+                    for row in result
+                ]
+            serialized_result = [serialize_row(list(row), column_names) for row in result]
+            resolved_bc = result[0][column_names.index('id')] if 'id' in column_names and result else None
+            return jsonify({
+                'success': True,
+                'result': serialized_result,
+                'columns': column_names,
+                'resolved_barcode': resolved_bc
+            })
+        else:
+            return jsonify({
+                'success': True,
+                'result': [],
+                'columns': column_names or [],
+                'resolved_barcode': None
+            })
+
+    # 2. Trường hợp tra cứu Barcode đơn lẻ thông thường
     if not keyword:
         return jsonify({'result': [], 'columns': []})
     
@@ -3275,6 +3388,66 @@ def get_material_transfer():
     ]
     data = request.get_json(silent=True) or {}
     keyword = (data.get('keyword') or data.get('barcode') or '').strip()
+    label_data = data.get('label_data')
+
+    # 1. Trường hợp tra cứu qua thông tin nhận diện trên tem
+    if label_data and (label_data.get('is_label') or any(label_data.get(k) for k in ('station', 'product_id', 'lot_number', 'quantity'))):
+        mr_result, mr_columns = query_material_resource_by_label_fields(label_data)
+        if mr_result:
+            id_idx = mr_columns.index('id')
+            oid_idx = mr_columns.index('oid')
+            resolved_bc = mr_result[0][id_idx]
+            matched_oids = [r[oid_idx] for r in mr_result if r[oid_idx]]
+            if matched_oids:
+                query = """
+                    SELECT 
+                        mr.id,
+                        mrt.from_location_oid,
+                        mrt.to_location_oid,
+                        mrt.status,
+                        mr.product_id,
+                        mr.product_type,
+                        mr.quantity,
+                        mrt.transaction_time,
+                        mrt.created_at,
+                        mrt.created_by,
+                        mrt.material_resource_oid
+                    FROM kvmes.material_resource mr
+                    JOIN kvmes.material_resource_transaction mrt 
+                        ON mr.oid = mrt.material_resource_oid
+                    WHERE mr.oid = ANY(%s)
+                    ORDER BY mrt.transaction_time DESC, mrt.created_at DESC
+                    LIMIT 500;
+                """
+                try:
+                    result, column_names = execute_pg_select_query(query, (matched_oids,))
+                    if result:
+                        convert_columns = ["transaction_time", "created_at"]
+                        result = convert_timestamp(result, column_names, convert_columns)
+                        serialized_result = [serialize_row(list(row), column_names) for row in result]
+                        return jsonify({
+                            'success': True,
+                            'result': serialized_result,
+                            'columns': column_names,
+                            'resolved_barcode': resolved_bc
+                        })
+                except Exception as e:
+                    logger.error(f"Error fetching material transfer by label: {e}")
+            return jsonify({
+                'success': True,
+                'result': [],
+                'columns': columns_default,
+                'resolved_barcode': resolved_bc
+            })
+        else:
+            return jsonify({
+                'success': True,
+                'result': [],
+                'columns': columns_default,
+                'resolved_barcode': None
+            })
+
+    # 2. Trường hợp tra cứu Barcode trực tiếp thông thường
     if not keyword:
         return jsonify({'success': True, 'result': [], 'columns': columns_default})
     
@@ -6300,13 +6473,108 @@ def _warmup_rapid_ocr():
 # Launch background warmup immediately on module load so first request is instant
 threading.Thread(target=_warmup_rapid_ocr, daemon=True, name="OCR-Warmup").start()
 
+def strip_accents(text):
+    if not text:
+        return ""
+    import unicodedata
+    nfkd = unicodedata.normalize('NFKD', str(text))
+    return ''.join([c for c in nfkd if not unicodedata.combining(c)]).lower()
+
+def parse_label_datetime(s):
+    if not s:
+        return None
+    s = str(s).strip()
+    try:
+        import pytz
+        tz = pytz.timezone('Asia/Ho_Chi_Minh')
+        epoch = datetime.datetime(1970, 1, 1, tzinfo=pytz.utc)
+
+        # Format 1: YYYY-MM-DD HH:MM:SS or YYYY-MM-DDHH:MM:SS
+        m = re.search(r'(\d{4})[-/.](\d{2})[-/.](\d{2})\s*(\d{2}):(\d{2}):(\d{2})', s)
+        if m:
+            y, mo, d, h, mi, sec = map(int, m.groups())
+            dt = tz.localize(datetime.datetime(y, mo, d, h, mi, sec))
+            return int((dt.astimezone(pytz.utc) - epoch).total_seconds())
+
+        # Format 2: DD-MM-YYYY HH:MM:SS
+        m = re.search(r'(\d{2})[-/.](\d{2})[-/.](\d{4})\s*(\d{2}):(\d{2}):(\d{2})', s)
+        if m:
+            d, mo, y, h, mi, sec = map(int, m.groups())
+            dt = tz.localize(datetime.datetime(y, mo, d, h, mi, sec))
+            return int((dt.astimezone(pytz.utc) - epoch).total_seconds())
+    except Exception:
+        pass
+    return None
+
+def extract_label_info(boxes_with_text, lines, full_text):
+    fields = {}
+
+    for line_boxes in lines:
+        line_boxes.sort(key=lambda b: b['min_x'])
+        texts = [b['text'].strip() for b in line_boxes if b['text'].strip()]
+        if not texts:
+            continue
+
+        first_box_norm = re.sub(r'[^a-z0-9]', '', strip_accents(texts[0]))
+        val_text = ' '.join(texts[1:]).strip() if len(texts) > 1 else ''
+
+        if not val_text:
+            m = re.split(r'[:|\t]', texts[0], maxsplit=1)
+            if len(m) > 1:
+                first_box_norm = re.sub(r'[^a-z0-9]', '', strip_accents(m[0]))
+                val_text = m[1].strip()
+
+        if not val_text:
+            continue
+
+        if ('mamaytieptheo' in first_box_norm or 'nextstation' in first_box_norm) and 'next_station' not in fields:
+            fields['next_station'] = val_text
+        elif ('mamay' in first_box_norm or 'station' in first_box_norm or 'machno' in first_box_norm) and 'station' not in fields:
+            fields['station'] = val_text
+        elif ('masanpham' in first_box_norm or 'productid' in first_box_norm or 'quycach' in first_box_norm or 'partno' in first_box_norm) and 'product_id' not in fields:
+            fields['product_id'] = val_text
+        elif ('losanxuat' in first_box_norm or 'lotnumber' in first_box_norm or 'solo' in first_box_norm or 'batch' in first_box_norm) and 'lot_number' not in fields:
+            fields['lot_number'] = val_text
+        elif ('ngaysanxuat' in first_box_norm or 'mfgdate' in first_box_norm or 'ngaysx' in first_box_norm) and 'production_time' not in fields:
+            fields['production_time'] = val_text
+        elif ('ngayhethan' in first_box_norm or 'expdate' in first_box_norm or 'handung' in first_box_norm) and 'expiry_time' not in fields:
+            fields['expiry_time'] = val_text
+        elif ('soluong' in first_box_norm or 'quantity' in first_box_norm or 'qty' in first_box_norm) and 'quantity' not in fields:
+            fields['quantity'] = val_text
+
+    norm_full = strip_accents(full_text)
+    if 'product_id' not in fields:
+        m = re.search(r'(?:ma\s*san\s*pham|masanpham|product\s*id|part\s*no)[:\s]+([A-Za-z0-9\-_*\/]+)', norm_full)
+        if m:
+            fields['product_id'] = m.group(1).upper()
+
+    if 'station' not in fields:
+        m = re.search(r'(?<!tiep theo\s)(?:ma\s*may|station|mach\s*no)[:\s]+([A-Za-z0-9\-_ ]+)', norm_full)
+        if m:
+            fields['station'] = m.group(1).strip()
+
+    if 'lot_number' not in fields:
+        m = re.search(r'(?:lo\s*san\s*xuat|losanxuat|so\s*lo|lot\s*no)[:\s]+([A-Za-z0-9\-_]+)', norm_full)
+        if m:
+            fields['lot_number'] = m.group(1).strip()
+
+    if 'quantity' not in fields:
+        m = re.search(r'(?:so\s*luong|soluong|quantity|qty)[:\s]+(\d+(?:\.\d+)?)', norm_full)
+        if m:
+            fields['quantity'] = m.group(1).strip()
+
+    match_count = sum(1 for k in ['product_id', 'station', 'lot_number', 'quantity'] if k in fields)
+    fields['is_label'] = (match_count >= 2)
+    return fields
+
 def clean_and_merge_ocr_results(result):
     """
     Sắp xếp các bounding boxes theo dòng ngang và tự động ghép / khử trùng lặp ký tự
     giữa các mảnh text bị đứt đoạn trên cùng một dòng tem / mã barcode.
+    Giữ lại chữ cái Unicode (Tiếng Việt), chữ số, khoảng trắng và các ký tự: -, *, _, /, :, .
     """
     if not result:
-        return "", [], 0.0
+        return "", [], 0.0, {'is_label': False}
 
     boxes_with_text = []
     for item in result:
@@ -6332,7 +6600,7 @@ def clean_and_merge_ocr_results(result):
         })
 
     if not boxes_with_text:
-        return "", [], 0.0
+        return "", [], 0.0, {'is_label': False}
 
     avg_h = sum(b['height'] for b in boxes_with_text) / len(boxes_with_text)
     line_thresh = max(15.0, avg_h * 0.6)
@@ -6376,21 +6644,22 @@ def clean_and_merge_ocr_results(result):
                     merged_line += txt[overlap_len:]
                 else:
                     gap = b['min_x'] - (prev_box['max_x'] if prev_box else b['min_x'])
-                    char_w = (b['max_x'] - b['min_x']) / max(1, len(txt))
-                    if gap > char_w * 1.5:
+                    if gap > 4:
                         merged_line += " " + txt
                     else:
                         merged_line += txt
             prev_box = b
 
-        # Loại bỏ các ký tự đặc biệt (*, #, $, @, etc.), chỉ giữ lại ký tự chữ cái và chữ số
-        cleaned_line = re.sub(r'[^A-Za-z0-9]', '', merged_line)
+        # Giữ lại chữ cái Unicode (Tiếng Việt), chữ số, khoảng trắng và các ký tự: -, *, _, /, :, .
+        cleaned_line = re.sub(r'[^\w\s\-*\/:\.]', '', merged_line, flags=re.UNICODE)
+        cleaned_line = re.sub(r'[ \t]+', ' ', cleaned_line).strip()
         if cleaned_line:
             final_lines.append(cleaned_line)
 
     full_text = '\n'.join(final_lines)
     avg_conf = sum(all_scores) / len(all_scores) if all_scores else 0.0
-    return full_text, final_lines, round(avg_conf, 3)
+    label_data = extract_label_info(boxes_with_text, lines, full_text)
+    return full_text, final_lines, round(avg_conf, 3), label_data
 
 @app.route('/api/ocr/warmup', methods=['GET'])
 def ocr_warmup():
@@ -6459,11 +6728,12 @@ def ocr_recognize():
                 'engine_available': True,
                 'text': '',
                 'lines': [],
+                'label_data': {'is_label': False},
                 'message': 'Không tìm thấy ký tự trong hình ảnh',
                 'latency_ms': elapsed_ms
             })
 
-        full_text, lines, avg_conf = clean_and_merge_ocr_results(result)
+        full_text, lines, avg_conf, label_data = clean_and_merge_ocr_results(result)
 
         return jsonify({
             'success': True,
@@ -6471,6 +6741,7 @@ def ocr_recognize():
             'text': full_text,
             'lines': lines,
             'confidence': avg_conf,
+            'label_data': label_data,
             'latency_ms': elapsed_ms
         })
     except Exception as e:
