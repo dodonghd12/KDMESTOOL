@@ -7181,7 +7181,7 @@ async function processOcrImageFile(file, targetInput = null) {
     const barEl = document.getElementById('ocrProgressBar');
 
     if (loadingNameEl) loadingNameEl.textContent = file.name || 'Ảnh chụp màn hình';
-    if (statusEl) statusEl.textContent = 'Khởi động AI OCR...';
+    if (statusEl) statusEl.textContent = 'Khởi động quét Barcode & OCR...';
     if (pctEl) pctEl.textContent = '15%';
     if (barEl) barEl.style.width = '15%';
 
@@ -7196,28 +7196,79 @@ async function processOcrImageFile(file, targetInput = null) {
     }, 120);
 
     let rawText = '';
+    let detectedFormat = '';
+    let detectedSource = '';
 
     try {
-        // Stage 1: Thử giải mã mã vạch trực tiếp bằng native BarcodeDetector API (nếu trình duyệt hỗ trợ)
-        if ('BarcodeDetector' in window) {
+        // Stage 1: Giải mã Barcode trực tiếp tại Client bằng @zxing/library (0ms server load)
+        if (typeof ZXing !== 'undefined' && ZXing.BrowserMultiFormatReader) {
             try {
-                if (statusEl) statusEl.textContent = 'Đang quét Barcode...';
+                if (statusEl) statusEl.textContent = 'Đang quét Barcode (@zxing)...';
+                const codeReader = new ZXing.BrowserMultiFormatReader();
+                const blobUrl = URL.createObjectURL(file);
+                try {
+                    const zxResult = await codeReader.decodeFromImageUrl(blobUrl);
+                    if (zxResult && zxResult.getText()) {
+                        rawText = zxResult.getText().trim();
+                        detectedSource = '@zxing/library (Client)';
+                        try {
+                            const fmtCode = zxResult.getBarcodeFormat();
+                            if (ZXing.BarcodeFormat && ZXing.BarcodeFormat[fmtCode] !== undefined) {
+                                detectedFormat = ZXing.BarcodeFormat[fmtCode];
+                            }
+                        } catch (_fmtErr) {}
+                    }
+                } finally {
+                    URL.revokeObjectURL(blobUrl);
+                }
+            } catch (_zxErr) {
+                // @zxing không tìm thấy hoặc ảnh cần xử lý thêm -> tiếp tục sang Stage 2
+            }
+        }
+
+        // Stage 2: Thử giải mã mã vạch bằng native BarcodeDetector API (nếu browser hỗ trợ)
+        if (!rawText && 'BarcodeDetector' in window) {
+            try {
+                if (statusEl) statusEl.textContent = 'Đang quét Barcode (Native)...';
                 const detector = new BarcodeDetector({
-                    formats: ['code_128', 'code_39', 'code_93', 'ean_13', 'qr_code', 'data_matrix']
+                    formats: ['code_128', 'code_39', 'code_93', 'ean_13', 'qr_code', 'data_matrix', 'itf', 'codabar']
                 });
                 const imgBitmap = await createImageBitmap(file);
                 const barcodes = await detector.detect(imgBitmap);
                 if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
                     rawText = barcodes[0].rawValue.trim();
+                    detectedSource = 'BarcodeDetector (Native)';
+                    detectedFormat = barcodes[0].format || 'BARCODE';
                 }
-            } catch (_bcErr) {
-                console.log('[OCR] Native BarcodeDetector skipped, using Deep Learning OCR');
+            } catch (_bcErr) {}
+        }
+
+        // Stage 3: Gọi Server-side zxing-cpp API (/api/barcode/scan) - Hỗ trợ xoay 360°, inverted, downscale
+        if (!rawText) {
+            try {
+                if (statusEl) statusEl.textContent = 'Đang quét Barcode (zxing-cpp)...';
+                const formData = new FormData();
+                formData.append('file', file);
+                const bcRes = await fetch('/api/barcode/scan', {
+                    method: 'POST',
+                    body: formData
+                });
+                if (bcRes.ok) {
+                    const bcData = await bcRes.json();
+                    if (bcData && bcData.success && bcData.barcode_found && bcData.text) {
+                        rawText = bcData.text.trim();
+                        detectedSource = 'zxing-cpp (Server)';
+                        detectedFormat = bcData.format || 'BARCODE';
+                    }
+                }
+            } catch (_srvBcErr) {
+                console.warn('[Barcode] zxing-cpp scan fallback:', _srvBcErr);
             }
         }
 
-        // Stage 2: Nếu chưa có barcode, gọi Server-side AI OCR (RapidOCR / PaddleOCR ONNX)
+        // Stage 4: Gọi Server-side AI OCR (RapidOCR ONNX)
         if (!rawText) {
-            if (statusEl) statusEl.textContent = 'Đang nhận diện ký tự AI...';
+            if (statusEl) statusEl.textContent = 'Đang nhận diện ký tự AI OCR...';
             const formData = new FormData();
             formData.append('file', file);
 
@@ -7230,11 +7281,13 @@ async function processOcrImageFile(file, targetInput = null) {
                 const data = await res.json();
                 if (data && data.success && data.text) {
                     rawText = data.text.trim();
+                    detectedSource = 'RapidOCR AI';
+                    if (data.format) detectedFormat = data.format;
                 }
             }
         }
 
-        // Stage 3: Fallback client-side Tesseract nếu Server không phản hồi
+        // Stage 5: Fallback client-side Tesseract nếu Server không phản hồi
         if (!rawText && typeof Tesseract !== 'undefined') {
             if (statusEl) statusEl.textContent = 'Quét bổ trợ (Tesseract)...';
             const result = await Tesseract.recognize(file, 'eng', {
@@ -7247,11 +7300,11 @@ async function processOcrImageFile(file, targetInput = null) {
                 }
             });
             if (result && result.data && result.data.text) {
-                // Lọc bỏ dòng nhiễu do sọc barcode
                 const lines = result.data.text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
                 if (lines.length > 0) {
                     const sorted = lines.slice().sort((a, b) => b.replace(/[^A-Za-z0-9]/g, '').length - a.replace(/[^A-Za-z0-9]/g, '').length);
                     rawText = sorted[0] || lines.join(' ');
+                    detectedSource = 'Tesseract';
                 }
             }
         }
@@ -7260,13 +7313,13 @@ async function processOcrImageFile(file, targetInput = null) {
         if (pctEl) pctEl.textContent = '100%';
         if (barEl) barEl.style.width = '100%';
 
-        // Loại bỏ toàn bộ ký tự gây nhiễu (*, #, $, @, etc.), giữ lại ký tự chữ cái, số, gạch ngang, gạch dưới, gạch đứng
-        if (rawText) {
+        // Làm sạch text nếu là OCR thuần (loại bỏ ký tự rác)
+        if (rawText && !detectedFormat) {
             rawText = rawText.replace(/[^a-zA-Z0-9\-_|]/g, '').trim();
         }
 
         if (!rawText) {
-            Toast.warning('Không có ký tự', 'Không tìm thấy ký tự hợp lệ nào trong hình ảnh.');
+            Toast.warning('Không có kết quả', 'Không tìm thấy mã vạch hoặc ký tự hợp lệ trong hình ảnh.');
             resetOcrDropzone();
             return;
         }
@@ -7280,7 +7333,7 @@ async function processOcrImageFile(file, targetInput = null) {
         const resultTextEl = document.getElementById('ocrResultText');
         if (resultTextEl) {
             resultTextEl.textContent = rawText;
-            resultTextEl.setAttribute('title', rawText);
+            resultTextEl.setAttribute('title', `${rawText} (${detectedSource}${detectedFormat ? ' - ' + detectedFormat : ''})`);
         }
 
         // Điền tự động vào input đang được focus (hoặc mặc định #barcode)
@@ -7295,11 +7348,14 @@ async function processOcrImageFile(file, targetInput = null) {
             fillTarget.focus();
         }
 
-        Toast.success('Nhận diện thành công', `Đã nhận diện: ${rawText}`);
+        const successMsg = detectedFormat
+            ? `Đã quét (${detectedFormat}): ${rawText}`
+            : `Đã nhận diện: ${rawText}`;
+        Toast.success(detectedFormat ? 'Quét Barcode thành công' : 'Nhận diện thành công', successMsg);
     } catch (err) {
         clearInterval(progressTimer);
-        console.error('OCR Processing Error:', err);
-        Toast.error('Lỗi nhận diện OCR', err.message || 'Không thể đọc ký tự từ hình ảnh');
+        console.error('Barcode/OCR Processing Error:', err);
+        Toast.error('Lỗi nhận diện', err.message || 'Không thể quét mã vạch hoặc đọc ký tự');
         resetOcrDropzone();
     }
 }

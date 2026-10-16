@@ -6401,6 +6401,114 @@ def ocr_warmup():
         return jsonify({'success': True, 'warmed': True}), 200
     return jsonify({'success': False, 'error': err}), 500
 
+# ==============================================================================
+# HIGH-PERFORMANCE BARCODE SCANNING API (zxing-cpp C++ Engine)
+# ==============================================================================
+_zxingcpp_module = None
+_zxingcpp_init_tried = False
+
+def get_zxingcpp_engine():
+    global _zxingcpp_module, _zxingcpp_init_tried
+    if not _zxingcpp_init_tried:
+        _zxingcpp_init_tried = True
+        try:
+            import zxingcpp
+            _zxingcpp_module = zxingcpp
+            logger.info("zxing-cpp C++ barcode engine loaded successfully")
+        except Exception as e:
+            logger.warning(f"zxingcpp engine initialization failed: {e}")
+            _zxingcpp_module = None
+    return _zxingcpp_module
+
+@app.route('/api/barcode/scan', methods=['POST'])
+def api_barcode_scan():
+    """
+    Quét và giải mã barcode tốc độ cao bằng zxing-cpp (C++ engine).
+    Hỗ trợ Code 128, Code 39, QR Code, Data Matrix, ITF, EAN, v.v.
+    Hỗ trợ xoay 360 độ (0, 90, 180, 270), đảo màu (inverted/dark mode) và downscale thông minh.
+    """
+    engine = get_zxingcpp_engine()
+    if engine is None:
+        return jsonify({
+            'success': False,
+            'barcode_found': False,
+            'engine_available': False,
+            'message': 'Thư viện zxing-cpp chưa sẵn sàng trên máy chủ'
+        }), 200
+
+    image_bytes = None
+    if 'file' in request.files:
+        image_bytes = request.files['file'].read()
+    elif 'image' in request.files:
+        image_bytes = request.files['image'].read()
+    elif request.is_json:
+        data = request.get_json(silent=True) or {}
+        b64_str = data.get('image', '')
+        if ',' in b64_str:
+            b64_str = b64_str.split(',', 1)[1]
+        try:
+            image_bytes = base64.b64decode(b64_str)
+        except Exception:
+            image_bytes = None
+    elif request.data:
+        image_bytes = request.data
+
+    if not image_bytes:
+        return jsonify({'success': False, 'error': True, 'message': 'Không tìm thấy dữ liệu hình ảnh'}), 400
+
+    try:
+        t0 = time.perf_counter()
+        img = Image.open(io.BytesIO(image_bytes))
+
+        # Xử lý nền trong suốt (RGBA / PNG alpha) sang nền trắng
+        if img.mode in ('RGBA', 'LA') or (img.mode == 'P' and 'transparency' in img.info):
+            bg = Image.new('RGB', img.size, (255, 255, 255))
+            if img.mode != 'RGBA':
+                img = img.convert('RGBA')
+            bg.paste(img, mask=img.split()[3])
+            img = bg
+        elif img.mode != 'RGB':
+            img = img.convert('RGB')
+
+        barcodes = engine.read_barcodes(img, try_rotate=True, try_downscale=True, try_invert=True)
+        elapsed_ms = round((time.perf_counter() - t0) * 1000, 2)
+
+        valid_bcs = []
+        for b in barcodes:
+            txt = getattr(b, 'text', '') or ''
+            txt = txt.strip()
+            if txt:
+                fmt_name = getattr(b.format, 'name', str(b.format))
+                valid_bcs.append({
+                    'text': txt,
+                    'format': fmt_name,
+                    'valid': getattr(b, 'valid', True)
+                })
+
+        if not valid_bcs:
+            return jsonify({
+                'success': True,
+                'barcode_found': False,
+                'text': '',
+                'format': '',
+                'barcodes': [],
+                'latency_ms': elapsed_ms,
+                'message': 'Không tìm thấy mã vạch trong hình ảnh'
+            })
+
+        primary = valid_bcs[0]
+        return jsonify({
+            'success': True,
+            'barcode_found': True,
+            'text': primary['text'],
+            'format': primary['format'],
+            'barcodes': valid_bcs,
+            'latency_ms': elapsed_ms
+        })
+    except Exception as e:
+        logger.error(f"Error in api_barcode_scan: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': True, 'message': f'Lỗi quét mã vạch: {str(e)}'}), 500
+
 @app.route('/api/ocr/recognize', methods=['POST'])
 def ocr_recognize():
     engine, init_err = get_rapid_ocr_engine()
@@ -6444,6 +6552,29 @@ def ocr_recognize():
             img = bg
         elif img.mode != 'RGB':
             img = img.convert('RGB')
+
+        # Tối ưu hóa siêu nhanh: Thử quét bằng zxing-cpp trước (chỉ mất ~3ms)
+        zxing_engine = get_zxingcpp_engine()
+        if zxing_engine is not None:
+            try:
+                bcs = zxing_engine.read_barcodes(img, try_rotate=True, try_downscale=True, try_invert=True)
+                for b in bcs:
+                    b_txt = (getattr(b, 'text', '') or '').strip()
+                    if b_txt:
+                        elapsed_ms = round((time.perf_counter() - t0) * 1000, 2)
+                        fmt_name = getattr(b.format, 'name', str(b.format))
+                        return jsonify({
+                            'success': True,
+                            'engine_available': True,
+                            'text': b_txt,
+                            'lines': [b_txt],
+                            'confidence': 1.0,
+                            'barcode_found': True,
+                            'format': fmt_name,
+                            'latency_ms': elapsed_ms
+                        })
+            except Exception as _zx_e:
+                pass
 
         # Tối ưu kích thước: Nếu ảnh quá lớn từ điện thoại/camera (>960px), resize nhanh để tăng tốc độ nhận diện
         if max(img.width, img.height) > 960:

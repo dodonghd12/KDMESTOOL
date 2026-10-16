@@ -33,16 +33,16 @@
                 </div>
             </div>
             <div class="search-row search-row-ocr">
-                <div class="ocr-dropzone" id="ocrDropzone" tabindex="0" role="button" aria-label="Kéo thả, dán ảnh (Ctrl+V) hoặc nhấp để nhận diện chữ" title="Nhấp chuột để chọn file ảnh | Nhấn Ctrl+V để dán ảnh bất kỳ lúc nào | Kéo thả ảnh vào đây">
+                <div class="ocr-dropzone" id="ocrDropzone" tabindex="0" role="button" aria-label="Kéo thả, dán ảnh (Ctrl+V) hoặc nhấp để quét Barcode / OCR" title="Nhấp chuột để chọn file ảnh | Nhấn Ctrl+V để dán ảnh bất kỳ lúc nào | Kéo thả ảnh vào đây">
                     <input type="file" id="ocrFileInput" accept="image/*" style="display:none;" onchange="handleOcrFileSelected(event)">
 
                     <!-- State 1: Chờ ảnh (Idle) -->
                     <div class="ocr-state ocr-state-idle" id="ocrStateIdle">
                         <div class="ocr-icon-wrap">
-                            <span class="material-symbols-outlined ocr-cloud-icon">document_scanner</span>
+                            <span class="material-symbols-outlined ocr-cloud-icon">qr_code_scanner</span>
                         </div>
                         <div class="ocr-text-wrap">
-                            <span class="ocr-title">Image to Text</span>
+                            <span class="ocr-title">Scan Barcode / OCR</span>
                             <span class="ocr-subtitle">Drop / Ctrl+V / Click to upload</span>
                         </div>
                     </div>
@@ -108,6 +108,7 @@
     {% include "components/shared_modals.html" %}
 
     <script src="{{ url_for('static', filename='vendor/xlsx/xlsx.full.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='vendor/zxing/zxing.min.js') }}"></script>
     <script src="{{ url_for('static', filename='vendor/tesseract.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/smooth_input.js') }}?v={{ version }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}?v={{ version }}"></script>
