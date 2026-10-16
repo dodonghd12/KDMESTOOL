@@ -222,6 +222,10 @@ async function searchMaterialTransfer() {
             return;
         }
 
+        if (data && data.resolved_barcode && barcodeInput && barcodeInput.value.trim() !== data.resolved_barcode) {
+            barcodeInput.value = data.resolved_barcode;
+        }
+
         const rawRows = (data && Array.isArray(data.result)) ? data.result : [];
         const rawCols = (data && Array.isArray(data.columns)) ? data.columns : [];
         currentRawCols = rawCols;

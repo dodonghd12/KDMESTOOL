@@ -1725,6 +1725,9 @@ async function searchBarcode() {
         }
 
         if (data && Array.isArray(data.result)) {
+            if (data.resolved_barcode && document.getElementById('barcode') && document.getElementById('barcode').value.trim() !== data.resolved_barcode) {
+                document.getElementById('barcode').value = data.resolved_barcode;
+            }
             setTableData(data.result, data.columns, 'barcode', `Không tìm thấy tem barcode nào với từ khóa "${keyword}"`);
         } else {
             setTableData([], data ? data.columns : [], 'barcode', `Không tìm thấy tem barcode nào với từ khóa "${keyword}"`);
@@ -7286,8 +7289,11 @@ async function processOcrImageFile(file, targetInput = null) {
         const isActiveInput = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA') && !activeEl.disabled && !activeEl.readOnly;
         const fillTarget = targetInput || (isActiveInput ? activeEl : (barcodeEl || null));
 
-        // KIỂM TRA & XỬ LÝ TEM CHỨA THÔNG TIN CHI TIẾT (Mã máy, Mã SP, Lô SX, Số lượng)
-        if (detectedLabelData && (detectedLabelData.is_label || detectedLabelData.station || detectedLabelData.product_id || detectedLabelData.lot_number)) {
+        // PHÂN NHÁNH XỬ LÝ SONG SONG:
+        // TRƯỜNG HỢP 1: HÌNH ẢNH TEM BẢNG / NHIỀU CỘT (Mã máy, Mã SP, Lô SX, Số lượng, ...)
+        const isMultiColumnLabel = Boolean(detectedLabelData && detectedLabelData.is_label);
+
+        if (isMultiColumnLabel) {
             const isMaterialTransferPage = window.location.pathname.includes('material-transfer') ||
                 (typeof searchMaterialTransfer === 'function' && typeof formatStatusCell === 'function');
 
@@ -7359,16 +7365,11 @@ async function processOcrImageFile(file, targetInput = null) {
             }
         }
 
-        // Trường hợp tem thông thường hoặc văn bản đơn lẻ
-        const isMultiLineOrLabel = (ocrData.lines && ocrData.lines.length > 1) || (detectedLabelData && detectedLabelData.is_label);
+        // TRƯỜNG HỢP 2: HÌNH ẢNH MÃ TEM ĐƠN LẺ / TOÀN CHỮ SỐ (OCR Image-to-Text nguyên bản)
+        // Hiển thị kết quả trong ocrResultText và giữ dropzone ở trạng thái Preview
         if (resultTextEl) {
-            if (isMultiLineOrLabel) {
-                resultTextEl.textContent = '';
-                resultTextEl.removeAttribute('title');
-            } else {
-                resultTextEl.textContent = rawText;
-                resultTextEl.setAttribute('title', rawText);
-            }
+            resultTextEl.textContent = rawText;
+            resultTextEl.setAttribute('title', rawText);
         }
 
         if (fillTarget) {

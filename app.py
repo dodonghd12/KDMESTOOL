@@ -1735,6 +1735,26 @@ def query_material_resource_by_label_fields(label_data):
     return execute_pg_select_query(query, tuple(params))
 
 
+def get_ocr_barcode_variants(kw):
+    """Tạo các biến thể thay thế ký tự thường bị nhầm lẫn trong OCR (O<->0, I<->1, S<->5)."""
+    if not kw or len(kw) < 8:
+        return []
+    variants = []
+    # 1. Thay thế toàn bộ 'O' <-> '0'
+    if 'O' in kw: variants.append(kw.replace('O', '0'))
+    if '0' in kw: variants.append(kw.replace('0', 'O'))
+
+    # 2. Thay thế từng vị trí đơn lẻ
+    for i, ch in enumerate(kw):
+        if ch == 'O': variants.append(kw[:i] + '0' + kw[i+1:])
+        elif ch == '0': variants.append(kw[:i] + 'O' + kw[i+1:])
+        elif ch == 'I': variants.append(kw[:i] + '1' + kw[i+1:])
+        elif ch == '1': variants.append(kw[:i] + 'I' + kw[i+1:])
+        elif ch == 'S': variants.append(kw[:i] + '5' + kw[i+1:])
+        elif ch == '5': variants.append(kw[:i] + 'S' + kw[i+1:])
+    return list(dict.fromkeys(variants))
+
+
 @app.route('/api/barcodes', methods=['POST'])
 @login_required
 def search_barcode():
@@ -1785,6 +1805,18 @@ def search_barcode():
         LIMIT 100;
     """
     result, column_names = execute_pg_select_query(query, (f"%{keyword}%",))
+    resolved_id = None
+
+    # Tự động khắc phục lỗi nhận diện OCR ký tự tương đồng (O <-> 0, I <-> 1, S <-> 5) nếu không tìm thấy bản ghi trực tiếp
+    if not result and len(keyword) >= 8:
+        for cand in get_ocr_barcode_variants(keyword):
+            cand_res, cand_cols = execute_pg_select_query(query, (f"%{cand}%",))
+            if cand_res:
+                result = cand_res
+                column_names = cand_cols
+                resolved_id = cand
+                break
+
     if result:
         convert_columns = ["expiry_time", "updated_at", "created_at", "standing_time"]
         result = convert_timestamp(result, column_names, convert_columns)
@@ -1798,13 +1830,15 @@ def search_barcode():
         return jsonify({
             'success': True,
             'result': serialized_result,
-            'columns': column_names
+            'columns': column_names,
+            'resolved_barcode': resolved_id
         })
     else:
         return jsonify({
             'success': True,
             'result': [],
-            'columns': column_names
+            'columns': column_names,
+            'resolved_barcode': None
         })
 
 @app.route('/api/recipes', methods=['POST'])
@@ -3533,6 +3567,18 @@ def get_material_transfer():
     """
     try:
         result, column_names = execute_pg_select_query(query, (f"%{clean_keyword}%",))
+        resolved_id = None
+
+        if not result and len(keyword) >= 8:
+            for cand in get_ocr_barcode_variants(keyword):
+                clean_cand = cand.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+                cand_res, cand_cols = execute_pg_select_query(query, (f"%{clean_cand}%",))
+                if cand_res:
+                    result = cand_res
+                    column_names = cand_cols
+                    resolved_id = cand
+                    break
+
         if result:
             convert_columns = ["transaction_time", "created_at"]
             result = convert_timestamp(result, column_names, convert_columns)
@@ -3540,13 +3586,15 @@ def get_material_transfer():
             return jsonify({
                 'success': True,
                 'result': serialized_result,
-                'columns': column_names
+                'columns': column_names,
+                'resolved_barcode': resolved_id
             })
         else:
             return jsonify({
                 'success': True,
                 'result': [],
-                'columns': column_names
+                'columns': column_names,
+                'resolved_barcode': None
             })
     except Exception as e:
         logger.error(f"Error fetching material transfer: {e}")
