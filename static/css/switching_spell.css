@@ -76,16 +76,16 @@
 }
 
 .folder-dropdown-wrapper:hover {
-    border-color: var(--color-border-subtle);
-    background: rgba(15, 23, 42, 0.7);
-    box-shadow: none;
+    border-color: rgba(56, 189, 248, 0.6);
+    background: rgba(15, 23, 42, 0.85);
+    box-shadow: 0 2px 10px rgba(56, 189, 248, 0.12);
 }
 
 .switching-spell-page .folder-dropdown-wrapper:focus-within,
 .switching-spell-page .folder-dropdown-wrapper:focus {
-    border-color: transparent !important;
-    background: rgba(15, 23, 42, 0.7) !important;
-    box-shadow: none !important;
+    border-color: #38bdf8 !important;
+    background: rgba(15, 23, 42, 0.9) !important;
+    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25), 0 2px 10px rgba(0, 0, 0, 0.35) !important;
     outline: none !important;
 }
 
@@ -110,6 +110,7 @@
 
 .folder-dropdown-wrapper:focus-within .dropdown-arrow {
     transform: translateY(-50%) rotate(180deg);
+    color: #38bdf8;
 }
 
 .folder-select {
@@ -435,17 +436,23 @@ body.theme-light .folder-dropdown-wrapper {
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
 }
 
-:root[data-theme="light"] .switching-spell-page .folder-dropdown-wrapper:focus-within,
-body.theme-light .switching-spell-page .folder-dropdown-wrapper:focus-within {
-    border-color: transparent !important;
-    background: #ffffff !important;
-    box-shadow: none !important;
-}
-
 :root[data-theme="light"] .folder-dropdown-wrapper:hover,
 body.theme-light .folder-dropdown-wrapper:hover {
     border-color: #0284c7;
     background: rgba(2, 132, 199, 0.05);
+    box-shadow: 0 2px 8px rgba(2, 132, 199, 0.12);
+}
+
+:root[data-theme="light"] .switching-spell-page .folder-dropdown-wrapper:focus-within,
+body.theme-light .switching-spell-page .folder-dropdown-wrapper:focus-within {
+    border-color: #0284c7 !important;
+    background: #ffffff !important;
+    box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.2), 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+}
+
+:root[data-theme="light"] .folder-dropdown-wrapper:focus-within .dropdown-arrow,
+body.theme-light .folder-dropdown-wrapper:focus-within .dropdown-arrow {
+    color: #0284c7;
 }
 
 :root[data-theme="light"] .folder-select option,
