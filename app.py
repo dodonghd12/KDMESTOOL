@@ -6470,66 +6470,22 @@ def api_barcode_scan():
         elif img.mode != 'RGB':
             img = img.convert('RGB')
 
-        # Multi-pass Auto-healing Scan:
-        # Pass 1: Quét trực tiếp ảnh gốc
         barcodes = engine.read_barcodes(img, try_rotate=True, try_downscale=True, try_invert=True)
-
-        # Lọc phantom false-positive (ví dụ Code39 ngẫu nhiên < 6 ký tự do vạch lỗi)
-        def is_plausible_barcode(b):
-            txt = (getattr(b, 'text', '') or '').strip()
-            fmt = getattr(b.format, 'name', str(b.format))
-            if not txt:
-                return False
-            # Code39 không có checksum bắt buộc thường tạo phantom reads ngắn (như 'ATTRT') khi ảnh bị lỗi/cắt cụt
-            if fmt == 'Code39' and len(txt) < 6:
-                return False
-            return True
-
-        valid_bcs = [b for b in barcodes if is_plausible_barcode(b)]
-
-        # Pass 2: Nếu chưa nhận diện được, tự động bù viền trắng (Quiet Zone Auto-healing)
-        if not valid_bcs:
-            try:
-                import cv2
-                img_np = np.array(img)
-                # Bù 45px viền trắng xung quanh để đáp ứng tiêu chuẩn Quiet Zone của 1D Barcode
-                padded = cv2.copyMakeBorder(img_np, 45, 45, 65, 65, cv2.BORDER_CONSTANT, value=[255, 255, 255])
-                bcs_padded = engine.read_barcodes(Image.fromarray(padded), try_rotate=True, try_downscale=True, try_invert=True)
-                valid_bcs = [b for b in bcs_padded if is_plausible_barcode(b)]
-            except Exception as _pad_err:
-                pass
-
-        # Pass 3: Nếu vẫn chưa được, tăng cường độ tương phản (Grayscale + CLAHE) khử ám màu màn hình/nhãn
-        if not valid_bcs:
-            try:
-                import cv2
-                img_np = np.array(img)
-                gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
-                clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8))
-                cl = clahe.apply(gray)
-                cl_padded = cv2.copyMakeBorder(cl, 45, 45, 65, 65, cv2.BORDER_CONSTANT, value=255)
-                bcs_cl = engine.read_barcodes(Image.fromarray(cl_padded), try_rotate=True, try_downscale=True, try_invert=True)
-                valid_bcs = [b for b in bcs_cl if is_plausible_barcode(b)]
-            except Exception as _cl_err:
-                pass
-
-        # Fallback cuối: Nếu chỉ có kết quả (kể cả ngắn), lấy ra nếu hợp lệ
-        if not valid_bcs and barcodes:
-            valid_bcs = [b for b in barcodes if (getattr(b, 'text', '') or '').strip()]
-
         elapsed_ms = round((time.perf_counter() - t0) * 1000, 2)
 
-        formatted_bcs = []
-        for b in valid_bcs:
-            txt = (getattr(b, 'text', '') or '').strip()
-            fmt_name = getattr(b.format, 'name', str(b.format))
-            formatted_bcs.append({
-                'text': txt,
-                'format': fmt_name,
-                'valid': getattr(b, 'valid', True)
-            })
+        valid_bcs = []
+        for b in barcodes:
+            txt = getattr(b, 'text', '') or ''
+            txt = txt.strip()
+            if txt:
+                fmt_name = getattr(b.format, 'name', str(b.format))
+                valid_bcs.append({
+                    'text': txt,
+                    'format': fmt_name,
+                    'valid': getattr(b, 'valid', True)
+                })
 
-        if not formatted_bcs:
+        if not valid_bcs:
             return jsonify({
                 'success': True,
                 'barcode_found': False,
@@ -6537,16 +6493,16 @@ def api_barcode_scan():
                 'format': '',
                 'barcodes': [],
                 'latency_ms': elapsed_ms,
-                'message': 'Không tìm thấy mã vạch hợp lệ (ảnh có thể bị cắt cụt 2 đầu hoặc thiếu vùng đệm Quiet Zone)'
+                'message': 'Không tìm thấy mã vạch trong hình ảnh'
             })
 
-        primary = formatted_bcs[0]
+        primary = valid_bcs[0]
         return jsonify({
             'success': True,
             'barcode_found': True,
             'text': primary['text'],
             'format': primary['format'],
-            'barcodes': formatted_bcs,
+            'barcodes': valid_bcs,
             'latency_ms': elapsed_ms
         })
     except Exception as e:

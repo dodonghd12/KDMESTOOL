@@ -7209,22 +7209,14 @@ async function processOcrImageFile(file, targetInput = null) {
                 try {
                     const zxResult = await codeReader.decodeFromImageUrl(blobUrl);
                     if (zxResult && zxResult.getText()) {
-                        const candidateText = zxResult.getText().trim();
-                        let candidateFormat = 'BARCODE';
+                        rawText = zxResult.getText().trim();
+                        detectedSource = '@zxing/library (Client)';
                         try {
                             const fmtCode = zxResult.getBarcodeFormat();
                             if (ZXing.BarcodeFormat && ZXing.BarcodeFormat[fmtCode] !== undefined) {
-                                candidateFormat = ZXing.BarcodeFormat[fmtCode];
+                                detectedFormat = ZXing.BarcodeFormat[fmtCode];
                             }
                         } catch (_fmtErr) {}
-
-                        // Chống phantom false-positive: Code 39 ngắn (< 6 ký tự như 'ATTRT') do vạch dính hoặc ảnh cắt cụt
-                        const isPhantom = candidateFormat.includes('CODE_39') && candidateText.length < 6;
-                        if (!isPhantom && candidateText) {
-                            rawText = candidateText;
-                            detectedSource = '@zxing/library (Client)';
-                            detectedFormat = candidateFormat;
-                        }
                     }
                 } finally {
                     URL.revokeObjectURL(blobUrl);
