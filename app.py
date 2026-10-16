@@ -1596,7 +1596,7 @@ def generate_postgres_insert_query():
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
-def parse_label_datetime_range(s):
+def parse_label_datetime_range(s, window_sec=2):
     if not s:
         return None
     s = str(s).strip()
@@ -1609,7 +1609,7 @@ def parse_label_datetime_range(s):
             y, mo, d, h, mi, sec = map(int, m.groups())
             dt = datetime(y, mo, d, h, mi, sec, tzinfo=VN_TZ)
             ts_ns = int(dt.timestamp() * 1_000_000_000)
-            return (ts_ns - 30 * 1_000_000_000, ts_ns + 30 * 1_000_000_000)
+            return (ts_ns - window_sec * 1_000_000_000, ts_ns + (window_sec + 1) * 1_000_000_000)
 
         # 1b. YYYY-MM-DD HH:MM (không có giây)
         m2 = re.search(r'(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:\s+|T)(\d{1,2}):(\d{1,2})', s)
@@ -1625,7 +1625,7 @@ def parse_label_datetime_range(s):
             y, mo, d, h, mi, sec = map(int, m.groups())
             dt = datetime(y, mo, d, h, mi, sec, tzinfo=VN_TZ)
             ts_ns = int(dt.timestamp() * 1_000_000_000)
-            return (ts_ns - 30 * 1_000_000_000, ts_ns + 30 * 1_000_000_000)
+            return (ts_ns - window_sec * 1_000_000_000, ts_ns + (window_sec + 1) * 1_000_000_000)
 
         # 3. DD-MM-YYYY HH:MM:SS
         m = re.search(r'(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})\s*(\d{1,2}):(\d{1,2})[:\s]*(\d{1,2})', s)
@@ -1633,7 +1633,7 @@ def parse_label_datetime_range(s):
             d, mo, y, h, mi, sec = map(int, m.groups())
             dt = datetime(y, mo, d, h, mi, sec, tzinfo=VN_TZ)
             ts_ns = int(dt.timestamp() * 1_000_000_000)
-            return (ts_ns - 30 * 1_000_000_000, ts_ns + 30 * 1_000_000_000)
+            return (ts_ns - window_sec * 1_000_000_000, ts_ns + (window_sec + 1) * 1_000_000_000)
 
         # 4. Date-only: YYYY-MM-DD
         m = re.search(r'(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})', s)
@@ -1670,6 +1670,7 @@ def query_material_resource_by_label_fields(label_data):
     - lot_number (info->>'lot_number')
     - quantity (quantity)
     - production_time (created_at fast-path)
+    - expiry_time (expiry_time fast-path)
     """
     if not label_data:
         return [], []
@@ -1679,6 +1680,7 @@ def query_material_resource_by_label_fields(label_data):
     lot_number = (label_data.get('lot_number') or '').strip()
     qty_raw = label_data.get('quantity')
     prod_time_str = (label_data.get('production_time') or '').strip()
+    exp_time_str = (label_data.get('expiry_time') or '').strip()
 
     where_clauses = ['1=1']
     params = []
@@ -1708,13 +1710,19 @@ def query_material_resource_by_label_fields(label_data):
             where_clauses.append('quantity = %s')
             params.append(float(m_q.group(1)))
 
-    # Fast-path: Tận dụng index created_at nếu nhận diện được Ngày sản xuất
-    time_range = parse_label_datetime_range(prod_time_str)
-    if time_range:
-        t_start, t_end = time_range
-        fast_where = list(where_clauses) + ['created_at BETWEEN %s AND %s']
-        fast_params = list(params) + [t_start, t_end]
-        q_fast = f"""
+    prod_range = parse_label_datetime_range(prod_time_str, window_sec=2)
+    exp_range = parse_label_datetime_range(exp_time_str, window_sec=2)
+
+    # 1. Fast-path ưu tiên cao nhất: Khớp cả created_at VÀ expiry_time (chính xác đến từng giây)
+    if prod_range and exp_range:
+        p_start, p_end = prod_range
+        e_start, e_end = exp_range
+        fast_where = list(where_clauses) + [
+            'created_at BETWEEN %s AND %s',
+            'expiry_time BETWEEN %s AND %s'
+        ]
+        fast_params = list(params) + [p_start, p_end, e_start, e_end]
+        q_both = f"""
             SELECT id, product_id, product_type, 
                    quantity, status, expiry_time, 
                    created_at, updated_at, updated_by, created_by, 
@@ -1726,13 +1734,59 @@ def query_material_resource_by_label_fields(label_data):
             LIMIT 100;
         """
         try:
-            res_fast, col_fast = execute_pg_select_query(q_fast, tuple(fast_params))
-            if res_fast:
-                return res_fast, col_fast
+            res_both, col_both = execute_pg_select_query(q_both, tuple(fast_params))
+            if res_both:
+                return res_both, col_both
         except Exception as _fe:
-            logger.warning(f"Fast path label query failed, falling back: {_fe}")
+            logger.warning(f"Fast path (prod + exp) label query failed: {_fe}")
 
-    # Fallback tiêu chuẩn
+    # 2. Fast-path theo created_at (Ngày sản xuất)
+    if prod_range:
+        p_start, p_end = prod_range
+        fast_where = list(where_clauses) + ['created_at BETWEEN %s AND %s']
+        fast_params = list(params) + [p_start, p_end]
+        q_prod = f"""
+            SELECT id, product_id, product_type, 
+                   quantity, status, expiry_time, 
+                   created_at, updated_at, updated_by, created_by, 
+                   standing_time, feed_records_id, info, oid,
+                   reprint_reason, collected, erp_tire_barcode_synced
+            FROM kvmes.material_resource
+            WHERE {' AND '.join(fast_where)}
+            ORDER BY created_at DESC
+            LIMIT 100;
+        """
+        try:
+            res_prod, col_prod = execute_pg_select_query(q_prod, tuple(fast_params))
+            if res_prod:
+                return res_prod, col_prod
+        except Exception as _fe:
+            logger.warning(f"Fast path prod query failed, falling back: {_fe}")
+
+    # 3. Fast-path theo expiry_time (Ngày hết hạn)
+    if exp_range:
+        e_start, e_end = exp_range
+        fast_where = list(where_clauses) + ['expiry_time BETWEEN %s AND %s']
+        fast_params = list(params) + [e_start, e_end]
+        q_exp = f"""
+            SELECT id, product_id, product_type, 
+                   quantity, status, expiry_time, 
+                   created_at, updated_at, updated_by, created_by, 
+                   standing_time, feed_records_id, info, oid,
+                   reprint_reason, collected, erp_tire_barcode_synced
+            FROM kvmes.material_resource
+            WHERE {' AND '.join(fast_where)}
+            ORDER BY created_at DESC
+            LIMIT 100;
+        """
+        try:
+            res_exp, col_exp = execute_pg_select_query(q_exp, tuple(fast_params))
+            if res_exp:
+                return res_exp, col_exp
+        except Exception as _fe:
+            logger.warning(f"Fast path exp query failed, falling back: {_fe}")
+
+    # Fallback tiêu chuẩn nếu không có mốc thời gian hoặc cần nới lỏng
     query = f"""
         SELECT id, product_id, product_type, 
                quantity, status, expiry_time, 
