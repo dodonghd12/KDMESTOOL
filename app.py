@@ -1601,15 +1601,23 @@ def parse_label_datetime_range(s):
         return None
     s = str(s).strip()
     try:
-        # 1. YYYY-MM-DD HH:MM:SS or YYYY-MM-DDTHH:MM:SS or YYYY-MM-DDHH:MM:SS
-        m = re.search(r'(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:\s+|T|(?=\d{2}:))(\d{1,2}):(\d{1,2}):(\d{1,2})', s)
+        # 1. YYYY-MM-DD HH:MM:SS or YYYY-MM-DDTHH:MM:SS or YYYY-MM-DDHH:MM:SS (hỗ trợ cả dấu cách/không dấu giữa phút và giây)
+        m = re.search(r'(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:\s+|T|(?=\d{2}:))(\d{1,2}):(\d{1,2})[:\s]*(\d{1,2})', s)
         if not m:
-            m = re.search(r'(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})\s*(\d{1,2}):(\d{1,2}):(\d{1,2})', s)
+            m = re.search(r'(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})\s*(\d{1,2}):(\d{1,2})[:\s]*(\d{1,2})', s)
         if m:
             y, mo, d, h, mi, sec = map(int, m.groups())
             dt = datetime(y, mo, d, h, mi, sec, tzinfo=VN_TZ)
             ts_ns = int(dt.timestamp() * 1_000_000_000)
             return (ts_ns - 30 * 1_000_000_000, ts_ns + 30 * 1_000_000_000)
+
+        # 1b. YYYY-MM-DD HH:MM (không có giây)
+        m2 = re.search(r'(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:\s+|T)(\d{1,2}):(\d{1,2})', s)
+        if m2:
+            y, mo, d, h, mi = map(int, m2.groups())
+            dt = datetime(y, mo, d, h, mi, 0, tzinfo=VN_TZ)
+            ts_ns = int(dt.timestamp() * 1_000_000_000)
+            return (ts_ns - 60 * 1_000_000_000, ts_ns + 60 * 1_000_000_000)
 
         # 2. Compact 14-digit: 20261015201929
         m = re.search(r'(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})', s)
@@ -1620,7 +1628,7 @@ def parse_label_datetime_range(s):
             return (ts_ns - 30 * 1_000_000_000, ts_ns + 30 * 1_000_000_000)
 
         # 3. DD-MM-YYYY HH:MM:SS
-        m = re.search(r'(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})\s*(\d{1,2}):(\d{1,2}):(\d{1,2})', s)
+        m = re.search(r'(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})\s*(\d{1,2}):(\d{1,2})[:\s]*(\d{1,2})', s)
         if m:
             d, mo, y, h, mi, sec = map(int, m.groups())
             dt = datetime(y, mo, d, h, mi, sec, tzinfo=VN_TZ)
@@ -1677,6 +1685,10 @@ def query_material_resource_by_label_fields(label_data):
 
     if station:
         clean_st = re.sub(r'[^A-Za-z0-9\-_]', '', station)
+        clean_st = re.sub(r'CARCA8SPLY', 'CARCASSPLY', clean_st, flags=re.I)
+        clean_st = re.sub(r'CARCA8S', 'CARCASS', clean_st, flags=re.I)
+        clean_st = re.sub(r'8TEEL', 'STEEL', clean_st, flags=re.I)
+        clean_st = re.sub(r'8ELT', 'BELT', clean_st, flags=re.I)
         where_clauses.append('''REPLACE(REPLACE(COALESCE(info->'production_info'->>'station', ''), ' ', ''), '_', '-') ILIKE %s''')
         params.append(f'%{clean_st}%')
 
@@ -6585,7 +6597,69 @@ def strip_accents(text):
     nfkd = unicodedata.normalize('NFKD', str(text))
     return ''.join([c for c in nfkd if not unicodedata.combining(c)]).lower()
 
-def extract_label_info(boxes_with_text, lines, full_text):
+def parse_headerless_label(lines_list):
+    """
+    Trích xuất thuộc tính tem khi người dùng chụp/crop chỉ phần giá trị (không có tên header như Mã máy, Số lượng, ...).
+    Nhận diện dựa trên pattern ngữ nghĩa:
+    - station: KV-P... hoặc KV-...
+    - next_station: next_station
+    - date/datetime: YYYY-MM-DD
+    - lot_number: 203-1015, 103-1016 (3-4 số, gạch nối, 3-4 số)
+    - quantity: số nguyên/thực đứng riêng
+    - product_id: mã quy cách chữ và số (BU1*2S..., P255SH...)
+    """
+    hl_fields = {}
+    dates = []
+    for line_str in (lines_list or []):
+        txt = str(line_str).strip()
+        if not txt:
+            continue
+        # 1. Next station
+        if re.search(r'next[_\s]*station', txt, re.I):
+            hl_fields['next_station'] = txt
+            continue
+        # 2. Station (KV-P... hoặc KV-...)
+        if re.match(r'^KV[-_]P?[0-9]', txt, re.I):
+            clean_st = txt
+            clean_st = re.sub(r'CARCA8SPLY', 'CARCASSPLY', clean_st, flags=re.I)
+            clean_st = re.sub(r'CARCA8S', 'CARCASS', clean_st, flags=re.I)
+            clean_st = re.sub(r'8TEEL', 'STEEL', clean_st, flags=re.I)
+            clean_st = re.sub(r'8ELT', 'BELT', clean_st, flags=re.I)
+            hl_fields['station'] = clean_st
+            continue
+        # 3. Date / Datetime (YYYY-MM-DD ...)
+        if re.search(r'\d{4}[-/.]\d{1,2}[-/.]\d{1,2}', txt):
+            dates.append(txt)
+            continue
+        # 4. Lot number (3-4 số gạch ngang 3-4 số)
+        if re.match(r'^\d{3,4}[-_/]\d{3,4}$', txt):
+            hl_fields['lot_number'] = txt
+            continue
+        # 5. Quantity (Số lượng đứng một mình)
+        if re.match(r'^\d{1,6}(?:\.\d+)?$', txt):
+            num_val = float(txt)
+            # Tránh nhầm lẫn với số năm như 2026
+            if not (2020 <= num_val <= 2035 and '.' not in txt):
+                hl_fields['quantity'] = txt
+                continue
+        # 6. Product ID (Mã quy cách)
+        if re.match(r'^[A-Za-z0-9\-_*\/]{5,30}$', txt) and not re.match(r'^\d+$', txt):
+            if 'product_id' not in hl_fields:
+                hl_fields['product_id'] = txt
+
+    if len(dates) >= 2:
+        dates.sort()
+        hl_fields['production_time'] = dates[0]
+        hl_fields['expiry_time'] = dates[1]
+    elif len(dates) == 1:
+        hl_fields['production_time'] = dates[0]
+
+    match_cnt = sum(1 for k in ['product_id', 'station', 'lot_number', 'quantity', 'production_time'] if k in hl_fields)
+    hl_fields['is_label'] = (match_cnt >= 2)
+    return hl_fields
+
+
+def extract_label_info(boxes_with_text, lines, full_text, final_lines=None):
     fields = {}
 
     for line_boxes in lines:
@@ -6628,7 +6702,7 @@ def extract_label_info(boxes_with_text, lines, full_text):
             fields['product_id'] = m.group(1).upper()
 
     if 'station' not in fields:
-        m = re.search(r'(?<!tiep theo\s)(?:ma\s*may|station|mach\s*no)[:\s]+([A-Za-z0-9\-_ ]+)', norm_full)
+        m = re.search(r'(?<!tiep theo\s)(?<!next_)(?<!next\s)(?:ma\s*may|mach\s*no|(?<!next_)station)[:\s]+([A-Za-z0-9\-_ ]+)', norm_full)
         if m:
             fields['station'] = m.group(1).strip()
 
@@ -6653,7 +6727,19 @@ def extract_label_info(boxes_with_text, lines, full_text):
             fields['expiry_time'] = m.group(1).strip()
 
     match_count = sum(1 for k in ['product_id', 'station', 'lot_number', 'quantity'] if k in fields)
-    fields['is_label'] = (match_count >= 2)
+    if match_count >= 2:
+        fields['is_label'] = True
+    else:
+        # Fallback cho tem chụp/crop không có tên header (chỉ có các dòng giá trị)
+        cand_lines = list(final_lines) if final_lines else [b['text'] for b in boxes_with_text if b.get('text')]
+        hl_fields = parse_headerless_label(cand_lines)
+        if hl_fields.get('is_label'):
+            for k, v in hl_fields.items():
+                if v and (k not in fields or not fields[k]):
+                    fields[k] = v
+            fields['is_label'] = True
+        else:
+            fields['is_label'] = False
     return fields
 
 def clean_and_merge_ocr_results(result):
@@ -6747,7 +6833,7 @@ def clean_and_merge_ocr_results(result):
 
     full_text = '\n'.join(final_lines)
     avg_conf = sum(all_scores) / len(all_scores) if all_scores else 0.0
-    label_data = extract_label_info(boxes_with_text, lines, full_text)
+    label_data = extract_label_info(boxes_with_text, lines, full_text, final_lines)
     return full_text, final_lines, round(avg_conf, 3), label_data
 
 @app.route('/api/ocr/warmup', methods=['GET'])
