@@ -183,8 +183,8 @@
             }, 1200);
         }
 
-        // Notify Lusion Preloader overlay
-        const introEngine = window.LusionIntro || window.SupercarIntro;
+        // Notify Prisma Hero Preloader overlay
+        const introEngine = window.PrismaHeroIntro || window.LusionIntro || window.SupercarIntro;
         if (introEngine && typeof introEngine.onAllLoaded === 'function') {
             introEngine.onAllLoaded(total);
         }
@@ -192,7 +192,6 @@
 
     function initPreloadTracker() {
         const allFrames = document.querySelectorAll('.spa-view-frame');
-        const activeFrame = document.querySelector('.spa-view-frame.active') || allFrames[0];
         const total = allFrames.length || SPA_ROUTES.length;
         let loadedCount = 0;
         const loadedSet = new Set();
@@ -230,13 +229,8 @@
                 progressBar.style.width = `${percent}%`;
             }
 
-            // Fast-track preloader reveal as soon as the active view is ready
-            const isCurrentActiveFrame = activeFrame && (frameId === activeFrame.id);
-            if (isCurrentActiveFrame) {
-                if (introEngine && typeof introEngine.onAllLoaded === 'function') {
-                    introEngine.onAllLoaded(total);
-                }
-            } else if (introEngine && typeof introEngine.onProgress === 'function') {
+            // Đồng bộ tiến trình chính xác với Prisma Hero Preloader
+            if (introEngine && typeof introEngine.onProgress === 'function') {
                 introEngine.onProgress(loadedCount, total);
             }
 
@@ -260,32 +254,18 @@
             });
         });
 
-        // Staggered background preloading: Start background frames AFTER intro reveal so active view loads at full speed
-        let bgPreloadingStarted = false;
-        function startBackgroundPreloading() {
-            if (bgPreloadingStarted) return;
-            bgPreloadingStarted = true;
-
-            const lazyFrames = Array.from(document.querySelectorAll('.spa-view-frame[data-src]'));
-            let staggerDelay = 80;
-            lazyFrames.forEach((frame) => {
-                setTimeout(() => {
-                    if (frame.dataset.src && (!frame.src || frame.src.endsWith('about:blank') || frame.src === window.location.href)) {
-                        frame.src = frame.dataset.src;
-                        frame.removeAttribute('data-src');
-                    }
-                }, staggerDelay);
-                staggerDelay += 180;
-            });
-        }
-
-        if (window.__kd_intro_finished) {
-            startBackgroundPreloading();
-        } else {
-            document.addEventListener('kd_intro_finished', startBackgroundPreloading, { once: true });
-            // Safety timeout: start background preloading after 1.8s even if intro was delayed
-            setTimeout(startBackgroundPreloading, 1800);
-        }
+        // Staggered background preloading for deferred data-src iframes
+        const lazyFrames = Array.from(document.querySelectorAll('.spa-view-frame[data-src]'));
+        let staggerDelay = 50;
+        lazyFrames.forEach((frame) => {
+            setTimeout(() => {
+                if (frame.dataset.src && (!frame.src || frame.src.endsWith('about:blank') || frame.src === window.location.href)) {
+                    frame.src = frame.dataset.src;
+                    frame.removeAttribute('data-src');
+                }
+            }, staggerDelay);
+            staggerDelay += 70; // 70ms interval smoothly loads all frames during preloader
+        });
 
         // Listen for frame readiness messages
         window.addEventListener('message', (e) => {
@@ -294,12 +274,12 @@
             }
         });
 
-        // Safety fallback timer: in case an iframe takes too long, complete after 3.2 seconds
+        // Safety fallback timer: in case an iframe takes too long, complete after 4.5 seconds
         setTimeout(() => {
             if (!isAllPagesLoaded) {
                 completeSpaPreloading();
             }
-        }, 3200);
+        }, 4500);
     }
 
     function initSpaNavigation() {
