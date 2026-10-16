@@ -1596,6 +1596,64 @@ def generate_postgres_insert_query():
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
+def parse_label_datetime_range(s):
+    if not s:
+        return None
+    s = str(s).strip()
+    try:
+        # 1. YYYY-MM-DD HH:MM:SS or YYYY-MM-DDTHH:MM:SS or YYYY-MM-DDHH:MM:SS
+        m = re.search(r'(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:\s+|T|(?=\d{2}:))(\d{1,2}):(\d{1,2}):(\d{1,2})', s)
+        if not m:
+            m = re.search(r'(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})\s*(\d{1,2}):(\d{1,2}):(\d{1,2})', s)
+        if m:
+            y, mo, d, h, mi, sec = map(int, m.groups())
+            dt = datetime(y, mo, d, h, mi, sec, tzinfo=VN_TZ)
+            ts_ns = int(dt.timestamp() * 1_000_000_000)
+            return (ts_ns - 30 * 1_000_000_000, ts_ns + 30 * 1_000_000_000)
+
+        # 2. Compact 14-digit: 20261015201929
+        m = re.search(r'(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})', s)
+        if m:
+            y, mo, d, h, mi, sec = map(int, m.groups())
+            dt = datetime(y, mo, d, h, mi, sec, tzinfo=VN_TZ)
+            ts_ns = int(dt.timestamp() * 1_000_000_000)
+            return (ts_ns - 30 * 1_000_000_000, ts_ns + 30 * 1_000_000_000)
+
+        # 3. DD-MM-YYYY HH:MM:SS
+        m = re.search(r'(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})\s*(\d{1,2}):(\d{1,2}):(\d{1,2})', s)
+        if m:
+            d, mo, y, h, mi, sec = map(int, m.groups())
+            dt = datetime(y, mo, d, h, mi, sec, tzinfo=VN_TZ)
+            ts_ns = int(dt.timestamp() * 1_000_000_000)
+            return (ts_ns - 30 * 1_000_000_000, ts_ns + 30 * 1_000_000_000)
+
+        # 4. Date-only: YYYY-MM-DD
+        m = re.search(r'(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})', s)
+        if m:
+            y, mo, d = map(int, m.groups())
+            dt_start = datetime(y, mo, d, 0, 0, 0, tzinfo=VN_TZ)
+            dt_end = datetime(y, mo, d, 23, 59, 59, 999999, tzinfo=VN_TZ)
+            return (int(dt_start.timestamp() * 1_000_000_000), int(dt_end.timestamp() * 1_000_000_000))
+
+        # 5. Date-only: DD-MM-YYYY
+        m = re.search(r'(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})', s)
+        if m:
+            d, mo, y = map(int, m.groups())
+            dt_start = datetime(y, mo, d, 0, 0, 0, tzinfo=VN_TZ)
+            dt_end = datetime(y, mo, d, 23, 59, 59, 999999, tzinfo=VN_TZ)
+            return (int(dt_start.timestamp() * 1_000_000_000), int(dt_end.timestamp() * 1_000_000_000))
+    except Exception:
+        pass
+    return None
+
+def parse_label_datetime(s):
+    """Hàm alias tương thích ngược nếu cần lấy timestamp tính theo giây."""
+    r = parse_label_datetime_range(s)
+    if r:
+        return int((r[0] + r[1]) // (2 * 1_000_000_000))
+    return None
+
+
 def query_material_resource_by_label_fields(label_data):
     """
     Truy vấn bảng kvmes.material_resource theo các thuộc tính trích xuất từ nhãn tem:
@@ -1639,10 +1697,9 @@ def query_material_resource_by_label_fields(label_data):
             params.append(float(m_q.group(1)))
 
     # Fast-path: Tận dụng index created_at nếu nhận diện được Ngày sản xuất
-    parsed_sec = parse_label_datetime(prod_time_str)
-    if parsed_sec:
-        t_start = (parsed_sec - 10) * 1000000000
-        t_end = (parsed_sec + 10) * 1000000000
+    time_range = parse_label_datetime_range(prod_time_str)
+    if time_range:
+        t_start, t_end = time_range
         fast_where = list(where_clauses) + ['created_at BETWEEN %s AND %s']
         fast_params = list(params) + [t_start, t_end]
         q_fast = f"""
@@ -6480,32 +6537,6 @@ def strip_accents(text):
     nfkd = unicodedata.normalize('NFKD', str(text))
     return ''.join([c for c in nfkd if not unicodedata.combining(c)]).lower()
 
-def parse_label_datetime(s):
-    if not s:
-        return None
-    s = str(s).strip()
-    try:
-        import pytz
-        tz = pytz.timezone('Asia/Ho_Chi_Minh')
-        epoch = datetime.datetime(1970, 1, 1, tzinfo=pytz.utc)
-
-        # Format 1: YYYY-MM-DD HH:MM:SS or YYYY-MM-DDHH:MM:SS
-        m = re.search(r'(\d{4})[-/.](\d{2})[-/.](\d{2})\s*(\d{2}):(\d{2}):(\d{2})', s)
-        if m:
-            y, mo, d, h, mi, sec = map(int, m.groups())
-            dt = tz.localize(datetime.datetime(y, mo, d, h, mi, sec))
-            return int((dt.astimezone(pytz.utc) - epoch).total_seconds())
-
-        # Format 2: DD-MM-YYYY HH:MM:SS
-        m = re.search(r'(\d{2})[-/.](\d{2})[-/.](\d{4})\s*(\d{2}):(\d{2}):(\d{2})', s)
-        if m:
-            d, mo, y, h, mi, sec = map(int, m.groups())
-            dt = tz.localize(datetime.datetime(y, mo, d, h, mi, sec))
-            return int((dt.astimezone(pytz.utc) - epoch).total_seconds())
-    except Exception:
-        pass
-    return None
-
 def extract_label_info(boxes_with_text, lines, full_text):
     fields = {}
 
@@ -6562,6 +6593,16 @@ def extract_label_info(boxes_with_text, lines, full_text):
         m = re.search(r'(?:so\s*luong|soluong|quantity|qty)[:\s]+(\d+(?:\.\d+)?)', norm_full)
         if m:
             fields['quantity'] = m.group(1).strip()
+
+    if 'production_time' not in fields:
+        m = re.search(r'(?:ngay\s*san\s*xuat|ngaysanxuat|mfg\s*date|ngaysx)[:\s]*([0-9\-\/: ]+)', norm_full)
+        if m:
+            fields['production_time'] = m.group(1).strip()
+
+    if 'expiry_time' not in fields:
+        m = re.search(r'(?:ngay\s*het\s*han|ngayhethan|exp\s*date|handung)[:\s]*([0-9\-\/: ]+)', norm_full)
+        if m:
+            fields['expiry_time'] = m.group(1).strip()
 
     match_count = sum(1 for k in ['product_id', 'station', 'lot_number', 'quantity'] if k in fields)
     fields['is_label'] = (match_count >= 2)

@@ -7311,10 +7311,8 @@ async function processOcrImageFile(file, targetInput = null) {
                     } else if (fillTarget && detectedLabelData.product_id) {
                         fillTarget.value = detectedLabelData.product_id;
                     }
-                    if (resultTextEl) {
-                        resultTextEl.textContent = resolvedBc ? `${resolvedBc} (${infoSummary})` : infoSummary;
-                        resultTextEl.setAttribute('title', infoSummary);
-                    }
+                    // Ảnh nhiều cột / tem: Không hiển thị kết quả ở ocrResultText, reset dropzone về sẵn sàng
+                    resetOcrDropzone();
                     if (resolvedBc) {
                         Toast.success('Nhận diện tem thành công', `Đã tìm thấy mã tem: ${resolvedBc}`);
                     } else {
@@ -7334,7 +7332,7 @@ async function processOcrImageFile(file, targetInput = null) {
                         body: JSON.stringify({ label_data: detectedLabelData })
                     });
                     const bcData = await bcRes.json();
-                    const resolvedBc = (bcData && bcData.resolved_barcode) ? bcData.resolved_barcode : (bcData && bcData.result && bcData.result[0] ? bcData.result[0].id : '');
+                    const resolvedBc = (bcData && bcData.resolved_barcode) ? bcData.resolved_barcode : (bcData && bcData.result && bcData.result[0] ? (Array.isArray(bcData.result[0]) ? bcData.result[0][0] : bcData.result[0].id) : '');
                     if (resolvedBc && fillTarget) {
                         fillTarget.value = resolvedBc;
                     } else if (fillTarget && detectedLabelData.product_id) {
@@ -7347,10 +7345,8 @@ async function processOcrImageFile(file, targetInput = null) {
                     } else {
                         if (typeof clearTable === 'function') clearTable();
                     }
-                    if (resultTextEl) {
-                        resultTextEl.textContent = resolvedBc ? `${resolvedBc} (${infoSummary})` : infoSummary;
-                        resultTextEl.setAttribute('title', infoSummary);
-                    }
+                    // Ảnh nhiều cột / tem: Không hiển thị kết quả ở ocrResultText, reset dropzone về sẵn sàng
+                    resetOcrDropzone();
                     if (resolvedBc) {
                         Toast.success('Nhận diện tem thành công', `Đã tìm thấy mã tem: ${resolvedBc}`);
                     } else {
@@ -7364,9 +7360,15 @@ async function processOcrImageFile(file, targetInput = null) {
         }
 
         // Trường hợp tem thông thường hoặc văn bản đơn lẻ
+        const isMultiLineOrLabel = (ocrData.lines && ocrData.lines.length > 1) || (detectedLabelData && detectedLabelData.is_label);
         if (resultTextEl) {
-            resultTextEl.textContent = rawText;
-            resultTextEl.setAttribute('title', rawText);
+            if (isMultiLineOrLabel) {
+                resultTextEl.textContent = '';
+                resultTextEl.removeAttribute('title');
+            } else {
+                resultTextEl.textContent = rawText;
+                resultTextEl.setAttribute('title', rawText);
+            }
         }
 
         if (fillTarget) {
