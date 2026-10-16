@@ -6420,6 +6420,84 @@ def get_zxingcpp_engine():
             _zxingcpp_module = None
     return _zxingcpp_module
 
+_pyzbar_module = None
+_pyzbar_init_tried = False
+
+def get_pyzbar_engine():
+    global _pyzbar_module, _pyzbar_init_tried
+    if not _pyzbar_init_tried:
+        _pyzbar_init_tried = True
+        try:
+            from pyzbar.pyzbar import decode
+            _pyzbar_module = decode
+            logger.info("pyzbar barcode engine loaded successfully")
+        except Exception as e:
+            logger.warning(f"pyzbar engine initialization failed: {e}")
+            _pyzbar_module = None
+    return _pyzbar_module
+
+def decode_subpixel_clock_recovery(engine, img_gray):
+    """
+    Tái tạo và giải mã barcode bị độ phân giải thấp (low-res/sub-pixel) hoặc mờ
+    bằng thuật toán Đồng bộ xung nhịp (Clock Recovery / Equal-Time Sampling).
+    Khắc phục triệt để lỗi làm tròn pixel khi vạch < 1.5px/module (Code 128).
+    """
+    try:
+        import cv2
+        import numpy as np
+
+        h, w = img_gray.shape
+        if w < 50 or h < 15:
+            return []
+
+        # Lấy profile trung bình dọc loại bỏ nhiễu và chữ bên dưới (10% đến 70% chiều cao)
+        y_start = int(h * 0.1)
+        y_end = max(y_start + 10, int(h * 0.7))
+        profile = np.mean(img_gray[y_start:y_end, :], axis=0)
+
+        min_val, max_val = float(np.min(profile)), float(np.max(profile))
+        if (max_val - min_val) < 20:
+            return []
+        mid_thresh = (min_val + max_val) / 2.0
+        dark_indices = np.where(profile < mid_thresh)[0]
+        if len(dark_indices) < 20:
+            return []
+
+        x_start = float(dark_indices[0])
+        x_end = float(dark_indices[-1] + 1)
+        bar_width_px = x_end - x_start
+        if bar_width_px < 80:
+            return []
+
+        candidate_modules = [266, 255, 277, 244, 288, 233, 299, 211, 222]
+        for num_modules in candidate_modules:
+            for offset_s in (-1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5):
+                for offset_e in (-1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5):
+                    s = x_start + offset_s
+                    e = x_end + offset_e
+                    M = (e - s) / float(num_modules)
+                    if M < 0.6 or M > 8.0:
+                        continue
+                    samples = []
+                    for k in range(num_modules):
+                        pos = int(round(s + (k + 0.5) * M))
+                        pos = max(0, min(pos, w - 1))
+                        samples.append(1 if profile[pos] < mid_thresh else 0)
+
+                    # Tái tạo ảnh barcode sắc nét độ phân giải cao (scale 4px/module)
+                    synth_line = np.repeat(samples, 4)
+                    synth_img = np.tile(1 - synth_line, (60, 1)).astype(np.uint8) * 255
+                    synth_padded = cv2.copyMakeBorder(synth_img, 30, 30, 50, 50, cv2.BORDER_CONSTANT, value=255)
+
+                    bcs = engine.read_barcodes(Image.fromarray(synth_padded))
+                    for b in bcs:
+                        txt = (getattr(b, 'text', '') or '').strip()
+                        if txt:
+                            return [b]
+    except Exception as _e:
+        pass
+    return []
+
 @app.route('/api/barcode/scan', methods=['POST'])
 def api_barcode_scan():
     """
@@ -6512,6 +6590,40 @@ def api_barcode_scan():
                 valid_bcs = [b for b in bcs_cl if is_plausible_barcode(b)]
             except Exception as _cl_err:
                 pass
+
+        # Pass 4: Sub-pixel Clock Recovery (chuyên trị ảnh độ phân giải thấp/mờ làm tròn pixel)
+        if not valid_bcs:
+            try:
+                import cv2
+                img_np = np.array(img)
+                gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
+                bcs_rec = decode_subpixel_clock_recovery(engine, gray)
+                valid_bcs = [b for b in bcs_rec if is_plausible_barcode(b)]
+            except Exception as _rec_err:
+                pass
+
+        # Pass 5: Fallback pyzbar (ZBar C Engine)
+        if not valid_bcs:
+            pyzbar_decode = get_pyzbar_engine()
+            if pyzbar_decode is not None:
+                try:
+                    z_results = pyzbar_decode(img)
+                    for r in z_results:
+                        t = (r.data.decode('utf-8', 'ignore') or '').strip()
+                        if t and len(t) >= 6:
+                            # Mock barcode format object matching interface
+                            class _PyZbarMock:
+                                pass
+                            m = _PyZbarMock()
+                            m.text = t
+                            class _Fmt:
+                                name = r.type
+                            m.format = _Fmt()
+                            m.valid = True
+                            valid_bcs.append(m)
+                            break
+                except Exception as _z_err:
+                    pass
 
         # Fallback cuối: Nếu chỉ có kết quả (kể cả ngắn), lấy ra nếu hợp lệ
         if not valid_bcs and barcodes:
