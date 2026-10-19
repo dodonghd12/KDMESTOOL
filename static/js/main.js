@@ -4370,6 +4370,7 @@ function showOutputDetails() {
 
 function resetDetailsModalBody(modal) {
     if (!modal) return;
+    modal.classList.remove('actions-commit-mode');
     const body = modal.querySelector('.details-modal-body');
     const wrapper = modal.querySelector('.details-modal-body-wrapper');
     if (body) {
@@ -5151,6 +5152,8 @@ async function fetchActionsCommitByRecipe(rowData = null) {
         const modal = document.getElementById('detailsModal');
         if (!modal) return;
 
+        modal.classList.add('actions-commit-mode');
+
         const copyBtn = document.getElementById('copyDetailsBtn');
         if (copyBtn) copyBtn.style.display = 'none';
 
@@ -5597,7 +5600,6 @@ function renderActionsCommitModal(result, activeIndex = 0) {
                             <span class="material-symbols-outlined">fork_right</span>
                             <span>Commit trên nhánh Patch</span>
                         </div>
-                        ${edit.title ? `<span class="commit-header-title-text" title="${escapeHtml(edit.message || edit.title)}">${escapeHtml(edit.title)}</span>` : ''}
                     </div>
                     <div class="card-header-actions">
                         ${isPipelineError ? `
@@ -5608,7 +5610,7 @@ function renderActionsCommitModal(result, activeIndex = 0) {
                         ` : ''}
                         ${edit.web_url ? `
                             <a href="${escapeHtml(edit.web_url)}" target="_blank" rel="noopener noreferrer" class="gitlab-link-btn" title="Xem commit trên GitLab">
-                                <span>GitLab</span>
+                                <span>Open in GitLab</span>
                                 <span class="material-symbols-outlined">open_in_new</span>
                             </a>
                         ` : ''}
@@ -5752,21 +5754,28 @@ window.toggleActionsDiffFullView = function(event) {
     wrapper.querySelectorAll('.actions-version-tabs-bar, #actionsCommitCardsGrid, .actions-syntax-banner, #actionsDiffSection').forEach(el => el.remove());
     wrapper.insertAdjacentHTML('beforeend', renderActionsCommitModal(window._currentActionsCommitData, window._currentActionsCommitIndex || 0));
 
+    // Luôn giữ wrapper ở đỉnh, không cho container ngoài cuộn
+    wrapper.scrollTop = 0;
+
     if (window._actionsDiffShowFull) {
         setTimeout(() => {
             const viewer = document.getElementById('actionsDiffViewer');
             const targetEl = viewer ? viewer.querySelector('.diff-line-target') : null;
             if (viewer && targetEl) {
-                targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                // Cuộn nội bộ NỘI DUNG bên trong actionsDiffViewer - TUYỆT ĐỐI KHÔNG dùng scrollIntoView để tránh che khuất banner và header
+                const viewerRect = viewer.getBoundingClientRect();
+                const targetRect = targetEl.getBoundingClientRect();
+                const relativeTop = targetRect.top - viewerRect.top + viewer.scrollTop;
+                const scrollPos = Math.max(0, relativeTop - (viewer.clientHeight / 2) + (targetEl.clientHeight / 2));
+                viewer.scrollTo({
+                    top: scrollPos,
+                    behavior: 'smooth'
+                });
             }
-        }, 60);
+        }, 50);
     }
 
     window._currentDetailsOriginalHTML = null;
-    const searchInput = document.getElementById('detailsModalSearch');
-    if (searchInput && searchInput.value.trim()) {
-        highlightDetailsModalText(searchInput.value.trim());
-    }
 };
 
 /**
@@ -5791,12 +5800,9 @@ window.switchActionsCommitVersion = function(index, event) {
 
     wrapper.querySelectorAll('.actions-version-tabs-bar, #actionsCommitCardsGrid, .actions-syntax-banner, #actionsDiffSection').forEach(el => el.remove());
     wrapper.insertAdjacentHTML('beforeend', renderActionsCommitModal(window._currentActionsCommitData, index));
+    wrapper.scrollTop = 0;
 
     window._currentDetailsOriginalHTML = null;
-    const searchInput = document.getElementById('detailsModalSearch');
-    if (searchInput && searchInput.value.trim()) {
-        highlightDetailsModalText(searchInput.value.trim());
-    }
 };
 
 // Global copy helper with instant UI feedback for Actions Commit modal
