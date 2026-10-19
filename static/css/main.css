@@ -10548,8 +10548,89 @@ body.theme-light .material-transfer-retry-btn.is-success {
         display: none !important;
     }
 
-    /* 5. Avada Kedavra & Switching Spell Pages */
-    .avada-kedavra-controls-row,
+    /* 5. Avada Kedavra Mobile Layout:
+       Hàng 1: [Kích hoạt] (50%) + [Trạng thái: Strict Mode] (50%)
+       Hàng 2: [root@198.1.10.8 <-> 10.85] + [🔄]
+       Hàng 3: [Tìm kiếm...] (Full width 100%)
+    */
+    .avada-kedavra-controls-row {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+        width: 100% !important;
+        align-items: center !important;
+    }
+
+    /* Hàng 1 */
+    .avada-kedavra-controls-row .btn-avada-kedavra-toggle {
+        order: 1 !important;
+        flex: 1 1 calc(50% - 4px) !important;
+        width: calc(50% - 4px) !important;
+        height: 38px !important;
+        font-size: 13px !important;
+        padding: 0 10px !important;
+        border-radius: 8px !important;
+        box-sizing: border-box !important;
+    }
+
+    .avada-kedavra-controls-row .avada-kedavra-status-pill {
+        order: 2 !important;
+        flex: 1 1 calc(50% - 4px) !important;
+        width: calc(50% - 4px) !important;
+        height: 38px !important;
+        font-size: 11.5px !important;
+        padding: 0 8px !important;
+        justify-content: center !important;
+        border-radius: 8px !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Hàng 2 */
+    .avada-kedavra-controls-row .avada-kedavra-meta-badge {
+        order: 3 !important;
+        flex: 1 1 calc(100% - 46px) !important;
+        width: calc(100% - 46px) !important;
+        height: 38px !important;
+        font-size: 12px !important;
+        padding: 0 8px !important;
+        gap: 6px !important;
+        min-width: 0 !important;
+        border-radius: 8px !important;
+        box-sizing: border-box !important;
+    }
+
+    .avada-kedavra-controls-row .avada-kedavra-meta-badge #currentServerLabel {
+        font-size: 12px !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+
+    .avada-kedavra-controls-row .avada-kedavra-meta-badge #btnToggleServer {
+        height: 24px !important;
+        padding: 0 6px !important;
+        font-size: 11px !important;
+        flex-shrink: 0 !important;
+        margin-left: auto !important;
+    }
+
+    .avada-kedavra-controls-row .btn-refresh-compact {
+        order: 4 !important;
+        flex: 0 0 38px !important;
+        width: 38px !important;
+        height: 38px !important;
+        padding: 0 !important;
+        justify-content: center !important;
+        border-radius: 8px !important;
+    }
+
+    .avada-kedavra-controls-row .avada-kedavra-step-badge {
+        order: 6 !important;
+        flex: 1 1 100% !important;
+        width: 100% !important;
+    }
+
     .switching-spell-controls-row {
         display: flex !important;
         flex-direction: row !important;
@@ -10559,7 +10640,6 @@ body.theme-light .material-transfer-retry-btn.is-success {
         align-items: center !important;
     }
 
-    .avada-kedavra-meta-badge,
     .static-server-badge {
         flex: 1 1 auto !important;
         height: 34px !important;
@@ -10569,7 +10649,6 @@ body.theme-light .material-transfer-retry-btn.is-success {
         min-width: 0 !important;
     }
 
-    .avada-kedavra-meta-badge #currentServerLabel,
     .static-server-badge #currentServerLabel {
         font-size: 11px !important;
         white-space: nowrap !important;
@@ -10577,15 +10656,7 @@ body.theme-light .material-transfer-retry-btn.is-success {
         text-overflow: ellipsis !important;
     }
 
-    .avada-kedavra-meta-badge #btnToggleServer {
-        height: 22px !important;
-        padding: 0 5px !important;
-        font-size: 10px !important;
-        flex-shrink: 0 !important;
-        margin-left: 2px !important;
-    }
-
-    .btn-refresh-compact {
+    .switching-spell-controls-row .btn-refresh-compact {
         flex: 0 0 34px !important;
         width: 34px !important;
         height: 34px !important;
@@ -10593,75 +10664,64 @@ body.theme-light .material-transfer-retry-btn.is-success {
         justify-content: center !important;
     }
 
-    .btn-avada-kedavra-toggle {
-        flex: 1 1 calc(50% - 3px) !important;
-        height: 34px !important;
-        font-size: 12px !important;
-        padding: 0 8px !important;
-    }
-
-    .avada-kedavra-status-pill {
-        flex: 1 1 calc(50% - 3px) !important;
-        height: 34px !important;
-        font-size: 11px !important;
-        padding: 0 6px !important;
-        justify-content: center !important;
-        box-sizing: border-box !important;
-    }
-
-    /* Switching Spell controls row (2 compact rows on mobile: Row 1 Badge+Refresh, Row 2 Folder+Search 50%/50%) */
+    /* Switching Spell controls row */
     .switching-spell-controls-row .folder-select-box {
-        flex: 1 1 calc(50% - 3px) !important;
-        width: calc(50% - 3px) !important;
+        flex: 1 1 100% !important;
+        width: 100% !important;
     }
 
     .switching-spell-controls-row .folder-dropdown-wrapper {
         width: 100% !important;
-        height: 36px !important;
+        height: 38px !important;
+        padding: 0 32px 0 12px !important;
         border-radius: 8px !important;
+        display: flex !important;
+        align-items: center !important;
+        box-sizing: border-box !important;
     }
 
     .switching-spell-controls-row .folder-select {
+        flex: 1 1 auto !important;
         width: 100% !important;
-        height: 36px !important;
-        font-size: 12px !important;
-        padding-left: 30px !important;
+        height: 38px !important;
+        font-size: 13px !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        line-height: normal !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
     }
 
     .switching-spell-controls-row .folder-dropdown-wrapper .folder-icon {
         font-size: 18px !important;
-        left: 8px !important;
+        margin-right: 8px !important;
+        flex-shrink: 0 !important;
+        position: static !important;
     }
 
     .switching-spell-controls-row .folder-dropdown-wrapper .dropdown-arrow {
-        font-size: 18px !important;
+        font-size: 20px !important;
         right: 8px !important;
     }
 
-    .switching-spell-controls-row .switching-spell-hero-right {
-        flex: 1 1 calc(50% - 3px) !important;
-        width: calc(50% - 3px) !important;
-        margin-left: 0 !important;
-    }
-
-    .switching-spell-controls-row .switching-spell-search-wrapper,
-    .switching-spell-controls-row .switching-spell-search-wrapper .input {
-        width: 100% !important;
-        height: 36px !important;
-        font-size: 12.5px !important;
-    }
-
     .avada-kedavra-hero-right {
+        order: 5 !important;
         flex: 1 1 100% !important;
         width: 100% !important;
         margin-left: 0 !important;
     }
 
-    .avada-kedavra-search-wrapper,
+    .avada-kedavra-search-wrapper {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+    }
+
     .avada-kedavra-search-wrapper .input {
         width: 100% !important;
-        height: 34px !important;
-        font-size: 13px !important;
+        height: 38px !important;
+        font-size: 13.5px !important;
+        border-radius: 8px !important;
     }
 
     /* 6. Account Creation & Checking Pages */
@@ -10945,23 +11005,25 @@ body.theme-light .material-transfer-retry-btn.is-success {
 
     .winx-input-row {
         display: flex !important;
-        gap: 6px !important;
+        gap: 8px !important;
         width: 100% !important;
     }
 
     .winx-input-row .winx-input {
         flex: 1 1 0% !important;
         min-width: 0 !important;
-        height: 34px !important;
-        font-size: 13px !important;
-        padding: 0 10px !important;
+        height: 38px !important;
+        font-size: 13.5px !important;
+        padding: 0 12px !important;
+        border-radius: 8px !important;
     }
 
     .winx-input-row .winx-btn {
         flex: 0 0 auto !important;
-        height: 34px !important;
-        padding: 0 12px !important;
-        font-size: 12px !important;
+        height: 38px !important;
+        padding: 0 14px !important;
+        font-size: 13px !important;
+        border-radius: 8px !important;
     }
 
     .winx-bulk-layout {
@@ -10980,10 +11042,11 @@ body.theme-light .material-transfer-retry-btn.is-success {
 
     .winx-bulk-left #downloadTemplateBtn {
         width: 100% !important;
-        height: 36px !important;
+        height: 38px !important;
         font-size: 11px !important;
         padding: 0 8px !important;
         justify-content: center !important;
+        border-radius: 8px !important;
     }
 
     .winx-bulk-right {
@@ -10993,9 +11056,9 @@ body.theme-light .material-transfer-retry-btn.is-success {
     }
 
     .winx-dropzone {
-        min-height: 36px !important;
-        max-height: 36px !important;
-        height: 36px !important;
+        min-height: 38px !important;
+        max-height: 38px !important;
+        height: 38px !important;
         padding: 4px 8px !important;
         display: flex !important;
         align-items: center !important;
@@ -11034,20 +11097,28 @@ body.theme-light .material-transfer-retry-btn.is-success {
     /* Winx form grid (Bùa liệu material bị condingu xóa) */
     .winx-form-grid {
         grid-template-columns: 1fr 1fr !important;
-        gap: 6px 8px !important;
-        margin-top: 4px !important;
+        gap: 8px 10px !important;
+        margin-top: 6px !important;
         margin-bottom: 8px !important;
     }
 
+    .winx-label {
+        font-size: 12px !important;
+        margin-bottom: 6px !important;
+        letter-spacing: 0.5px !important;
+    }
+
     .winx-sublabel {
-        font-size: 10px !important;
-        margin-bottom: 2px !important;
+        font-size: 11px !important;
+        font-weight: 600 !important;
+        margin-bottom: 3px !important;
     }
 
     .winx-form-item .winx-input {
-        height: 32px !important;
-        font-size: 12px !important;
-        padding: 0 8px !important;
+        height: 38px !important;
+        font-size: 13px !important;
+        padding: 0 10px !important;
+        border-radius: 8px !important;
     }
 
     .winx-search-bar-form .winx-form-help-box,
@@ -11058,9 +11129,10 @@ body.theme-light .material-transfer-retry-btn.is-success {
     }
 
     .winx-search-bar-form .winx-btn-primary {
-        height: 34px !important;
-        font-size: 12px !important;
-        padding: 0 12px !important;
+        height: 38px !important;
+        font-size: 13px !important;
+        padding: 0 16px !important;
+        border-radius: 8px !important;
     }
 
     .winx-table-container {

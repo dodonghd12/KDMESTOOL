@@ -161,10 +161,10 @@
 }
 
 .avada-kedavra-search-wrapper {
-    width: 200px !important;
-    min-width: 160px !important;
-    max-width: 240px !important;
-    flex: 0 0 auto !important;
+    width: 200px;
+    min-width: 160px;
+    max-width: 240px;
+    flex: 0 0 auto;
 }
 
 .avada-kedavra-search-wrapper .input {
