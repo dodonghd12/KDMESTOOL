@@ -7955,14 +7955,14 @@ async function processOcrImageFile(file, targetInput = null) {
         const fillTarget = targetInput || (isActiveInput ? activeEl : (barcodeEl || null));
 
         // PHÂN NHÁNH XỬ LÝ SONG SONG:
-        // TRƯỜNG HỢP 1: HÌNH ẢNH TEM BẢNG / NHIỀU CỘT (Mã máy, Mã SP, Lô SX, Số lượng, ...)
-        const isMultiColumnLabel = Boolean(detectedLabelData && detectedLabelData.is_label);
+        // TRƯỜNG HỢP 1: HÌNH ẢNH TEM BẢNG / NHIỀU CỘT (Mã máy, Mã SP, Lô SX, Số lượng, Barcode...)
+        const isMultiColumnLabel = Boolean(detectedLabelData && (detectedLabelData.is_label || detectedLabelData.barcode));
 
         if (isMultiColumnLabel) {
             const isMaterialTransferPage = window.location.pathname.includes('material-transfer') ||
                 (typeof searchMaterialTransfer === 'function' && typeof formatStatusCell === 'function');
 
-            const infoSummary = `Mã SP: ${detectedLabelData.product_id || ''} | Máy: ${detectedLabelData.station || ''} | Lô: ${detectedLabelData.lot_number || ''} | SL: ${detectedLabelData.quantity || ''}`;
+            const infoSummary = `Mã SP: ${detectedLabelData.product_id || ''} | Máy: ${detectedLabelData.station || ''} | Lô: ${detectedLabelData.lot_number || ''} | SL: ${detectedLabelData.quantity || ''} | Barcode: ${detectedLabelData.barcode || ''}`;
 
             if (isMaterialTransferPage) {
                 // Trang Tem vận chuyển: Tra cứu barcode từ material_resource rồi hiển thị lượt chuyển
@@ -7973,7 +7973,7 @@ async function processOcrImageFile(file, targetInput = null) {
                         body: JSON.stringify({ label_data: detectedLabelData })
                     });
                     const mtData = await mtRes.json();
-                    const resolvedBc = (mtData && mtData.resolved_barcode) ? mtData.resolved_barcode : '';
+                    const resolvedBc = (mtData && mtData.resolved_barcode) ? mtData.resolved_barcode : (detectedLabelData.barcode || '');
                     if (resolvedBc && fillTarget) {
                         fillTarget.value = resolvedBc;
                         if (typeof searchMaterialTransfer === 'function') {
@@ -7994,7 +7994,7 @@ async function processOcrImageFile(file, targetInput = null) {
                     console.error('Error querying material transfer by label:', err);
                 }
             } else {
-                // Trang Main: Tra cứu trực tiếp bảng kvmes.material_resource theo các thuộc tính tem
+                // Trang Main: Tra cứu trực tiếp bảng kvmes.material_resource theo các thuộc tính tem hoặc mã vạch
                 showTableSkeleton(10, 5);
                 try {
                     const bcRes = await fetch('/api/barcodes', {
@@ -8003,23 +8003,34 @@ async function processOcrImageFile(file, targetInput = null) {
                         body: JSON.stringify({ label_data: detectedLabelData })
                     });
                     const bcData = await bcRes.json();
-                    const resolvedBc = (bcData && bcData.resolved_barcode) ? bcData.resolved_barcode : (bcData && bcData.result && bcData.result[0] ? (Array.isArray(bcData.result[0]) ? bcData.result[0][0] : bcData.result[0].id) : '');
+                    const resolvedBc = (bcData && bcData.resolved_barcode) 
+                        ? bcData.resolved_barcode 
+                        : (bcData && bcData.result && bcData.result[0] 
+                            ? (Array.isArray(bcData.result[0]) ? bcData.result[0][0] : bcData.result[0].id) 
+                            : (detectedLabelData && detectedLabelData.barcode ? detectedLabelData.barcode : ''));
+
                     if (resolvedBc && fillTarget) {
                         fillTarget.value = resolvedBc;
                     } else if (fillTarget && detectedLabelData.product_id) {
                         fillTarget.value = detectedLabelData.product_id;
                     }
+
                     if (bcData && Array.isArray(bcData.result) && bcData.result.length > 0) {
                         if (typeof setTableData === 'function') {
                             setTableData(bcData.result, bcData.columns, 'barcode');
                         }
                     } else {
                         if (typeof clearTable === 'function') clearTable();
+                        if (resolvedBc && fillTarget) {
+                            fillTarget.dispatchEvent(new Event('input', { bubbles: true }));
+                        }
                     }
                     // Ảnh nhiều cột / tem: Không hiển thị kết quả ở ocrResultText, reset dropzone về sẵn sàng
                     resetOcrDropzone();
-                    if (resolvedBc) {
+                    if (bcData && Array.isArray(bcData.result) && bcData.result.length > 0 && resolvedBc) {
                         Toast.success('Nhận diện tem thành công', `Đã tìm thấy mã tem: ${resolvedBc}`);
+                    } else if (resolvedBc) {
+                        Toast.info('Đã tìm thấy mã vạch', `Mã vạch trên tem: ${resolvedBc}`);
                     } else {
                         Toast.warning('Không tìm thấy', 'Không tìm thấy tem trong CSDL khớp với thông tin nhận diện');
                     }
