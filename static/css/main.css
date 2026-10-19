@@ -9009,6 +9009,12 @@ body.theme-light .ocr-dropzone {
 /* Actions.yaml Validation Banner & Error Tab Styles */
 .actions-version-tab.has-error {
     border-color: rgba(239, 68, 68, 0.45);
+    background: rgba(239, 68, 68, 0.05);
+}
+
+.actions-version-tab.has-error:hover {
+    border-color: rgba(239, 68, 68, 0.75);
+    background: rgba(239, 68, 68, 0.1);
 }
 
 .tab-badge-error {

@@ -5482,13 +5482,30 @@ function renderActionsCommitModal(result, activeIndex = 0) {
     if (matches.length > 1) {
         const tabsList = matches.map((m, idx) => {
             const isAct = idx === activeIndex;
-            const timeDate = m.commit_edit.authored_date ? m.commit_edit.authored_date.split(' ')[0] : '';
+            const mEdit = m.commit_edit || {};
+            const timeDate = mEdit.authored_date ? mEdit.authored_date.split(' ')[0] : '';
             const verNum = matches.length - idx;
             const label = `Lần ${verNum}${timeDate ? ` (${timeDate})` : ''}`;
             const badgeText = idx === 0 ? '<span class="tab-badge-new">Mới nhất</span>' : '';
-            const isInvalid = m.validation && !m.validation.is_valid;
-            const errorBadge = isInvalid ? '<span class="tab-badge-error" title="Cấu trúc actions.yaml có lỗi thụt lề / cú pháp">Lỗi</span>' : '';
-            return `<button type="button" class="actions-version-tab ${isAct ? 'active' : ''} ${isInvalid ? 'has-error' : ''}" onclick="switchActionsCommitVersion(${idx}, event)"><span>${escapeHtml(label)}</span>${badgeText}${errorBadge}</button>`;
+
+            // Pipeline & Syntax validation error checks
+            const mPipeStatus = (mEdit.pipeline && mEdit.pipeline.status) ? mEdit.pipeline.status.toLowerCase() : '';
+            const isPipeSuccess = mPipeStatus === 'success' || mPipeStatus === 'passed';
+            const isPipeError = !isPipeSuccess;
+            const isSyntaxInvalid = m.validation && !m.validation.is_valid;
+            const hasError = isSyntaxInvalid || isPipeError;
+
+            let errorTooltip = '';
+            if (isSyntaxInvalid && isPipeError) {
+                errorTooltip = 'Cấu trúc actions.yaml có lỗi và Pipeline thất bại';
+            } else if (isSyntaxInvalid) {
+                errorTooltip = 'Cấu trúc actions.yaml có lỗi thụt lề / cú pháp';
+            } else if (isPipeError) {
+                errorTooltip = `Pipeline chưa thành công: ${mPipeStatus ? mPipeStatus.toUpperCase() : 'ERROR'}`;
+            }
+
+            const errorBadge = hasError ? `<span class="tab-badge-error" title="${escapeHtml(errorTooltip)}">Lỗi</span>` : '';
+            return `<button type="button" class="actions-version-tab ${isAct ? 'active' : ''} ${hasError ? 'has-error' : ''}" onclick="switchActionsCommitVersion(${idx}, event)"><span>${escapeHtml(label)}</span>${badgeText}${errorBadge}</button>`;
         }).join('');
 
         versionTabsHtml = `<div class="actions-version-tabs-bar"><div class="actions-version-tabs">${tabsList}</div></div>`;
