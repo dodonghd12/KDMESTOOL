@@ -839,7 +839,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.9"
+APP_VERSION = "2.3.10"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -4510,22 +4510,41 @@ def search_actions_commit():
     variants = get_recipe_id_variants(recipe_id)
 
     try:
-        # Step 1: Concurrently fetch 100 recent commits of actions.yaml AND resolve recipe path + Blame dates
+        # Step 1: Concurrently fetch 300 recent commits of actions.yaml AND resolve recipe path + Blame/commit dates
         def get_recent_actions():
             try:
                 commits_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits'
-                params = {
-                    'path': 'actions.yaml',
-                    'page': 1,
-                    'per_page': 100
-                }
-                res = s.get(commits_url, params=params, timeout=5)
-                if res.status_code in [401, 403]:
-                    return {'auth_error': True}
-                if res.ok:
-                    commits_list = res.json()
-                    if isinstance(commits_list, list):
-                        return {'commits': commits_list}
+                def fetch_page(p):
+                    params = {
+                        'path': 'actions.yaml',
+                        'page': p,
+                        'per_page': 100
+                    }
+                    r = s.get(commits_url, params=params, timeout=5)
+                    if r.status_code in [401, 403]:
+                        return {'auth_error': True}
+                    if r.ok:
+                        clist = r.json()
+                        if isinstance(clist, list):
+                            return {'commits': clist}
+                    return {'commits': []}
+
+                with ThreadPoolExecutor(max_workers=3) as pool:
+                    pages_res = list(pool.map(fetch_page, [1, 2, 3]))
+
+                for pr in pages_res:
+                    if pr.get('auth_error'):
+                        return {'auth_error': True}
+
+                all_commits = []
+                seen_commit_ids = set()
+                for pr in pages_res:
+                    for c in pr.get('commits', []):
+                        cid = c.get('id')
+                        if cid and cid not in seen_commit_ids:
+                            seen_commit_ids.add(cid)
+                            all_commits.append(c)
+                return {'commits': all_commits}
             except Exception as e:
                 print(f"Error fetching recent actions.yaml: {e}")
             return {'commits': []}
@@ -4588,23 +4607,24 @@ def search_actions_commit():
                     except Exception:
                         pass
 
-                if not rec_dates:
-                    for v in variants:
-                        try:
-                            sr_resp = s.get(
-                                f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/search',
-                                params={'scope': 'commits', 'search': v},
-                                timeout=6
-                            )
-                            if sr_resp.ok and isinstance(sr_resp.json(), list):
-                                for sc in sr_resp.json()[:10]:
-                                    dt = sc.get('authored_date') or sc.get('committed_date')
-                                    if dt:
-                                        rec_dates.append(dt)
-                                if rec_dates:
-                                    break
-                        except Exception:
-                            pass
+            # Search commit messages for all variants to capture any update dates
+            for v in variants:
+                try:
+                    sr_resp = s.get(
+                        f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/search',
+                        params={'scope': 'commits', 'search': v},
+                        timeout=5
+                    )
+                    if sr_resp.ok and isinstance(sr_resp.json(), list):
+                        for sc in sr_resp.json()[:10]:
+                            dt = sc.get('authored_date') or sc.get('committed_date')
+                            if dt and dt not in rec_dates:
+                                rec_dates.append(dt)
+                        if rec_dates:
+                            break
+                except Exception:
+                    pass
+
             return r_path, rec_dates
 
         with ThreadPoolExecutor(max_workers=2) as ex:
@@ -4656,44 +4676,7 @@ def search_actions_commit():
             if c.get('id'):
                 actions_commits_map[c.get('id')] = c
 
-        # Step 2: Fetch historical window commits based on recipe blame dates to catch all past versions
-        if rec_dates:
-            seen_date_keys = set()
-            window_list = []
-            for dt_str in rec_dates:
-                clean_iso = dt_str.split('.')[0].replace('Z', '').split('+')[0]
-                try:
-                    r_dt = datetime.fromisoformat(clean_iso)
-                    dkey = r_dt.strftime('%Y-%m-%d')
-                    if dkey not in seen_date_keys:
-                        seen_date_keys.add(dkey)
-                        since_dt = (r_dt - timedelta(hours=8)).strftime('%Y-%m-%dT%H:%M:%SZ')
-                        until_dt = (r_dt + timedelta(hours=10)).strftime('%Y-%m-%dT%H:%M:%SZ')
-                        window_list.append((since_dt, until_dt))
-                except Exception:
-                    pass
-
-            if window_list:
-                def fetch_actions_window(w):
-                    since_dt, until_dt = w
-                    try:
-                        url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits'
-                        params = {'path': 'actions.yaml', 'since': since_dt, 'until': until_dt, 'per_page': 100}
-                        res = s.get(url, params=params, timeout=4)
-                        if res.ok and isinstance(res.json(), list):
-                            return res.json()
-                    except Exception as e:
-                        print(f"Error fetching window {since_dt} - {until_dt}: {e}")
-                    return []
-
-                with ThreadPoolExecutor(max_workers=min(len(window_list), 10)) as executor:
-                    for clist in executor.map(fetch_actions_window, window_list):
-                        for c in clist:
-                            cid = c.get('id')
-                            if cid and cid not in actions_commits_map:
-                                actions_commits_map[cid] = c
-
-        # Step 3: Concurrently fetch diffs (with caching) and scan for matches across all commits
+        # Step 2: Concurrently fetch diffs (with caching) and scan for matches across recent commits
         def get_diff_items(cid):
             ckey = (project_id, cid)
             with _actions_diff_lock:
@@ -4736,6 +4719,54 @@ def search_actions_commit():
                     if cid and cid not in matched_seen_ids:
                         matched_seen_ids.add(cid)
                         matched_commits.append(r)
+
+        # Fallback: if no matches found in recent 300 commits, search historical window commits based on recipe dates
+        if not matched_commits and rec_dates:
+            seen_date_keys = set()
+            window_list = []
+            for dt_str in rec_dates:
+                clean_iso = dt_str.split('.')[0].replace('Z', '').split('+')[0]
+                try:
+                    r_dt = datetime.fromisoformat(clean_iso)
+                    dkey = r_dt.strftime('%Y-%m-%d')
+                    if dkey not in seen_date_keys:
+                        seen_date_keys.add(dkey)
+                        since_dt = (r_dt - timedelta(hours=24)).strftime('%Y-%m-%dT%H:%M:%SZ')
+                        until_dt = (r_dt + timedelta(hours=24)).strftime('%Y-%m-%dT%H:%M:%SZ')
+                        window_list.append((since_dt, until_dt))
+                except Exception:
+                    pass
+
+            if window_list:
+                def fetch_actions_window(w):
+                    since_dt, until_dt = w
+                    try:
+                        url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits'
+                        params = {'path': 'actions.yaml', 'since': since_dt, 'until': until_dt, 'per_page': 100}
+                        res = s.get(url, params=params, timeout=4)
+                        if res.ok and isinstance(res.json(), list):
+                            return res.json()
+                    except Exception as e:
+                        print(f"Error fetching window {since_dt} - {until_dt}: {e}")
+                    return []
+
+                extra_candidates = []
+                with ThreadPoolExecutor(max_workers=min(len(window_list), 10)) as executor:
+                    for clist in executor.map(fetch_actions_window, window_list):
+                        for c in clist:
+                            cid = c.get('id')
+                            if cid and cid not in actions_commits_map:
+                                actions_commits_map[cid] = c
+                                extra_candidates.append(c)
+
+                if extra_candidates:
+                    with ThreadPoolExecutor(max_workers=25) as executor:
+                        for r in executor.map(check_diff, extra_candidates):
+                            if r:
+                                cid = r[0].get('id')
+                                if cid and cid not in matched_seen_ids:
+                                    matched_seen_ids.add(cid)
+                                    matched_commits.append(r)
 
         if not matched_commits:
             return jsonify({
