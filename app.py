@@ -839,7 +839,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.11"
+APP_VERSION = "2.3.12"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -4510,7 +4510,7 @@ def search_actions_commit():
     variants = get_recipe_id_variants(recipe_id)
 
     try:
-        # Step 1: Concurrently fetch 300 recent commits of actions.yaml AND resolve recipe path + Blame/commit dates
+        # Step 1: Concurrently fetch recent commits of actions.yaml AND resolve recipe path + commit dates
         def get_recent_actions():
             try:
                 commits_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits'
@@ -4520,7 +4520,7 @@ def search_actions_commit():
                         'page': p,
                         'per_page': 100
                     }
-                    r = s.get(commits_url, params=params, timeout=5)
+                    r = s.get(commits_url, params=params, timeout=4)
                     if r.status_code in [401, 403]:
                         return {'auth_error': True}
                     if r.ok:
@@ -4529,8 +4529,8 @@ def search_actions_commit():
                             return {'commits': clist}
                     return {'commits': []}
 
-                with ThreadPoolExecutor(max_workers=3) as pool:
-                    pages_res = list(pool.map(fetch_page, [1, 2, 3]))
+                with ThreadPoolExecutor(max_workers=2) as pool:
+                    pages_res = list(pool.map(fetch_page, [1, 2]))
 
                 for pr in pages_res:
                     if pr.get('auth_error'):
@@ -4550,16 +4550,33 @@ def search_actions_commit():
             return {'commits': []}
 
         def get_recipe_info():
-            r_path = resolve_recipe_path(project_id, recipe_id, product_type)
+            r_path = None
+            pt_folder = product_type.lower().replace(' ', '_').replace('-', '_') if product_type else ''
+            candidate_paths = []
+            for v in variants:
+                if pt_folder:
+                    candidate_paths.append(f'yamls/{pt_folder}/KV/KV2/{v}.yaml')
+                candidate_paths.append(f'yamls/{v}.yaml')
+
+            # Fast HEAD check on master (< 0.2s)
+            for p in candidate_paths:
+                try:
+                    enc = p.replace('/', '%2F')
+                    hr = s.head(f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/files/{enc}', params={'ref': 'master'}, timeout=2)
+                    if hr.status_code == 200:
+                        r_path = p
+                        break
+                except Exception:
+                    pass
+
             rec_dates = []
             if r_path:
                 try:
                     enc = r_path.replace('/', '%2F')
-                    # Blame is sub-second fast (< 0.5s) compared to repository/commits?path (10-15s)
                     blame_res = s.get(
                         f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/files/{enc}/blame',
                         params={'ref': 'master'},
-                        timeout=4
+                        timeout=3
                     )
                     if blame_res.ok and isinstance(blame_res.json(), list):
                         seen_ids = set()
@@ -4573,47 +4590,14 @@ def search_actions_commit():
                                     rec_dates.append(dt)
                 except Exception as e:
                     print(f"Error getting recipe blame: {e}")
-            else:
-                # Fallback for deleted / renamed files: find historical commits and dates across variants
-                candidate_paths = []
-                seen_cand = set()
-                pt_folder = product_type.lower().replace(' ', '_').replace('-', '_') if product_type else ''
-                for v in variants:
-                    if pt_folder:
-                        for prefix in [f'yamls/{pt_folder}/KV/KV2', f'yamls/{pt_folder}/KV', f'yamls/{pt_folder}']:
-                            p = f'{prefix}/{v}.yaml'
-                            if p not in seen_cand:
-                                candidate_paths.append(p)
-                                seen_cand.add(p)
-                    p_root = f'yamls/{v}.yaml'
-                    if p_root not in seen_cand:
-                        candidate_paths.append(p_root)
-                        seen_cand.add(p_root)
 
-                for cand in candidate_paths:
-                    try:
-                        c_resp = s.get(
-                            f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits',
-                            params={'path': cand, 'ref_name': 'master', 'per_page': 20},
-                            timeout=8
-                        )
-                        if c_resp.status_code == 200 and isinstance(c_resp.json(), list) and len(c_resp.json()) > 0:
-                            r_path = cand
-                            for c in c_resp.json():
-                                dt = c.get('authored_date') or c.get('committed_date')
-                                if dt:
-                                    rec_dates.append(dt)
-                            break
-                    except Exception:
-                        pass
-
-            # Search commit messages for all variants to capture any update dates
+            # Fast search of commit messages for all variants across repo (< 1.5s)
             for v in variants:
                 try:
                     sr_resp = s.get(
                         f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/search',
                         params={'scope': 'commits', 'search': v},
-                        timeout=5
+                        timeout=4
                     )
                     if sr_resp.ok and isinstance(sr_resp.json(), list):
                         for sc in sr_resp.json()[:10]:
@@ -4685,7 +4669,7 @@ def search_actions_commit():
             try:
                 diff_res = s.get(
                     f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}/repository/commits/{cid}/diff',
-                    timeout=4
+                    timeout=3
                 )
                 if diff_res.ok and isinstance(diff_res.json(), list):
                     items = diff_res.json()
@@ -4700,19 +4684,22 @@ def search_actions_commit():
             cid = commit_item.get('id')
             if not cid:
                 return None
-            diff_items = get_diff_items(cid)
-            for d in diff_items:
-                diff_text = d.get('diff', '')
-                for line in diff_text.splitlines():
-                    if line.startswith('+') and not line.startswith('+++'):
-                        if any(cand in line.lower() for cand in search_candidates):
-                            return (commit_item, d, 'add')
+            try:
+                diff_items = get_diff_items(cid)
+                for d in diff_items:
+                    diff_text = d.get('diff', '')
+                    for line in diff_text.splitlines():
+                        if line.startswith('+') and not line.startswith('+++'):
+                            if any(cand in line.lower() for cand in search_candidates):
+                                return (commit_item, d, 'add')
+            except Exception:
+                pass
             return None
 
         matched_commits = []
         matched_seen_ids = set()
         all_candidates = list(actions_commits_map.values())
-        with ThreadPoolExecutor(max_workers=35) as executor:
+        with ThreadPoolExecutor(max_workers=25) as executor:
             for r in executor.map(check_diff, all_candidates):
                 if r:
                     cid = r[0].get('id')
@@ -4720,7 +4707,7 @@ def search_actions_commit():
                         matched_seen_ids.add(cid)
                         matched_commits.append(r)
 
-        # Fallback: if no matches found in recent 300 commits, search historical window commits based on recipe dates
+        # Fallback: if no matches found in recent commits, search historical window commits based on recipe dates
         if not matched_commits and rec_dates:
             seen_date_keys = set()
             window_list = []
@@ -4734,6 +4721,8 @@ def search_actions_commit():
                         since_dt = (r_dt - timedelta(hours=24)).strftime('%Y-%m-%dT%H:%M:%SZ')
                         until_dt = (r_dt + timedelta(hours=24)).strftime('%Y-%m-%dT%H:%M:%SZ')
                         window_list.append((since_dt, until_dt))
+                        if len(window_list) >= 3:
+                            break
                 except Exception:
                     pass
 
@@ -4751,7 +4740,7 @@ def search_actions_commit():
                     return []
 
                 extra_candidates = []
-                with ThreadPoolExecutor(max_workers=min(len(window_list), 10)) as executor:
+                with ThreadPoolExecutor(max_workers=min(len(window_list), 3)) as executor:
                     for clist in executor.map(fetch_actions_window, window_list):
                         for c in clist:
                             cid = c.get('id')
