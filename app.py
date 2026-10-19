@@ -1002,7 +1002,7 @@ def login_required(f):
 
 CBK_PRODUCT_TYPES = {
     'BEAD', 'BEAD_AND_BEAD_FILLER_PREASSEMBLY', 'BEAD_WIRE', 'BEAD_FILLER',
-    'BELT_AND_EDGE_GUM_PREASSEMBLY', 'CARCASS_PLY', 'CAP_PLY', 'CHAFER',
+    'BELT_AND_EDGE_GUM_PREASSEMBLY', 'BELT_AND_EDGE_GUM_PREASSMBLY', 'CARCASS_PLY', 'CAP_PLY', 'CHAFER',
     'GASKET', 'INNER_LINER', 'KEVLAR_BEAD_RING', 'PLY', 'REFLECTIVE_TAPE',
     'SIDEWALL', 'SPLIT', 'SQUEEZE', 'STEEL_BELT', 'STEEL_WIRE', 'TREAD',
     'WRAPPING'
@@ -1010,11 +1010,11 @@ CBK_PRODUCT_TYPES = {
 
 def get_gitlab_project_id(product_type: str, default_id: int = 136) -> int:
     pt = (product_type or '').strip().upper()
-    if pt == 'GREEN_TIRE':
+    if pt in ('GREEN_TIRE', 'BUILDING'):
         return 133
-    elif pt == 'TIRE':
+    elif pt in ('TIRE', 'CURING'):
         return 134
-    elif pt in CBK_PRODUCT_TYPES:
+    elif pt in CBK_PRODUCT_TYPES or 'KITTING' in pt or 'PREASS' in pt:
         return 135
     return default_id
 
