@@ -239,6 +239,15 @@
 
     function isExcludedInput(el) {
         if (!el) return true;
+        // Exclude mobile and touch devices so native touch selection handles and virtual keyboard work flawlessly
+        if (
+            ('ontouchstart' in window) ||
+            (navigator.maxTouchPoints > 0) ||
+            (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
+            window.innerWidth <= 800
+        ) {
+            return true;
+        }
         if (el.matches) {
             if (el.matches('.numInput, .cur-year, [data-no-smooth-caret], .flatpickr-monthDropdown-months')) {
                 return true;

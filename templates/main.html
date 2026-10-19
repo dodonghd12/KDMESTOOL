@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Main</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v={{ version }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/smooth_input.css') }}?v={{ version }}">
@@ -120,7 +120,15 @@
         </div>
 
         <div class="table-container">
-            <div class="table-scroll">
+            <div class="table-scroll" id="tableScroll">
+                <!-- Standby guide / empty state before search -->
+                <div class="table-standby-placeholder" id="tableStandbyPlaceholder">
+                    <div class="standby-icon-ring">
+                        <span class="material-symbols-outlined standby-icon">qr_code_scanner</span>
+                    </div>
+                    <div class="standby-title">Sẵn sàng tra cứu</div>
+                    <div class="standby-subtitle">Nhập Tem / Barcode hoặc Quy cách để hiển thị dữ liệu</div>
+                </div>
                 <table>
                     <thead id="tableHead"></thead>
                     <tbody id="tableBody"></tbody>
@@ -129,16 +137,18 @@
 
             <div class="table-footer hidden">
                 <div class="row-count">Số dòng: <span id="rowCount">0</span></div>
-                <button class="btn-export-excel" id="exportExcelBtn" aria-label="Xuất dữ liệu ra file Excel">
-                    <div class="btn-export-excel-wrapper">
-                        <div class="text">Xuất Excel</div>
-                        <span class="icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" width="2em" height="2em" preserveAspectRatio="xMidYMid meet" viewBox="0 0 24 24">
-                                <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 0 0 4.561 21h14.878a2 2 0 0 0 1.94-1.515L22 17"></path>
-                            </svg>
-                        </span>
-                    </div>
-                </button>
+                <div class="table-footer-actions">
+                    <button class="btn-export-excel" id="exportExcelBtn" aria-label="Xuất dữ liệu ra file Excel">
+                        <div class="btn-export-excel-wrapper">
+                            <div class="text">Xuất Excel</div>
+                            <span class="icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" width="2em" height="2em" preserveAspectRatio="xMidYMid meet" viewBox="0 0 24 24">
+                                    <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 0 0 4.561 21h14.878a2 2 0 0 0 1.94-1.515L22 17"></path>
+                                </svg>
+                            </span>
+                        </div>
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -197,33 +207,6 @@
                 </button>
             </div>
         </div>
-    </div>
-
-    <!-- Context Menu -->
-    <div id="contextMenu" class="context-menu">
-        <div class="context-menu-item" data-action="inputBarcode" style="display: none;">Kiểm tra tem đầu vào</div>
-        <div class="context-menu-item" data-action="feedRecords" style="display: none;">Kiểm tra tiêu thụ tem</div>
-        <div class="context-menu-item" data-action="checkScanBarcodeHistory" style="display: none;">Kiểm tra trạm đang nạp tem</div>
-        <div class="context-menu-item" data-action="checkBarcodeWorkOrder" style="display: none;">Xem đơn điều động</div>
-        <div class="context-menu-item" data-action="mesTracking" style="display: none;">MES Tracking</div>
-        <div class="context-menu-item" data-action="checkBarcodeTransfer" style="display: none;">Kiểm tra vận chuyển tem</div>
-        <div class="context-menu-item" data-action="checkBarcodeExtendDateTime" style="display: none;">Kiểm tra gia hạn</div>
-        <div class="context-menu-item" data-action="fetchOriginalInfo" style="display: none;">Kiểm tra thông tin gốc</div>
-        <div class="context-menu-item" data-action="getPrdeba" style="display: none;">PRDEBA</div>
-        <div class="context-menu-item" data-action="getPrdebb" style="display: none;">PRDEBB</div>
-        <div class="context-menu-item" data-action="getPrdebc" style="display: none;">PRDEBC</div>
-
-        <div class="context-menu-item" data-action="outputBarcodeByFeedRecords" style="display: none;">Xem tem đầu ra</div>
-
-        <div class="context-menu-item" data-action="searchWorkOrderByRecipe" style="display: none;">Xem đơn điều động</div>
-        <div class="context-menu-item" data-action="searchCommitGitlabByRecipe" style="display: none;">Kiểm tra Commit Gitlab</div>
-        <div class="context-menu-item" data-action="searchActionsCommitByRecipe" style="display: none;">Kiểm tra Commit Actions</div>
-        <div class="context-menu-item" data-action="fetchYamlDetails" style="display: none;">Kiểm tra nội dung YAML</div>
-
-        <div class="context-menu-item" data-action="fetchOutputBarcodeByWorkOrder" style="display: none;">Tem đầu ra của mã MES</div>
-
-        <div class="context-menu-item" data-action="outputByBarcode" style="display: none;">Tem đầu ra của mã MES</div>
-        <div class="context-menu-item" data-action="outputByRecipe" style="display: none;">Tem đầu ra của mã MES</div>
     </div>
 
     {% include "components/shared_modals.html" %}

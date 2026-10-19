@@ -115,7 +115,17 @@
             allAccountRecords = [];
             currentFilteredRecords = [];
             checkAndUpdateDirtyState();
-            if (container) container.style.display = 'none';
+            if (container) {
+                container.style.display = 'none';
+                container.classList.add('hidden');
+            }
+            const clientSearchInp = document.getElementById('clientSearch');
+            if (clientSearchInp) {
+                clientSearchInp.value = '';
+                clientSearchInp.disabled = true;
+                clientSearchInp.setAttribute('disabled', 'disabled');
+                clientSearchInp.closest('.input-wrapper')?.classList.remove('has-value');
+            }
             if (tbody) {
                 tbody.innerHTML = `
                     <tr>
@@ -189,7 +199,26 @@
             });
 
             checkAndUpdateDirtyState();
-            if (container) container.style.display = 'flex';
+            const clientSearchInp = document.getElementById('clientSearch');
+            if (allAccountRecords.length > 0) {
+                if (container) {
+                    container.classList.remove('hidden');
+                    container.style.display = 'flex';
+                }
+                if (clientSearchInp) {
+                    clientSearchInp.disabled = false;
+                    clientSearchInp.removeAttribute('disabled');
+                }
+            } else {
+                if (container) {
+                    container.classList.remove('hidden');
+                    container.style.display = 'flex';
+                }
+                if (clientSearchInp) {
+                    clientSearchInp.disabled = true;
+                    clientSearchInp.setAttribute('disabled', 'disabled');
+                }
+            }
             applyClientFilter();
 
             if (isManualSubmit) {
@@ -203,7 +232,15 @@
         } catch (err) {
             console.error('Lỗi khi tra cứu tài khoản:', err);
             Toast.error('Lỗi tra cứu', err.message || 'Không thể kết nối đến máy chủ');
-            if (container) container.style.display = 'flex';
+            if (container) {
+                container.classList.remove('hidden');
+                container.style.display = 'flex';
+            }
+            const clientSearchInp = document.getElementById('clientSearch');
+            if (clientSearchInp) {
+                clientSearchInp.disabled = true;
+                clientSearchInp.setAttribute('disabled', 'disabled');
+            }
             if (tbody) {
                 tbody.innerHTML = `
                     <tr>
@@ -226,8 +263,8 @@
         const clientSearchInp = document.getElementById('clientSearch');
         if (!clientSearchInp) return;
 
-        clientSearchInp.disabled = false;
-        clientSearchInp.removeAttribute('disabled');
+        clientSearchInp.disabled = true;
+        clientSearchInp.setAttribute('disabled', 'disabled');
 
         clientSearchInp.addEventListener('input', () => {
             applyClientFilter();
@@ -237,10 +274,15 @@
             applyClientFilter();
         };
 
-        window.updateClientSearchState = function () {
+        window.updateClientSearchState = function (hasData) {
             if (clientSearchInp) {
-                clientSearchInp.disabled = false;
-                clientSearchInp.removeAttribute('disabled');
+                const enable = Boolean(hasData !== undefined ? hasData : (allAccountRecords && allAccountRecords.length > 0));
+                clientSearchInp.disabled = !enable;
+                if (enable) {
+                    clientSearchInp.removeAttribute('disabled');
+                } else {
+                    clientSearchInp.setAttribute('disabled', 'disabled');
+                }
             }
         };
     }
@@ -386,6 +428,9 @@
                 setTimeout(() => { inp.focus(); inp.select(); }, 50);
 
             } else {
+                const pwdWrap = document.createElement('div');
+                pwdWrap.style.cssText = 'display: inline-flex; align-items: center; gap: 6px;';
+
                 const pwdSpan = document.createElement('span');
                 const isPlain = acc.currentPassword && acc.currentPassword !== '-' && acc.currentPassword !== 'null';
                 const displayPwd = isPlain ? acc.currentPassword : '-';
@@ -431,25 +476,54 @@
                     renderTableBody();
                 });
 
+                const triggerEditPassword = () => {
+                    const startEdit = () => {
+                        acc.isEditingPassword = true;
+                        acc.editPasswordValue = acc.currentPassword === '-' ? '' : acc.currentPassword;
+                        renderTableBody();
+                    };
+
+                    if (typeof window.ensureAccountSecurityUnlocked === 'function') {
+                        window.ensureAccountSecurityUnlocked(startEdit);
+                    } else {
+                        startEdit();
+                    }
+                };
+
                 // Double Click: Enter Edit Mode when revealed (Guarded by Security Gate)
                 pwdSpan.addEventListener('dblclick', (e) => {
                     e.stopPropagation();
                     if (acc.isRevealed) {
-                        const startEdit = () => {
-                            acc.isEditingPassword = true;
-                            acc.editPasswordValue = acc.currentPassword === '-' ? '' : acc.currentPassword;
-                            renderTableBody();
-                        };
-
-                        if (typeof window.ensureAccountSecurityUnlocked === 'function') {
-                            window.ensureAccountSecurityUnlocked(startEdit);
-                        } else {
-                            startEdit();
-                        }
+                        triggerEditPassword();
                     }
                 });
 
-                tdPwd.appendChild(pwdSpan);
+                pwdWrap.appendChild(pwdSpan);
+
+                // Quick Edit Icon Button when revealed (Touch-friendly for Mobile)
+                if (acc.isRevealed) {
+                    const btnQuickEdit = document.createElement('button');
+                    btnQuickEdit.type = 'button';
+                    btnQuickEdit.className = 'pwd-quick-edit-btn';
+                    btnQuickEdit.title = 'Sửa mật khẩu';
+                    btnQuickEdit.style.cssText = 'width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.15); color: #38bdf8; cursor: pointer; padding: 0; flex-shrink: 0; transition: all 0.15s;';
+                    btnQuickEdit.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="pointer-events: none;"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>';
+                    btnQuickEdit.addEventListener('mouseenter', () => {
+                        btnQuickEdit.style.background = '#38bdf8';
+                        btnQuickEdit.style.color = '#0f172a';
+                    });
+                    btnQuickEdit.addEventListener('mouseleave', () => {
+                        btnQuickEdit.style.background = 'rgba(56, 189, 248, 0.15)';
+                        btnQuickEdit.style.color = '#38bdf8';
+                    });
+                    btnQuickEdit.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        triggerEditPassword();
+                    });
+                    pwdWrap.appendChild(btnQuickEdit);
+                }
+
+                tdPwd.appendChild(pwdWrap);
             }
             tr.appendChild(tdPwd);
 
@@ -472,7 +546,7 @@
                 // Nút x nhỏ bên trái (Pixel-perfect centered SVG, Guarded by Security Gate)
                 const btnRemove = document.createElement('span');
                 btnRemove.title = `Xóa quyền "${getRoleName(roleId)}"`;
-                btnRemove.style.cssText = 'cursor: pointer; display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 50%; background: rgba(239, 68, 68, 0.25); color: #f87171; box-sizing: border-box; flex-shrink: 0; transition: all 0.15s; padding: 0;';
+                btnRemove.style.cssText = 'cursor: pointer; display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; background: rgba(239, 68, 68, 0.25); color: #f87171; box-sizing: border-box; flex-shrink: 0; transition: all 0.15s; padding: 0;';
                 btnRemove.innerHTML = `<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; pointer-events: none;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
 
                 btnRemove.addEventListener('mouseenter', () => {
@@ -515,7 +589,7 @@
                 const btnAdd = document.createElement('button');
                 btnAdd.type = 'button';
                 btnAdd.title = 'Thêm phân quyền cho tài khoản này';
-                btnAdd.style.cssText = 'display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 5px; border: 1px dashed rgba(56, 189, 248, 0.5); background: rgba(56, 189, 248, 0.1); color: #38bdf8; cursor: pointer; padding: 0; box-sizing: border-box; flex-shrink: 0; transition: all 0.2s;';
+                btnAdd.style.cssText = 'display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 5px; border: 1px dashed rgba(56, 189, 248, 0.5); background: rgba(56, 189, 248, 0.1); color: #38bdf8; cursor: pointer; padding: 0; box-sizing: border-box; flex-shrink: 0; transition: all 0.2s;';
                 btnAdd.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display: block; pointer-events: none;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>`;
 
                 btnAdd.addEventListener('mouseenter', () => {
@@ -577,7 +651,8 @@
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 0 15px rgba(56, 189, 248, 0.15);
             max-height: 240px;
             overflow-y: auto;
-            min-width: 230px;
+            min-width: 220px;
+            max-width: calc(100vw - 24px);
             padding: 4px;
             backdrop-filter: blur(12px);
         `;
@@ -624,16 +699,20 @@
         document.body.appendChild(dropdown);
         activeRoleDropdown = dropdown;
 
-        // Position dropdown relative to targetBtn
+        // Position dropdown relative to targetBtn with viewport boundary checks
         const rect = targetBtn.getBoundingClientRect();
-        dropdown.style.top = `${rect.bottom + window.scrollY + 4}px`;
-        dropdown.style.left = `${rect.left + window.scrollX}px`;
-
-        // Check if dropdown goes outside viewport
-        const dropdownRect = dropdown.getBoundingClientRect();
-        if (dropdownRect.right > window.innerWidth) {
-            dropdown.style.left = `${window.innerWidth - dropdownRect.width - 12}px`;
+        const maxDropdownWidth = Math.min(230, window.innerWidth - 20);
+        let leftPos = rect.left + window.scrollX;
+        if (rect.left + maxDropdownWidth > window.innerWidth - 10) {
+            leftPos = Math.max(8, window.innerWidth - maxDropdownWidth - 12 + window.scrollX);
         }
+        dropdown.style.left = `${leftPos}px`;
+
+        let topPos = rect.bottom + window.scrollY + 4;
+        if (rect.bottom + 250 > window.innerHeight && rect.top > 250) {
+            topPos = Math.max(8, rect.top + window.scrollY - 245);
+        }
+        dropdown.style.top = `${topPos}px`;
     }
 
     function closeRoleDropdown() {

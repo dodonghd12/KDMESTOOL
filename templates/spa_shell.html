@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>{{ page_title }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v={{ version }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}?v={{ version }}">
@@ -27,6 +27,13 @@
             overflow: hidden;
             user-select: none;
             -webkit-user-select: none;
+        }
+        input, textarea, select, .input, .winx-input, .input-box input {
+            -webkit-user-select: text !important;
+            user-select: text !important;
+            -webkit-touch-callout: default !important;
+            touch-action: manipulation !important;
+            pointer-events: auto !important;
         }
         .prisma-hero-container {
             position: fixed;
@@ -237,6 +244,26 @@
     </div>
     <!-- Execute Prisma Hero Preloader immediately on frame 0 -->
     <script src="{{ url_for('static', filename='js/prisma_hero.js') }}?v={{ version }}"></script>
+
+    <!-- Mobile Top App Bar (Only visible on mobile screens <= 800px) -->
+    <header id="mobileHeader" class="mobile-header" role="banner">
+        <button type="button" class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Mở menu điều hướng" title="Mở menu">
+            <span class="material-symbols-outlined">menu</span>
+        </button>
+        <div class="mobile-header-brand">
+            <span class="mobile-logo-text">KDMES TOOL</span>
+            <span class="mobile-divider">/</span>
+            <span class="mobile-current-title" id="mobileCurrentTitle">{{ page_title or 'Main' }}</span>
+        </div>
+        <div class="mobile-header-actions">
+            <button type="button" class="mobile-action-btn mobile-theme-btn" id="mobileThemeBtn" aria-label="Đổi giao diện Sáng / Tối" title="Giao diện Sáng/Tối">
+                <span class="material-symbols-outlined" id="mobileThemeIcon">dark_mode</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Mobile Off-Canvas Backdrop Scrim -->
+    <div id="sidebarOverlay" class="sidebar-overlay" aria-hidden="true"></div>
 
     {% include "components/sidebar.html" %}
 

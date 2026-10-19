@@ -89,8 +89,17 @@ function initializeTechnicalSpecificationsEventListeners() {
     const productTypeInput = document.getElementById('product_type');
     if (!productTypeInput) return;
 
-    // Click to open dropdown
-    productTypeInput.addEventListener('click', () => {
+    // Click LMB to clear currently selected item if present, then open dropdown with all options
+    productTypeInput.addEventListener('click', (e) => {
+        if (e.button === 0 && productTypeInput.value) {
+            productTypeInput.value = '';
+            const box = productTypeInput.closest('.input-box');
+            if (box) box.classList.remove('has-value');
+            clearTable();
+            if (typeof updateClientSearchState === 'function') {
+                updateClientSearchState(false);
+            }
+        }
         showFilteredDropdown();
     });
 
@@ -357,6 +366,9 @@ function renderInitialEmptyState(message = 'Vui lòng chọn loại sản phẩm
     }
     if (rowCount) rowCount.textContent = '0';
     if (tableFooter) tableFooter.classList.add('hidden');
+    if (typeof updateClientSearchState === 'function') {
+        updateClientSearchState(false);
+    }
 }
 
 function clearTable() {

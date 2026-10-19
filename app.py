@@ -818,7 +818,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.1"
+APP_VERSION = "2.3.4"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -3574,7 +3574,7 @@ def get_material_transfer():
                         ON mr.oid = mrt.material_resource_oid
                     WHERE mr.oid = ANY(%s)
                     ORDER BY mrt.transaction_time DESC, mrt.created_at DESC
-                    LIMIT 500;
+                    LIMIT 100;
                 """
                 try:
                     result, column_names = execute_pg_select_query(query, (matched_oids,))
@@ -3629,7 +3629,7 @@ def get_material_transfer():
             ON mr.oid = mrt.material_resource_oid
         WHERE mr.id ILIKE %s
         ORDER BY mrt.transaction_time DESC, mrt.created_at DESC
-        LIMIT 500;
+        LIMIT 100;
     """
     try:
         result, column_names = execute_pg_select_query(query, (f"%{clean_keyword}%",))

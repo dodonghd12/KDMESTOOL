@@ -16,19 +16,19 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/flatpickr/flatpickr.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/material-symbols/material-symbols.css') }}">
 </head>
-<body class="substitutions {% if is_frame %}is-spa-frame{% endif %} app-loading-state">
+<body class="station-configuration {% if is_frame %}is-spa-frame{% endif %} app-loading-state">
     {% if not is_frame %}{% include "components/sidebar.html" %}{% endif %}
     <!-- <canvas id="starfield"></canvas> -->
-    <div class="container" autocomplete="off">
+    <div class="container station-configuration-container" autocomplete="off">
         <div class="search-section">
-            <div class="search-row">
+            <div class="search-row station-dept-col">
                 <div class="input-box">
                     <input required placeholder=" " type="text" id="department" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="input">
                     <label class="user-label">Bộ phận</label>
                     <div id="department-dropdown" class="dropdown-list"></div>
                 </div>
             </div>
-            <div class="search-row">
+            <div class="search-row station-machine-col">
                 <div class="input-box">
                     <input required placeholder=" " type="text" id="station" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="input">
                     <label class="user-label">Số máy</label>
@@ -39,6 +39,14 @@
         
         <div class="table-container">
             <div class="table-scroll">
+                <!-- Standby guide / empty state before search -->
+                <div class="table-standby-placeholder" id="tableStandbyPlaceholder">
+                    <div class="standby-icon-ring">
+                        <span class="material-symbols-outlined standby-icon">tune</span>
+                    </div>
+                    <div class="standby-title">Sẵn sàng tra cứu</div>
+                    <div class="standby-subtitle">Chọn Bộ phận và Số máy để xem thiết lập máy</div>
+                </div>
                 <table>
                     <thead id="tableHead"></thead>
                     <tbody id="tableBody"></tbody>
@@ -46,17 +54,21 @@
             </div>
 
             <div class="table-footer hidden">
-                <div class="row-count">Số dòng: <span id="rowCount">0</span></div>
-                <button class="btn-export-excel" id="exportExcelBtn" aria-label="Xuất dữ liệu ra file Excel">
-                    <div class="btn-export-excel-wrapper">
-                        <div class="text">Xuất Excel</div>
-                        <span class="icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" width="2em" height="2em" preserveAspectRatio="xMidYMid meet" viewBox="0 0 24 24">
-                                <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 0 0 4.561 21h14.878a2 2 0 0 0 1.94-1.515L22 17"></path>
-                            </svg>
-                        </span>
-                    </div>
-                </button>
+                <div class="table-footer-left">
+                    <div class="row-count">Số dòng: <span id="rowCount">0</span></div>
+                </div>
+                <div class="table-footer-right">
+                    <button class="btn-export-excel" id="exportExcelBtn" aria-label="Xuất dữ liệu ra file Excel">
+                        <div class="btn-export-excel-wrapper">
+                            <div class="text">Xuất Excel</div>
+                            <span class="icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" width="2em" height="2em" preserveAspectRatio="xMidYMid meet" viewBox="0 0 24 24">
+                                    <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 0 0 4.561 21h14.878a2 2 0 0 0 1.94-1.515L22 17"></path>
+                                </svg>
+                            </span>
+                        </div>
+                    </button>
+                </div>
             </div>
         </div>
     </div>

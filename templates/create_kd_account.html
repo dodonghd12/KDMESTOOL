@@ -25,36 +25,31 @@
             <!-- ── SECTION 1: TẠO TÀI KHOẢN ĐƠN LẺ ── -->
             <div class="account-card account-card-single">
                 <div class="account-input-group">
-                    <div style="margin-bottom: 10px;">
-                        <label class="account-label" style="margin-bottom: 0;">TẠO TÀI KHOẢN</label>
+                    <div class="account-card-header">
+                        <label class="account-label">TẠO TÀI KHOẢN</label>
                     </div>
-                    <div class="account-input-row" style="display: flex; gap: 10px; align-items: center;">
-                        <div class="input-wrapper" style="flex: 1.35;">
+                    <div class="account-input-row">
+                        <div class="input-wrapper account-input-username">
                             <input placeholder="Nhập tên tài khoản..." class="input" id="singleAccountInput" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text">
                         </div>
-                        <div class="input-wrapper" id="singleDepartmentInputWrapper" style="flex: 1.15;">
-                            <input placeholder="Nhập bộ phận..." class="input" id="singleDepartmentInput" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text">
+                        <div class="input-wrapper account-input-dept" id="singleDepartmentInputWrapper">
+                            <input placeholder="Nhập bộ phận (VD: P1, B2)..." class="input" id="singleDepartmentInput" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text">
                         </div>
-                        <button type="button" id="createSingleBtn" class="winx-btn winx-btn-primary" style="height: 44px; padding: 0 22px; font-size: 14px; font-weight: 700; letter-spacing: 0.5px; flex-shrink: 0;">
-                            <span class="material-symbols-outlined" style="font-size: 20px !important;">person_add</span>
+                        <button type="button" id="createSingleBtn" class="winx-btn winx-btn-primary account-create-btn">
+                            <span class="material-symbols-outlined">person_add</span>
                             <span>Tạo</span>
                         </button>
                     </div>
-                    <div class="account-single-footer" style="margin-top: 10px; min-height: 20px; display: flex; gap: 10px; align-items: center;">
-                        <div style="flex: 1.35; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--color-text-muted, #94a3b8); line-height: 1.5; min-width: 0;">
-                            <span class="material-symbols-outlined" style="font-size: 15px; color: #10b981; flex-shrink: 0;">info</span>
-                            <span style="white-space: nowrap;">Mật khẩu mặc định giống user</span>
+                    <div class="account-single-footer">
+                        <div class="account-single-hint">
+                            <span class="material-symbols-outlined">info</span>
+                            <span>Mật khẩu mặc định giống user</span>
                         </div>
-                        <div style="flex: 1.15; display: flex; align-items: center; min-width: 0;">
-                            <div id="deptErrorMsg" class="account-dept-error-msg" style="display: none; color: #f87171; font-size: 12px; font-weight: 600; line-height: 1.5; align-items: center; gap: 4px;">
-                                <span class="material-symbols-outlined" style="font-size: 15px; color: #f87171; flex-shrink: 0;">error</span>
-                                <span style="white-space: nowrap;">Bộ phận bắt đầu bằng P hoặc B</span>
-                            </div>
+                        <div id="deptErrorMsg" class="account-dept-error-msg" style="display: none;">
+                            <span class="material-symbols-outlined">error</span>
+                            <span>Bộ phận bắt đầu bằng P hoặc B</span>
                         </div>
-                        <div style="visibility: hidden; pointer-events: none; flex-shrink: 0; padding: 0 22px; font-size: 14px; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; height: 0; overflow: hidden;" aria-hidden="true">
-                            <span class="material-symbols-outlined" style="font-size: 20px !important;">person_add</span>
-                            <span>Tạo</span>
-                        </div>
+                        <div class="account-single-spacer" aria-hidden="true"></div>
                     </div>
                 </div>
             </div>
@@ -65,9 +60,10 @@
                     <!-- 1/2 bên trái: Label trên, Download Template dưới -->
                     <div class="account-bulk-left">
                         <label class="account-label">TẠO TÀI KHOẢN SLL</label>
-                        <button type="button" id="downloadTemplateBtn" class="winx-btn winx-btn-ghost" style="height: 42px; padding: 0 18px; font-size: 13px; font-weight: 700; letter-spacing: 0.5px;" onclick="downloadAccountTemplate()">
-                            <span class="material-symbols-outlined" style="font-size: 18px;">file_download</span>
-                            <span>DOWNLOAD TEMPLATE</span>
+                        <button type="button" id="downloadTemplateBtn" class="winx-btn winx-btn-ghost account-template-btn" onclick="downloadAccountTemplate()">
+                            <span class="material-symbols-outlined">file_download</span>
+                            <span class="btn-text-desktop">DOWNLOAD TEMPLATE</span>
+                            <span class="btn-text-mobile">Tải mẫu Excel</span>
                         </button>
                     </div>
 
@@ -85,8 +81,8 @@
                                         <polyline points="9 13 12 10 15 13"></polyline>
                                     </svg>
                                 </div>
-                                <div class="dropzone-title" id="dropzoneTitle">Drop your file</div>
-                                <div class="dropzone-subtitle" id="dropzoneSubtitle">XLSX, XLS — up to 50 MB</div>
+                                <div class="dropzone-title" id="dropzoneTitle">Chọn file Excel tải lên</div>
+                                <div class="dropzone-subtitle" id="dropzoneSubtitle">XLSX, XLS — tối đa 50 MB</div>
                             </div>
 
                             <!-- State 2: Đang tải / Thanh Loading (0.5s - 1s) -->
@@ -152,19 +148,9 @@
         <!-- ── STATUS & RESULT SECTION (Unified KDMES Layout) ── -->
         <div class="account-result-section" id="accountResultSection" style="display: none;">
             <!-- Filter & Search Bar -->
-            <div class="search-section" style="padding-top: 6px;">
-                <div class="search-row" style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
-                    <div class="input-box" style="min-width: 180px; max-width: 220px; flex-shrink: 0; position: relative;">
-                        <input placeholder=" " type="text" id="status_filter" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="input" style="cursor: pointer;" readonly>
-                        <label class="user-label">Trạng thái</label>
-                        <div id="status-filter-dropdown" class="dropdown-list"></div>
-                    </div>
-
-                    <div class="input-wrapper" style="min-width: 220px; max-width: 380px; flex: 1;">
-                        <input placeholder="Tìm kiếm..." class="input" id="clientSearch" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text" aria-label="Tìm kiếm trong bảng">
-                    </div>
-
-                    <div class="account-stat-pills" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-left: auto;">
+            <div class="search-section account-search-section">
+                <div class="search-row account-search-row">
+                    <div class="account-stat-pills" id="accountStatPills">
                         <div class="account-stat-pill" title="Tổng số tài khoản yêu cầu">
                             <span class="pill-dot" style="background: #38bdf8;"></span>
                             <span class="pill-label">Tổng:</span>
@@ -180,6 +166,16 @@
                             <span class="pill-label">Thất bại:</span>
                             <span class="pill-val" id="statFailed">0</span>
                         </div>
+                    </div>
+
+                    <div class="input-box account-status-box">
+                        <input placeholder=" " type="text" id="status_filter" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="input" style="cursor: pointer;" readonly>
+                        <label class="user-label">Trạng thái</label>
+                        <div id="status-filter-dropdown" class="dropdown-list"></div>
+                    </div>
+
+                    <div class="input-wrapper account-search-wrap">
+                        <input placeholder="Tìm kiếm..." class="input" id="clientSearch" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text" aria-label="Tìm kiếm trong bảng">
                     </div>
                 </div>
             </div>

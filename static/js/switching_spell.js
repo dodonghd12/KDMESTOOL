@@ -35,10 +35,10 @@
         // 1. Khởi tạo nhãn máy chủ ban đầu (198.1.10.85)
         updateServerBadgeUI();
 
-        // 2. Đảm bảo ô tìm kiếm clientSearch luôn hoạt động
-        ensureClientSearchEnabled();
+        // 2. Quản lý trạng thái ô tìm kiếm clientSearch (chỉ enable khi đã chọn thư mục và có dữ liệu)
+        updateClientSearchState();
         window.updateClientSearchState = function () {
-            ensureClientSearchEnabled();
+            updateClientSearchState();
         };
         window.customClientSearchHandler = function (keyword) {
             applyClientSearch(keyword);
@@ -49,8 +49,21 @@
             folderSelect.addEventListener('change', (e) => {
                 selectedFolder = e.target.value;
                 folderSelect.blur();
+                const tableContainer = document.getElementById('switchingSpellTableContainer') || document.querySelector('.table-container');
                 if (selectedFolder) {
+                    if (tableContainer) {
+                        tableContainer.classList.remove('hidden');
+                        tableContainer.style.display = '';
+                    }
                     fetchPrintersConfig(selectedFolder);
+                } else {
+                    if (tableContainer) {
+                        tableContainer.classList.add('hidden');
+                        tableContainer.style.display = 'none';
+                    }
+                    currentGroups = [];
+                    originalGroups = [];
+                    updateClientSearchState();
                 }
             });
         }
@@ -152,6 +165,12 @@
         if (!folder) return;
         isLoading = true;
 
+        const tableContainer = document.getElementById('switchingSpellTableContainer') || document.querySelector('.table-container');
+        if (tableContainer) {
+            tableContainer.classList.remove('hidden');
+            tableContainer.style.display = '';
+        }
+
         showStepBadge(`Đang đọc cấu hình (${folder})...`, 'sync', 'progress');
         showTableLoading(folder);
         closeStationFloatingDropdown();
@@ -213,7 +232,7 @@
             }
         } finally {
             isLoading = false;
-            ensureClientSearchEnabled();
+            updateClientSearchState();
         }
     }
 
@@ -326,6 +345,7 @@
             stationBadgeEl.textContent = `Tổng số: ${totalStationsCount} trạm`;
             stationBadgeEl.style.display = 'inline-flex';
         }
+        updateClientSearchState();
     }
 
     /**
@@ -1307,11 +1327,16 @@
         }, delay);
     }
 
-    function ensureClientSearchEnabled() {
+    function updateClientSearchState() {
         const searchInput = document.getElementById('clientSearch');
         if (searchInput) {
-            searchInput.disabled = false;
-            searchInput.removeAttribute('disabled');
+            const canSearch = Boolean(selectedFolder && currentGroups && currentGroups.length > 0);
+            searchInput.disabled = !canSearch;
+            if (!canSearch) {
+                searchInput.value = '';
+            } else {
+                searchInput.removeAttribute('disabled');
+            }
         }
     }
 

@@ -724,16 +724,18 @@ body {
 
 .flatpickr-current-month {
     position: static !important;
-    width: auto !important;
+    width: 100% !important;
+    max-width: 220px !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    gap: 6px !important;
+    gap: 8px !important;
     color: var(--color-text-accent) !important;
     font-weight: 600 !important;
     font-size: var(--font-size-md) !important;
     padding: 0 !important;
     height: auto !important;
+    margin: 0 auto !important;
 }
 
 /* Month Dropdown Fix (Dark Cyberpunk Theme & No White Options) */
@@ -743,17 +745,26 @@ body {
     color: var(--color-text-accent) !important;
     font-family: inherit !important;
     font-weight: 600 !important;
-    font-size: var(--font-size-base) !important;
+    font-size: 14px !important;
     border: 1px solid var(--color-border-interactive) !important;
     border-radius: 8px !important;
-    padding: 3px 8px !important;
-    margin-right: 4px !important;
+    padding: 4px 8px !important;
+    margin: 0 !important;
+    width: auto !important;
+    max-width: 110px !important;
+    min-width: 85px !important;
+    flex: 0 1 auto !important;
     cursor: pointer !important;
     outline: none !important;
     appearance: none !important;
     -webkit-appearance: none !important;
     -moz-appearance: none !important;
+    text-align: center !important;
+    text-align-last: center !important;
     transition: all 0.2s ease !important;
+    height: 32px !important;
+    box-sizing: border-box !important;
+    line-height: 1.4 !important;
 }
 
 .flatpickr-current-month .flatpickr-monthDropdown-months:hover,
@@ -788,21 +799,33 @@ body {
 }
 
 .flatpickr-current-month .numInputWrapper {
-    width: 6.5ch !important;
+    width: 72px !important;
+    min-width: 68px !important;
+    max-width: 75px !important;
+    flex: 0 0 72px !important;
     display: inline-flex !important;
     position: relative !important;
+    height: 32px !important;
+    box-sizing: border-box !important;
+    border: 1px solid var(--color-border-interactive) !important;
+    border-radius: 8px !important;
+    background: var(--color-bg-input, rgba(15, 23, 42, 0.95)) !important;
+    overflow: hidden !important;
 }
 
 .flatpickr-current-month input.cur-year {
     font-family: inherit !important;
     color: var(--color-text-secondary) !important;
     font-weight: 700 !important;
-    font-size: var(--font-size-md) !important;
+    font-size: 14px !important;
     background: transparent !important;
     border: none !important;
-    padding: 2px 14px 2px 4px !important;
-    border-radius: 4px !important;
+    padding: 0 16px 0 6px !important;
+    border-radius: 8px !important;
     width: 100% !important;
+    height: 100% !important;
+    text-align: center !important;
+    box-sizing: border-box !important;
 }
 
 .flatpickr-current-month input.cur-year:focus {
@@ -1497,6 +1520,28 @@ body.theme-light .input-switcher-container[data-active-mode="work_order"] .input
     overflow-x: auto;
     overflow-y: hidden;
     transition: min-height 0.2s cubic-bezier(0.16, 1, 0.3, 1), max-height 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-mobile-action {
+    display: none !important;
+}
+
+.table-standby-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-height: 220px;
+    padding: 32px 16px;
+    box-sizing: border-box;
+    text-align: center;
+    user-select: none;
+    pointer-events: none;
+}
+
+.table-standby-placeholder.has-data {
+    display: none !important;
 }
 
 .table-scroll {
@@ -5285,21 +5330,25 @@ body.theme-light .yaml-code-scroll::-webkit-scrollbar-track {
 
 .comparison-table .material-cell {
     position: relative;
-    padding-right: 74px;
     vertical-align: middle;
 }
 
+.comparison-table .barcode-row-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 5px;
+}
+
 .comparison-copy-btn {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    right: 8px;
+    position: static;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 4px;
     padding: 3px 8px;
-    height: 26px;
+    height: 24px;
     background: var(--color-interactive-bg-subtle, rgba(255, 255, 255, 0.06));
     border: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.15));
     border-radius: 6px;
@@ -5311,7 +5360,7 @@ body.theme-light .yaml-code-scroll::-webkit-scrollbar-track {
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     user-select: none;
-    z-index: 2;
+    flex-shrink: 0;
 }
 
 .comparison-copy-btn .material-symbols-outlined {
@@ -5324,7 +5373,7 @@ body.theme-light .yaml-code-scroll::-webkit-scrollbar-track {
     background: var(--color-interactive-bg-hover, rgba(56, 189, 248, 0.15));
     border-color: var(--color-border-interactive, #38bdf8);
     color: var(--color-text-primary, #ffffff);
-    transform: translateY(-50%) scale(1.04);
+    transform: scale(1.05);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 
@@ -5333,7 +5382,7 @@ body.theme-light .yaml-code-scroll::-webkit-scrollbar-track {
 }
 
 .comparison-copy-btn:active {
-    transform: translateY(-50%) scale(0.98);
+    transform: scale(0.96);
 }
 
 .comparison-copy-btn.copied {
@@ -7027,11 +7076,128 @@ body.theme-light .account-dropzone.drag-over {
     width: 100%;
 }
 
+.account-card-header {
+    margin-bottom: 10px;
+}
+
 .account-input-row {
     display: flex;
     gap: 10px;
     align-items: center;
+    width: 100%;
+}
+
+.account-input-username {
+    flex: 1.35;
+    min-width: 0;
+}
+
+.account-input-dept {
+    flex: 1.15;
+    min-width: 0;
+}
+
+.account-create-btn {
+    height: 44px;
+    padding: 0 22px;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+}
+
+.account-single-footer {
+    margin-top: 10px;
+    min-height: 20px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.account-single-hint {
+    flex: 1.35;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--color-text-muted, #94a3b8);
+    line-height: 1.5;
+    min-width: 0;
+}
+
+.account-single-hint .material-symbols-outlined {
+    font-size: 15px;
+    color: #10b981;
+    flex-shrink: 0;
+}
+
+.account-dept-error-msg {
+    flex: 1.15;
+    display: none;
+    align-items: center;
+    gap: 4px;
+    color: #f87171;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.5;
+    min-width: 0;
+}
+
+.account-single-spacer {
+    flex-shrink: 0;
+    width: 85px;
+    height: 0;
+    pointer-events: none;
+    visibility: hidden;
+}
+
+.account-template-btn {
+    height: 42px;
+    padding: 0 18px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.btn-text-desktop {
+    display: inline;
+}
+
+.btn-text-mobile {
+    display: none;
+}
+
+.account-search-section {
+    padding-top: 6px;
+}
+
+.account-search-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
     flex-wrap: wrap;
+    width: 100%;
+}
+
+.account-status-box {
+    min-width: 180px;
+    max-width: 220px;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.account-search-wrap {
+    min-width: 220px;
+    max-width: 380px;
+    flex: 1;
+}
+
+.account-stat-pills {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-left: auto;
 }
 
 .account-input {
@@ -9733,4 +9899,2174 @@ body.theme-light .material-transfer-retry-btn.is-spinning {
 :root[data-theme="light"] .material-transfer-retry-btn.is-success,
 body.theme-light .material-transfer-retry-btn.is-success {
     color: #059669;
+}
+
+/* ==========================================================================
+   GLOBAL & ALL PAGES MOBILE RESPONSIVE SUITE (iPhone 16 / max-width: 800px)
+   ========================================================================== */
+@media (max-width: 800px) {
+    /* 1. Global Viewport & Container */
+    body.is-spa-frame {
+        height: 100% !important;
+        min-height: 100% !important;
+        height: 100dvh !important;
+        max-height: 100dvh !important;
+        overflow: hidden !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    .container,
+    body.is-spa-frame .container {
+        width: 100% !important;
+        max-width: 100% !important;
+        height: 100% !important;
+        height: 100dvh !important;
+        max-height: 100dvh !important;
+        padding: 8px 10px max(10px, env(safe-area-inset-bottom, 10px)) 10px !important;
+        gap: 8px !important;
+        box-sizing: border-box !important;
+        overflow: hidden !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    /* 2. Global Input & Form Controls (Touch-friendly 44px + prevent iOS auto-zoom) */
+    .input-box {
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .input-box .input,
+    .input-wrapper .input,
+    .winx-input,
+    input.input,
+    input,
+    textarea,
+    select {
+        width: 100% !important;
+        height: 44px !important;
+        font-size: 16px !important;
+        box-sizing: border-box !important;
+        -webkit-user-select: text !important;
+        user-select: text !important;
+        -webkit-touch-callout: default !important;
+        touch-action: manipulation !important;
+        pointer-events: auto !important;
+    }
+
+    .input-box .input {
+        padding: 0.65rem 2.4rem 0.65rem 1rem !important;
+    }
+
+    .input-wrapper .input {
+        padding: 0.65rem 1rem !important;
+    }
+
+    .input-box .user-label {
+        top: 0.75rem !important;
+        font-size: 14px !important;
+    }
+
+    .input-box .input:focus ~ .user-label,
+    .input-box .input:valid ~ .user-label,
+    .input-box.has-value .user-label,
+    .input-box.has-value .input ~ .user-label,
+    .input-box:focus-within .user-label,
+    .input-box .input:not(:placeholder-shown) ~ .user-label {
+        transform: translateY(-22px) scale(0.85) !important;
+        font-size: 12px !important;
+    }
+
+    .input-mode-toggle-btn {
+        bottom: -9px !important;
+        height: 20px !important;
+        padding: 0 8px !important;
+        font-size: 11px !important;
+    }
+
+    .dropdown-list {
+        z-index: 250 !important;
+        max-height: 220px !important;
+        border-radius: 10px !important;
+    }
+
+    .dropdown-item {
+        padding: 10px 14px !important;
+        font-size: 13.5px !important;
+        -webkit-tap-highlight-color: transparent !important;
+    }
+
+    .flatpickr-calendar {
+        max-width: 92vw !important;
+        font-size: 13px !important;
+        box-sizing: border-box !important;
+    }
+
+    /* 3. Search Sections across All Standard Pages */
+    .search-section {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 8px !important;
+        width: 100% !important;
+        flex-shrink: 0 !important;
+        margin-bottom: 0 !important;
+    }
+
+    /* Floating switcher pills (Barcode ⇋ Feed Record, Recipe ⇋ Work Order) - 2x2 Compact Grid */
+    .search-section:has(.search-row-switchable) {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        row-gap: 14px !important;
+        column-gap: 8px !important;
+        width: 100% !important;
+    }
+
+    .search-section:has(.search-row-switchable) .search-row-switchable:nth-child(1) {
+        grid-column: 1 / 2 !important;
+        width: 100% !important;
+    }
+
+    .search-section:has(.search-row-switchable) .search-row-switchable:nth-child(2) {
+        grid-column: 2 / 3 !important;
+        width: 100% !important;
+    }
+
+    .search-section:has(.search-row-switchable) .search-row-client {
+        grid-column: 1 / 2 !important;
+        width: 100% !important;
+    }
+
+    .search-section:has(.search-row-switchable) .search-row-ocr {
+        grid-column: 2 / 3 !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+    }
+
+    .search-section .search-row-switchable,
+    .search-section .input-switcher-container {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        height: 42px !important;
+        margin-bottom: 0 !important;
+    }
+
+    .search-section .input-switch-item,
+    .search-section .input-switcher-container .input-box {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        height: 42px !important;
+    }
+
+    .search-section .input-switcher-container .input {
+        height: 42px !important;
+        padding: 0 10px !important;
+        font-size: 16px !important;
+    }
+
+    .search-section .input-mode-toggle-btn {
+        bottom: -10px !important;
+        height: 20px !important;
+        line-height: 18px !important;
+        padding: 0 8px !important;
+        font-size: 10.5px !important;
+        letter-spacing: 0.2px !important;
+    }
+
+    .search-section .input-mode-toggle-btn .toggle-icon {
+        font-size: 12px !important;
+        width: 12px !important;
+        height: 12px !important;
+    }
+
+    .search-section:has(.search-row-switchable) .search-row-client .input,
+    .search-section:has(.search-row-switchable) .search-row-client .input-box {
+        height: 42px !important;
+        min-height: 42px !important;
+    }
+
+    .search-section:has(.search-row-switchable) .ocr-dropzone {
+        height: 42px !important;
+        min-height: 42px !important;
+        padding: 2px 8px !important;
+        box-sizing: border-box !important;
+    }
+
+    .search-section:has(.search-row-switchable) .ocr-subtitle {
+        display: none !important;
+    }
+
+    .search-section:has(.search-row-switchable) .ocr-title {
+        font-size: 12px !important;
+        font-weight: 600 !important;
+    }
+
+    .search-section:has(.search-row-switchable) .ocr-cloud-icon {
+        font-size: 18px !important;
+    }
+
+    /* Ensure search row elements expand to full width of their grid cell */
+    .search-section .search-row,
+    .search-section .search-row .input-box,
+    .search-section .search-row .input-wrapper {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    /* Full-width search rows on other pages */
+    .search-section:not(:has(.search-row-switchable)) .search-row:has(#barcode),
+    .search-section:not(:has(.search-row-switchable)) .search-row:has(#barcodeInputBox),
+    .search-section:not(:has(.search-row-switchable)) .search-row:only-child {
+        grid-column: 1 / -1 !important;
+        width: 100% !important;
+    }
+
+    /* Standalone client search takes full width only when it's an odd child at the end or only-child */
+    .search-section:not(:has(.search-row-ocr)):not(.substitutions .search-section):not(.technical-specifications .search-section):not(.check-mesync .search-section) .search-row:has(#clientSearch):nth-child(odd):last-child,
+    .search-section:not(:has(.search-row-ocr)):not(.substitutions .search-section):not(.technical-specifications .search-section):not(.check-mesync .search-section) .search-row:has(#clientSearch):only-child {
+        grid-column: 1 / -1 !important;
+        width: 100% !important;
+    }
+
+    .search-section:has(.search-row-ocr) .search-row-client {
+        grid-column: 1 / 2 !important;
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .search-section .search-row-ocr {
+        grid-column: 2 / 3 !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+    }
+
+    .ocr-dropzone {
+        height: 44px !important;
+        min-height: 44px !important;
+        padding: 4px 10px !important;
+        box-sizing: border-box !important;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .ocr-dropzone:active {
+        transform: scale(0.98);
+    }
+
+    .ocr-state-idle {
+        gap: 6px !important;
+    }
+
+    .ocr-cloud-icon {
+        font-size: 20px !important;
+    }
+
+    .ocr-title {
+        font-size: 13px !important;
+        font-weight: 600 !important;
+        white-space: nowrap !important;
+    }
+
+    .ocr-subtitle {
+        display: none !important;
+    }
+
+    /* 4. Postgres Deleted Data & GitLab Deleted Files */
+    .postgres-deleted-data .search-section,
+    .gitlab-deleted-files .search-section {
+        display: block !important;
+        width: 100% !important;
+    }
+
+    .postgres-deleted-data .search-section .search-row {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        gap: 6px !important;
+        width: 100% !important;
+        align-items: center !important;
+    }
+
+    .postgres-deleted-data #btnCheckDeletedData {
+        order: 1 !important;
+        flex: 0 0 auto !important;
+        height: 38px !important;
+        padding: 0 14px !important;
+        font-size: 13px !important;
+        border-radius: 8px !important;
+    }
+
+    .postgres-deleted-data .search-row > .input-box:nth-of-type(1),
+    .postgres-deleted-data .search-row > .input-box:has(#table_filter) {
+        order: 2 !important;
+        flex: 1 1 100px !important;
+        min-width: 90px !important;
+        max-width: none !important;
+        width: auto !important;
+        height: 38px !important;
+    }
+
+    .postgres-deleted-data .search-row > .input-box:nth-of-type(1) .input,
+    .postgres-deleted-data .search-row > .input-box:has(#table_filter) .input {
+        height: 38px !important;
+        font-size: 16px !important;
+    }
+
+    .postgres-deleted-data #slotStatusContainer {
+        order: 3 !important;
+        flex: 0 0 auto !important;
+        margin-left: auto !important;
+        height: 38px !important;
+        padding: 0 10px !important;
+        box-sizing: border-box !important;
+        font-size: 11px !important;
+        border-radius: 8px !important;
+        white-space: nowrap !important;
+        justify-content: center !important;
+    }
+
+    .postgres-deleted-data .search-row > .input-box:nth-of-type(2),
+    .postgres-deleted-data .search-row > .input-box:has(#dateRange) {
+        order: 4 !important;
+        flex: 1 1 calc(50% - 3px) !important;
+        min-width: 0 !important;
+        max-width: calc(50% - 3px) !important;
+        width: calc(50% - 3px) !important;
+        height: 38px !important;
+    }
+
+    .postgres-deleted-data .search-row > .input-box:nth-of-type(2) .input,
+    .postgres-deleted-data .search-row > .input-box:has(#dateRange) .input {
+        height: 38px !important;
+        font-size: 16px !important;
+    }
+
+    .postgres-deleted-data .search-row > .input-wrapper,
+    .postgres-deleted-data .search-row > .input-wrapper:has(#clientSearch) {
+        order: 5 !important;
+        flex: 1 1 calc(50% - 3px) !important;
+        min-width: 0 !important;
+        max-width: calc(50% - 3px) !important;
+        width: calc(50% - 3px) !important;
+        height: 38px !important;
+    }
+
+    .postgres-deleted-data .search-row > .input-wrapper .input,
+    .postgres-deleted-data .search-row > .input-wrapper:has(#clientSearch) .input {
+        height: 38px !important;
+        font-size: 16px !important;
+    }
+
+    .gitlab-deleted-files .search-section .search-row {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        gap: 6px !important;
+        width: 100% !important;
+        align-items: center !important;
+    }
+
+    .gitlab-deleted-files #btnCheckDeletedFiles {
+        order: 1 !important;
+        flex: 0 0 auto !important;
+        height: 38px !important;
+        padding: 0 12px !important;
+        font-size: 13px !important;
+        border-radius: 8px !important;
+    }
+
+    .gitlab-deleted-files .search-row > .input-box {
+        order: 2 !important;
+        flex: 1 1 110px !important;
+        min-width: 90px !important;
+        max-width: none !important;
+        width: auto !important;
+        height: 38px !important;
+    }
+
+    .gitlab-deleted-files .search-row > .input-box .input {
+        height: 38px !important;
+        font-size: 16px !important;
+    }
+
+    .gitlab-deleted-files .search-row > .input-wrapper {
+        order: 3 !important;
+        flex: 1.4 1 125px !important;
+        min-width: 115px !important;
+        max-width: none !important;
+        width: auto !important;
+        height: 38px !important;
+    }
+
+    .gitlab-deleted-files .search-row > .input-wrapper .input {
+        height: 38px !important;
+        font-size: 16px !important;
+    }
+
+    .gitlab-deleted-files .search-row > div:not(.input-box):not(.input-wrapper) {
+        display: none !important;
+    }
+
+    /* 5. Avada Kedavra & Switching Spell Pages */
+    .avada-kedavra-controls-row,
+    .switching-spell-controls-row {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        gap: 6px !important;
+        width: 100% !important;
+        align-items: center !important;
+    }
+
+    .avada-kedavra-meta-badge,
+    .static-server-badge {
+        flex: 1 1 auto !important;
+        height: 34px !important;
+        font-size: 11px !important;
+        padding: 0 6px !important;
+        gap: 4px !important;
+        min-width: 0 !important;
+    }
+
+    .avada-kedavra-meta-badge #currentServerLabel,
+    .static-server-badge #currentServerLabel {
+        font-size: 11px !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+
+    .avada-kedavra-meta-badge #btnToggleServer {
+        height: 22px !important;
+        padding: 0 5px !important;
+        font-size: 10px !important;
+        flex-shrink: 0 !important;
+        margin-left: 2px !important;
+    }
+
+    .btn-refresh-compact {
+        flex: 0 0 34px !important;
+        width: 34px !important;
+        height: 34px !important;
+        padding: 0 !important;
+        justify-content: center !important;
+    }
+
+    .btn-avada-kedavra-toggle {
+        flex: 1 1 calc(50% - 3px) !important;
+        height: 34px !important;
+        font-size: 12px !important;
+        padding: 0 8px !important;
+    }
+
+    .avada-kedavra-status-pill {
+        flex: 1 1 calc(50% - 3px) !important;
+        height: 34px !important;
+        font-size: 11px !important;
+        padding: 0 6px !important;
+        justify-content: center !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Switching Spell controls row (2 compact rows on mobile: Row 1 Badge+Refresh, Row 2 Folder+Search 50%/50%) */
+    .switching-spell-controls-row .folder-select-box {
+        flex: 1 1 calc(50% - 3px) !important;
+        width: calc(50% - 3px) !important;
+    }
+
+    .switching-spell-controls-row .folder-dropdown-wrapper {
+        width: 100% !important;
+        height: 36px !important;
+        border-radius: 8px !important;
+    }
+
+    .switching-spell-controls-row .folder-select {
+        width: 100% !important;
+        height: 36px !important;
+        font-size: 12px !important;
+        padding-left: 30px !important;
+    }
+
+    .switching-spell-controls-row .folder-dropdown-wrapper .folder-icon {
+        font-size: 18px !important;
+        left: 8px !important;
+    }
+
+    .switching-spell-controls-row .folder-dropdown-wrapper .dropdown-arrow {
+        font-size: 18px !important;
+        right: 8px !important;
+    }
+
+    .switching-spell-controls-row .switching-spell-hero-right {
+        flex: 1 1 calc(50% - 3px) !important;
+        width: calc(50% - 3px) !important;
+        margin-left: 0 !important;
+    }
+
+    .switching-spell-controls-row .switching-spell-search-wrapper,
+    .switching-spell-controls-row .switching-spell-search-wrapper .input {
+        width: 100% !important;
+        height: 36px !important;
+        font-size: 12.5px !important;
+    }
+
+    .avada-kedavra-hero-right {
+        flex: 1 1 100% !important;
+        width: 100% !important;
+        margin-left: 0 !important;
+    }
+
+    .avada-kedavra-search-wrapper,
+    .avada-kedavra-search-wrapper .input {
+        width: 100% !important;
+        height: 34px !important;
+        font-size: 13px !important;
+    }
+
+    /* 6. Account Creation & Checking Pages */
+    .account-container {
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        height: 100% !important;
+        max-height: 100dvh !important;
+        padding: 10px !important;
+        gap: 10px !important;
+    }
+
+    .account-top-row {
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .account-card {
+        padding: 14px 14px 16px 14px !important;
+        border-radius: 14px !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    .account-card-header {
+        margin-bottom: 8px !important;
+    }
+
+    .account-card-single .account-input-group {
+        display: flex !important;
+        flex-direction: column !important;
+        width: 100% !important;
+        gap: 0 !important;
+    }
+
+    .account-card-single .account-input-row {
+        display: flex !important;
+        flex-direction: column !important;
+        flex-wrap: nowrap !important;
+        gap: 10px !important;
+        width: 100% !important;
+        height: auto !important;
+        min-height: 0 !important;
+    }
+
+    .account-card-single .account-input-row .input-wrapper,
+    .account-card-single .input-wrapper {
+        width: 100% !important;
+        flex: none !important;
+        min-width: 0 !important;
+        margin: 0 !important;
+    }
+
+    .account-card-single .account-input-row .input-wrapper .input {
+        width: 100% !important;
+        height: 44px !important;
+        font-size: 15px !important;
+        border-radius: 10px !important;
+    }
+
+    .account-card-single #createSingleBtn,
+    .account-card-single .account-create-btn {
+        width: 100% !important;
+        height: 44px !important;
+        justify-content: center !important;
+        font-size: 14.5px !important;
+        font-weight: 700 !important;
+        border-radius: 10px !important;
+        margin-top: 2px !important;
+        flex-shrink: 0 !important;
+    }
+
+    .account-single-footer {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 4px !important;
+        margin-top: 8px !important;
+        min-height: 0 !important;
+        width: 100% !important;
+    }
+
+    .account-single-hint {
+        flex: none !important;
+        width: 100% !important;
+        font-size: 12px !important;
+        color: var(--color-text-muted, #94a3b8) !important;
+        gap: 5px !important;
+    }
+
+    .account-dept-error-msg {
+        flex: none !important;
+        width: 100% !important;
+        font-size: 12px !important;
+    }
+
+    .account-single-spacer {
+        display: none !important;
+    }
+
+    .account-bulk-layout {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 8px !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        height: auto !important;
+    }
+
+    .account-bulk-left {
+        display: flex !important;
+        flex-direction: row !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        width: 100% !important;
+        min-height: 0 !important;
+        margin: 0 !important;
+    }
+
+    .account-bulk-left .account-label {
+        margin: 0 !important;
+        font-size: 13.5px !important;
+        white-space: nowrap !important;
+    }
+
+    .account-bulk-left #downloadTemplateBtn,
+    .account-bulk-left .account-template-btn {
+        width: auto !important;
+        height: 32px !important;
+        padding: 0 10px !important;
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        border-radius: 8px !important;
+        flex-shrink: 0 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 5px !important;
+        margin: 0 !important;
+    }
+
+    .btn-text-desktop {
+        display: none !important;
+    }
+
+    .btn-text-mobile {
+        display: inline !important;
+    }
+
+    .account-dropzone {
+        min-height: 92px !important;
+        padding: 12px 10px !important;
+        border-radius: 12px !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    .account-dropzone .dropzone-cloud-icon {
+        width: 26px !important;
+        height: 26px !important;
+    }
+
+    .account-dropzone .dropzone-title {
+        font-size: 13.5px !important;
+        font-weight: 600 !important;
+        margin-top: 4px !important;
+    }
+
+    .account-dropzone .dropzone-subtitle {
+        font-size: 11.5px !important;
+        color: var(--color-text-muted, #94a3b8) !important;
+    }
+
+    .account-dropzone .dropzone-check-btn {
+        width: 100% !important;
+        height: 42px !important;
+        font-size: 13.5px !important;
+        justify-content: center !important;
+        border-radius: 10px !important;
+    }
+
+    /* Result & Filter section on mobile */
+    .account-result-section {
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .account-search-row {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 6px !important;
+        width: 100% !important;
+        align-items: center !important;
+    }
+
+    .account-stat-pills {
+        order: 1 !important;
+        width: 100% !important;
+        display: grid !important;
+        grid-template-columns: 1fr 1fr 1fr !important;
+        gap: 6px !important;
+        margin: 0 0 4px 0 !important;
+    }
+
+    .account-stat-pill {
+        width: 100% !important;
+        padding: 4px 6px !important;
+        justify-content: center !important;
+        font-size: 11.5px !important;
+        box-sizing: border-box !important;
+    }
+
+    .account-stat-pill .pill-label {
+        font-size: 11px !important;
+    }
+
+    .account-stat-pill .pill-val {
+        font-size: 12.5px !important;
+        font-weight: 700 !important;
+    }
+
+    .account-status-box {
+        order: 2 !important;
+        flex: 1 1 calc(50% - 3px) !important;
+        min-width: 0 !important;
+        max-width: calc(50% - 3px) !important;
+        width: calc(50% - 3px) !important;
+        height: 38px !important;
+    }
+
+    .account-status-box .input {
+        height: 38px !important;
+        font-size: 13px !important;
+    }
+
+    .account-search-wrap {
+        order: 3 !important;
+        flex: 1 1 calc(50% - 3px) !important;
+        min-width: 0 !important;
+        max-width: calc(50% - 3px) !important;
+        width: calc(50% - 3px) !important;
+        height: 38px !important;
+    }
+
+    .account-search-wrap .input {
+        height: 38px !important;
+        font-size: 13px !important;
+    }
+
+    #accountTableContainer.table-container {
+        flex: 1 1 auto !important;
+        min-height: 200px !important;
+        border-radius: 12px !important;
+        width: 100% !important;
+    }
+
+    /* 7. Reparo Spell Mobile Optimization */
+    .winx-container {
+        padding: 6px 8px !important;
+        gap: 8px !important;
+    }
+
+    .winx-top-row {
+        grid-template-columns: 1fr !important;
+        gap: 8px !important;
+    }
+
+    .winx-search-bar {
+        padding: 8px 10px !important;
+        border-radius: 10px !important;
+        margin-bottom: 0 !important;
+    }
+
+    .winx-label {
+        font-size: 11px !important;
+        margin-bottom: 4px !important;
+        letter-spacing: 0.5px !important;
+    }
+
+    .winx-input-row {
+        display: flex !important;
+        gap: 6px !important;
+        width: 100% !important;
+    }
+
+    .winx-input-row .winx-input {
+        flex: 1 1 0% !important;
+        min-width: 0 !important;
+        height: 34px !important;
+        font-size: 13px !important;
+        padding: 0 10px !important;
+    }
+
+    .winx-input-row .winx-btn {
+        flex: 0 0 auto !important;
+        height: 34px !important;
+        padding: 0 12px !important;
+        font-size: 12px !important;
+    }
+
+    .winx-bulk-layout {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 8px !important;
+        align-items: end !important;
+    }
+
+    .winx-bulk-left {
+        display: flex !important;
+        flex-direction: column !important;
+        min-height: 0 !important;
+        height: auto !important;
+    }
+
+    .winx-bulk-left #downloadTemplateBtn {
+        width: 100% !important;
+        height: 36px !important;
+        font-size: 11px !important;
+        padding: 0 8px !important;
+        justify-content: center !important;
+    }
+
+    .winx-bulk-right {
+        width: 100% !important;
+        height: auto !important;
+        min-height: 0 !important;
+    }
+
+    .winx-dropzone {
+        min-height: 36px !important;
+        max-height: 36px !important;
+        height: 36px !important;
+        padding: 4px 8px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        border-radius: 8px !important;
+        box-sizing: border-box !important;
+    }
+
+    .winx-dropzone .dropzone-idle {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 6px !important;
+    }
+
+    .winx-dropzone .dropzone-icon-wrap {
+        margin-bottom: 0 !important;
+    }
+
+    .winx-dropzone .dropzone-cloud-icon {
+        width: 16px !important;
+        height: 16px !important;
+    }
+
+    .winx-dropzone .dropzone-title {
+        font-size: 11px !important;
+        margin-bottom: 0 !important;
+        white-space: nowrap !important;
+    }
+
+    .winx-dropzone .dropzone-subtitle {
+        display: none !important;
+    }
+
+    /* Winx form grid (Bùa liệu material bị condingu xóa) */
+    .winx-form-grid {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 6px 8px !important;
+        margin-top: 4px !important;
+        margin-bottom: 8px !important;
+    }
+
+    .winx-sublabel {
+        font-size: 10px !important;
+        margin-bottom: 2px !important;
+    }
+
+    .winx-form-item .winx-input {
+        height: 32px !important;
+        font-size: 12px !important;
+        padding: 0 8px !important;
+    }
+
+    .winx-search-bar-form .winx-form-help-box,
+    .winx-search-bar-form [style*="border: 1px dashed"] {
+        font-size: 10px !important;
+        padding: 4px 8px !important;
+        line-height: 1.3 !important;
+    }
+
+    .winx-search-bar-form .winx-btn-primary {
+        height: 34px !important;
+        font-size: 12px !important;
+        padding: 0 12px !important;
+    }
+
+    .winx-table-container {
+        flex: 1 1 0% !important;
+        min-height: 220px !important;
+        border-radius: 12px !important;
+    }
+
+    .winx-table-scroll {
+        flex: 1 1 0% !important;
+        min-height: 0 !important;
+        overflow-x: auto !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+
+    /* 8. Table Containers & Scroll Areas across All Pages */
+    .table-container.hidden,
+    .table-container[style*="display: none"],
+    .table-container[style*="display:none"],
+    .table-footer.hidden,
+    .table-footer[style*="display: none"],
+    .table-footer[style*="display:none"] {
+        display: none !important;
+    }
+
+    .table-container:not(.output-barcode):not(.hidden):not([style*="display: none"]):not([style*="display:none"]) {
+        flex: 1 1 0% !important;
+        min-height: 0 !important;
+        height: auto !important;
+        max-height: none !important;
+        display: flex !important;
+        flex-direction: column !important;
+        margin: 0 !important;
+        border-radius: 12px !important;
+        overflow: hidden !important;
+    }
+
+    .table-scroll {
+        flex: 1 1 0% !important;
+        min-height: 0 !important;
+        overflow-x: auto !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        overscroll-behavior: contain !important;
+    }
+
+    .table-container table {
+        width: max-content !important;
+        min-width: 100% !important;
+        border-collapse: separate !important;
+        border-spacing: 0 !important;
+    }
+
+    /* Reset sticky horizontal column freezing on TDs only across ALL tables on mobile (TH remains vertically sticky!) */
+    .table-scroll td:nth-child(1),
+    .table-scroll td:nth-child(2),
+    .output-table-scroll td:nth-child(1),
+    .output-table-scroll td:nth-child(2),
+    .sub-output-table-scroll td:nth-child(1),
+    .sub-output-table-scroll td:nth-child(2),
+    .winx-table-scroll td:nth-child(1),
+    .winx-table-scroll td:nth-child(2),
+    .comparison-table td:nth-child(1),
+    .comparison-table td:nth-child(2),
+    .mes-master-table td:nth-child(1),
+    .mes-master-table td:nth-child(2) {
+        position: static !important;
+        left: auto !important;
+        box-shadow: none !important;
+        border-right: none !important;
+    }
+
+    /* Universal Vertical Sticky Header across ALL tables (Guaranteed solid top: 0 without leaking scrolled content) */
+    .table-scroll thead,
+    .output-table-scroll thead,
+    .sub-output-table-scroll thead,
+    .table-container thead {
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 30 !important;
+        background: var(--color-bg-surface-elevated-solid, #1e293b) !important;
+    }
+
+    .table-scroll thead th,
+    .table-scroll th,
+    .output-table-scroll thead th,
+    .output-table-scroll th,
+    .sub-output-table-scroll thead th,
+    .sub-output-table-scroll th,
+    #outputBarcodeTable thead th,
+    #subOutputBarcodeTable thead th,
+    .winx-table-scroll thead th,
+    .winx-table thead th,
+    .comparison-table thead th,
+    .comparison-table th,
+    .mes-master-table thead th,
+    #accountTable thead th,
+    #checkAccountTable thead th {
+        position: sticky !important;
+        top: 0 !important;
+        left: auto !important;
+        z-index: 30 !important;
+        font-size: 12px !important;
+        padding: 9px 12px !important;
+        font-weight: 700 !important;
+        color: var(--color-text-accent, #3dd5c0) !important;
+        background: var(--color-bg-surface-elevated-solid, #1e293b) !important;
+        border-bottom: 2px solid var(--color-border-interactive, rgba(61, 213, 192, 0.35)) !important;
+        box-shadow: 0 1px 0 var(--color-border-interactive, rgba(61, 213, 192, 0.35)) !important;
+        white-space: nowrap !important;
+        user-select: none !important;
+    }
+
+    /* Touch-friendly Row Heights & Clean Typography */
+    .table-scroll tbody tr,
+    .winx-table tbody tr,
+    .comparison-table tbody tr,
+    .mes-master-table tbody tr,
+    #accountTable tbody tr,
+    #checkAccountTable tbody tr,
+    #tableBody tr {
+        min-height: 44px !important;
+        height: 44px !important;
+        cursor: pointer !important;
+        transition: background-color 0.15s ease !important;
+        -webkit-tap-highlight-color: transparent !important;
+    }
+
+    .table-scroll tbody td,
+    .winx-table tbody td,
+    .comparison-table tbody td,
+    .mes-master-table tbody td,
+    #accountTable tbody td,
+    #checkAccountTable tbody td,
+    #tableBody td {
+        font-size: 13px !important;
+        padding: 10px 12px !important;
+        line-height: 1.4 !important;
+        color: var(--color-text-primary, #f8fafc) !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+        white-space: nowrap !important;
+        max-width: 250px !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+
+    /* Standby Placeholder when no search is active */
+    .table-standby-placeholder {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        min-height: 220px;
+        padding: 32px 16px;
+        box-sizing: border-box;
+        text-align: center;
+        user-select: none;
+        pointer-events: none;
+    }
+
+    .standby-icon-ring {
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        background: rgba(61, 213, 192, 0.08);
+        border: 1.5px dashed var(--color-border-interactive, rgba(61, 213, 192, 0.35));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 12px;
+    }
+
+    .standby-icon {
+        font-size: 28px;
+        color: var(--color-text-accent, #3dd5c0);
+        opacity: 0.85;
+    }
+
+    .standby-title {
+        font-size: 14.5px;
+        font-weight: 700;
+        color: var(--color-text-primary, #f8fafc);
+        margin-bottom: 4px;
+        letter-spacing: 0.3px;
+    }
+
+    .standby-subtitle {
+        font-size: 12px;
+        color: var(--color-text-muted, #94a3b8);
+        max-width: 280px;
+        line-height: 1.45;
+    }
+
+    /* 9. Universal Table Footer on Mobile */
+    .table-footer {
+        flex-shrink: 0 !important;
+        margin-top: auto !important;
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        padding: 6px 10px !important;
+        border-top: 1px solid var(--color-border-glass) !important;
+        background: var(--color-bg-surface-elevated, rgba(15, 23, 42, 0.95)) !important;
+        gap: 6px !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    .table-footer.hidden {
+        display: none !important;
+    }
+
+    .table-footer::-webkit-scrollbar {
+        display: none !important;
+    }
+
+    /* When action buttons exist in footer (Insert Query, Export Excel, etc.), use 2-tier Grid layout so buttons are 100% visible on screen without scrolling! */
+    .table-footer:not(.hidden):has(.table-footer-right button),
+    .table-footer:not(.hidden):has(.btn-insert-query),
+    .table-footer:not(.hidden):has(.btn-export-excel),
+    .table-footer:not(.hidden):has(.btn-mobile-action) {
+        display: grid !important;
+        grid-template-columns: auto 1fr !important;
+        grid-template-rows: auto auto !important;
+        row-gap: 6px !important;
+        column-gap: 8px !important;
+        align-items: center !important;
+        overflow-x: hidden !important;
+    }
+
+    .table-footer:not(.hidden):has(.table-footer-right button) .table-footer-left,
+    .table-footer:not(.hidden):has(.btn-insert-query) .table-footer-left,
+    .table-footer:not(.hidden):has(.btn-export-excel) .table-footer-left,
+    .table-footer:not(.hidden) .table-footer-left,
+    .table-footer:not(.hidden) .row-count {
+        grid-column: 1 / 2 !important;
+        grid-row: 1 / 2 !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+    }
+
+    .table-footer:not(.hidden):has(.table-footer-right button) .table-footer-right,
+    .table-footer:not(.hidden):has(.btn-insert-query) .table-footer-right,
+    .table-footer:not(.hidden):has(.btn-export-excel) .table-footer-right,
+    .table-footer:not(.hidden):has(.btn-mobile-action) .table-footer-right,
+    .table-footer:not(.hidden):has(.table-footer-right button) .table-footer-actions,
+    .table-footer:not(.hidden):has(.btn-insert-query) .table-footer-actions,
+    .table-footer:not(.hidden):has(.btn-export-excel) .table-footer-actions {
+        grid-column: 2 / 3 !important;
+        grid-row: 1 / 2 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-end !important;
+        gap: 6px !important;
+    }
+
+    .table-footer:not(.hidden):has(.table-footer-right button) .pagination-nav,
+    .table-footer:not(.hidden):has(.btn-insert-query) .pagination-nav,
+    .table-footer:not(.hidden):has(.btn-export-excel) .pagination-nav,
+    .table-footer:not(.hidden):has(.btn-mobile-action) .pagination-nav {
+        grid-column: 1 / -1 !important;
+        grid-row: 2 / 3 !important;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        width: 100% !important;
+        margin: 0 auto !important;
+    }
+
+    .table-footer-left,
+    .table-footer-right,
+    .table-footer-actions {
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        flex-shrink: 0 !important;
+    }
+
+    .row-count {
+        font-size: 12px !important;
+        white-space: nowrap !important;
+    }
+
+    .pagination-nav {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        flex-shrink: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        scrollbar-width: none !important;
+        padding: 2px 0 !important;
+    }
+
+    .pagination-nav::-webkit-scrollbar {
+        display: none !important;
+    }
+
+    .pagination-content {
+        display: inline-flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 3px !important;
+        list-style: none !important;
+        padding: 0 4px !important;
+        margin: 0 auto !important;
+        flex-wrap: nowrap !important;
+        white-space: nowrap !important;
+    }
+
+    .pagination-item {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        height: 28px !important;
+        flex-shrink: 0 !important;
+    }
+
+    .pagination-link,
+    .pagination-nav a,
+    .pagination-nav button {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        min-width: 26px !important;
+        height: 26px !important;
+        padding: 0 5px !important;
+        font-size: 11.5px !important;
+        line-height: 1 !important;
+        border-radius: 5px !important;
+        box-sizing: border-box !important;
+        vertical-align: middle !important;
+        color: var(--color-text-secondary, #cbd5e1) !important;
+    }
+
+    .pagination-link[aria-current="page"] {
+        background: var(--primary-gradient, linear-gradient(135deg, #3dd5c0 0%, #16a085 100%)) !important;
+        color: #030712 !important;
+        font-weight: 700 !important;
+        border-color: transparent !important;
+        box-shadow: 0 0 8px rgba(61, 213, 192, 0.35) !important;
+    }
+
+    /* Previous / Next buttons on mobile: display 'Trước' & 'Sau' with chevron icons matching desktop */
+    .pagination-previous,
+    .pagination-next {
+        width: auto !important;
+        min-width: auto !important;
+        height: 26px !important;
+        padding: 0 7px !important;
+        gap: 3px !important;
+    }
+
+    .pagination-previous span:not(.material-symbols-outlined),
+    .pagination-next span:not(.material-symbols-outlined) {
+        display: inline-block !important; /* Show text 'Trước' & 'Sau' on mobile like desktop */
+        font-size: 11.5px !important;
+        font-weight: 500 !important;
+        line-height: 1 !important;
+    }
+
+    .pagination-previous .material-symbols-outlined,
+    .pagination-next .material-symbols-outlined {
+        font-size: 14px !important;
+        line-height: 1 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 14px !important;
+        height: 14px !important;
+        margin: 0 !important;
+    }
+
+    .pagination-ellipsis {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 14px !important;
+        min-width: 14px !important;
+        height: 26px !important;
+        padding: 0 !important;
+        color: var(--color-text-muted, #94a3b8) !important;
+    }
+
+    .pagination-ellipsis .material-symbols-outlined {
+        font-size: 14px !important;
+        line-height: 1 !important;
+    }
+
+    .btn-insert-query {
+        height: 30px !important;
+        padding: 0 8px !important;
+        font-size: 11.5px !important;
+        border-radius: 6px !important;
+        flex-shrink: 0 !important;
+    }
+
+    .btn-insert-query .text {
+        font-size: 11.5px !important;
+    }
+
+    .spec-stat-badge {
+        font-size: 11px !important;
+        padding: 2px 6px !important;
+        white-space: nowrap !important;
+    }
+
+    .btn-mobile-action {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 4px !important;
+        height: 30px !important;
+        padding: 0 8px !important;
+        font-size: 11.5px !important;
+        font-weight: 600 !important;
+        border-radius: 6px !important;
+        cursor: pointer !important;
+        transition: all 0.18s ease !important;
+        -webkit-tap-highlight-color: transparent !important;
+    }
+
+    .btn-mobile-details {
+        background: rgba(61, 213, 192, 0.12) !important;
+        border: 1px solid var(--color-border-interactive, rgba(61, 213, 192, 0.35)) !important;
+        color: var(--color-text-accent, #3dd5c0) !important;
+    }
+
+    .btn-mobile-more {
+        background: rgba(255, 255, 255, 0.08) !important;
+        border: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.15)) !important;
+        color: var(--color-text-secondary, #e2e8f0) !important;
+    }
+
+    .btn-mobile-action .material-symbols-outlined {
+        font-size: 15px !important;
+    }
+
+    .btn-export-excel {
+        height: 30px !important;
+        padding: 0 8px !important;
+        border-radius: 6px !important;
+        flex-shrink: 0 !important;
+    }
+
+    .btn-export-excel .text {
+        font-size: 11.5px !important;
+    }
+
+    .btn-export-excel .icon svg {
+        width: 1.1em !important;
+        height: 1.1em !important;
+    }
+
+    /* 10. Output Barcode Table Layout on Mobile */
+    .output-barcode {
+        display: none;
+        flex-direction: column !important;
+        flex: 1 1 0% !important;
+        min-height: 0 !important;
+        height: auto !important;
+        max-height: none !important;
+        border-radius: 12px !important;
+    }
+
+    .output-barcode[style*="display: none"] {
+        display: none !important;
+    }
+
+    .table-container.single-row-mode,
+    .has-output-barcode .table-container:not(.output-barcode) {
+        flex: 0 0 auto !important;
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+    }
+
+    .table-container.single-row-mode .table-scroll,
+    .has-output-barcode .table-container:not(.output-barcode) .table-scroll {
+        flex: 0 0 auto !important;
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+    }
+
+    .table-container.single-row-mode .table-footer,
+    .has-output-barcode .table-container:not(.output-barcode) .table-footer {
+        flex-shrink: 0 !important;
+        margin-top: 0 !important;
+    }
+
+    .output-header {
+        font-size: 12px !important;
+        padding: 6px 10px !important;
+    }
+
+    .output-table-scroll {
+        flex: 1 1 0% !important;
+        min-height: 0 !important;
+        overflow-x: auto !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+
+    .output-footer {
+        flex-shrink: 0 !important;
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        padding: 6px 10px !important;
+        margin-top: auto !important;
+        border-top: 1px solid var(--color-border-glass) !important;
+        background: var(--color-bg-surface-elevated, rgba(15, 23, 42, 0.95)) !important;
+        gap: 6px !important;
+    }
+
+    /* 11. Details Modal & Custom Modal on Mobile */
+    .details-modal-content {
+        width: 95% !important;
+        max-width: 95% !important;
+        max-height: 85vh !important;
+        border-radius: 14px !important;
+    }
+
+    .details-modal-header {
+        padding: 8px 12px !important;
+        min-height: 40px !important;
+    }
+
+    .details-modal-search-box {
+        display: none !important;
+    }
+
+    .details-modal-body {
+        font-size: 12px !important;
+        padding: 10px !important;
+    }
+
+    .custom-modal-content {
+        width: 92% !important;
+        max-width: 92% !important;
+        padding: 20px 16px !important;
+        border-radius: 14px !important;
+    }
+
+    /* 12. Comparison Modal (Kiểm tra cấp liệu) on Mobile */
+    .comparison-modal-content {
+        width: 95% !important;
+        max-width: 95% !important;
+        height: 88vh !important;
+        max-height: 88vh !important;
+        border-radius: 14px !important;
+    }
+
+    .comparison-modal-header {
+        padding: 8px 12px !important;
+        min-height: auto !important;
+        display: grid !important;
+        grid-template-columns: 1fr auto !important;
+        row-gap: 6px !important;
+        column-gap: 8px !important;
+        align-items: center !important;
+        flex-shrink: 0 !important;
+    }
+
+    .comparison-title-wrap {
+        display: contents !important;
+    }
+
+    .comparison-title-main {
+        grid-column: 1 / 2 !important;
+        grid-row: 1 / 2 !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+    }
+
+    .comparison-title {
+        font-size: 13.5px !important;
+        letter-spacing: 0.3px !important;
+    }
+
+    .comparison-icon {
+        font-size: 18px !important;
+    }
+
+    .comparison-header-actions {
+        grid-column: 2 / 3 !important;
+        grid-row: 1 / 2 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-end !important;
+    }
+
+    .comparison-close-btn {
+        width: 32px !important;
+        height: 32px !important;
+        border-radius: 8px !important;
+    }
+
+    .comparison-meta-info {
+        grid-column: 1 / -1 !important;
+        grid-row: 2 / 3 !important;
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        gap: 6px !important;
+        padding: 1px 0 2px 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+    }
+
+    .comparison-meta-info::-webkit-scrollbar {
+        display: none !important;
+    }
+
+    .comparison-meta-tag {
+        flex-shrink: 0 !important;
+        font-size: 11px !important;
+        padding: 2px 8px !important;
+        height: 24px !important;
+        border-radius: 6px !important;
+        white-space: nowrap !important;
+        gap: 4px !important;
+    }
+
+    .comparison-meta-tag .material-symbols-outlined {
+        font-size: 13px !important;
+    }
+
+    .comparison-modal-body {
+        padding: 8px 10px !important;
+        flex: 1 1 0% !important;
+        min-height: 0 !important;
+    }
+
+    .comparison-table-scroll {
+        flex: 1 1 0% !important;
+        min-height: 0 !important;
+        border-radius: 10px !important;
+    }
+
+    .comparison-table th,
+    .comparison-table td {
+        padding: 8px 10px !important;
+        font-size: 12.5px !important;
+    }
+
+    .comparison-table .site-cell {
+        font-size: 12px !important;
+        white-space: nowrap !important;
+    }
+
+    .comparison-table .site-id-text {
+        font-size: 13px !important;
+        margin-bottom: 3px !important;
+    }
+
+    .comparison-table .barcode-highlight {
+        font-size: 12px !important;
+        padding: 2px 7px !important;
+        margin-bottom: 0 !important;
+    }
+
+    .comparison-table .barcode-row-wrap {
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        margin: 3px 0 !important;
+    }
+
+    .comparison-table .barcode-meta-row {
+        gap: 8px !important;
+        font-size: 11px !important;
+    }
+
+    .comparison-copy-btn {
+        height: 22px !important;
+        padding: 2px 7px !important;
+        font-size: 11px !important;
+        gap: 3px !important;
+    }
+
+    .comparison-copy-btn .material-symbols-outlined {
+        font-size: 13px !important;
+    }
+
+    .comparison-modal-footer {
+        padding: 6px 12px !important;
+        min-height: auto !important;
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 8px !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        flex-shrink: 0 !important;
+        border-radius: 0 0 14px 14px !important;
+    }
+
+    .comparison-modal-footer::-webkit-scrollbar {
+        display: none !important;
+    }
+
+    .comparison-badges {
+        flex-shrink: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 5px !important;
+    }
+
+    .comparison-badge {
+        font-size: 11px !important;
+        padding: 2px 8px !important;
+        height: 22px !important;
+        border-radius: 10px !important;
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
+    }
+
+    .comparison-badge .material-symbols-outlined {
+        font-size: 12px !important;
+    }
+
+    .comparison-footer-info {
+        flex-shrink: 0 !important;
+        margin-left: auto !important;
+        display: flex !important;
+        align-items: center !important;
+    }
+
+    .comparison-legend {
+        flex-shrink: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        flex-wrap: nowrap !important;
+    }
+
+    .comparison-legend .legend-title {
+        display: none !important;
+    }
+
+    .comparison-legend .legend-item {
+        font-size: 11px !important;
+        padding: 2px 6px !important;
+        height: 22px !important;
+        border-radius: 4px !important;
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
+        gap: 4px !important;
+    }
+
+    .comparison-legend .legend-item .legend-dot {
+        width: 6px !important;
+        height: 6px !important;
+    }
+
+    /* 13. Check KD Account (/check-kd-account) Mobile Optimization */
+    .check-kd-account .search-section {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 8px !important;
+        width: 100% !important;
+        flex-shrink: 0 !important;
+        margin-bottom: 8px !important;
+    }
+
+    .check-kd-account .search-section .check-account-search-col,
+    .check-kd-account .search-section .search-row:first-child {
+        grid-column: 1 / 2 !important;
+        width: 100% !important;
+        margin-bottom: 0 !important;
+    }
+
+    .check-kd-account .search-section .check-account-client-col,
+    .check-kd-account .search-section .search-row-client {
+        grid-column: 2 / 3 !important;
+        width: 100% !important;
+        margin-bottom: 0 !important;
+    }
+
+    .check-kd-account .search-section .input-box,
+    .check-kd-account .search-section .input-wrapper {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        height: 38px !important;
+    }
+
+    .check-kd-account .search-section .input {
+        height: 38px !important;
+        font-size: 16px !important;
+    }
+
+    .check-kd-account #checkAccountTableContainer.table-container {
+        flex: 0 1 auto !important;
+        height: auto !important;
+        max-height: calc(100dvh - 120px) !important;
+        min-height: 0 !important;
+        border-radius: 12px !important;
+        width: 100% !important;
+        flex-direction: column !important;
+        overflow: hidden !important;
+    }
+    .check-kd-account #checkAccountTableContainer.table-container[style*="display: none"],
+    .check-kd-account #checkAccountTableContainer.table-container[style*="display:none"],
+    .check-kd-account #checkAccountTableContainer.table-container.hidden {
+        display: none !important;
+    }
+    .check-kd-account #checkAccountTableContainer.table-container:not([style*="display: none"]):not([style*="display:none"]):not(.hidden) {
+        display: flex !important;
+    }
+
+    .check-kd-account #checkAccountTableContainer .table-scroll {
+        flex: 0 1 auto !important;
+        height: auto !important;
+        max-height: calc(100dvh - 175px) !important;
+        min-height: 0 !important;
+        overflow-x: auto !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+
+    .check-kd-account #checkAccountTableContainer table {
+        min-width: 520px !important;
+        width: 100% !important;
+    }
+
+    .check-kd-account #checkAccountTableContainer table th:nth-child(1),
+    .check-kd-account #checkAccountTableContainer table td:nth-child(1) {
+        width: 110px !important;
+        min-width: 110px !important;
+        max-width: 130px !important;
+    }
+
+    .check-kd-account #checkAccountTableContainer table th:nth-child(2),
+    .check-kd-account #checkAccountTableContainer table td:nth-child(2) {
+        width: 120px !important;
+        min-width: 120px !important;
+        max-width: 140px !important;
+    }
+
+    .check-kd-account #checkAccountTableContainer table th:nth-child(3),
+    .check-kd-account #checkAccountTableContainer table td:nth-child(3) {
+        width: 75px !important;
+        min-width: 75px !important;
+        max-width: 85px !important;
+        text-align: center !important;
+    }
+
+    .check-kd-account #checkAccountTableContainer table th:nth-child(4),
+    .check-kd-account #checkAccountTableContainer table td:nth-child(4) {
+        min-width: 215px !important;
+        width: auto !important;
+    }
+
+    .check-kd-account .table-footer {
+        padding: 6px 10px !important;
+        min-height: 38px !important;
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        gap: 6px !important;
+        flex-shrink: 0 !important;
+    }
+
+    .check-kd-account .table-footer-left {
+        flex-shrink: 0 !important;
+    }
+
+    .check-kd-account .table-footer-left .row-count {
+        font-size: 11.5px !important;
+        padding: 2px 8px !important;
+    }
+
+    .check-kd-account .table-footer-right {
+        flex-shrink: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+    }
+
+    .check-kd-account .btn-export-excel {
+        height: 28px !important;
+        padding: 0 10px !important;
+        font-size: 11.5px !important;
+    }
+
+    .check-kd-account .btn-export-excel svg {
+        width: 1.3em !important;
+        height: 1.3em !important;
+    }
+
+    /* 14. Mobile Optimization for Reprint, Material Transfer, and Substitutions */
+    /* Page 1: Reprint (/reprint) */
+    .reprint .search-section {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 8px !important;
+        width: 100% !important;
+        flex-shrink: 0 !important;
+    }
+    .reprint .search-section .reprint-date-col,
+    .reprint .search-section .search-row:first-child {
+        grid-column: 1 / 2 !important;
+        width: 100% !important;
+    }
+    .reprint .search-section .reprint-search-col,
+    .reprint .search-section .search-row:nth-child(2),
+    .reprint .search-section .search-row-client {
+        grid-column: 2 / 3 !important;
+        width: 100% !important;
+    }
+
+    /* Page 2: Material Transfer (/material-transfer) */
+    .material-transfer .search-section {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 8px !important;
+        width: 100% !important;
+        flex-shrink: 0 !important;
+    }
+    .material-transfer .search-section .search-row:has(#barcode),
+    .material-transfer .search-section .search-row:has(#barcodeInputBox) {
+        grid-column: 1 / -1 !important;
+        width: 100% !important;
+    }
+    .material-transfer .search-section .search-row-client {
+        grid-column: 1 / 2 !important;
+        width: 100% !important;
+    }
+    .material-transfer .search-section .search-row-ocr {
+        grid-column: 2 / 3 !important;
+        width: 100% !important;
+    }
+
+    /* Page 3: Substitutions (/substitutions) - 2-Column Compact Side-by-Side on Mobile */
+    .substitutions .search-section {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 8px !important;
+        width: 100% !important;
+        flex-shrink: 0 !important;
+        margin-bottom: 8px !important;
+    }
+    .substitutions .search-section .substitutions-recipe-col,
+    .substitutions .search-section .search-row:first-child {
+        grid-column: 1 / 2 !important;
+        width: 100% !important;
+        margin-bottom: 0 !important;
+    }
+    .substitutions .search-section .substitutions-search-col,
+    .substitutions .search-section .search-row-client,
+    .substitutions .search-section .search-row:has(#clientSearch) {
+        grid-column: 2 / 3 !important;
+        width: 100% !important;
+        margin-bottom: 0 !important;
+    }
+    .substitutions .search-section .input-box,
+    .substitutions .search-section .input-wrapper {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        height: 38px !important;
+    }
+    .substitutions .search-section .input {
+        height: 38px !important;
+        font-size: 16px !important;
+    }
+    /* Page 4: Technical Specifications (/technical-specifications) - 2-Column Compact Side-by-Side on Mobile */
+    .technical-specifications .search-section {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 8px !important;
+        width: 100% !important;
+        flex-shrink: 0 !important;
+        margin-bottom: 8px !important;
+    }
+    .technical-specifications .search-section .tech-spec-type-col,
+    .technical-specifications .search-section .search-row:first-child {
+        grid-column: 1 / 2 !important;
+        width: 100% !important;
+        margin-bottom: 0 !important;
+    }
+    .technical-specifications .search-section .tech-spec-client-col,
+    .technical-specifications .search-section .search-row:nth-child(2),
+    .technical-specifications .search-section .search-row-client,
+    .technical-specifications .search-section .search-row:has(#clientSearch) {
+        grid-column: 2 / 3 !important;
+        width: 100% !important;
+        margin-bottom: 0 !important;
+    }
+    .technical-specifications .search-section .input-box,
+    .technical-specifications .search-section .input-wrapper {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        height: 38px !important;
+    }
+    .technical-specifications .search-section .input {
+        height: 38px !important;
+        font-size: 16px !important;
+    }
+    .technical-specifications .search-section .user-label,
+    .substitutions .search-section .user-label {
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        max-width: calc(100% - 24px) !important;
+        font-size: 13px !important;
+    }
+
+    /* 15. Mobile Optimization for Check QC Data, Check Mesync, Station Configuration, and Technical Specifications */
+    /* Universal footer button alignment safeguard */
+    .table-footer > .btn-export-excel {
+        grid-column: 2 / 3 !important;
+        grid-row: 1 / 2 !important;
+        justify-self: end !important;
+        margin-left: auto !important;
+    }
+
+    /* Standardized Compact Mobile Table Footer for Non-Paginated Data Pages */
+    .reprint .table-footer:not(.hidden),
+    .material-transfer .table-footer:not(.hidden),
+    .substitutions .table-footer:not(.hidden),
+    .technical-specifications .table-footer:not(.hidden),
+    .check-qc-data .table-footer:not(.hidden),
+    .check-mesync .table-footer:not(.hidden),
+    .station-configuration .table-footer:not(.hidden) {
+        padding: 6px 10px !important;
+        min-height: 38px !important;
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        gap: 6px !important;
+        flex-shrink: 0 !important;
+    }
+
+    .reprint .table-footer-left,
+    .material-transfer .table-footer-left,
+    .substitutions .table-footer-left,
+    .technical-specifications .table-footer-left,
+    .check-qc-data .table-footer-left,
+    .check-mesync .table-footer-left,
+    .station-configuration .table-footer-left {
+        flex-shrink: 0 !important;
+    }
+
+    .reprint .table-footer-left .row-count,
+    .material-transfer .table-footer-left .row-count,
+    .substitutions .table-footer-left .row-count,
+    .technical-specifications .table-footer-left .row-count,
+    .check-qc-data .table-footer-left .row-count,
+    .check-mesync .table-footer-left .row-count,
+    .station-configuration .table-footer-left .row-count {
+        font-size: 11.5px !important;
+        padding: 2px 8px !important;
+    }
+
+    .reprint .table-footer-right,
+    .material-transfer .table-footer-right,
+    .substitutions .table-footer-right,
+    .technical-specifications .table-footer-right,
+    .check-qc-data .table-footer-right,
+    .check-mesync .table-footer-right,
+    .station-configuration .table-footer-right {
+        flex-shrink: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        margin-left: auto !important;
+    }
+
+    .reprint .btn-export-excel,
+    .material-transfer .btn-export-excel,
+    .substitutions .btn-export-excel,
+    .technical-specifications .btn-export-excel,
+    .check-qc-data .btn-export-excel,
+    .check-mesync .btn-export-excel,
+    .station-configuration .btn-export-excel {
+        height: 28px !important;
+        padding: 0 10px !important;
+        font-size: 11.5px !important;
+    }
+
+    .reprint .btn-export-excel svg,
+    .material-transfer .btn-export-excel svg,
+    .substitutions .btn-export-excel svg,
+    .technical-specifications .btn-export-excel svg,
+    .check-qc-data .btn-export-excel svg,
+    .check-mesync .btn-export-excel svg,
+    .station-configuration .btn-export-excel svg {
+        width: 1.3em !important;
+        height: 1.3em !important;
+    }
+
+    /* Page 1: Check QC Data (/check-qc-data) */
+    .check-qc-data .search-section {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 8px !important;
+        width: 100% !important;
+        flex-shrink: 0 !important;
+    }
+    .check-qc-data .search-section .check-qc-date-col,
+    .check-qc-data .search-section .search-row:first-child {
+        grid-column: 1 / 2 !important;
+        width: 100% !important;
+    }
+    .check-qc-data .search-section .check-qc-search-col,
+    .check-qc-data .search-section .search-row:nth-child(2),
+    .check-qc-data .search-section .search-row-client {
+        grid-column: 2 / 3 !important;
+        width: 100% !important;
+    }
+
+    /* Page 2: Check Mesync (/check-mesync) - 2-Column Compact Side-by-Side on Mobile */
+    .check-mesync .search-section {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 8px !important;
+        width: 100% !important;
+        flex-shrink: 0 !important;
+        margin-bottom: 8px !important;
+    }
+    .check-mesync .search-section .check-mesync-keyword-col,
+    .check-mesync .search-section .search-row:first-child,
+    .check-mesync .search-section .search-row:has(#mesync_keyword) {
+        grid-column: 1 / 2 !important;
+        width: 100% !important;
+        margin-bottom: 0 !important;
+    }
+    .check-mesync .search-section .check-mesync-client-col,
+    .check-mesync .search-section .search-row:nth-child(2),
+    .check-mesync .search-section .search-row-client,
+    .check-mesync .search-section .search-row:has(#clientSearch) {
+        grid-column: 2 / 3 !important;
+        width: 100% !important;
+        margin-bottom: 0 !important;
+    }
+    .check-mesync .search-section .input-box,
+    .check-mesync .search-section .input-wrapper {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        height: 38px !important;
+    }
+    .check-mesync .search-section .input {
+        height: 38px !important;
+        font-size: 16px !important;
+    }
+
+    /* Page 3: Station Configuration (/station-configuration) */
+    .station-configuration .search-section {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 8px !important;
+        width: 100% !important;
+        flex-shrink: 0 !important;
+    }
+    .station-configuration .search-section .station-dept-col,
+    .station-configuration .search-section .search-row:first-child {
+        grid-column: 1 / 2 !important;
+        width: 100% !important;
+    }
+    .station-configuration .search-section .station-machine-col,
+    .station-configuration .search-section .search-row:nth-child(2) {
+        grid-column: 2 / 3 !important;
+        width: 100% !important;
+    }
+    .station-configuration .search-section .input-box {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    /* 11. Universal Table Touch Gestures & Context Menu on Mobile */
+    .table-container table tbody tr,
+    #tableBody tr,
+    #outputBarcodeTableBody tr,
+    #subOutputBarcodeTableBody tr,
+    #checkAccountTableBody tr,
+    #scanBarcodeTableBody tr {
+        -webkit-touch-callout: none !important;
+        user-select: none !important;
+        -webkit-user-select: none !important;
+    }
+
+    .context-menu {
+        position: fixed !important;
+        z-index: 99999 !important;
+        border-radius: 12px !important;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.75), 0 0 0 1px var(--color-border-interactive, rgba(61, 213, 192, 0.35)) !important;
+        background: var(--color-bg-surface-elevated, rgba(15, 23, 42, 0.98)) !important;
+        backdrop-filter: blur(20px) !important;
+        -webkit-backdrop-filter: blur(20px) !important;
+        min-width: 200px !important;
+        max-width: calc(100vw - 20px) !important;
+        max-height: calc(100vh - 24px) !important;
+        overflow-y: auto !important;
+        overscroll-behavior: contain !important;
+        padding: 6px 0 !important;
+    }
+
+    .context-menu-item {
+        padding: 10px 14px !important;
+        min-height: 40px !important;
+        font-size: 13px !important;
+        color: var(--color-text-secondary, #cbd5e1) !important;
+        display: flex;
+        align-items: center !important;
+        gap: 10px !important;
+        -webkit-tap-highlight-color: transparent !important;
+        cursor: pointer !important;
+        touch-action: manipulation !important;
+        user-select: none !important;
+        -webkit-user-select: none !important;
+    }
+
+    .context-menu-item * {
+        pointer-events: none !important;
+    }
+
+    .context-menu-item:active,
+    .context-menu-item:hover {
+        background: var(--color-interactive-bg-hover, rgba(61, 213, 192, 0.18)) !important;
+        color: var(--color-text-accent, #3dd5c0) !important;
+    }
+
+    /* 16. Hide topQuickActions from sidebar drawer on mobile viewports only */
+    #sidebar #topQuickActions,
+    #sidebar .top-quick-actions {
+        display: none !important;
+    }
 }

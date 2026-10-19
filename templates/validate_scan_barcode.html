@@ -16,7 +16,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/flatpickr/flatpickr.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/material-symbols/material-symbols.css') }}">
 </head>
-<body class="{% if is_frame %}is-spa-frame{% endif %} app-loading-state">
+<body class="validate-scan-barcode validate-scan-barcode-page {% if is_frame %}is-spa-frame{% endif %} app-loading-state">
     {% if not is_frame %}{% include "components/sidebar.html" %}{% endif %}
     <!-- <canvas id="starfield"></canvas> -->
     <div class="container">
@@ -61,11 +61,6 @@
         </div>
     </div>
     
-    <!-- Context Menu -->
-    <div id="contextMenu" class="context-menu">
-        <div class="context-menu-item" data-action="validate_scan_barcode">Kiểm tra cấp liệu</div>
-    </div>
-    
     <!-- Comparison Modal -->
     <div id="comparisonModal" class="comparison-modal hidden" role="dialog" aria-modal="true" aria-labelledby="comparisonModalTitle">
         <div class="comparison-modal-content">
@@ -97,15 +92,15 @@
                         <span class="legend-title"><span class="material-symbols-outlined">palette</span> Chú thích màu Barcode:</span>
                         <span class="legend-item normal">
                             <span class="legend-dot"></span>
-                            <span class="legend-text">Hợp lệ (Bình thường)</span>
+                            <span class="legend-text">Hợp lệ</span>
                         </span>
                         <span class="legend-item expired">
                             <span class="legend-dot"></span>
-                            <span class="legend-text">Quá hạn sử dụng</span>
+                            <span class="legend-text">Hết hạn</span>
                         </span>
                         <span class="legend-item empty-qty">
                             <span class="legend-dot"></span>
-                            <span class="legend-text">Hết số lượng (SL &le; 0)</span>
+                            <span class="legend-text">Hết số lượng</span>
                         </span>
                     </div>
                 </div>

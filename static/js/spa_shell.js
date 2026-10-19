@@ -75,9 +75,18 @@
         // 2. Update sidebar active item & expand dropdown if needed
         updateSidebarMenu(route.path);
 
-        // 3. Update document title
+        // 3. Update document title & mobile header title
         if (route.title) {
             document.title = `${route.title}`;
+            const mobileCurrentTitle = document.getElementById('mobileCurrentTitle');
+            if (mobileCurrentTitle) {
+                mobileCurrentTitle.textContent = route.title;
+            }
+        }
+
+        // Auto close mobile drawer if open
+        if (typeof window.closeMobileSidebar === 'function') {
+            window.closeMobileSidebar();
         }
 
         // 4. Update browser URL without reload

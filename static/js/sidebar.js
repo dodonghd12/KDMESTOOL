@@ -172,6 +172,11 @@ document.addEventListener('DOMContentLoaded', () => {
             );
         }
 
+        const mobileThemeIcon = document.getElementById('mobileThemeIcon');
+        if (mobileThemeIcon) {
+            mobileThemeIcon.textContent = isLight ? 'light_mode' : 'dark_mode';
+        }
+
         // Đồng bộ tới tất cả iframes (trong SPA Shell)
         if (notifyIframes) {
             document.querySelectorAll('iframe').forEach(frame => {
@@ -397,7 +402,67 @@ document.addEventListener('DOMContentLoaded', () => {
         bindThemeButton();
     }
 
+    // ══════════════════════════════════════════════════════════════════════
+    // MOBILE OFF-CANVAS DRAWER SIDEBAR CONTROLLER
+    // ══════════════════════════════════════════════════════════════════════
+    function openMobileSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        if (sidebar) sidebar.classList.add('mobile-open');
+        if (overlay) overlay.classList.add('active');
+        document.body.classList.add('mobile-drawer-open');
+    }
+
+    function closeMobileSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        if (sidebar) sidebar.classList.remove('mobile-open');
+        if (overlay) overlay.classList.remove('active');
+        document.body.classList.remove('mobile-drawer-open');
+    }
+
+    function toggleMobileSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar && sidebar.classList.contains('mobile-open')) {
+            closeMobileSidebar();
+        } else {
+            openMobileSidebar();
+        }
+    }
+
+    window.openMobileSidebar = openMobileSidebar;
+    window.closeMobileSidebar = closeMobileSidebar;
+    window.toggleMobileSidebar = toggleMobileSidebar;
+
     document.addEventListener('click', (e) => {
+        // Mobile Hamburger Menu Button
+        if (e.target.closest('#mobileMenuBtn')) {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleMobileSidebar();
+            return;
+        }
+
+        // Mobile Sidebar Overlay Backdrop, Close Button or Outside Click
+        const mobileSidebarEl = document.getElementById('sidebar');
+        if (mobileSidebarEl && mobileSidebarEl.classList.contains('mobile-open')) {
+            if (!e.target.closest('#sidebar') && !e.target.closest('#mobileMenuBtn')) {
+                e.preventDefault();
+                e.stopPropagation();
+                closeMobileSidebar();
+                return;
+            }
+        }
+
+
+        // Mobile Theme Toggle Button
+        if (e.target.closest('#mobileThemeBtn')) {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleTheme(e);
+            return;
+        }
+
         // Theme Toggle Button (fallback delegation)
         if (e.target.closest('#themeQuickBtn')) {
             toggleTheme(e);
@@ -661,6 +726,7 @@ function updateTetCountdown() {
         if (result.canChi) {
             if (tetYearTitleEl) {
                 tetYearTitleEl.textContent = result.canChi.shortTitle;
+                tetYearTitleEl.title = result.canChi.shortTitle;
             }
         }
 

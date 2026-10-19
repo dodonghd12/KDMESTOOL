@@ -604,6 +604,17 @@ function initInputClearButtons() {
             observer.observe(input, { attributes: true, attributeFilter: ['disabled', 'value'] });
         }
 
+        if (!box._boxClickBound) {
+            box._boxClickBound = true;
+            box.addEventListener('click', (e) => {
+                const clear = box.querySelector('.clear-btn');
+                if (clear && (e.target === clear || clear.contains(e.target))) return;
+                if (e.target !== input && !input.disabled && !input.readOnly) {
+                    input.focus();
+                }
+            });
+        }
+
         updateClearState();
     }
 
@@ -947,6 +958,18 @@ function showTableSkeleton(columnsCount = 6, rowsCount = 5, targetTbodyId = 'tab
     const tbody = typeof targetTbodyId === 'string' ? document.getElementById(targetTbodyId) : targetTbodyId;
     if (!tbody) return;
 
+    const placeholder = document.getElementById('tableStandbyPlaceholder');
+    if (placeholder) {
+        placeholder.classList.add('has-data');
+        placeholder.style.display = 'none';
+    }
+
+    const tableContainer = tbody.closest('.table-container') || document.querySelector('.table-container');
+    if (tableContainer) {
+        tableContainer.classList.remove('hidden');
+        tableContainer.style.display = '';
+    }
+
     // Check if table has thead columns
     const table = tbody.closest('table') || document.querySelector('.table-container table');
     let cols = columnsCount;
@@ -994,36 +1017,14 @@ function initAutofillSuppressor() {
         input.setAttribute('data-1p-ignore', 'true');
         input.setAttribute('aria-autocomplete', 'none');
 
-        // Prevent Edge/Chrome saved info popup via readonly toggle on pointerdown / focus
+        // Prevent browser/manager autofill popups cleanly via attributes without blocking virtual keyboards
         if (!input.dataset.autofillGuarded) {
             input.dataset.autofillGuarded = 'true';
 
-            // Set readonly initially if not active element
-            if (document.activeElement !== input && !input.readOnly) {
-                input.readOnly = true;
+            // Ensure input is not artificially locked to readOnly so mobile keyboards (iOS Safari / Android) appear immediately
+            if (input.readOnly && !input.hasAttribute('readonly')) {
+                input.readOnly = false;
             }
-
-            input.addEventListener('focus', function () {
-                if (this.readOnly) {
-                    this.readOnly = false;
-                }
-            });
-
-            input.addEventListener('pointerdown', function () {
-                if (document.activeElement !== this && !this.readOnly) {
-                    this.readOnly = true;
-                    setTimeout(() => {
-                        this.readOnly = false;
-                    }, 40);
-                }
-            });
-
-            input.addEventListener('blur', function () {
-                // Re-lock to readonly on blur so next click is clean
-                if (!this.readOnly && this.type !== 'hidden') {
-                    this.readOnly = true;
-                }
-            });
         }
     }
 
@@ -1052,29 +1053,35 @@ function initAutofillSuppressor() {
 }
 
 function initSkeletonState() {
+    const removeLoading = () => {
+        document.body.classList.remove('app-loading-state');
+    };
+
+    // Remove loading state as soon as this frame's own DOM is ready
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        setTimeout(removeLoading, 150);
+    } else {
+        window.addEventListener('DOMContentLoaded', () => setTimeout(removeLoading, 150));
+        window.addEventListener('load', removeLoading);
+    }
+
+    // Safety fallback timer: guarantee interactive state after max 800ms
+    setTimeout(removeLoading, 800);
+
     // 1. Check if top window already marked all pages as loaded
     try {
         if (window.top && window.top.__kd_all_pages_loaded) {
-            document.body.classList.remove('app-loading-state');
+            removeLoading();
             return;
         }
     } catch (e) {}
 
     // 2. Listen for broadcast from spa_shell
     window.addEventListener('message', (e) => {
-        if (e.data && e.data.type === 'SPA_ALL_PAGES_LOADED') {
-            document.body.classList.remove('app-loading-state');
+        if (e.data && (e.data.type === 'SPA_ALL_PAGES_LOADED' || e.data.type === 'PRISMA_INTRO_FINISHED')) {
+            removeLoading();
         }
     });
-
-    // 3. If standalone (not embedded in an iframe)
-    if (window.self === window.top) {
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                document.body.classList.remove('app-loading-state');
-            }, 300);
-        });
-    }
 }
 
 // ===== TABLE STICKY OFFSETS SYNC =====
@@ -1519,6 +1526,21 @@ function initMainInputSwitcher() {
             switchRecipeMode();
         });
     }
+
+    // 3. Ensure tapping anywhere on active switch items immediately focuses the input
+    document.querySelectorAll('.input-switcher-container .input-switch-item').forEach(item => {
+        if (!item._switchClickBound) {
+            item._switchClickBound = true;
+            item.addEventListener('click', (e) => {
+                const clear = item.querySelector('.clear-btn');
+                if (clear && (e.target === clear || clear.contains(e.target))) return;
+                const inp = item.querySelector('.input');
+                if (inp && e.target !== inp && !inp.disabled && !inp.readOnly) {
+                    inp.focus();
+                }
+            });
+        }
+    });
 }
 
 function initializeMainEventListeners() {
@@ -1615,15 +1637,22 @@ function initializeMainEventListeners() {
         });
     });
 
-    // ===== TABLE EVENTS =====
+    // ===== TABLE EVENTS (DESKTOP & TOUCH MOBILE) =====
     const tableBody = document.getElementById('tableBody');
     if (tableBody) {
         tableBody.addEventListener('click', handleRowClick);
         tableBody.addEventListener('dblclick', handleRowDoubleClick);
         tableBody.addEventListener('contextmenu', (e) => {
+            if (!isContextMenuAllowedOnCurrentPage()) {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            }
             handleContextMenuUnified(e, 'main');
         });
     }
+
+
 
     // ===== OUTPUT TABLE EVENTS =====
     const outputTableBody = document.getElementById('outputBarcodeTableBody');
@@ -1634,6 +1663,9 @@ function initializeMainEventListeners() {
             handleContextMenuUnified(e, 'output');
         });
     }
+
+    // ===== UNIVERSAL TOUCH INTERACTION ENGINE (DOUBLE-TAP & LONG-PRESS FOR ALL TABLES) =====
+    initUniversalTableTouchGestures();
 
     // ===== SUB OUTPUT TABLE EVENTS =====
     const subOutputContainer = document.getElementById('subOutputContainer');
@@ -1668,14 +1700,21 @@ function initializeMainEventListeners() {
     // ===== CONTEXT MENU =====
     const contextMenu = document.getElementById('contextMenu');
     if (contextMenu) {
-        document.addEventListener('click', () => {
-            contextMenu.style.display = 'none';
+        contextMenu.addEventListener('click', (e) => {
+            const item = e.target.closest('.context-menu-item');
+            if (item && item.style.display !== 'none') {
+                handleContextMenuAction(e);
+            }
+        });
+
+        contextMenu.addEventListener('touchend', (e) => {
+            const item = e.target.closest('.context-menu-item');
+            if (item && item.style.display !== 'none') {
+                if (e.cancelable) e.preventDefault();
+                handleContextMenuAction(e);
+            }
         });
     }
-
-    document.querySelectorAll('.context-menu-item').forEach(item => {
-        item.addEventListener('click', handleContextMenuAction);
-    });
 
     enhanceContextMenu();
 }
@@ -2002,6 +2041,12 @@ function displayTable(result, columns) {
     const tbody = document.getElementById('tableBody');
     const rowCount = document.getElementById('rowCount');
 
+    const placeholder = document.getElementById('tableStandbyPlaceholder');
+    if (placeholder) {
+        placeholder.classList.add('has-data');
+        placeholder.style.display = 'none';
+    }
+
     // Clear existing content
     thead.innerHTML = '';
     tbody.innerHTML = '';
@@ -2190,6 +2235,14 @@ function displayTable(result, columns) {
 function clearTable() {
     closeShowBarcodeWindow();
 
+    const placeholder = document.getElementById('tableStandbyPlaceholder');
+    if (placeholder) {
+        placeholder.classList.remove('has-data');
+        placeholder.style.display = '';
+    }
+
+
+
     document.getElementById('tableHead').innerHTML = '';
     document.getElementById('tableBody').innerHTML = '';
     document.getElementById('rowCount').textContent = '0';
@@ -2203,14 +2256,353 @@ function clearTable() {
     updateClientSearchState(false);
     updateVisibleRowCount();
     updateTableStickyOffsets();
+
+    // If on check-qc-data or check-mesync, hide table container and table footer
+    if (document.body.classList.contains('check-qc-data') || document.body.classList.contains('check-mesync')) {
+        const tableContainer = document.querySelector('.table-container');
+        if (tableContainer) {
+            tableContainer.classList.add('hidden');
+            tableContainer.style.display = 'none';
+        }
+        const tableFooter = document.querySelector('.table-footer');
+        if (tableFooter) {
+            tableFooter.classList.add('hidden');
+            tableFooter.style.display = 'none';
+        }
+    }
 }
 
+function isContextMenuAllowedOnCurrentPage() {
+    // Explicitly block all sub-pages that must NEVER have a context menu
+    if (document.body.classList.contains('station-configuration') ||
+        document.body.classList.contains('scan-history-page') ||
+        document.body.classList.contains('substitutions') ||
+        document.body.classList.contains('reprint') ||
+        document.body.classList.contains('material-transfer') ||
+        document.body.classList.contains('check-qc-data') ||
+        document.body.classList.contains('check-mesync') ||
+        document.body.classList.contains('technical-specifications') ||
+        document.body.classList.contains('check-kd-account') ||
+        document.body.classList.contains('create-kd-account') ||
+        document.body.classList.contains('gitlab-deleted-files') ||
+        document.body.classList.contains('postgres-deleted-data')) {
+        return false;
+    }
+
+    // 1. Only allow on Validate Scan Barcode page
+    const isValidatePage = document.body.classList.contains('validate-scan-barcode') || 
+                           document.body.classList.contains('validate-scan-barcode-page') ||
+                           window.location.pathname.includes('validate-scan-barcode');
+    if (isValidatePage) return 'validate';
+
+    // 2. Only allow on Main page
+    const isMainPage = document.body.classList.contains('main-page') || 
+                       !!document.getElementById('mainInputSwitcher') || 
+                       (!!document.getElementById('barcode') && !!document.getElementById('product_id')) ||
+                       window.location.pathname === '/main' || 
+                       window.location.pathname === '/';
+    if (isMainPage) return 'main';
+
+    // All other pages: NO context menu
+    return false;
+}
+
+/**
+ * Universal Touch & Pointer Interaction Engine: Double-tap & Long-press (Touch) 
+ * + Double-click & Right-click (Desktop) for ALL table containers across system
+ */
+function initUniversalTableTouchGestures() {
+    if (window._universalTableTouchGesturesInitialized) return;
+    window._universalTableTouchGesturesInitialized = true;
+
+    const tableRowSelector = '.table-container tbody tr, #tableBody tr, #outputBarcodeTableBody tr, #subOutputBarcodeTableBody tr, #checkAccountTableBody tr, #scanBarcodeTableBody tr';
+
+    // 1. UNIVERSAL DESKTOP DOUBLE-CLICK (Left Double-Click -> View Details Modal)
+    document.addEventListener('dblclick', (e) => {
+        const tr = e.target.closest(tableRowSelector);
+        if (!tr || tr.querySelector('.table-empty-state') || tr.classList.contains('skeleton-row')) return;
+        if (document.body.classList.contains('switching-spell-page')) return;
+
+        // Sub output container -> showSubOutputDetails
+        const subContainer = document.getElementById('subOutputContainer');
+        if (subContainer && subContainer.contains(tr)) {
+            if (typeof handleSubOutputRowClick === 'function') handleSubOutputRowClick({ target: tr });
+            if (typeof handleSubOutputRowDoubleClick === 'function') {
+                handleSubOutputRowDoubleClick({ target: tr });
+            } else if (typeof showSubOutputDetails === 'function') {
+                showSubOutputDetails();
+            }
+            return;
+        }
+
+        // Output container -> showOutputDetails
+        const tbody = tr.closest('tbody');
+        const isOutput = tbody && tbody.id === 'outputBarcodeTableBody';
+        if (isOutput) {
+            if (typeof handleOutputRowClick === 'function') handleOutputRowClick({ target: tr });
+            if (typeof handleOutputRowDoubleClick === 'function') {
+                handleOutputRowDoubleClick({ target: tr });
+            } else if (typeof showOutputDetails === 'function') {
+                showOutputDetails();
+            }
+            return;
+        }
+
+        // Main table container -> showDetails
+        if (typeof handleRowClick === 'function') handleRowClick({ target: tr });
+        if (typeof handleRowDoubleClick === 'function') {
+            handleRowDoubleClick({ target: tr });
+        } else if (typeof showDetails === 'function') {
+            showDetails();
+        }
+    });
+
+    // 2. UNIVERSAL DESKTOP RIGHT-CLICK (Context Menu)
+    document.addEventListener('contextmenu', (e) => {
+        const tr = e.target.closest(tableRowSelector);
+        if (!tr || tr.querySelector('.table-empty-state') || tr.classList.contains('skeleton-row')) return;
+        
+        // Strict page check: only show context menu if page actually supports it (matches desktop)
+        const pageMenuType = isContextMenuAllowedOnCurrentPage();
+        if (!pageMenuType) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        }
+
+        // Sub output container NEVER has context menu on desktop or mobile
+        const subContainer = document.getElementById('subOutputContainer');
+        if (subContainer && subContainer.contains(tr)) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        }
+
+        e.preventDefault();
+        const tbody = tr.closest('tbody');
+        const isOutput = tbody && tbody.id === 'outputBarcodeTableBody';
+        handleContextMenuUnified(e, isOutput ? 'output' : 'main');
+    });
+
+    // 3. UNIVERSAL MOBILE TOUCH GESTURES (Double-tap & Long-press)
+    let touchStartTargetTr = null;
+    let touchStartPos = { x: 0, y: 0 };
+    let touchStartTime = 0;
+    let longPressTimer = null;
+    let lastTapTime = 0;
+    let lastTapRow = null;
+    let isLongPressTriggered = false;
+
+    document.addEventListener('touchstart', (e) => {
+        const tr = e.target.closest(tableRowSelector);
+        if (!tr || tr.querySelector('.table-empty-state') || tr.classList.contains('skeleton-row')) {
+            clearTimeout(longPressTimer);
+            touchStartTargetTr = null;
+            isLongPressTriggered = false;
+            return;
+        }
+
+        const touch = e.touches[0];
+        touchStartTargetTr = tr;
+        touchStartPos = { x: touch.clientX, y: touch.clientY };
+        touchStartTime = Date.now();
+        isLongPressTriggered = false;
+
+        clearTimeout(longPressTimer);
+
+        // Strict page check: do not start long-press context menu timer if page has no context menu
+        const pageMenuType = isContextMenuAllowedOnCurrentPage();
+        if (!pageMenuType) {
+            return;
+        }
+
+        // Sub output container NEVER opens context menu (matches desktop right-click ban)
+        const subContainer = document.getElementById('subOutputContainer');
+        if (subContainer && subContainer.contains(tr)) {
+            return;
+        }
+
+        longPressTimer = setTimeout(() => {
+            isLongPressTriggered = true;
+            const tbody = tr.closest('tbody');
+            const isOutput = tbody && tbody.id === 'outputBarcodeTableBody';
+            
+            if (isOutput && typeof handleOutputRowClick === 'function') {
+                handleOutputRowClick({ target: tr });
+            } else if (typeof handleRowClick === 'function') {
+                handleRowClick({ target: tr });
+            }
+
+            handleContextMenuUnified({
+                preventDefault: () => {},
+                stopPropagation: () => {},
+                clientX: touchStartPos.x,
+                clientY: touchStartPos.y,
+                target: tr
+            }, isOutput ? 'output' : 'main');
+
+            try { navigator.vibrate?.(40); } catch (_) {}
+        }, 420);
+    }, { passive: true });
+
+    document.addEventListener('touchmove', (e) => {
+        if (!touchStartTargetTr) return;
+        const touch = e.touches[0];
+        if (Math.hypot(touch.clientX - touchStartPos.x, touch.clientY - touchStartPos.y) > 10) {
+            clearTimeout(longPressTimer);
+        }
+    }, { passive: true });
+
+    document.addEventListener('touchend', (e) => {
+        clearTimeout(longPressTimer);
+
+        // If touch did not originate on a table row, do not intervene or prevent clicks
+        if (!touchStartTargetTr) {
+            return;
+        }
+
+        const tr = touchStartTargetTr;
+        touchStartTargetTr = null;
+
+        // If this touchend is lifting finger from the long-press:
+        if (isLongPressTriggered) {
+            isLongPressTriggered = false;
+            if (e.cancelable) e.preventDefault();
+            return;
+        }
+
+        const touch = e.changedTouches ? e.changedTouches[0] : null;
+        if (touch && Math.hypot(touch.clientX - touchStartPos.x, touch.clientY - touchStartPos.y) > 15) {
+            return; // Finger dragged/scrolled
+        }
+
+        const currentTime = Date.now();
+        const tapDuration = currentTime - touchStartTime;
+
+        if (tapDuration < 320) {
+            const timeSinceLastTap = currentTime - lastTapTime;
+            if (timeSinceLastTap < 350 && lastTapRow === tr) {
+                // DOUBLE TAP DETECTED!
+                if (e.cancelable) e.preventDefault();
+                lastTapTime = 0;
+                lastTapRow = null;
+                try { navigator.vibrate?.(25); } catch (_) {}
+
+                // Sub output container -> showSubOutputDetails
+                const subContainer = document.getElementById('subOutputContainer');
+                if (subContainer && subContainer.contains(tr)) {
+                    if (typeof handleSubOutputRowClick === 'function') handleSubOutputRowClick({ target: tr });
+                    if (typeof handleSubOutputRowDoubleClick === 'function') {
+                        handleSubOutputRowDoubleClick({ target: tr });
+                    } else if (typeof showSubOutputDetails === 'function') {
+                        showSubOutputDetails();
+                    }
+                    tr.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }));
+                    return;
+                }
+
+                // Output container -> showOutputDetails
+                const tbody = tr.closest('tbody');
+                const isOutput = tbody && tbody.id === 'outputBarcodeTableBody';
+                if (isOutput) {
+                    if (typeof handleOutputRowClick === 'function') handleOutputRowClick({ target: tr });
+                    if (typeof handleOutputRowDoubleClick === 'function') {
+                        handleOutputRowDoubleClick({ target: tr });
+                    } else if (typeof showOutputDetails === 'function') {
+                        showOutputDetails();
+                    }
+                    tr.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }));
+                    return;
+                }
+
+                // Main table container -> showDetails
+                if (typeof handleRowClick === 'function') handleRowClick({ target: tr });
+                if (typeof handleRowDoubleClick === 'function') {
+                    handleRowDoubleClick({ target: tr });
+                } else if (typeof showDetails === 'function') {
+                    showDetails();
+                }
+                tr.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }));
+                return;
+            }
+            lastTapTime = currentTime;
+            lastTapRow = tr;
+        }
+    }, { passive: false });
+
+    document.addEventListener('touchcancel', () => {
+        clearTimeout(longPressTimer);
+        touchStartTargetTr = null;
+        isLongPressTriggered = false;
+    }, { passive: true });
+}
+
+/**
+ * Universal Row Data Normalizer
+ * Guarantees lowercase and canonical field aliases (id, barcode, product_id, product_type, recipe_id, work_order, info)
+ * so context menu actions succeed regardless of backend casing or column translations.
+ */
+function normalizeRowData(rawData) {
+    if (!rawData || typeof rawData !== 'object') return {};
+    const normalized = { ...rawData };
+    
+    Object.keys(rawData).forEach(key => {
+        const val = rawData[key];
+        if (val === undefined || val === null) return;
+        const lowerKey = key.toLowerCase().trim();
+        if (normalized[lowerKey] === undefined) {
+            normalized[lowerKey] = val;
+        }
+
+        // Canonical ID / Barcode alias
+        if (['id', 'barcode', 'mã tem', 'ma tem', 'mã nvl', 'ma nvl', 'resource_id'].includes(lowerKey)) {
+            if (!normalized.id) normalized.id = val;
+            if (!normalized.barcode) normalized.barcode = val;
+            if (!normalized.resource_id) normalized.resource_id = val;
+        }
+
+        // Canonical Product / Recipe alias
+        if (['product_id', 'productid', 'mã quy cách', 'ma quy cach', 'quy cách', 'quy cach', 'recipe_id', 'recipeid'].includes(lowerKey)) {
+            if (!normalized.product_id) normalized.product_id = val;
+            if (!normalized.recipe_id) normalized.recipe_id = val;
+        }
+
+        // Canonical Product Type alias
+        if (['product_type', 'producttype', 'loại nvl', 'loai nvl', 'product_category'].includes(lowerKey)) {
+            if (!normalized.product_type) normalized.product_type = val;
+        }
+
+        // Canonical Work Order alias
+        if (['work_order', 'workorder', 'mã đơn', 'ma don', 'đơn điều động', 'don dieu dong'].includes(lowerKey)) {
+            if (!normalized.work_order) normalized.work_order = val;
+        }
+
+        // Canonical Info alias
+        if (['info', 'thông tin', 'thong tin'].includes(lowerKey)) {
+            if (!normalized.info) normalized.info = val;
+        }
+
+        // Canonical Feed Records ID alias
+        if (['feed_records_id', 'feedrecordsid'].includes(lowerKey)) {
+            if (!normalized.feed_records_id) normalized.feed_records_id = val;
+        }
+    });
+
+    return normalized;
+}
+window.normalizeRowData = normalizeRowData;
+
 function handleRowClick(e) {
-    const row = e.target.closest('tr');
+    const row = (e && e.target) ? e.target.closest('tr') : (selectedRow || null);
     if (!row || row.querySelector('.table-empty-state') || row.classList.contains('skeleton-row')) return;
 
     // Remove previous selection
-    document.querySelectorAll('#tableBody tr').forEach(r => r.classList.remove('selected'));
+    const tbody = row.closest('tbody');
+    if (tbody) {
+        tbody.querySelectorAll('tr').forEach(r => r.classList.remove('selected'));
+    } else {
+        document.querySelectorAll('#tableBody tr, .table-container tbody tr').forEach(r => r.classList.remove('selected'));
+    }
 
     // Add selection to current row
     row.classList.add('selected');
@@ -2218,13 +2610,23 @@ function handleRowClick(e) {
 
     // Get row data - use fullValue from data attribute if available
     const cells = row.querySelectorAll('td');
-    const columns = Array.from(document.querySelectorAll('#tableHead th')).map(th => th.textContent);
-    selectedRowData = {};
-    columns.forEach((col, index) => {
-        const cell = cells[index];
-        const fullValue = cell?.dataset.fullValue;
-        selectedRowData[col] = fullValue !== undefined ? fullValue : (cell?.textContent || '');
-    });
+    const table = row.closest('table');
+    const columns = table ? Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim()) : Array.from(document.querySelectorAll('#tableHead th')).map(th => th.textContent.trim());
+    const rawData = {};
+    if (columns.length > 0) {
+        columns.forEach((col, index) => {
+            const cell = cells[index];
+            const fullValue = cell?.dataset.fullValue;
+            rawData[col] = fullValue !== undefined ? fullValue : (cell?.textContent.trim() || '');
+        });
+    } else {
+        cells.forEach((cell, index) => {
+            rawData[`col_${index}`] = cell.dataset.fullValue || cell.textContent.trim();
+        });
+    }
+
+    selectedRowData = normalizeRowData(rawData);
+    window.selectedRowData = selectedRowData;
 }
 
 function handleOutputRowClick(e) {
@@ -2240,13 +2642,17 @@ function handleOutputRowClick(e) {
 
     // Get row data
     const cells = row.querySelectorAll('td');
-    const columns = Array.from(document.querySelectorAll('#outputBarcodeTable thead th')).map(th => th.textContent);
-    selectedOutputRowData = {};
+    const table = row.closest('table');
+    const columns = table ? Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim()) : Array.from(document.querySelectorAll('#outputBarcodeTable thead th')).map(th => th.textContent.trim());
+    const rawData = {};
     columns.forEach((col, index) => {
         const cell = cells[index];
         const fullValue = cell?.dataset.fullValue;
-        selectedOutputRowData[col] = fullValue !== undefined ? fullValue : (cell?.textContent || '');
+        rawData[col] = fullValue !== undefined ? fullValue : (cell?.textContent || '');
     });
+
+    selectedOutputRowData = normalizeRowData(rawData);
+    window.selectedOutputRowData = selectedOutputRowData;
 }
 
 function handleRowDoubleClick(e) {
@@ -2280,12 +2686,15 @@ function handleSubOutputRowClick(e) {
     // Get row data
     const cells = row.querySelectorAll('td');
     const columns = Array.from(document.querySelectorAll('#subOutputBarcodeTable thead th')).map(th => th.textContent);
-    selectedSubOutputRowData = {};
+    const rawData = {};
     columns.forEach((col, index) => {
         const cell = cells[index];
         const fullValue = cell?.dataset.fullValue;
-        selectedSubOutputRowData[col] = fullValue !== undefined ? fullValue : (cell?.textContent || '');
+        rawData[col] = fullValue !== undefined ? fullValue : (cell?.textContent || '');
     });
+
+    selectedSubOutputRowData = normalizeRowData(rawData);
+    window.selectedSubOutputRowData = selectedSubOutputRowData;
 }
 
 function handleSubOutputRowDoubleClick(e) {
@@ -2300,31 +2709,59 @@ function showSubOutputDetails() {
     if (!selectedSubOutputRow) return;
 
     const cells = selectedSubOutputRow.querySelectorAll('td');
-    const columns = Array.from(
-        document.querySelectorAll('#subOutputBarcodeTable thead th')
-    ).map(th => th.textContent);
+    const table = selectedSubOutputRow.closest('table');
+    const columns = table 
+        ? Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim()).filter(Boolean)
+        : Array.from(document.querySelectorAll('#subOutputBarcodeTable thead th')).map(th => th.textContent.trim()).filter(Boolean);
 
     const fullRowData = {};
-    columns.forEach((col, index) => {
-        const cell = cells[index];
-        fullRowData[col] = cell?.dataset.fullValue || cell?.textContent || '';
-    });
+    if (columns.length > 0 && columns.length <= cells.length) {
+        columns.forEach((col, index) => {
+            const cell = cells[index];
+            fullRowData[col] = cell?.dataset.fullValue !== undefined ? cell.dataset.fullValue : (cell?.textContent?.trim() || '');
+        });
+    } else if (selectedSubOutputRowData && Object.keys(selectedSubOutputRowData).length > 0) {
+        Object.assign(fullRowData, selectedSubOutputRowData);
+    } else {
+        cells.forEach((cell, index) => {
+            fullRowData[`Cột ${index + 1}`] = cell?.dataset.fullValue !== undefined ? cell.dataset.fullValue : (cell?.textContent?.trim() || '');
+        });
+    }
 
     showDetailsModal(fullRowData);
 }
 
 // ===== CONTEXT MENU =====
 
+let currentContextMenuTableType = 'main';
+
 /**
  * Unified context menu handler
- * @param {Event} e - Context menu event
+ * @param {Event|Object} e - Context menu event or synthetic position object
  * @param {string} tableType - 'main' | 'output'
  */
 function handleContextMenuUnified(e, tableType = 'main') {
-    e.preventDefault();
+    if (e && typeof e.preventDefault === 'function') e.preventDefault();
     
-    const row = e.target.closest('tr');
-    if (!row || row.querySelector('.table-empty-state') || row.classList.contains('skeleton-row')) return;
+    // Strict page check: only allow on pages that actually support context menu (Validate Scan Barcode & Main)
+    const pageMenuType = isContextMenuAllowedOnCurrentPage();
+    if (!pageMenuType) {
+        const contextMenu = document.getElementById('contextMenu');
+        if (contextMenu) contextMenu.style.display = 'none';
+        return false;
+    }
+
+    const row = (e && e.target) ? e.target.closest('tr') : (tableType === 'main' ? selectedRow : selectedOutputRow);
+    if (!row || row.querySelector('.table-empty-state') || row.classList.contains('skeleton-row')) return false;
+
+    // Sub output container NEVER opens context menu (matches desktop right-click ban)
+    const subContainer = document.getElementById('subOutputContainer');
+    if (subContainer && subContainer.contains(row)) {
+        if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+        return false;
+    }
+
+    currentContextMenuTableType = tableType;
 
     // Select row based on table type
     if (tableType === 'main') {
@@ -2333,17 +2770,10 @@ function handleContextMenuUnified(e, tableType = 'main') {
         handleOutputRowClick(e);
     }
 
-    // Check if we have valid table type before showing menu
-    const hasValidType = tableType === 'main' 
-        ? currentTableType !== null 
-        : currentOutputTableType !== null;
+    let posX = (e && typeof e.clientX === 'number') ? e.clientX : (e && typeof e.pageX === 'number' ? e.pageX : (window.innerWidth / 2));
+    let posY = (e && typeof e.clientY === 'number') ? e.clientY : (e && typeof e.pageY === 'number' ? e.pageY : (window.innerHeight / 2));
 
-    if (!hasValidType) {
-        return;
-    }
-
-    // Show context menu
-    showContextMenu(e.pageX, e.pageY, tableType);
+    showContextMenu(posX, posY, tableType);
 }
 
 /**
@@ -2352,16 +2782,24 @@ function handleContextMenuUnified(e, tableType = 'main') {
  * @param {number} y - Y coordinate
  * @param {string} tableType - 'main' | 'output'
  */
-function showContextMenu(x, y, tableType) {
+function showContextMenu(x, y, tableType = 'main') {
+    currentContextMenuTableType = tableType;
     const contextMenu = document.getElementById('contextMenu');
     if (!contextMenu) return;
 
+    // Strict page check
+    const pageMenuType = isContextMenuAllowedOnCurrentPage();
+    if (!pageMenuType) {
+        contextMenu.style.display = 'none';
+        return;
+    }
+
     // Update menu items visibility
     let allowedActions = [];
-    if (tableType === 'main') {
-        allowedActions = updateContextMenu();
-    } else {
+    if (tableType === 'output') {
         allowedActions = updateOutputContextMenu();
+    } else {
+        allowedActions = updateContextMenu();
     }
 
     // Don't show menu if no items available
@@ -2370,36 +2808,75 @@ function showContextMenu(x, y, tableType) {
         return;
     }
 
-    // Position menu
+    const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+
+    const maxAllowedWidth = Math.min(300, viewportWidth - 20);
+    const maxAllowedHeight = Math.min(480, viewportHeight - 24);
+
+    // Reset styles for clean measurement and ensure it never exceeds viewport
+    contextMenu.style.position = 'fixed';
+    contextMenu.style.zIndex = '99999';
+    contextMenu.style.boxSizing = 'border-box';
+    contextMenu.style.setProperty('max-width', maxAllowedWidth + 'px', 'important');
+    contextMenu.style.setProperty('max-height', maxAllowedHeight + 'px', 'important');
+    contextMenu.style.overflowY = 'auto';
+    contextMenu.style.overscrollBehavior = 'contain';
+    contextMenu.style.left = '0px';
+    contextMenu.style.top = '0px';
     contextMenu.style.display = 'block';
     
-    // Adjust position if menu would overflow viewport
     const menuRect = contextMenu.getBoundingClientRect();
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
+    const menuWidth = Math.min(maxAllowedWidth, menuRect.width || 220);
+    const menuHeight = Math.min(maxAllowedHeight, menuRect.height || 300);
 
-    let menuX = x;
-    let menuY = y;
+    let targetX = Number(x) || 10;
+    let targetY = Number(y) || 10;
 
-    // Prevent horizontal overflow
-    if (x + menuRect.width > viewportWidth) {
-        menuX = viewportWidth - menuRect.width - 10;
+    // 1. Horizontal Placement (Flip left if touch is near right edge or would overflow)
+    if (targetX + menuWidth > viewportWidth - 10) {
+        const flippedX = targetX - menuWidth;
+        if (flippedX >= 10) {
+            targetX = flippedX;
+        } else {
+            targetX = Math.max(10, viewportWidth - menuWidth - 10);
+        }
+    } else {
+        targetX = Math.max(10, targetX);
     }
 
-    // Prevent vertical overflow
-    if (y + menuRect.height > viewportHeight) {
-        menuY = viewportHeight - menuRect.height - 10;
+    // 2. Vertical Placement (Flip upward if touch is near bottom or would overflow)
+    if (targetY + menuHeight > viewportHeight - 10) {
+        const flippedY = targetY - menuHeight;
+        if (flippedY >= 10) {
+            targetY = flippedY;
+        } else {
+            targetY = Math.max(10, viewportHeight - menuHeight - 10);
+        }
+    } else {
+        targetY = Math.max(10, targetY);
     }
 
-    contextMenu.style.left = menuX + 'px';
-    contextMenu.style.top = menuY + 'px';
+    contextMenu.style.left = Math.round(targetX) + 'px';
+    contextMenu.style.top = Math.round(targetY) + 'px';
 }
 
 /**
- * Update context menu items based on current table type
+ * Update context menu items based on current table type and page context
  * @returns {string[]} Array of allowed actions
  */
 function updateContextMenu() {
+    const pageMenuType = isContextMenuAllowedOnCurrentPage();
+    if (!pageMenuType) {
+        setMenuItemsVisibility([]);
+        return [];
+    }
+
+    if (pageMenuType === 'validate') {
+        setMenuItemsVisibility(['validate_scan_barcode']);
+        return ['validate_scan_barcode'];
+    }
+
     const isRecipeYaml = (currentTableType === 'recipe' && Array.isArray(rawTableColumns) && rawTableColumns.includes('Tên file') && rawTableColumns.includes('Đường dẫn'));
 
     // Define menu configurations
@@ -2432,9 +2909,9 @@ function updateContextMenu() {
         ]
     };
 
-    const allowedActions = menuConfig[currentTableType] || [];     // Get allowed actions for current table type
-    setMenuItemsVisibility(allowedActions);    // Show/hide menu items
-    return allowedActions;    // Return allowed actions for validation
+    let allowedActions = menuConfig[currentTableType] || [];
+    setMenuItemsVisibility(allowedActions);
+    return allowedActions;
 }
 
 /**
@@ -2442,6 +2919,12 @@ function updateContextMenu() {
  * @returns {string[]} Array of allowed actions
  */
 function updateOutputContextMenu() {
+    const pageMenuType = isContextMenuAllowedOnCurrentPage();
+    if (!pageMenuType) {
+        setMenuItemsVisibility([]);
+        return [];
+    }
+
     const menuConfig = {
         'workOrderOutputByBarcode': ['outputByBarcode'],
         'workOrderOutputByRecipe': ['outputByRecipe'],
@@ -2451,7 +2934,6 @@ function updateOutputContextMenu() {
     const allowedActions = menuConfig[currentOutputTableType] || [];
     setMenuItemsVisibility(allowedActions);
 
-    // Return allowed actions for validation
     return allowedActions;
 }
 
@@ -2464,119 +2946,134 @@ function setMenuItemsVisibility(allowedActions) {
     
     allItems.forEach(item => {
         const action = item.dataset.action;
-        item.style.display = allowedActions.includes(action) ? 'block' : 'none';
+        const isVisible = Array.isArray(allowedActions) && allowedActions.includes(action);
+        item.style.setProperty('display', isVisible ? 'flex' : 'none', 'important');
     });
 }
 
 function handleContextMenu(e) {
-    e.preventDefault();
-    const row = e.target.closest('tr');
+    if (e && typeof e.preventDefault === 'function') e.preventDefault();
+    const row = e.target ? e.target.closest('tr') : null;
     if (!row) return;
 
     handleRowClick(e);
-
-    const contextMenu = document.getElementById('contextMenu');
-    contextMenu.style.display = 'block';
-    contextMenu.style.left = e.pageX + 'px';
-    contextMenu.style.top = e.pageY + 'px';
-
-    updateContextMenu();
+    handleContextMenuUnified(e, 'main');
 }
 
 function handleOutputContextMenu(e) {
-    e.preventDefault();
-    const row = e.target.closest('tr');
+    if (e && typeof e.preventDefault === 'function') e.preventDefault();
+    const row = e.target ? e.target.closest('tr') : null;
     if (!row) return;
 
     handleOutputRowClick(e);
-
-    const contextMenu = document.getElementById('contextMenu');
-    contextMenu.style.display = 'block';
-    contextMenu.style.left = e.pageX + 'px';
-    contextMenu.style.top = e.pageY + 'px';
-
-    updateOutputContextMenu();
+    handleContextMenuUnified(e, 'output');
 }
 
+let lastContextMenuActionTimestamp = 0;
+
 function handleContextMenuAction(e) {
-    const action = e.target.dataset.action;
+    const now = Date.now();
+    if (now - lastContextMenuActionTimestamp < 250) {
+        if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+        return;
+    }
+    lastContextMenuActionTimestamp = now;
+
+    if (e && typeof e.stopPropagation === 'function') {
+        e.stopPropagation();
+    }
+
+    const item = (e && e.target) ? e.target.closest('.context-menu-item') : null;
+    const action = item ? item.dataset.action : null;
+    if (!action) return;
       
-    // Xác định sử dụng data từ table nào
-    const isOutputTable = ['outputByBarcode', 'outputByRecipe', 'outputBarcodeByFeedRecords'].includes(action);
-    const rowData = isOutputTable ? selectedOutputRowData : selectedRowData;
+    // Determine data source table:
+    // If context menu was triggered from output table or is an output action, use selectedOutputRowData
+    const isOutputTable = currentContextMenuTableType === 'output' || ['outputByBarcode', 'outputByRecipe', 'outputBarcodeByFeedRecords'].includes(action);
+    const rowData = isOutputTable ? (selectedOutputRowData || selectedRowData) : (selectedRowData || selectedOutputRowData);
     
-    if (!rowData) return;
+    const contextMenu = document.getElementById('contextMenu');
+    if (contextMenu) contextMenu.style.display = 'none';
+
+    if (!rowData) {
+        console.warn('[ContextMenu] No rowData available for action:', action);
+        return;
+    }
 
     switch (action) {
+        case 'validate_scan_barcode':
+            if (typeof validateScanBarcode === 'function') {
+                validateScanBarcode();
+            }
+            break;
+
         // currentTableType === 'barcode'
         case 'inputBarcode':
-            openOutputTable('inputBarcode', rowData);
+            if (typeof openOutputTable === 'function') openOutputTable('inputBarcode', rowData);
             break;
         case 'feedRecords':
-            openOutputTable('feedRecords', rowData);
+            if (typeof openOutputTable === 'function') openOutputTable('feedRecords', rowData);
             break;
         case 'checkScanBarcodeHistory':
-            fetchScanBarcodeHistoryByBarcode(rowData);
+            if (typeof fetchScanBarcodeHistoryByBarcode === 'function') fetchScanBarcodeHistoryByBarcode(rowData);
             break;
         case 'checkBarcodeWorkOrder':
-            openOutputTable('workOrderByBarcode', rowData);
+            if (typeof openOutputTable === 'function') openOutputTable('workOrderByBarcode', rowData);
             break;
         case 'mesTracking':
-            openMesTrackingModal(rowData);
+            if (typeof openMesTrackingModal === 'function') openMesTrackingModal(rowData);
             break;
         case 'checkBarcodeTransfer':
-            checkBarcodeTransfer(rowData);
+            if (typeof checkBarcodeTransfer === 'function') checkBarcodeTransfer(rowData);
             break;
         case 'checkBarcodeExtendDateTime':
-            checkBarcodeExtendDateTime(rowData);
+            if (typeof checkBarcodeExtendDateTime === 'function') checkBarcodeExtendDateTime(rowData);
             break;
         case 'fetchOriginalInfo':
-            openOutputTable('fetchOriginalInfoByBarcode', rowData);
+            if (typeof openOutputTable === 'function') openOutputTable('fetchOriginalInfoByBarcode', rowData);
             break;
         case 'getPrdeba':
-            fetchPrde('prdeba', rowData);
+            if (typeof fetchPrde === 'function') fetchPrde('prdeba', rowData);
             break;
         case 'getPrdebb':
-            fetchPrde('prdebb', rowData);
+            if (typeof fetchPrde === 'function') fetchPrde('prdebb', rowData);
             break;
         case 'getPrdebc':
-            fetchPrde('prdebc', rowData);
+            if (typeof fetchPrde === 'function') fetchPrde('prdebc', rowData);
             break;
 
         // currentOutputTableType === 'outputBarcodeByFeedRecords'
         case 'outputBarcodeByFeedRecords':
-            fetchOutputBarcode(rowData ? (rowData.work_order || rowData.id) : null);
+            if (typeof fetchOutputBarcode === 'function') fetchOutputBarcode(rowData ? (rowData.work_order || rowData.id) : null);
             break;
 
         // currentTableType === 'recipe'      
         case 'searchWorkOrderByRecipe':
-            openOutputTable('workOrderByRecipe', rowData);
+            if (typeof openOutputTable === 'function') openOutputTable('workOrderByRecipe', rowData);
             break;
         case 'searchCommitGitlabByRecipe':
-            openOutputTable('commitGitlabByRecipe', rowData);
+            if (typeof openOutputTable === 'function') openOutputTable('commitGitlabByRecipe', rowData);
             break;
         case 'searchActionsCommitByRecipe':
-            fetchActionsCommitByRecipe(rowData);
+            if (typeof fetchActionsCommitByRecipe === 'function') fetchActionsCommitByRecipe(rowData);
             break;
         case 'fetchYamlDetails':
-            fetchYamlContent(rowData);
+            if (typeof fetchYamlContent === 'function') fetchYamlContent(rowData);
             break;
 
         // currentTableType === 'work_order'
         case 'fetchOutputBarcodeByWorkOrder':
-            openOutputTable('outputBarcodeByWorkOrder', rowData);
+            if (typeof openOutputTable === 'function') openOutputTable('outputBarcodeByWorkOrder', rowData);
             break;
             
         // currentOutputTableType 
         case 'outputByBarcode':
-            fetchOutputBarcodeByWorkOrder('outputByBarcode', rowData);
+            if (typeof fetchOutputBarcodeByWorkOrder === 'function') fetchOutputBarcodeByWorkOrder('outputByBarcode', rowData);
             break;
         case 'outputByRecipe':
-            fetchOutputBarcodeByWorkOrder('outputByRecipe', rowData);
+            if (typeof fetchOutputBarcodeByWorkOrder === 'function') fetchOutputBarcodeByWorkOrder('outputByRecipe', rowData);
             break;
     }
-
-    document.getElementById('contextMenu').style.display = 'none';
 }
 
 /**
@@ -2679,12 +3176,18 @@ function enhanceContextMenu() {
         });
     }
 
-    // Click ra ngoài để đóng
+    // Click hoặc chạm ra ngoài để đóng context menu
     document.addEventListener('click', (e) => {
-        if (!contextMenu.contains(e.target)) {
+        if (contextMenu.style.display === 'block' && !contextMenu.contains(e.target)) {
             closeContextMenu();
         }
     });
+
+    document.addEventListener('touchstart', (e) => {
+        if (contextMenu.style.display === 'block' && !contextMenu.contains(e.target)) {
+            closeContextMenu();
+        }
+    }, { passive: true });
 
     // Khi mở menu, auto-highlight item đầu tiên
     const observer = new MutationObserver((mutations) => {
@@ -3813,16 +4316,24 @@ function showDetails() {
     if (!selectedRow) return;
 
     const cells = selectedRow.querySelectorAll('td');
-    const columns = Array.from(
-        document.querySelectorAll('#tableHead th')
-    ).map(th => th.textContent);
+    const table = selectedRow.closest('table');
+    const columns = table 
+        ? Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim()).filter(Boolean) 
+        : Array.from(document.querySelectorAll('#tableHead th')).map(th => th.textContent.trim()).filter(Boolean);
 
     const fullRowData = {};
-    columns.forEach((col, index) => {
-        const cell = cells[index];
-        fullRowData[col] =
-            cell?.dataset.fullValue || cell?.textContent || '';
-    });
+    if (columns.length > 0 && columns.length <= cells.length) {
+        columns.forEach((col, index) => {
+            const cell = cells[index];
+            fullRowData[col] = cell?.dataset.fullValue !== undefined ? cell.dataset.fullValue : (cell?.textContent?.trim() || '');
+        });
+    } else if (selectedRowData && Object.keys(selectedRowData).length > 0) {
+        Object.assign(fullRowData, selectedRowData);
+    } else {
+        cells.forEach((cell, index) => {
+            fullRowData[`Cột ${index + 1}`] = cell?.dataset.fullValue !== undefined ? cell.dataset.fullValue : (cell?.textContent?.trim() || '');
+        });
+    }
 
     showDetailsModal(fullRowData);
 }
@@ -3831,15 +4342,24 @@ function showOutputDetails() {
     if (!selectedOutputRow) return;
 
     const cells = selectedOutputRow.querySelectorAll('td');
-    const columns = Array.from(
-        document.querySelectorAll('#outputBarcodeTable thead th')
-    ).map(th => th.textContent);
+    const table = selectedOutputRow.closest('table');
+    const columns = table 
+        ? Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim()).filter(Boolean) 
+        : Array.from(document.querySelectorAll('#outputBarcodeTable thead th')).map(th => th.textContent.trim()).filter(Boolean);
 
     const fullRowData = {};
-    columns.forEach((col, index) => {
-        const cell = cells[index];
-        fullRowData[col] = cell?.dataset.fullValue || cell?.textContent || '';
-    });
+    if (columns.length > 0 && columns.length <= cells.length) {
+        columns.forEach((col, index) => {
+            const cell = cells[index];
+            fullRowData[col] = cell?.dataset.fullValue !== undefined ? cell.dataset.fullValue : (cell?.textContent?.trim() || '');
+        });
+    } else if (selectedOutputRowData && Object.keys(selectedOutputRowData).length > 0) {
+        Object.assign(fullRowData, selectedOutputRowData);
+    } else {
+        cells.forEach((cell, index) => {
+            fullRowData[`Cột ${index + 1}`] = cell?.dataset.fullValue !== undefined ? cell.dataset.fullValue : (cell?.textContent?.trim() || '');
+        });
+    }
 
     showDetailsModal(fullRowData);
 }
@@ -6146,6 +6666,13 @@ function setTableData(result, columns, tableType = null, customEmptyMsg = null, 
         clearInputBox(searchInput);
     }
 
+    // Unhide table-container if hidden (e.g. check-qc-data or check-mesync)
+    const tableContainer = document.querySelector('.table-container');
+    if (tableContainer && (document.body.classList.contains('check-qc-data') || document.body.classList.contains('check-mesync'))) {
+        tableContainer.classList.remove('hidden');
+        tableContainer.style.display = '';
+    }
+
     updateClientSearchState(rawTableData.length > 0);
     displayTable(rawTableData, rawTableColumns);
 
@@ -6176,7 +6703,7 @@ function renderShadcnPagination(navElement, currentPage, totalPages, onPageChang
 
     navElement.classList.remove('hidden');
 
-    // Canonical shadcn/ui range algorithm
+    // Standard shadcn/ui range algorithm (desktop and full-width mobile row)
     const items = [];
     if (totalPages <= 7) {
         for (let i = 1; i <= totalPages; i++) items.push(i);

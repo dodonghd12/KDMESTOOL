@@ -145,10 +145,18 @@ function initializeValidateScanBarcodeEventListeners() {
     
     // Table row selection
     document.getElementById('tableBody').addEventListener('click', handleRowClick);
-    document.getElementById('tableBody').addEventListener('contextmenu', handleContextMenu);
-    
-    // Context menu item
-    // document.querySelector('.context-menu-item').addEventListener('click', handleContextMenuAction);
+    document.getElementById('tableBody').addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+    });
+
+    document.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        return false;
+    }, true);
 }
 
 function showDepartmentDropdown(items) {

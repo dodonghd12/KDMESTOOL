@@ -435,16 +435,24 @@ function handleRowClick(e) {
 }
 
 function handleContextMenu(e) {
-    e.preventDefault();
-    const row = e.target.closest('tr');
+    if (e && typeof e.preventDefault === 'function') e.preventDefault();
+    const row = (e && e.target) ? e.target.closest('tr') : selectedRow;
     if (!row) return;
     
     handleRowClick(e);
     
-    const contextMenu = document.getElementById('contextMenu');
-    contextMenu.style.display = 'block';
-    contextMenu.style.left = e.pageX + 'px';
-    contextMenu.style.top = e.pageY + 'px';
+    if (typeof handleContextMenuUnified === 'function') {
+        handleContextMenuUnified(e, 'main');
+    } else {
+        const contextMenu = document.getElementById('contextMenu');
+        if (contextMenu) {
+            const item = contextMenu.querySelector('[data-action="validate_scan_barcode"]');
+            if (item) item.style.display = 'flex';
+            contextMenu.style.display = 'block';
+            contextMenu.style.left = ((e && e.pageX) || 10) + 'px';
+            contextMenu.style.top = ((e && e.pageY) || 10) + 'px';
+        }
+    }
 }
 
 function handleContextMenuAction(e) {
@@ -660,16 +668,22 @@ function displayComparison(result, recipeId, station, workOrderId) {
         
         // 2. NVL column - show site_id (recipe name), barcode, quantity, expiry
         html += '<td class="material-cell">';
-        if (!item._isMatch || !item._isValid || item.match === false) {
-            const statusText = getValidationStatusText(item);
-            const copyText = `Trạm ${item.site || ''} Tem ${item.site_barcode || ''} ${statusText}`.replace(/\s+/g, ' ').trim();
-            html += `<button type="button" class="comparison-copy-btn" data-copy-text="${escapeHtml(copyText)}" onclick="copyValidationRowText(event, this)" title="Sao chép thông tin lỗi: ${escapeHtml(copyText)}" aria-label="Sao chép thông tin lỗi">` +
-                `<span class="material-symbols-outlined" aria-hidden="true">content_copy</span>` +
-                `<span>Copy</span>` +
-            `</button>`;
-        }
         const isMismatch = Boolean(item._hasBarcode && !item._isMatch);
         html += `<div class="site-id-text${isMismatch ? ' mismatch' : ''}">${item.site_id ? escapeHtml(item.site_id) : '<span class="empty-cell">N/A</span>'}${isMismatch ? ' <span class="badge-tag-mismatch">SAI QUY CÁCH</span>' : ''}</div>`;
+        
+        // Copy error button helper
+        const renderCopyBtn = () => {
+            if (!item._isMatch || !item._isValid || item.match === false) {
+                const statusText = getValidationStatusText(item);
+                const copyText = `Trạm ${item.site || ''} Tem ${item.site_barcode || ''} ${statusText}`.replace(/\s+/g, ' ').trim();
+                return `<button type="button" class="comparison-copy-btn" data-copy-text="${escapeHtml(copyText)}" onclick="copyValidationRowText(event, this)" title="Sao chép thông tin lỗi: ${escapeHtml(copyText)}" aria-label="Sao chép thông tin lỗi">` +
+                    `<span class="material-symbols-outlined" aria-hidden="true">content_copy</span>` +
+                    `<span>Copy</span>` +
+                `</button>`;
+            }
+            return '';
+        };
+
         if (item._hasBarcode) {
             let barcodeClass = 'barcode-highlight';
             if (item._isEmptyQuantity) {
@@ -678,8 +692,11 @@ function displayComparison(result, recipeId, station, workOrderId) {
                 barcodeClass += ' expired';
             }
 
-            // barcode
+            // barcode row with inline copy button
+            html += `<div class="barcode-row-wrap">`;
             html += `<div class="${barcodeClass}"><span class="material-symbols-outlined barcode-icon">qr_code_2</span>${escapeHtml(item.site_barcode)}</div>`;
+            html += renderCopyBtn();
+            html += `</div>`;
 
             // Số lượng & HSD
             const quantityText = (item.quantity !== null && item.quantity !== undefined)
@@ -694,7 +711,10 @@ function displayComparison(result, recipeId, station, workOrderId) {
             html += `<span class="meta-item${item._isExpired ? ' expired' : ''}"><span class="material-symbols-outlined">schedule</span> HSD: <strong>${escapeHtml(expiryText)}</strong>${item._isExpired ? ' <span class="badge-tag-expired">HẾT HẠN</span>' : ''}</span>`;
             html += `</div>`;
         } else {
-            html += '<div class="empty-cell">Chưa quét tem</div>';
+            html += `<div class="barcode-row-wrap">`;
+            html += `<div class="empty-cell">Chưa quét tem</div>`;
+            html += renderCopyBtn();
+            html += `</div>`;
         }
         html += '</td>';
         

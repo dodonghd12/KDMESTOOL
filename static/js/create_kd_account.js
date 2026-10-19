@@ -292,8 +292,8 @@
                 dropzone.classList.remove('drag-over');
                 const titleEl = document.getElementById('dropzoneTitle');
                 const subEl = document.getElementById('dropzoneSubtitle');
-                if (titleEl) titleEl.textContent = 'Drop your file';
-                if (subEl) subEl.textContent = 'XLSX, XLS — up to 50 MB';
+                if (titleEl) titleEl.textContent = 'Chọn file Excel tải lên';
+                if (subEl) subEl.textContent = 'XLSX, XLS — tối đa 50 MB';
             }, false);
         });
 
@@ -303,8 +303,8 @@
             dropzone.classList.remove('drag-over');
             const titleEl = document.getElementById('dropzoneTitle');
             const subEl = document.getElementById('dropzoneSubtitle');
-            if (titleEl) titleEl.textContent = 'Drop your file';
-            if (subEl) subEl.textContent = 'XLSX, XLS — up to 50 MB';
+            if (titleEl) titleEl.textContent = 'Chọn file Excel tải lên';
+            if (subEl) subEl.textContent = 'XLSX, XLS — tối đa 50 MB';
 
             const dt = e.dataTransfer;
             if (dt && dt.files && dt.files.length > 0) {

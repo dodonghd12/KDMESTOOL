@@ -119,3 +119,16 @@ body.light-theme .smooth-input-caret.is-idle {
         animation: none !important;
     }
 }
+
+/* 6. Mobile & Touch Screen: Always preserve native browser caret & disable custom overlay */
+@media (max-width: 800px), (pointer: coarse) {
+    input.smooth-caret-enabled,
+    .input,
+    input {
+        caret-color: var(--color-text-accent, #3dd5c0) !important;
+    }
+    .smooth-input-caret {
+        display: none !important;
+    }
+}
+
