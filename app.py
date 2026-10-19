@@ -70,7 +70,7 @@ def get_yaml_deleted_log_path():
         pass
     return LOG_YAML_DELETED_LOCAL_PATH
 
-def validate_actions_yaml_content(content: str, recipe_id: str) -> dict:
+def validate_actions_yaml_content(content: str, recipe_id: str = '', actual_filename: str = '') -> dict:
     """
     Kiểm tra tính hợp lệ về cú pháp và cấu trúc thụt lề của file actions.yaml.
     Quy tắc:
@@ -148,16 +148,25 @@ def validate_actions_yaml_content(content: str, recipe_id: str) -> dict:
                         if err_msg not in result['errors']:
                             result['errors'].append(err_msg)
 
-    # 4. Kiểm tra xem recipe_id có trong files hay không
-    clean_rec = recipe_id.replace('.yaml', '').strip().lower()
+    # 4. Kiểm tra xem quy cách có trong files hay không theo actual_filename
+    target_stem = ''
+    if actual_filename:
+        target_stem = os.path.splitext(os.path.basename(actual_filename))[0].strip().lower()
+    elif recipe_id:
+        sanitized = re.sub(r'[:\\/*?"<>|+ ]', '_', recipe_id)
+        sanitized = re.sub(r'_+', '_', sanitized)
+        target_stem = os.path.splitext(sanitized)[0].strip().lower()
+
     found_in_recipe_files = False
     for rf in result.get('parsed_recipe_files', []):
-        if clean_rec in rf.lower():
+        rf_clean = str(rf).lower()
+        if target_stem and (target_stem in rf_clean or target_stem.replace('_', '') in rf_clean.replace('_', '')):
             found_in_recipe_files = True
             break
 
+    display_name = actual_filename or recipe_id
     if result['is_valid'] and not found_in_recipe_files and result['parsed_recipe_files']:
-        result['errors'].append(f"Không tìm thấy tên quy cách '{recipe_id}' trong danh sách files của 'recipe:'")
+        result['errors'].append(f"Không tìm thấy tên quy cách '{display_name}' trong danh sách files của 'recipe:'")
 
     if result['errors']:
         result['is_valid'] = False
@@ -818,7 +827,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.4"
+APP_VERSION = "2.3.5"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -4595,23 +4604,21 @@ def search_actions_commit():
         if res_recent.get('auth_error'):
             return jsonify({'success': False, 'message': 'Lỗi xác thực GitLab Token, vui lòng kiểm tra'})
 
-        actual_filename = os.path.basename(recipe_file_path) if recipe_file_path else ''
+        req_actual_filename = request.json.get('actual_filename', '').strip()
+        actual_filename = req_actual_filename or (os.path.basename(recipe_file_path) if recipe_file_path else '')
+        if not actual_filename:
+            sanitized = re.sub(r'[:\\/*?"<>|+ ]', '_', recipe_id)
+            sanitized = re.sub(r'_+', '_', sanitized)
+            actual_filename = f"{sanitized}.yaml" if not sanitized.endswith('.yaml') else sanitized
 
         # Build search candidate set for matching diff lines in actions.yaml
+        # USER RULE: Tìm kiếm thay đổi trong actions.yaml (Diff) theo actual_filename, không tìm theo recipe_id
         search_candidates = set()
-        for v in variants:
-            search_candidates.add(v.lower())
-            search_candidates.add(f"{v.lower()}.yaml")
-            sanitized_v = re.sub(r'[:\\/*?"<>|+ ]', '_', v)
-            sanitized_v = re.sub(r'_+', '_', sanitized_v)
-            if sanitized_v:
-                search_candidates.add(sanitized_v.lower())
-                search_candidates.add(f"{sanitized_v.lower()}.yaml")
-
-        if actual_filename:
-            search_candidates.add(actual_filename.lower())
-            stem = os.path.splitext(actual_filename)[0]
-            search_candidates.add(stem.lower())
+        clean_fn = os.path.basename(actual_filename).strip()
+        stem = os.path.splitext(clean_fn)[0]
+        search_candidates.add(clean_fn.lower())
+        search_candidates.add(f"{stem.lower()}.yaml")
+        search_candidates.add(stem.lower())
 
         actions_commits_map = {}
         for c in res_recent.get('commits', []):
@@ -4764,15 +4771,7 @@ def search_actions_commit():
                     print(f"Error fetching MR for commit {cid}: {e}")
 
             edit_sha = mr_obj.get('sha') if (mr_obj and mr_obj.get('sha')) else cid
-            merge_sha = mr_obj.get('merge_commit_sha') if mr_obj else None
-
-            pipe_edit = None
-            pipe_merge = None
-            with ThreadPoolExecutor(max_workers=2) as sub_exec:
-                f_edit = sub_exec.submit(fetch_pipeline, edit_sha)
-                f_merge = sub_exec.submit(fetch_pipeline, merge_sha)
-                pipe_edit = f_edit.result()
-                pipe_merge = f_merge.result()
+            pipe_edit = fetch_pipeline(edit_sha)
 
             # Validate actions.yaml content at edit_sha
             val_res = {'is_valid': True, 'errors': [], 'has_indent_error': False}
@@ -4797,9 +4796,9 @@ def search_actions_commit():
                     actions_raw = ''
 
             if actions_raw:
-                val_res = validate_actions_yaml_content(actions_raw, clean_recipe_id)
+                val_res = validate_actions_yaml_content(actions_raw, clean_recipe_id, actual_filename)
 
-            return (c_item, d_item, m_type, mr_obj, pipe_edit, pipe_merge, val_res)
+            return (c_item, d_item, m_type, mr_obj, pipe_edit, val_res)
 
         with ThreadPoolExecutor(max_workers=10) as executor:
             full_matches = list(executor.map(fetch_mr_and_pipeline_details, matched_commits))
@@ -4814,18 +4813,13 @@ def search_actions_commit():
         project_web_base = 'https://gitlabce.kenda.com.tw/tc/recipes/kitting' if project_id == 135 else f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}'
 
         matches_data = []
-        for matched_commit, matched_diff, match_type, mr_info, pipe_edit, pipe_merge, val_info in full_matches:
+        for matched_commit, matched_diff, match_type, mr_info, pipe_edit, val_info in full_matches:
             edit_sha = mr_info.get('sha') if (mr_info and mr_info.get('sha')) else matched_commit.get('id', '')
             edit_short = edit_sha[:8] if edit_sha else ''
             author_name = (mr_info.get('author', {}).get('name') if (mr_info and mr_info.get('author')) else matched_commit.get('author_name', ''))
             author_username = (mr_info.get('author', {}).get('username') if (mr_info and mr_info.get('author')) else '')
             source_branch = mr_info.get('source_branch', '') if mr_info else ''
             target_branch = mr_info.get('target_branch', 'master') if mr_info else 'master'
-
-            merge_sha = mr_info.get('merge_commit_sha', '') if mr_info else ''
-            merge_short = merge_sha[:8] if merge_sha else ''
-            merged_at = convert_iso_datetime(mr_info.get('merged_at', '')) if (mr_info and mr_info.get('merged_at')) else ''
-            merged_by = (mr_info.get('merged_by', {}).get('name') if (mr_info and mr_info.get('merged_by')) else '')
 
             matches_data.append({
                 'match_type': match_type,
@@ -4842,14 +4836,6 @@ def search_actions_commit():
                     'authored_date': convert_iso_datetime(matched_commit.get('authored_date', '')) if matched_commit.get('authored_date') else '',
                     'web_url': f"{project_web_base}/-/commit/{edit_sha}" if edit_sha else '',
                     'pipeline': pipe_edit
-                },
-                'commit_merge': {
-                    'id': merge_sha,
-                    'short_id': merge_short,
-                    'merged_at': merged_at,
-                    'merged_by': merged_by,
-                    'web_url': f"{project_web_base}/-/commit/{merge_sha}" if merge_sha else '',
-                    'pipeline': pipe_merge
                 },
                 'merge_request': {
                     'id': mr_info.get('id'),
@@ -4872,7 +4858,6 @@ def search_actions_commit():
             'project_id': project_id,
             'match_type': primary['match_type'],
             'commit_edit': primary['commit_edit'],
-            'commit_merge': primary['commit_merge'],
             'merge_request': primary['merge_request'],
             'diff': primary['diff'],
             'diff_file': primary['diff_file'],

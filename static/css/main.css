@@ -8291,20 +8291,9 @@ body.theme-light .ocr-dropzone {
 }
 
 /* ===== ACTIONS COMMIT MODAL VIEWER ===== */
-.details-modal-body.details-modal-body-actions {
-    white-space: normal !important;
-    font-family: var(--font-stack, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif) !important;
-    padding: 16px !important;
-    line-height: normal !important;
-    background: var(--color-bg-canvas) !important;
-}
-
-.actions-commit-container {
-    display: flex;
-    flex-direction: column;
+.details-modal-body-wrapper.has-actions-commit {
+    overflow-y: auto;
     gap: 12px;
-    width: 100%;
-    box-sizing: border-box;
 }
 
 /* Version Tabs Selector Bar */
@@ -8317,14 +8306,6 @@ body.theme-light .ocr-dropzone {
     background: var(--color-interactive-bg-hover);
     border: 1px solid var(--color-border-subtle);
     border-radius: 8px;
-}
-
-.tabs-label {
-    font-size: 11.5px;
-    font-weight: 700;
-    color: var(--color-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
 }
 
 .actions-version-tabs {
@@ -8437,7 +8418,7 @@ body.theme-light .ocr-dropzone {
 
 .actions-commit-cards-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    grid-template-columns: 1fr;
     gap: 14px;
 }
 
@@ -8459,8 +8440,15 @@ body.theme-light .ocr-dropzone {
     border-left: 4px solid #38bdf8;
 }
 
-.actions-commit-card.merge-card {
-    border-left: 4px solid #a855f7;
+.actions-commit-card.patch-card.pipeline-error {
+    border: 1.5px solid rgba(239, 68, 68, 0.8) !important;
+    border-left: 5px solid #ef4444 !important;
+    box-shadow: 0 0 16px rgba(239, 68, 68, 0.25) !important;
+    background: linear-gradient(145deg, rgba(239, 68, 68, 0.08), var(--color-bg-surface)) !important;
+}
+
+.actions-commit-card.patch-card.pipeline-error .card-badge.patch-badge {
+    color: #ef4444 !important;
 }
 
 .actions-card-header {
@@ -8470,6 +8458,31 @@ body.theme-light .ocr-dropzone {
     padding: 10px 14px;
     background: var(--color-interactive-bg-hover);
     border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.card-header-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.card-pipeline-error-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    padding: 2.5px 8px;
+    border-radius: 9999px;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+}
+
+.card-pipeline-error-tag .material-symbols-outlined {
+    font-size: 14px !important;
 }
 
 .card-badge {
@@ -8486,10 +8499,6 @@ body.theme-light .ocr-dropzone {
 
 .card-badge.patch-badge {
     color: #38bdf8;
-}
-
-.card-badge.merge-badge {
-    color: #c084fc;
 }
 
 .gitlab-link-btn {
@@ -8564,17 +8573,6 @@ body.theme-light .ocr-dropzone {
     text-overflow: ellipsis;
     white-space: nowrap;
     max-width: 180px;
-}
-
-.target-branch-pill {
-    background: rgba(168, 85, 247, 0.15);
-    color: #c084fc;
-    border: 1px solid rgba(168, 85, 247, 0.35);
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-weight: 700;
-    font-family: var(--font-mono, monospace);
-    font-size: 11.5px;
 }
 
 .author-val, .time-val {
