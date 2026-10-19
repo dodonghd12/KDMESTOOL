@@ -70,7 +70,7 @@ def get_yaml_deleted_log_path():
         pass
     return LOG_YAML_DELETED_LOCAL_PATH
 
-def validate_actions_yaml_content(content: str, recipe_id: str = '', actual_filename: str = '') -> dict:
+def validate_actions_yaml_content(content: str, recipe_id: str = '', actual_filename: str = '', match_type: str = '') -> dict:
     """
     Kiểm tra tính hợp lệ về cú pháp và cấu trúc thụt lề của file actions.yaml.
     Quy tắc:
@@ -148,24 +148,36 @@ def validate_actions_yaml_content(content: str, recipe_id: str = '', actual_file
                         if err_msg not in result['errors']:
                             result['errors'].append(err_msg)
 
-    # 4. Kiểm tra xem quy cách có trong files hay không theo actual_filename
-    target_stem = ''
-    if actual_filename:
-        target_stem = os.path.splitext(os.path.basename(actual_filename))[0].strip().lower()
-    elif recipe_id:
-        sanitized = re.sub(r'[:\\/*?"<>|+ ]', '_', recipe_id)
-        sanitized = re.sub(r'_+', '_', sanitized)
-        target_stem = os.path.splitext(sanitized)[0].strip().lower()
+    # 4. Kiểm tra xem quy cách có trong files hay không theo actual_filename / recipe_id
+    candidate_stems = set()
+    for name in [actual_filename, recipe_id]:
+        if name:
+            stem = os.path.splitext(os.path.basename(name))[0].strip().lower()
+            if stem:
+                candidate_stems.add(stem)
+                sanitized = re.sub(r'[:\\/*?"<>|+ ]', '_', stem)
+                sanitized = re.sub(r'_+', '_', sanitized)
+                candidate_stems.add(sanitized)
+                candidate_stems.add(sanitized.replace('_', ''))
 
     found_in_recipe_files = False
     for rf in result.get('parsed_recipe_files', []):
-        rf_clean = str(rf).lower()
-        if target_stem and (target_stem in rf_clean or target_stem.replace('_', '') in rf_clean.replace('_', '')):
-            found_in_recipe_files = True
+        rf_clean = str(rf).strip().lower()
+        rf_stem = os.path.splitext(rf_clean)[0]
+        rf_sanitized = re.sub(r'[:\\/*?"<>|+ ]', '_', rf_stem)
+        rf_sanitized = re.sub(r'_+', '_', rf_sanitized)
+        rf_condensed = rf_sanitized.replace('_', '')
+
+        for c_stem in candidate_stems:
+            if c_stem in rf_clean or c_stem in rf_stem or c_stem in rf_sanitized or (c_stem in rf_condensed and len(c_stem) > 5):
+                found_in_recipe_files = True
+                break
+        if found_in_recipe_files:
             break
 
     display_name = actual_filename or recipe_id
-    if result['is_valid'] and not found_in_recipe_files and result['parsed_recipe_files']:
+    # Khi commit là thao tác gỡ bỏ (remove), file đương nhiên không còn trong actions.yaml mới
+    if match_type != 'remove' and result['is_valid'] and not found_in_recipe_files and result['parsed_recipe_files']:
         result['errors'].append(f"Không tìm thấy tên quy cách '{display_name}' trong danh sách files của 'recipe:'")
 
     if result['errors']:
@@ -827,7 +839,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.5"
+APP_VERSION = "2.3.6"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -4605,20 +4617,39 @@ def search_actions_commit():
             return jsonify({'success': False, 'message': 'Lỗi xác thực GitLab Token, vui lòng kiểm tra'})
 
         req_actual_filename = request.json.get('actual_filename', '').strip()
-        actual_filename = req_actual_filename or (os.path.basename(recipe_file_path) if recipe_file_path else '')
-        if not actual_filename:
-            sanitized = re.sub(r'[:\\/*?"<>|+ ]', '_', recipe_id)
-            sanitized = re.sub(r'_+', '_', sanitized)
+        # USER RULE: actual_filename trên GitLab là nguồn chuẩn nhất (ví dụ V-BU1_2S... thay vì V-BU1*2S...)
+        if recipe_file_path:
+            actual_filename = os.path.basename(recipe_file_path)
+        elif req_actual_filename:
+            # Sanitize nếu caller gửi tên file chứa ký tự đặc biệt như * hoặc +
+            clean_fn = re.sub(r'[:\\/*?"<>|+ ]', '_', req_actual_filename)
+            clean_fn = re.sub(r'_+', '_', clean_fn)
+            actual_filename = clean_fn if clean_fn.endswith('.yaml') else f"{clean_fn}.yaml"
+        else:
+            sanitized = variants[1] if len(variants) > 1 else variants[0]
             actual_filename = f"{sanitized}.yaml" if not sanitized.endswith('.yaml') else sanitized
 
         # Build search candidate set for matching diff lines in actions.yaml
-        # USER RULE: Tìm kiếm thay đổi trong actions.yaml (Diff) theo actual_filename, không tìm theo recipe_id
+        # USER RULE: Tìm kiếm thay đổi trong actions.yaml (Diff) theo actual_filename và các biến thể hợp lệ
         search_candidates = set()
         clean_fn = os.path.basename(actual_filename).strip()
         stem = os.path.splitext(clean_fn)[0]
         search_candidates.add(clean_fn.lower())
         search_candidates.add(f"{stem.lower()}.yaml")
         search_candidates.add(stem.lower())
+
+        # Quét cả raw recipe_id và tất cả biến thể sanitized của quy cách
+        for v in variants:
+            v_clean = v.strip().lower()
+            search_candidates.add(v_clean)
+            search_candidates.add(f"{v_clean}.yaml")
+
+        if req_actual_filename:
+            req_clean = os.path.basename(req_actual_filename).strip().lower()
+            req_stem = os.path.splitext(req_clean)[0]
+            search_candidates.add(req_clean)
+            search_candidates.add(req_stem)
+            search_candidates.add(f"{req_stem}.yaml")
 
         actions_commits_map = {}
         for c in res_recent.get('commits', []):
@@ -4796,7 +4827,7 @@ def search_actions_commit():
                     actions_raw = ''
 
             if actions_raw:
-                val_res = validate_actions_yaml_content(actions_raw, clean_recipe_id, actual_filename)
+                val_res = validate_actions_yaml_content(actions_raw, clean_recipe_id, actual_filename, m_type)
 
             return (c_item, d_item, m_type, mr_obj, pipe_edit, val_res)
 
@@ -4854,6 +4885,7 @@ def search_actions_commit():
         result_data = {
             'recipe_id': clean_recipe_id,
             'actual_filename': actual_filename or f'{clean_recipe_id}.yaml',
+            'recipe_file_path': recipe_file_path or '',
             'search_candidates': list(search_candidates),
             'project_id': project_id,
             'match_type': primary['match_type'],

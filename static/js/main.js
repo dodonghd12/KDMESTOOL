@@ -5466,9 +5466,15 @@ function renderActionsCommitModal(result, activeIndex = 0) {
         ? result.search_candidates
         : [result.actual_filename, cleanRecipeId].filter(Boolean);
 
-    // Version Tabs Selector (chỉ hiển thị khi có từ 2 phiên bản match trở lên)
-    // USER RULE: Loại bỏ tabs-label khỏi actions-version-tabs-bar
+    // Version Tabs Selector & Context Meta Bar
     let versionTabsHtml = '';
+    const matchType = activeMatch.match_type || 'add';
+    const matchBadgeHtml = matchType === 'remove'
+        ? `<span class="actions-match-badge remove" title="Quy cách được gỡ bỏ khỏi actions.yaml"><span class="material-symbols-outlined">do_not_disturb_on</span><span>Gỡ khỏi actions</span></span>`
+        : `<span class="actions-match-badge add" title="Quy cách được thêm mới vào actions.yaml"><span class="material-symbols-outlined">add_circle</span><span>Thêm vào actions</span></span>`;
+
+    const fileTargetHtml = `<div class="actions-target-file-pill" title="File YAML quy cách trên GitLab: ${escapeHtml(result.recipe_file_path || result.actual_filename || '')}"><span class="material-symbols-outlined">description</span><code>${escapeHtml(result.actual_filename || (cleanRecipeId + '.yaml'))}</code></div>`;
+
     if (matches.length > 1) {
         const tabsList = matches.map((m, idx) => {
             const isAct = idx === activeIndex;
@@ -5481,7 +5487,28 @@ function renderActionsCommitModal(result, activeIndex = 0) {
             return `<button type="button" class="actions-version-tab ${isAct ? 'active' : ''} ${isInvalid ? 'has-error' : ''}" onclick="switchActionsCommitVersion(${idx}, event)"><span>${escapeHtml(label)}</span>${badgeText}${errorBadge}</button>`;
         }).join('');
 
-        versionTabsHtml = `<div class="actions-version-tabs-bar"><div class="actions-version-tabs">${tabsList}</div></div>`;
+        versionTabsHtml = `
+            <div class="actions-version-tabs-bar">
+                <div class="actions-version-tabs">${tabsList}</div>
+                <div class="actions-version-bar-meta">
+                    ${matchBadgeHtml}
+                    ${fileTargetHtml}
+                </div>
+            </div>
+        `;
+    } else {
+        versionTabsHtml = `
+            <div class="actions-version-tabs-bar single-version">
+                <div class="actions-version-single-label">
+                    <span class="material-symbols-outlined">history</span>
+                    <span>Lịch sử commit actions.yaml</span>
+                </div>
+                <div class="actions-version-bar-meta">
+                    ${matchBadgeHtml}
+                    ${fileTargetHtml}
+                </div>
+            </div>
+        `;
     }
 
     // Check pipeline status on commit_edit
@@ -5560,7 +5587,7 @@ function renderActionsCommitModal(result, activeIndex = 0) {
                     <div class="syntax-banner-header">
                         <div class="syntax-banner-title">
                             <span class="material-symbols-outlined banner-status-icon">verified</span>
-                            <span class="banner-title-text">Cấu trúc actions.yaml tại commit này hợp lệ</span>
+                            <span class="banner-title-text">Cấu trúc và nội dung actions.yaml tại commit này hợp lệ</span>
                         </div>
                         <span class="syntax-status-badge badge-success">OK</span>
                     </div>
@@ -5569,20 +5596,23 @@ function renderActionsCommitModal(result, activeIndex = 0) {
         }
     }
 
-    // Commit Card on Patch Branch (commit_merge removed)
+    // Commit Card on Patch Branch (Executive Dashboard Grid layout)
     const commitCardsGridHtml = `
         <div class="actions-commit-cards-grid" id="actionsCommitCardsGrid">
             <div class="actions-commit-card patch-card ${isPipelineError ? 'pipeline-error' : ''}">
                 <div class="actions-card-header">
-                    <div class="card-badge patch-badge">
-                        <span class="material-symbols-outlined">fork_right</span>
-                        <span>Commit trên nhánh (Patch Branch)</span>
+                    <div class="actions-card-title-wrap">
+                        <div class="card-badge patch-badge">
+                            <span class="material-symbols-outlined">fork_right</span>
+                            <span>Commit trên nhánh Patch</span>
+                        </div>
+                        ${edit.title ? `<span class="commit-header-title-text" title="${escapeHtml(edit.message || edit.title)}">${escapeHtml(edit.title)}</span>` : ''}
                     </div>
                     <div class="card-header-actions">
                         ${isPipelineError ? `
                             <span class="card-pipeline-error-tag" title="Pipeline chưa thành công: ${escapeHtml(pipeStatus ? pipeStatus.toUpperCase() : 'KHÔNG CÓ')}">
                                 <span class="material-symbols-outlined">error</span>
-                                <span>Pipeline ${escapeHtml(pipeStatus ? pipeStatus.toUpperCase() : 'LỖI / CHƯA CHẠY')}</span>
+                                <span>Pipeline ${escapeHtml(pipeStatus ? pipeStatus.toUpperCase() : 'CHƯA CHẠY / LỖI')}</span>
                             </span>
                         ` : ''}
                         ${edit.web_url ? `
@@ -5594,48 +5624,90 @@ function renderActionsCommitModal(result, activeIndex = 0) {
                     </div>
                 </div>
                 <div class="actions-card-body">
-                    <div class="actions-info-row">
-                        <span class="actions-info-label">Commit SHA:</span>
-                        <div class="actions-info-val-wrap">
-                            <code class="commit-sha" title="${escapeHtml(edit.id || '')}">${escapeHtml(edit.short_id || (edit.id ? edit.id.substring(0,8) : 'N/A'))}</code>
-                            ${edit.id ? `
-                                <button type="button" class="btn-copy-mini" onclick="copyCommitValue('${escapeHtml(edit.id)}', this)" title="Sao chép Full SHA">
-                                    <span class="material-symbols-outlined">content_copy</span>
-                                </button>
-                            ` : ''}
+                    <div class="actions-meta-grid">
+                        <div class="actions-meta-cell">
+                            <div class="actions-meta-label">
+                                <span class="material-symbols-outlined">tag</span>
+                                <span>Commit SHA</span>
+                            </div>
+                            <div class="actions-meta-value">
+                                <code class="commit-sha" title="${escapeHtml(edit.id || '')}">${escapeHtml(edit.short_id || (edit.id ? edit.id.substring(0,8) : 'N/A'))}</code>
+                                ${edit.id ? `
+                                    <button type="button" class="btn-copy-mini" onclick="copyCommitValue('${escapeHtml(edit.id)}', this)" title="Sao chép Full SHA">
+                                        <span class="material-symbols-outlined">content_copy</span>
+                                    </button>
+                                ` : ''}
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="actions-info-row">
-                        <span class="actions-info-label">Tên nhánh:</span>
-                        <div class="actions-info-val-wrap">
-                            <code class="branch-name" title="${escapeHtml(edit.source_branch || 'N/A')}">${escapeHtml(edit.source_branch || 'N/A')}</code>
-                            ${edit.source_branch ? `
-                                <button type="button" class="btn-copy-mini" onclick="copyCommitValue('${escapeHtml(edit.source_branch)}', this)" title="Sao chép tên nhánh">
-                                    <span class="material-symbols-outlined">content_copy</span>
-                                </button>
-                            ` : ''}
+                        <div class="actions-meta-cell">
+                            <div class="actions-meta-label">
+                                <span class="material-symbols-outlined">fork_left</span>
+                                <span>Tên nhánh</span>
+                            </div>
+                            <div class="actions-meta-value">
+                                <code class="branch-name" title="${escapeHtml(edit.source_branch || 'master')}">${escapeHtml(edit.source_branch || 'master')}</code>
+                                ${edit.source_branch ? `
+                                    <button type="button" class="btn-copy-mini" onclick="copyCommitValue('${escapeHtml(edit.source_branch)}', this)" title="Sao chép tên nhánh">
+                                        <span class="material-symbols-outlined">content_copy</span>
+                                    </button>
+                                ` : ''}
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="actions-info-row">
-                        <span class="actions-info-label">Pipeline:</span>
-                        <div class="actions-info-val-wrap">
-                            ${renderPipelineBadge(edit.pipeline)}
+                        <div class="actions-meta-cell">
+                            <div class="actions-meta-label">
+                                <span class="material-symbols-outlined">sync</span>
+                                <span>Trạng thái Pipeline</span>
+                            </div>
+                            <div class="actions-meta-value">
+                                ${renderPipelineBadge(edit.pipeline)}
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="actions-info-row">
-                        <span class="actions-info-label">Người tạo:</span>
-                        <div class="actions-info-val-wrap">
-                            <span class="author-val"><span class="material-symbols-outlined user-icon">person</span><span>${escapeHtml(edit.author_name || edit.author_username || 'N/A')}</span></span>
+                        <div class="actions-meta-cell">
+                            <div class="actions-meta-label">
+                                <span class="material-symbols-outlined">person</span>
+                                <span>Người tạo</span>
+                            </div>
+                            <div class="actions-meta-value">
+                                <span class="author-val">
+                                    <span class="material-symbols-outlined user-icon">person</span>
+                                    <span>${escapeHtml(edit.author_name || edit.author_username || 'N/A')}</span>
+                                </span>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="actions-info-row">
-                        <span class="actions-info-label">Thời gian tạo:</span>
-                        <div class="actions-info-val-wrap">
-                            <span class="time-val"><span class="material-symbols-outlined time-icon">schedule</span><span>${escapeHtml(edit.authored_date || 'N/A')}</span></span>
+                        <div class="actions-meta-cell">
+                            <div class="actions-meta-label">
+                                <span class="material-symbols-outlined">schedule</span>
+                                <span>Thời gian tạo</span>
+                            </div>
+                            <div class="actions-meta-value">
+                                <span class="time-val">
+                                    <span class="material-symbols-outlined time-icon">schedule</span>
+                                    <span>${escapeHtml(edit.authored_date || 'N/A')}</span>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="actions-meta-cell">
+                            <div class="actions-meta-label">
+                                <span class="material-symbols-outlined">merge</span>
+                                <span>Merge Request</span>
+                            </div>
+                            <div class="actions-meta-value">
+                                ${mr && mr.web_url ? `
+                                    <a href="${escapeHtml(mr.web_url)}" target="_blank" rel="noopener noreferrer" class="mr-link-pill" title="Mở Merge Request trên GitLab">
+                                        <span class="material-symbols-outlined mr-mini-icon">call_merge</span>
+                                        <span class="mr-mini-text">MR !${escapeHtml(String(mr.iid))}</span>
+                                        <span class="mr-mini-state ${escapeHtml(mr.state || 'merged')}">${escapeHtml((mr.state || 'merged').toUpperCase())}</span>
+                                        <span class="material-symbols-outlined open-mini">open_in_new</span>
+                                    </a>
+                                ` : `
+                                    <span class="no-mr-text">Không qua Merge Request</span>
+                                `}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -5649,17 +5721,10 @@ function renderActionsCommitModal(result, activeIndex = 0) {
                 <div class="diff-section-title">
                     <span class="material-symbols-outlined">difference</span>
                     <span>Thay đổi trong file actions.yaml (Diff)</span>
+                    <span class="diff-file-tag">actions.yaml</span>
                 </div>
                 <div class="diff-header-actions">
                     ${diffToggleBtnHtml}
-                    ${mr && mr.web_url ? `
-                        <a href="${escapeHtml(mr.web_url)}" target="_blank" rel="noopener noreferrer" class="mr-link-pill" title="Mở Merge Request trên GitLab">
-                            <span class="material-symbols-outlined mr-mini-icon">call_merge</span>
-                            <span class="mr-mini-text">MR !${escapeHtml(String(mr.iid))}</span>
-                            <span class="mr-mini-state ${escapeHtml(mr.state || 'merged')}">${escapeHtml((mr.state || 'merged').toUpperCase())}</span>
-                            <span class="material-symbols-outlined open-mini">open_in_new</span>
-                        </a>
-                    ` : ''}
                 </div>
             </div>
             <div class="actions-diff-viewer" id="actionsDiffViewer">
