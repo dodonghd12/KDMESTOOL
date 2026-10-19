@@ -4049,8 +4049,11 @@ function highlightDetailsModalText(keyword) {
     const wrapper = modal.querySelector('.details-modal-body-wrapper');
     const body = modal.querySelector('.details-modal-body');
     const isActionsMode = wrapper && wrapper.classList.contains('has-actions-commit');
+    const isYamlMode = wrapper && wrapper.classList.contains('has-yaml-content');
 
-    const targetContainer = isActionsMode ? wrapper : body;
+    const targetContainer = isYamlMode
+        ? (wrapper.querySelector('.yaml-code-scroll') || wrapper)
+        : (isActionsMode ? wrapper : body);
     if (!targetContainer) return;
 
     if (!window._currentDetailsOriginalHTML) {
@@ -4376,10 +4379,11 @@ function resetDetailsModalBody(modal) {
     if (body) {
         body.style.display = '';
         body.classList.remove('details-modal-body-yaml', 'details-modal-body-actions', 'details-modal-body-diff');
+        body.innerHTML = '';
     }
     if (wrapper) {
-        wrapper.classList.remove('has-actions-commit');
-        wrapper.querySelectorAll('.actions-version-tabs-bar, #actionsCommitCardsGrid, .actions-syntax-banner, #actionsDiffSection').forEach(el => el.remove());
+        wrapper.classList.remove('has-actions-commit', 'has-yaml-content');
+        wrapper.querySelectorAll('.actions-version-tabs-bar, #actionsCommitCardsGrid, .actions-syntax-banner, #actionsDiffSection, .yaml-toolbar, .yaml-error-drawer, .yaml-code-scroll, .yaml-path-wrapper, .yaml-toolbar-status').forEach(el => el.remove());
     }
 }
 
@@ -5100,9 +5104,21 @@ async function fetchYamlContent(rowData = null) {
         // Sort errors by lineIndex
         combinedErrors.sort((a, b) => a.lineIndex - b.lineIndex);
         
-        body.classList.add('details-modal-body-yaml');
-        body.innerHTML = renderYamlWithErrors(data.content, data.file_path, combinedErrors, resolvedProductType, labelConfigKeys);
-        window._currentDetailsOriginalHTML = body.innerHTML;
+        const wrapper = modal.querySelector('.details-modal-body-wrapper');
+        if (body) {
+            body.style.display = 'none';
+            body.classList.remove('details-modal-body-yaml', 'details-modal-body-actions', 'details-modal-body-diff');
+            body.innerHTML = '';
+        }
+
+        if (wrapper) {
+            wrapper.classList.add('has-yaml-content');
+            wrapper.querySelectorAll('.yaml-toolbar, .yaml-error-drawer, .yaml-code-scroll, .yaml-path-wrapper, .yaml-toolbar-status').forEach(el => el.remove());
+            wrapper.insertAdjacentHTML('beforeend', renderYamlWithErrors(data.content, data.file_path, combinedErrors, resolvedProductType, labelConfigKeys));
+            wrapper.scrollTop = 0;
+            const codeScroll = wrapper.querySelector('.yaml-code-scroll');
+            window._currentDetailsOriginalHTML = codeScroll ? codeScroll.innerHTML : wrapper.innerHTML;
+        }
         const searchInput = document.getElementById('detailsModalSearch');
         if (searchInput) searchInput.value = '';
         modal.classList.remove('hidden');
@@ -6284,7 +6300,8 @@ function renderYamlWithErrors(content, filePath, errors, productType = '', valid
 
     const codeHtml = `<div class="yaml-code-scroll" id="yamlCodeScroll">${linesHtml}</div>`;
 
-    return `<div class="yaml-container">${toolbarHtml}${drawerHtml}${codeHtml}</div>`;
+    // USER RULE: Hiển thị trực tiếp ở details-modal-body-wrapper, loại bỏ hoàn toàn yaml-container
+    return `${toolbarHtml}${drawerHtml}${codeHtml}`;
 }
 
 // Global functions for interactive YAML viewer

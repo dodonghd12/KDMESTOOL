@@ -4589,25 +4589,18 @@ body.modal-open {
     overflow: hidden;
 }
 
-/* ===== YAML VIEWER (CYBERPUNK PRO COMPACT REDESIGN) ===== */
-.details-modal-body.details-modal-body-yaml {
+/* ===== YAML VIEWER (CYBERPUNK PRO DIRECT WRAPPER DISPLAY) ===== */
+.details-modal-body-wrapper.has-yaml-content {
     padding: 0 !important;
     overflow: hidden !important;
     display: flex !important;
     flex-direction: column !important;
-    white-space: normal !important;
-}
-
-.yaml-container {
-    display: flex;
-    flex-direction: column;
     flex: 1;
     min-height: 0;
     height: 100%;
     background: var(--color-bg-canvas);
-    border-radius: 10px;
-    overflow: hidden;
-    position: relative;
+    border-bottom-left-radius: 14px;
+    border-bottom-right-radius: 14px;
     white-space: normal;
 }
 
@@ -4847,7 +4840,8 @@ body.modal-open {
 
 /* 3. YAML Code Lines & Scroll Container (Tight Monospace Layout) */
 .yaml-code-scroll {
-    flex: 1;
+    flex: 1 1 0%;
+    min-height: 0;
     overflow-y: auto;
     overflow-x: auto;
     padding: 6px 0;
@@ -4859,6 +4853,8 @@ body.modal-open {
     box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.45);
     scrollbar-width: thin;
     scrollbar-color: var(--color-border-interactive) #070c18;
+    border-bottom-left-radius: 14px;
+    border-bottom-right-radius: 14px;
 }
 
 :root[data-theme="light"] .yaml-code-scroll,
@@ -9246,6 +9242,17 @@ body.theme-light .ocr-dropzone {
         gap: 8px !important;
         display: flex !important;
         flex-direction: column !important;
+    }
+
+    .details-modal-body-wrapper.has-yaml-content {
+        padding: 0 !important;
+        overflow: hidden !important;
+    }
+
+    .yaml-toolbar {
+        padding: 6px 10px !important;
+        flex-wrap: wrap !important;
+        gap: 6px !important;
     }
 
     .actions-diff-section {
