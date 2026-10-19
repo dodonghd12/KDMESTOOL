@@ -5173,6 +5173,7 @@ async function fetchActionsCommitByRecipe(rowData = null) {
         window._currentActionsCommitData = result;
         window._currentActionsCommitIndex = 0;
         window._actionsDiffShowFull = false;
+        window._actionsCommitShowAllVersions = false;
 
         // Cập nhật nội dung sao chép toàn bộ
         updateActionsCommitCopyReport(result, 0);
@@ -5477,10 +5478,14 @@ function renderActionsCommitModal(result, activeIndex = 0) {
         ? result.search_candidates
         : [result.actual_filename, cleanRecipeId].filter(Boolean);
 
-    // Version Tabs Selector (USER RULE: actions-version-bar-meta loại bỏ, không cần thiết)
+    // Version Tabs Selector (USER RULE: actions-version-bar-meta loại bỏ, không cần thiết; giới hạn tối đa 5 commit gần nhất kèm nút Xem thêm)
     let versionTabsHtml = '';
     if (matches.length > 1) {
-        const tabsList = matches.map((m, idx) => {
+        const isExpanded = !!window._actionsCommitShowAllVersions || activeIndex >= 5;
+        const visibleIndices = (matches.length > 5 && !isExpanded) ? [0, 1, 2, 3, 4] : matches.map((_, i) => i);
+
+        const tabsList = visibleIndices.map(idx => {
+            const m = matches[idx];
             const isAct = idx === activeIndex;
             const mEdit = m.commit_edit || {};
             const timeDate = mEdit.authored_date ? mEdit.authored_date.split(' ')[0] : '';
@@ -5508,7 +5513,27 @@ function renderActionsCommitModal(result, activeIndex = 0) {
             return `<button type="button" class="actions-version-tab ${isAct ? 'active' : ''} ${hasError ? 'has-error' : ''}" onclick="switchActionsCommitVersion(${idx}, event)"><span>${escapeHtml(label)}</span>${badgeText}${errorBadge}</button>`;
         }).join('');
 
-        versionTabsHtml = `<div class="actions-version-tabs-bar"><div class="actions-version-tabs">${tabsList}</div></div>`;
+        let moreBtnHtml = '';
+        if (matches.length > 5) {
+            const hiddenCount = matches.length - 5;
+            if (!isExpanded) {
+                moreBtnHtml = `
+                    <button type="button" class="actions-version-tab-more-btn" onclick="toggleActionsCommitShowAllVersions(event)" title="Xem thêm ${hiddenCount} commit cũ hơn">
+                        <span>Xem thêm (+${hiddenCount})</span>
+                        <span class="material-symbols-outlined">expand_more</span>
+                    </button>
+                `;
+            } else {
+                moreBtnHtml = `
+                    <button type="button" class="actions-version-tab-more-btn active" onclick="toggleActionsCommitShowAllVersions(event)" title="Thu gọn chỉ xem 5 commit gần nhất">
+                        <span>Thu gọn</span>
+                        <span class="material-symbols-outlined">expand_less</span>
+                    </button>
+                `;
+            }
+        }
+
+        versionTabsHtml = `<div class="actions-version-tabs-bar"><div class="actions-version-tabs">${tabsList}${moreBtnHtml}</div></div>`;
     }
 
     // Check pipeline status on commit_edit
@@ -5786,6 +5811,38 @@ window.toggleActionsDiffFullView = function(event) {
 };
 
 /**
+ * Mở rộng hoặc thu gọn danh sách phiên bản commit actions (mặc định hiển thị tối đa 5 commit gần nhất)
+ * @param {Event} [event]
+ */
+window.toggleActionsCommitShowAllVersions = function(event) {
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+    window._actionsCommitShowAllVersions = !window._actionsCommitShowAllVersions;
+    if (!window._currentActionsCommitData) return;
+    const modal = document.getElementById('detailsModal');
+    if (!modal) return;
+    const wrapper = modal.querySelector('.details-modal-body-wrapper');
+    if (!wrapper) return;
+
+    // Nếu thu gọn lại mà index hiện tại >= 5, reset về 0 (commit mới nhất) để tab active luôn hiển thị trong top 5
+    if (!window._actionsCommitShowAllVersions && (window._currentActionsCommitIndex || 0) >= 5) {
+        window._currentActionsCommitIndex = 0;
+        updateActionsCommitCopyReport(window._currentActionsCommitData, 0);
+    }
+
+    const savedScrollTop = wrapper.scrollTop;
+    const currentIndex = window._currentActionsCommitIndex || 0;
+
+    wrapper.querySelectorAll('.actions-version-tabs-bar, #actionsCommitCardsGrid, .actions-syntax-banner, #actionsDiffSection').forEach(el => el.remove());
+    wrapper.insertAdjacentHTML('beforeend', renderActionsCommitModal(window._currentActionsCommitData, currentIndex));
+
+    wrapper.scrollTop = savedScrollTop;
+    window._currentDetailsOriginalHTML = null;
+};
+
+/**
  * Chuyển đổi giữa các phiên bản commit match của quy cách
  * @param {number} index 
  * @param {Event} [event]
@@ -5800,6 +5857,10 @@ window.switchActionsCommitVersion = function(index, event) {
     if (!modal) return;
     const wrapper = modal.querySelector('.details-modal-body-wrapper');
     if (!wrapper) return;
+
+    if (index >= 5) {
+        window._actionsCommitShowAllVersions = true;
+    }
 
     window._actionsDiffShowFull = false;
     window._currentActionsCommitIndex = index;

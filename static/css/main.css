@@ -8363,6 +8363,41 @@ body.theme-light .ocr-dropzone {
     font-weight: 700;
 }
 
+.actions-version-tab-more-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px dashed var(--color-border-interactive);
+    background: rgba(59, 130, 246, 0.08);
+    color: var(--color-accent, #3b82f6);
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-family: inherit;
+    outline: none;
+    user-select: none;
+}
+
+.actions-version-tab-more-btn:hover {
+    border-color: var(--color-accent, #3b82f6);
+    background: rgba(59, 130, 246, 0.16);
+    color: var(--color-accent-hover, #60a5fa);
+}
+
+.actions-version-tab-more-btn.active {
+    border-style: solid;
+    background: var(--color-interactive-bg-hover);
+    color: var(--color-text-secondary);
+}
+
+.actions-version-tab-more-btn .material-symbols-outlined {
+    font-size: 16px;
+    line-height: 1;
+}
+
 .tab-badge-new {
     font-size: 9.5px;
     font-weight: 800;
@@ -9229,7 +9264,8 @@ body.theme-light .ocr-dropzone {
         gap: 6px !important;
     }
 
-    .actions-version-tab {
+    .actions-version-tab,
+    .actions-version-tab-more-btn {
         padding: 3px 8px !important;
         font-size: 11px !important;
     }
