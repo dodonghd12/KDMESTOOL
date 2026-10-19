@@ -8775,17 +8775,6 @@ body.theme-light .ocr-dropzone {
     font-size: 13.5px !important;
 }
 
-.diff-file-tag {
-    font-family: var(--font-mono, monospace);
-    font-size: 11px;
-    font-weight: 700;
-    padding: 2px 7px;
-    border-radius: 4px;
-    background: var(--color-interactive-bg-active);
-    border: 1px solid var(--color-border-subtle);
-    color: var(--color-text-accent);
-}
-
 .actions-diff-viewer {
     font-family: var(--font-mono, monospace);
     font-size: 12px;
@@ -8835,17 +8824,6 @@ body.theme-light .ocr-dropzone {
 .actions-diff-viewer .diff-line-code {
     flex: 1;
     min-width: 0;
-}
-
-.actions-diff-viewer .diff-hunk {
-    position: sticky;
-    top: 0;
-    z-index: 5;
-    background: var(--color-bg-surface-elevated, #0f172a);
-    color: #38bdf8;
-    font-weight: 600;
-    border-bottom: 1px solid rgba(56, 189, 248, 0.25);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
 }
 
 .actions-diff-viewer .diff-added {
@@ -9208,6 +9186,108 @@ body.theme-light .ocr-dropzone {
     font-family: var(--font-mono, monospace);
     font-size: 12px;
     line-height: 1.4;
+}
+
+/* Responsive for Mobile & Small Screen Heights */
+@media (max-width: 768px), (max-height: 720px) {
+    .details-modal.actions-commit-mode .details-modal-content {
+        width: 96% !important;
+        max-width: 100% !important;
+        height: 94vh !important;
+        max-height: 94vh !important;
+        border-radius: 12px !important;
+    }
+
+    .details-modal-body-wrapper.has-actions-commit {
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch;
+        padding: 10px 10px 16px 10px !important;
+        gap: 8px !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    .actions-diff-section {
+        flex-shrink: 0 !important;
+        min-height: 250px !important;
+    }
+
+    .actions-diff-viewer {
+        min-height: 180px !important;
+        max-height: 420px !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .actions-version-tabs-bar {
+        padding: 6px 8px !important;
+        gap: 6px !important;
+    }
+
+    .actions-version-tab {
+        padding: 3px 8px !important;
+        font-size: 11px !important;
+    }
+
+    .actions-card-body {
+        padding: 8px 10px !important;
+    }
+
+    .actions-meta-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 6px !important;
+    }
+
+    .actions-meta-cell {
+        padding: 6px 8px !important;
+        gap: 3px !important;
+    }
+
+    .actions-meta-label {
+        font-size: 10px !important;
+    }
+
+    .actions-meta-label .material-symbols-outlined {
+        font-size: 13px !important;
+    }
+
+    .actions-meta-value {
+        font-size: 11.5px !important;
+    }
+
+    .actions-syntax-banner {
+        margin: 2px 0 !important;
+    }
+
+    .syntax-banner-header {
+        padding: 6px 10px !important;
+    }
+
+    .banner-title-text {
+        font-size: 11.5px !important;
+    }
+
+    .diff-section-header {
+        padding: 6px 10px !important;
+    }
+
+    .diff-section-title {
+        font-size: 11.5px !important;
+    }
+}
+
+@media (max-width: 420px) {
+    .actions-card-header {
+        padding: 8px 10px !important;
+    }
+    
+    .card-badge.patch-badge {
+        font-size: 11.5px !important;
+    }
+    
+    .gitlab-link-btn {
+        padding: 2.5px 7px !important;
+        font-size: 10.5px !important;
+    }
 }
 
 /* ===== ACCOUNT SECURITY GATEKEEPER ===== */

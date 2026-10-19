@@ -5317,7 +5317,8 @@ function buildActionsDiffLinesHtml(diffText, candidates, showFull = false) {
         };
     }
 
-    const rawLines = diffText.split('\n');
+    // Loại bỏ hoàn toàn các dòng hunk header (@@ ... @@) theo yêu cầu người dùng
+    const rawLines = diffText.split('\n').filter(line => !line.startsWith('@@'));
     const totalLines = rawLines.length;
 
     // Chuẩn hóa candidates để tìm kiếm
@@ -5327,7 +5328,6 @@ function buildActionsDiffLinesHtml(diffText, candidates, showFull = false) {
 
     const parsed = rawLines.map((line, idx) => {
         const lineLower = line.toLowerCase();
-        const isHunk = line.startsWith('@@');
         const isAdd = line.startsWith('+') && !line.startsWith('+++');
         const isDel = line.startsWith('-') && !line.startsWith('---');
         // Match target: Dòng thêm mới hoặc thay đổi chứa bất kỳ candidate nào
@@ -5335,7 +5335,7 @@ function buildActionsDiffLinesHtml(diffText, candidates, showFull = false) {
             const candNoExt = cand.replace(/\.ya?ml$/i, '');
             return lineLower.includes(cand) || (candNoExt.length > 3 && lineLower.includes(candNoExt));
         });
-        return { index: idx, line, isTarget, isHunk, isAdd, isDel };
+        return { index: idx, line, isTarget, isAdd, isDel };
     });
 
     const targetIndices = parsed.filter(p => p.isTarget).map(p => p.index);
@@ -5362,14 +5362,6 @@ function buildActionsDiffLinesHtml(diffText, candidates, showFull = false) {
             // Giữ header đầu file nếu gần (<= 5 dòng)
             if (tIdx <= 5) {
                 for (let i = 0; i <= tIdx; i++) keptIndices.add(i);
-            }
-
-            // Giữ hunk header gần nhất trước target
-            for (let i = tIdx; i >= 0; i--) {
-                if (parsed[i].isHunk) {
-                    keptIndices.add(i);
-                    break;
-                }
             }
         });
 
@@ -5427,10 +5419,7 @@ function buildActionsDiffLinesHtml(diffText, candidates, showFull = false) {
         let lineClass = 'diff-line';
         let lineSign = ' ';
 
-        if (item.isHunk) {
-            lineClass += ' diff-hunk';
-            lineSign = '@';
-        } else if (item.isAdd) {
+        if (item.isAdd) {
             lineClass += ' diff-added';
             lineSign = '+';
         } else if (item.isDel) {
@@ -5605,7 +5594,7 @@ function renderActionsCommitModal(result, activeIndex = 0) {
                         ${isPipelineError ? `
                             <span class="card-pipeline-error-tag" title="Pipeline chưa thành công: ${escapeHtml(pipeStatus ? pipeStatus.toUpperCase() : 'KHÔNG CÓ')}">
                                 <span class="material-symbols-outlined">error</span>
-                                <span>Pipeline ${escapeHtml(pipeStatus ? pipeStatus.toUpperCase() : 'CHƯA CHẠY / LỖI')}</span>
+                                <span>ERROR</span>
                             </span>
                         ` : ''}
                         ${edit.web_url ? `
@@ -5714,7 +5703,6 @@ function renderActionsCommitModal(result, activeIndex = 0) {
                 <div class="diff-section-title">
                     <span class="material-symbols-outlined">difference</span>
                     <span>Thay đổi trong file actions.yaml (Diff)</span>
-                    <span class="diff-file-tag">actions.yaml</span>
                 </div>
                 <div class="diff-header-actions">
                     ${diffToggleBtnHtml}
@@ -5754,8 +5742,10 @@ window.toggleActionsDiffFullView = function(event) {
     wrapper.querySelectorAll('.actions-version-tabs-bar, #actionsCommitCardsGrid, .actions-syntax-banner, #actionsDiffSection').forEach(el => el.remove());
     wrapper.insertAdjacentHTML('beforeend', renderActionsCommitModal(window._currentActionsCommitData, window._currentActionsCommitIndex || 0));
 
-    // Luôn giữ wrapper ở đỉnh, không cho container ngoài cuộn
-    wrapper.scrollTop = 0;
+    // Trên màn hình desktop lớn, giữ wrapper ở đỉnh; trên điện thoại cho phép giữ vị trí cuộn của user
+    if (window.innerWidth > 768 && window.innerHeight > 720) {
+        wrapper.scrollTop = 0;
+    }
 
     if (window._actionsDiffShowFull) {
         setTimeout(() => {
