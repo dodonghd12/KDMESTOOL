@@ -839,7 +839,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.14"
+APP_VERSION = "2.3.15"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -1745,7 +1745,7 @@ def query_material_resource_by_label_fields(label_data):
         fast_params = list(params) + [p_start, p_end, e_start, e_end]
         q_both = f"""
             SELECT id, product_id, product_type, 
-                   quantity, status, expiry_time, 
+                   quantity, initial_quantity, status, expiry_time, 
                    created_at, updated_at, updated_by, created_by, 
                    standing_time, feed_records_id, info, oid,
                    reprint_reason, collected, erp_tire_barcode_synced
@@ -1768,7 +1768,7 @@ def query_material_resource_by_label_fields(label_data):
         fast_params = list(params) + [p_start, p_end]
         q_prod = f"""
             SELECT id, product_id, product_type, 
-                   quantity, status, expiry_time, 
+                   quantity, initial_quantity, status, expiry_time, 
                    created_at, updated_at, updated_by, created_by, 
                    standing_time, feed_records_id, info, oid,
                    reprint_reason, collected, erp_tire_barcode_synced
@@ -1791,7 +1791,7 @@ def query_material_resource_by_label_fields(label_data):
         fast_params = list(params) + [e_start, e_end]
         q_exp = f"""
             SELECT id, product_id, product_type, 
-                   quantity, status, expiry_time, 
+                   quantity, initial_quantity, status, expiry_time, 
                    created_at, updated_at, updated_by, created_by, 
                    standing_time, feed_records_id, info, oid,
                    reprint_reason, collected, erp_tire_barcode_synced
@@ -1810,7 +1810,7 @@ def query_material_resource_by_label_fields(label_data):
     # Fallback tiêu chuẩn nếu không có mốc thời gian hoặc cần nới lỏng
     query = f"""
         SELECT id, product_id, product_type, 
-               quantity, status, expiry_time, 
+               quantity, initial_quantity, status, expiry_time, 
                created_at, updated_at, updated_by, created_by, 
                standing_time, feed_records_id, info, oid,
                reprint_reason, collected, erp_tire_barcode_synced
@@ -1883,7 +1883,7 @@ def search_barcode():
     
     query = """
         SELECT id, product_id, product_type, 
-               quantity, status, expiry_time, 
+               quantity, initial_quantity, status, expiry_time, 
                created_at, updated_at, updated_by, created_by, 
                standing_time, feed_records_id, info, oid,
                reprint_reason, collected, erp_tire_barcode_synced
