@@ -839,7 +839,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.6"
+APP_VERSION = "2.3.7"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -4724,9 +4724,6 @@ def search_actions_commit():
                     if line.startswith('+') and not line.startswith('+++'):
                         if any(cand in line.lower() for cand in search_candidates):
                             return (commit_item, d, 'add')
-                    elif line.startswith('-') and not line.startswith('---'):
-                        if any(cand in line.lower() for cand in search_candidates):
-                            return (commit_item, d, 'remove')
             return None
 
         matched_commits = []

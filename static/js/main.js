@@ -5317,32 +5317,51 @@ function buildActionsDiffLinesHtml(diffText, candidates, showFull = false) {
     const rawLines = diffText.split('\n');
     const totalLines = rawLines.length;
 
+    // Chuẩn hóa candidates để tìm kiếm
+    const normCandidates = (candidates || [])
+        .map(c => (c || '').trim().toLowerCase())
+        .filter(c => c.length > 2);
+
     const parsed = rawLines.map((line, idx) => {
         const lineLower = line.toLowerCase();
-        const isTarget = line.startsWith('+') && candidates.some(cand => lineLower.includes(cand.toLowerCase()));
         const isHunk = line.startsWith('@@');
-        const isAdd = line.startsWith('+');
-        const isDel = line.startsWith('-');
+        const isAdd = line.startsWith('+') && !line.startsWith('+++');
+        const isDel = line.startsWith('-') && !line.startsWith('---');
+        // Match target: Dòng thêm mới hoặc thay đổi chứa bất kỳ candidate nào
+        const isTarget = (isAdd || isDel) && normCandidates.some(cand => {
+            const candNoExt = cand.replace(/\.ya?ml$/i, '');
+            return lineLower.includes(cand) || (candNoExt.length > 3 && lineLower.includes(candNoExt));
+        });
         return { index: idx, line, isTarget, isHunk, isAdd, isDel };
     });
 
     const targetIndices = parsed.filter(p => p.isTarget).map(p => p.index);
     let keptIndices = new Set();
 
-    if (showFull || targetIndices.length === 0 || totalLines <= 8) {
-        // Hiện tất cả khi được yêu cầu, hoặc khi không có target hoặc diff quá ngắn
+    if (showFull || totalLines <= 10) {
+        // Hiện tất cả khi được yêu cầu hoặc diff ngắn
         parsed.forEach(p => keptIndices.add(p.index));
+    } else if (targetIndices.length === 0) {
+        // Nếu không phát hiện target nhưng file dài: giữ 6 dòng đầu & 6 dòng cuối
+        if (totalLines <= 16) {
+            parsed.forEach(p => keptIndices.add(p.index));
+        } else {
+            for (let i = 0; i < 6; i++) keptIndices.add(i);
+            for (let i = totalLines - 6; i < totalLines; i++) keptIndices.add(i);
+        }
     } else {
-        // Chế độ thu gọn thông minh: Giữ dòng target + 2 dòng trước/sau + hunk header gần nhất + header đầu file nếu gần
+        // Chế độ thu gọn thông minh: Giữ 3 dòng trước và 3 dòng sau mỗi target line
         targetIndices.forEach(tIdx => {
-            const start = Math.max(0, tIdx - 2);
-            const end = Math.min(totalLines - 1, tIdx + 2);
+            const start = Math.max(0, tIdx - 3);
+            const end = Math.min(totalLines - 1, tIdx + 3);
             for (let i = start; i <= end; i++) keptIndices.add(i);
 
+            // Giữ header đầu file nếu gần (<= 5 dòng)
             if (tIdx <= 5) {
                 for (let i = 0; i <= tIdx; i++) keptIndices.add(i);
             }
 
+            // Giữ hunk header gần nhất trước target
             for (let i = tIdx; i >= 0; i--) {
                 if (parsed[i].isHunk) {
                     keptIndices.add(i);
@@ -5351,11 +5370,11 @@ function buildActionsDiffLinesHtml(diffText, candidates, showFull = false) {
             }
         });
 
-        // Hợp nhất các khoảng trống nhỏ (<= 2 dòng) để tránh bị chia vụn
+        // Hợp nhất các khoảng trống nhỏ (<= 3 dòng) để tránh bị chia vụn
         const sorted = Array.from(keptIndices).sort((a, b) => a - b);
         for (let i = 0; i < sorted.length - 1; i++) {
             const gap = sorted[i+1] - sorted[i] - 1;
-            if (gap > 0 && gap <= 2) {
+            if (gap > 0 && gap <= 3) {
                 for (let fill = sorted[i] + 1; fill < sorted[i+1]; fill++) {
                     keptIndices.add(fill);
                 }
@@ -5466,15 +5485,8 @@ function renderActionsCommitModal(result, activeIndex = 0) {
         ? result.search_candidates
         : [result.actual_filename, cleanRecipeId].filter(Boolean);
 
-    // Version Tabs Selector & Context Meta Bar
+    // Version Tabs Selector (USER RULE: actions-version-bar-meta loại bỏ, không cần thiết)
     let versionTabsHtml = '';
-    const matchType = activeMatch.match_type || 'add';
-    const matchBadgeHtml = matchType === 'remove'
-        ? `<span class="actions-match-badge remove" title="Quy cách được gỡ bỏ khỏi actions.yaml"><span class="material-symbols-outlined">do_not_disturb_on</span><span>Gỡ khỏi actions</span></span>`
-        : `<span class="actions-match-badge add" title="Quy cách được thêm mới vào actions.yaml"><span class="material-symbols-outlined">add_circle</span><span>Thêm vào actions</span></span>`;
-
-    const fileTargetHtml = `<div class="actions-target-file-pill" title="File YAML quy cách trên GitLab: ${escapeHtml(result.recipe_file_path || result.actual_filename || '')}"><span class="material-symbols-outlined">description</span><code>${escapeHtml(result.actual_filename || (cleanRecipeId + '.yaml'))}</code></div>`;
-
     if (matches.length > 1) {
         const tabsList = matches.map((m, idx) => {
             const isAct = idx === activeIndex;
@@ -5487,28 +5499,7 @@ function renderActionsCommitModal(result, activeIndex = 0) {
             return `<button type="button" class="actions-version-tab ${isAct ? 'active' : ''} ${isInvalid ? 'has-error' : ''}" onclick="switchActionsCommitVersion(${idx}, event)"><span>${escapeHtml(label)}</span>${badgeText}${errorBadge}</button>`;
         }).join('');
 
-        versionTabsHtml = `
-            <div class="actions-version-tabs-bar">
-                <div class="actions-version-tabs">${tabsList}</div>
-                <div class="actions-version-bar-meta">
-                    ${matchBadgeHtml}
-                    ${fileTargetHtml}
-                </div>
-            </div>
-        `;
-    } else {
-        versionTabsHtml = `
-            <div class="actions-version-tabs-bar single-version">
-                <div class="actions-version-single-label">
-                    <span class="material-symbols-outlined">history</span>
-                    <span>Lịch sử commit actions.yaml</span>
-                </div>
-                <div class="actions-version-bar-meta">
-                    ${matchBadgeHtml}
-                    ${fileTargetHtml}
-                </div>
-            </div>
-        `;
+        versionTabsHtml = `<div class="actions-version-tabs-bar"><div class="actions-version-tabs">${tabsList}</div></div>`;
     }
 
     // Check pipeline status on commit_edit
@@ -5761,6 +5752,16 @@ window.toggleActionsDiffFullView = function(event) {
     wrapper.querySelectorAll('.actions-version-tabs-bar, #actionsCommitCardsGrid, .actions-syntax-banner, #actionsDiffSection').forEach(el => el.remove());
     wrapper.insertAdjacentHTML('beforeend', renderActionsCommitModal(window._currentActionsCommitData, window._currentActionsCommitIndex || 0));
 
+    if (window._actionsDiffShowFull) {
+        setTimeout(() => {
+            const viewer = document.getElementById('actionsDiffViewer');
+            const targetEl = viewer ? viewer.querySelector('.diff-line-target') : null;
+            if (viewer && targetEl) {
+                targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }, 60);
+    }
+
     window._currentDetailsOriginalHTML = null;
     const searchInput = document.getElementById('detailsModalSearch');
     if (searchInput && searchInput.value.trim()) {
@@ -5784,6 +5785,7 @@ window.switchActionsCommitVersion = function(index, event) {
     const wrapper = modal.querySelector('.details-modal-body-wrapper');
     if (!wrapper) return;
 
+    window._actionsDiffShowFull = false;
     window._currentActionsCommitIndex = index;
     updateActionsCommitCopyReport(window._currentActionsCommitData, index);
 

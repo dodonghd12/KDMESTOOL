@@ -8300,90 +8300,12 @@ body.theme-light .ocr-dropzone {
 .actions-version-tabs-bar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 12px;
+    gap: 8px;
     flex-wrap: wrap;
     padding: 8px 12px;
     background: var(--color-interactive-bg-hover);
     border: 1px solid var(--color-border-subtle);
     border-radius: 8px;
-}
-
-.actions-version-tabs-bar.single-version {
-    justify-content: space-between;
-}
-
-.actions-version-single-label {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--color-text-secondary);
-}
-
-.actions-version-single-label .material-symbols-outlined {
-    font-size: 16px;
-    color: var(--color-text-accent);
-}
-
-.actions-version-bar-meta {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-left: auto;
-}
-
-.actions-match-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 11px;
-    font-weight: 700;
-    padding: 2.5px 8px;
-    border-radius: 6px;
-    letter-spacing: 0.2px;
-}
-
-.actions-match-badge.add {
-    background: rgba(16, 185, 129, 0.15);
-    border: 1px solid rgba(16, 185, 129, 0.35);
-    color: #34d399;
-}
-
-.actions-match-badge.remove {
-    background: rgba(244, 63, 94, 0.15);
-    border: 1px solid rgba(244, 63, 94, 0.35);
-    color: #fb7185;
-}
-
-.actions-match-badge .material-symbols-outlined {
-    font-size: 14px !important;
-}
-
-.actions-target-file-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 11.5px;
-    font-weight: 600;
-    padding: 2.5px 9px;
-    border-radius: 6px;
-    background: var(--color-interactive-bg-active);
-    border: 1px solid var(--color-border-subtle);
-    color: var(--color-text-secondary);
-}
-
-.actions-target-file-pill code {
-    font-family: var(--font-mono, monospace);
-    color: var(--color-text-accent);
-    font-weight: 700;
-}
-
-.actions-target-file-pill .material-symbols-outlined {
-    font-size: 14px !important;
-    color: var(--color-text-muted);
 }
 
 .actions-version-tabs {
@@ -8845,8 +8767,29 @@ body.theme-light .ocr-dropzone {
     font-family: var(--font-mono, monospace);
     font-size: 12px;
     line-height: 1.6;
-    overflow-x: auto;
+    max-height: 480px;
+    overflow-y: auto !important;
+    overflow-x: auto !important;
     padding: 6px 0;
+    scroll-behavior: smooth;
+}
+
+.actions-diff-viewer::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.actions-diff-viewer::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.25);
+}
+
+.actions-diff-viewer::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+}
+
+.actions-diff-viewer::-webkit-scrollbar-thumb:hover {
+    background: rgba(56, 189, 248, 0.45);
 }
 
 .actions-diff-viewer .diff-line {
