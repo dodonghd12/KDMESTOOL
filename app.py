@@ -839,7 +839,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.12"
+APP_VERSION = "2.3.13"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -4529,8 +4529,8 @@ def search_actions_commit():
                             return {'commits': clist}
                     return {'commits': []}
 
-                with ThreadPoolExecutor(max_workers=2) as pool:
-                    pages_res = list(pool.map(fetch_page, [1, 2]))
+                with ThreadPoolExecutor(max_workers=3) as pool:
+                    pages_res = list(pool.map(fetch_page, [1, 2, 3]))
 
                 for pr in pages_res:
                     if pr.get('auth_error'):
@@ -4604,8 +4604,6 @@ def search_actions_commit():
                             dt = sc.get('authored_date') or sc.get('committed_date')
                             if dt and dt not in rec_dates:
                                 rec_dates.append(dt)
-                        if rec_dates:
-                            break
                 except Exception:
                     pass
 
@@ -4707,22 +4705,32 @@ def search_actions_commit():
                         matched_seen_ids.add(cid)
                         matched_commits.append(r)
 
-        # Fallback: if no matches found in recent commits, search historical window commits based on recipe dates
-        if not matched_commits and rec_dates:
+        # Historical window search for dates not covered by recent commits or if no matches found
+        if rec_dates:
+            min_recent_dt = None
+            if all_candidates:
+                dt_strs = [c.get('authored_date') or c.get('committed_date') for c in all_candidates if c.get('authored_date') or c.get('committed_date')]
+                if dt_strs:
+                    try:
+                        min_recent_dt = min(datetime.fromisoformat(ds.split('.')[0].replace('Z','').split('+')[0]) for ds in dt_strs)
+                    except Exception:
+                        pass
+
             seen_date_keys = set()
             window_list = []
             for dt_str in rec_dates:
                 clean_iso = dt_str.split('.')[0].replace('Z', '').split('+')[0]
                 try:
                     r_dt = datetime.fromisoformat(clean_iso)
-                    dkey = r_dt.strftime('%Y-%m-%d')
-                    if dkey not in seen_date_keys:
-                        seen_date_keys.add(dkey)
-                        since_dt = (r_dt - timedelta(hours=24)).strftime('%Y-%m-%dT%H:%M:%SZ')
-                        until_dt = (r_dt + timedelta(hours=24)).strftime('%Y-%m-%dT%H:%M:%SZ')
-                        window_list.append((since_dt, until_dt))
-                        if len(window_list) >= 3:
-                            break
+                    if not matched_commits or (min_recent_dt and r_dt < min_recent_dt):
+                        dkey = r_dt.strftime('%Y-%m-%d')
+                        if dkey not in seen_date_keys:
+                            seen_date_keys.add(dkey)
+                            since_dt = (r_dt - timedelta(hours=24)).strftime('%Y-%m-%dT%H:%M:%SZ')
+                            until_dt = (r_dt + timedelta(hours=24)).strftime('%Y-%m-%dT%H:%M:%SZ')
+                            window_list.append((since_dt, until_dt))
+                            if len(window_list) >= 3:
+                                break
                 except Exception:
                     pass
 
