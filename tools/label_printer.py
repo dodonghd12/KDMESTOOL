@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-KDMES TOOL - Module in lại tem & xuất PDF chuẩn MES (Code 39, Phông Arial, Biểu mẫu 2L-00-014)
+KDMES TOOL - Module in lại tem & xuất PDF chuẩn MES (Code 39, Phông Arial 12pt, Biểu mẫu 2L-00-014)
 Tự động trích xuất thông số kỹ thuật Dynamic theo recipe của đơn điều động.
+Tối ưu chiều dài và khoảng cách vạch barcode chuẩn công nghiệp để máy PDA quét dễ dàng.
 """
 
 import io
@@ -83,10 +84,11 @@ def parse_recipe_specs(note_list):
     return specs
 
 
-def generate_code39(text, narrow_width=2, wide_width=5, height=65):
+def generate_code39(text, narrow_width=3, wide_width=8, height=105):
     """
     Sinh hình ảnh mã vạch Code 39 chuẩn công nghiệp.
-    Bao gồm ký tự bắt đầu/kết thúc '*' và quiet zone hai đầu.
+    Mặc định narrow=3px, wide=8px (tỷ lệ 2.67:1) để vạch dày rõ, khoảng cách vạch rộng,
+    giúp máy quét PDA dễ dàng quét mã kể cả trong điều kiện ánh sáng yếu hoặc rung lắc.
     """
     clean_text = text.upper().strip()
     full_text = f"*{clean_text}*"
@@ -103,7 +105,7 @@ def generate_code39(text, narrow_width=2, wide_width=5, height=65):
             elements.append((False, narrow_width))
 
     total_w = sum(w for _, w in elements)
-    quiet_zone = narrow_width * 8
+    quiet_zone = narrow_width * 10
     img_w = total_w + 2 * quiet_zone
     img = Image.new('RGB', (img_w, height), 'white')
     draw = ImageDraw.Draw(img)
@@ -117,42 +119,48 @@ def generate_code39(text, narrow_width=2, wide_width=5, height=65):
     return img
 
 
-def get_arial_fonts():
-    """Lấy phông Arial từ hệ thống Windows hoặc fallback an toàn."""
+def get_arial_fonts(font_size_pt=12, dpi=300.0):
+    """
+    Lấy phông Arial chuẩn 12pt (tương đương 50px ở độ phân giải 300 DPI).
+    """
+    font_size_px = int(round(font_size_pt * dpi / 72.0)) # 12pt -> 50px
+    code_size_px = int(round(11 * dpi / 72.0))           # 11pt -> 46px
+
     win_dir = os.environ.get('WINDIR', 'C:\\Windows')
     fonts_dir = os.path.join(win_dir, 'Fonts')
     arial_regular = os.path.join(fonts_dir, 'arial.ttf')
     arial_bold = os.path.join(fonts_dir, 'arialbd.ttf')
 
     try:
-        font_header = ImageFont.truetype(arial_bold if os.path.exists(arial_bold) else arial_regular, 28)
-        font_cell = ImageFont.truetype(arial_regular, 32)
-        font_cell_bold = ImageFont.truetype(arial_bold if os.path.exists(arial_bold) else arial_regular, 32)
-        font_bc_text = ImageFont.truetype(arial_bold if os.path.exists(arial_bold) else arial_regular, 28)
-        return font_header, font_cell, font_cell_bold, font_bc_text
+        font_regular = ImageFont.truetype(arial_regular, font_size_px)
+        font_bold = ImageFont.truetype(arial_bold if os.path.exists(arial_bold) else arial_regular, font_size_px)
+        font_code = ImageFont.truetype(arial_regular, code_size_px)
+        return font_regular, font_bold, font_code
     except Exception:
         fallback = ImageFont.load_default()
-        return fallback, fallback, fallback, fallback
+        return fallback, fallback, fallback
 
 
 def build_label_image(label_data):
     """
-    Dựng hình ảnh con tem hoàn chỉnh với độ phân giải cao 300 DPI:
+    Dựng hình ảnh con tem hoàn chỉnh chuẩn MES:
+    - Font size: 12pt Arial (đúng chuẩn thiết kế biểu mẫu).
     - Biểu mẫu 2L-00-014 ở góc trên bên phải.
-    - Bảng biểu 2 cột chuẩn phân cách bằng đường kẻ 2px.
-    - Khối thông số cố định (Mã máy, Ngày SX, Hạn dùng, Số lượng, v.v.).
-    - Khối thông số kỹ thuật động theo recipe.
-    - Khối mã vạch Code 39 siêu nét, căn giữa.
+    - Cột 1 (nhãn): ~30% chiều rộng bảng (đủ cho nhãn dài nhất).
+    - Cột 2 (giá trị & barcode): ~70% chiều rộng bảng, barcode trải dài và vạch dày, PDA quét siêu nhạy.
     """
-    font_header, font_cell, font_cell_bold, font_bc_text = get_arial_fonts()
+    dpi = 300.0
+    font_regular, font_bold, font_code = get_arial_fonts(font_size_pt=12, dpi=dpi)
 
-    # Kích thước chiều rộng: 1180px (~100mm ở 300 DPI)
-    canvas_w = 1180
-    margin_x = 50
-    table_top = 80
-    table_w = canvas_w - 2 * margin_x
-    normal_row_h = 72
-    barcode_row_h = 135
+    col1_w = 480
+    col2_w = 1140
+    table_w = col1_w + col2_w # 1620px
+    margin_x = 40
+    table_top = 75
+    canvas_w = table_w + 2 * margin_x # 1700px
+
+    normal_row_h = 70
+    barcode_row_h = 165
 
     # 1. Danh sách các dòng cố định tiêu chuẩn (Dòng 1 đến 11)
     rows = [
@@ -163,7 +171,7 @@ def build_label_image(label_data):
         ("Ngày sản xuất", label_data.get("production_time", "") or ""),
         ("Ngày hết hạn", label_data.get("expiry_time", "") or ""),
         ("Số lượng", str(label_data.get("quantity", "") if label_data.get("quantity") is not None else "")),
-        ("Tự kiểm điểm", "□ NG   OK"),
+        ("Tự kiểm điểm", "□ NG  □ OK"),
         ("Mã xe", ""),
         ("số seri", str(label_data.get("sequence", "") if label_data.get("sequence") is not None else "")),
         ("Bắt đầu và kết thúc", "")
@@ -177,23 +185,19 @@ def build_label_image(label_data):
 
     # Tính toán chiều cao tự co giãn dựa trên số lượng dòng thực tế
     total_table_h = len(rows) * normal_row_h + barcode_row_h
-    canvas_h = table_top + total_table_h + 40
+    canvas_h = table_top + total_table_h + 35
 
     img = Image.new('RGB', (canvas_w, canvas_h), 'white')
     draw = ImageDraw.Draw(img)
 
     # Vẽ mã form 2L-00-014 góc trên bên phải
-    draw.text((canvas_w - margin_x - 145, 32), "2L-00-014", fill='black', font=font_header)
-
-    # Chia tỷ lệ 2 cột: Cột 1 (Label) ~38%, Cột 2 (Value) ~62%
-    col1_w = int(table_w * 0.38)
-    col2_w = table_w - col1_w
+    draw.text((canvas_w - margin_x - 170, 25), "2L-00-014", fill='black', font=font_code)
 
     cur_y = table_top
     border_color = (0, 0, 0)
     line_w = 2
 
-    # Vẽ từng dòng thông tin
+    # Vẽ từng dòng thông tin (Font size 12pt Arial)
     for lbl, val in rows:
         # Đường viền ô
         draw.rectangle([margin_x, cur_y, margin_x + table_w, cur_y + normal_row_h], outline=border_color, width=line_w)
@@ -201,36 +205,42 @@ def build_label_image(label_data):
         draw.line([margin_x + col1_w, cur_y, margin_x + col1_w, cur_y + normal_row_h], fill=border_color, width=line_w)
 
         # Chữ cột 1 (Tên trường)
-        draw.text((margin_x + 16, cur_y + 18), lbl, fill='black', font=font_cell)
+        draw.text((margin_x + 14, cur_y + 12), lbl, fill='black', font=font_regular)
 
         # Chữ cột 2 (Giá trị)
-        draw.text((margin_x + col1_w + 16, cur_y + 18), str(val), fill='black', font=font_cell)
+        draw.text((margin_x + col1_w + 16, cur_y + 12), str(val), fill='black', font=font_regular)
 
         cur_y += normal_row_h
 
     # Vẽ dòng Mã vạch (Dòng cuối cùng)
     draw.rectangle([margin_x, cur_y, margin_x + table_w, cur_y + barcode_row_h], outline=border_color, width=line_w)
     draw.line([margin_x + col1_w, cur_y, margin_x + col1_w, cur_y + barcode_row_h], fill=border_color, width=line_w)
-    draw.text((margin_x + 16, cur_y + int(barcode_row_h / 2) - 16), "Mã vạch", fill='black', font=font_cell)
+    draw.text((margin_x + 14, cur_y + int(barcode_row_h / 2) - 24), "Mã vạch", fill='black', font=font_regular)
 
     barcode_val = str(label_data.get("barcode", "") or "").strip().upper()
     if barcode_val:
-        # Sinh mã vạch Code 39
-        bc_img = generate_code39(barcode_val, narrow_width=2, wide_width=5, height=65)
-        # Kiểm tra nếu mã vạch quá rộng so với cột 2, tự động co tỷ lệ
-        if bc_img.width > col2_w - 20:
-            bc_img = generate_code39(barcode_val, narrow_width=1, wide_width=3, height=65)
+        # Tính toán độ rộng vạch tối ưu: ưu tiên narrow=3, wide=8 để vạch dày, nét rõ, PDA quét siêu nhạy
+        target_narrow = 3
+        target_wide = 8
+        # Nếu barcode quá dài, tính độ rộng vạch tối đa vừa vặn cột 2 (không bao giờ < 2px)
+        num_chars = len(barcode_val) + 2
+        est_width = num_chars * (3 * target_wide + 7 * target_narrow) + target_narrow * 20
+        if est_width > col2_w - 40:
+            target_narrow = max(2, int((col2_w - 50) / (num_chars * 15)))
+            target_wide = int(round(target_narrow * 2.67))
+
+        bc_img = generate_code39(barcode_val, narrow_width=target_narrow, wide_width=target_wide, height=105)
 
         bc_x = margin_x + col1_w + int((col2_w - bc_img.width) / 2)
-        bc_y = cur_y + 14
+        bc_y = cur_y + 10
         img.paste(bc_img, (max(margin_x + col1_w + 10, bc_x), bc_y))
 
-        # In chuỗi mã vạch bên dưới vạch barcode
-        bbox = draw.textbbox((0, 0), barcode_val, font=font_bc_text)
+        # In chuỗi mã vạch bên dưới vạch barcode (Font 12pt Arial)
+        bbox = draw.textbbox((0, 0), barcode_val, font=font_regular)
         txt_w = bbox[2] - bbox[0]
         txt_x = margin_x + col1_w + int((col2_w - txt_w) / 2)
         txt_y = bc_y + bc_img.height + 6
-        draw.text((txt_x, txt_y), barcode_val, fill='black', font=font_bc_text)
+        draw.text((txt_x, txt_y), barcode_val, fill='black', font=font_regular)
 
     return img
 
