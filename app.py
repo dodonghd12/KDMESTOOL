@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for, Response, make_response # type: ignore
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, Response, make_response, send_file # type: ignore
 from flask_session import Session
 from decimal import Decimal
 from functools import wraps
@@ -839,7 +839,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.20"
+APP_VERSION = "2.3.21"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -5294,6 +5294,145 @@ def get_prdebc():
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
+
+
+@app.route('/api/barcodes/reprint-label-pdf', methods=['POST', 'GET'])
+@login_required
+def api_reprint_label_pdf():
+    """Xuất file PDF in lại tem chuẩn MES (Code 39, Arial, 2L-00-014, Dynamic Specs)."""
+    try:
+        data = request.get_json(silent=True) or {}
+        raw_barcode = str(data.get('barcode') or data.get('id') or request.args.get('barcode') or '').strip()
+        if not raw_barcode:
+            return jsonify({'success': False, 'message': 'Thiếu Barcode'}), 400
+
+        query_mr = """
+            SELECT
+                mr.id,
+                mr.oid,
+                mr.product_id,
+                mr.product_type,
+                mr.quantity,
+                mr.created_at,
+                mr.expiry_time,
+                mr.station,
+                mr.info,
+                cr.sequence,
+                cr.work_order
+            FROM kvmes.material_resource mr
+            LEFT JOIN kvmes.collect_record cr ON cr.resource_oid = mr.oid
+            WHERE mr.id = %s OR btrim(mr.id) = btrim(%s)
+            ORDER BY cr.created_at DESC
+            LIMIT 1;
+        """
+        result, _ = execute_pg_select_query(query_mr, (raw_barcode, raw_barcode))
+        if not result:
+            return jsonify({'success': False, 'message': f'Không tìm thấy dữ liệu tem cho barcode: {raw_barcode}'}), 404
+
+        row = result[0]
+        (mr_id, mr_oid, product_id, product_type, quantity,
+         created_at, expiry_time, station, info, cr_seq, cr_wo) = row
+
+        info_dict = info if isinstance(info, dict) else {}
+        prod_info = info_dict.get('production_info') or {}
+
+        # 1. Station
+        final_station = (station or '').strip() or prod_info.get('station', '') or ''
+        next_station = prod_info.get('next_station', '') or 'next_station'
+
+        # 2. Lot number
+        lot_number = info_dict.get('lot_number', '') or ''
+
+        # 3. Production time
+        prod_time_str = ''
+        if created_at:
+            try:
+                prod_time_str = datetime.fromtimestamp(int(created_at) / 1e9, tz=VN_TZ).strftime('%Y-%m-%d %H:%M:%S')
+            except Exception:
+                pass
+        if not prod_time_str and prod_info.get('production_time'):
+            raw_pt = prod_info['production_time']
+            try:
+                dt = datetime.fromisoformat(str(raw_pt).replace('Z', '+00:00'))
+                prod_time_str = dt.astimezone(VN_TZ).strftime('%Y-%m-%d %H:%M:%S')
+            except Exception:
+                prod_time_str = str(raw_pt)[:19].replace('T', ' ')
+
+        # 4. Expiry time
+        exp_time_str = ''
+        if expiry_time:
+            try:
+                exp_time_str = datetime.fromtimestamp(int(expiry_time) / 1e9, tz=VN_TZ).strftime('%Y-%m-%d %H:%M:%S')
+            except Exception:
+                pass
+
+        # 5. Quantity
+        clean_qty = ''
+        if quantity is not None:
+            try:
+                clean_qty = f"{float(quantity):g}"
+            except Exception:
+                clean_qty = str(quantity)
+
+        # 6. Sequence
+        sequence = cr_seq if cr_seq is not None else ''
+
+        # 7. Recipe ID & Specs
+        recipe_id = prod_info.get('recipe_id') or ''
+        if not recipe_id and cr_wo:
+            wo_res, _ = execute_pg_select_query(
+                "SELECT recipe_id FROM kvmes.work_order WHERE btrim(id) = btrim(%s) LIMIT 1;",
+                (str(cr_wo).strip(),)
+            )
+            if wo_res and wo_res[0] and wo_res[0][0]:
+                recipe_id = wo_res[0][0]
+
+        recipe_notes = None
+        if recipe_id:
+            rec_res, _ = execute_pg_select_query(
+                "SELECT note FROM kvmes.recipe WHERE id = %s LIMIT 1;",
+                (recipe_id,)
+            )
+            if rec_res and rec_res[0]:
+                recipe_notes = rec_res[0][0]
+
+        if not recipe_notes and product_id:
+            rec_res, _ = execute_pg_select_query(
+                "SELECT note FROM kvmes.recipe WHERE product_id = %s ORDER BY released_at DESC LIMIT 1;",
+                (product_id,)
+            )
+            if rec_res and rec_res[0]:
+                recipe_notes = rec_res[0][0]
+
+        from tools.label_printer import parse_recipe_specs, generate_label_pdf
+        specs = parse_recipe_specs(recipe_notes)
+
+        label_data = {
+            "station": final_station,
+            "next_station": next_station,
+            "product_id": product_id or '',
+            "lot_number": lot_number,
+            "production_time": prod_time_str,
+            "expiry_time": exp_time_str,
+            "quantity": clean_qty,
+            "sequence": sequence,
+            "barcode": mr_id or raw_barcode,
+            "recipe_id": recipe_id,
+            "specs": specs
+        }
+
+        pdf_io = generate_label_pdf(label_data)
+
+        return send_file(
+            pdf_io,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f'Tem_{mr_id or raw_barcode}.pdf'
+        )
+    except Exception as e:
+        logger.error(f"Lỗi api_reprint_label_pdf: {e}", exc_info=True)
+        return jsonify({'success': False, 'message': f'Lỗi tạo file PDF tem: {str(e)}'}), 500
+
 
 @app.route('/api/mes/material-history', methods=['POST'])
 @login_required

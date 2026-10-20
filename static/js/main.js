@@ -959,6 +959,7 @@ function enhanceContextMenu() {
         'getPrdeba': 'dataset',
         'getPrdebb': 'dataset',
         'getPrdebc': 'dataset',
+        'reprintLabelPdf': 'print',
         'outputBarcodeByFeedRecords': 'output',
         'searchWorkOrderByRecipe': 'assignment',
         'searchCommitGitlabByRecipe': 'source',
@@ -2918,7 +2919,8 @@ function updateContextMenu() {
             'fetchOriginalInfo',
             'getPrdeba',
             'getPrdebb',
-            'getPrdebc'
+            'getPrdebc',
+            'reprintLabelPdf'
         ],
         'recipe': isRecipeYaml ? [
             'searchCommitGitlabByRecipe',
@@ -3066,6 +3068,9 @@ function handleContextMenuAction(e) {
             break;
         case 'getPrdebc':
             if (typeof fetchPrde === 'function') fetchPrde('prdebc', rowData);
+            break;
+        case 'reprintLabelPdf':
+            if (typeof reprintLabelPdf === 'function') reprintLabelPdf(rowData);
             break;
 
         // currentOutputTableType === 'outputBarcodeByFeedRecords'
@@ -3657,6 +3662,52 @@ async function fetchPrde(type, rowData = null) {
         Toast.success('Thành công', `Tải thành công ${data.result.length} dòng dữ liệu ${headerTitle}`);
     } catch (err) {
         console.error(`Error fetching PRDE:`, err);
+    }
+}
+
+async function reprintLabelPdf(rowData = null) {
+    const dataObj = rowData || selectedRowData || {};
+    const barcode = (dataObj.id || dataObj.barcode || '').trim();
+    if (!barcode) {
+        Toast.warning('Cảnh báo', 'Chưa chọn barcode để in lại tem.');
+        return;
+    }
+
+    showLoading();
+    try {
+        const response = await fetch('/api/barcodes/reprint-label-pdf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ barcode })
+        });
+
+        if (!response.ok) {
+            let errData = null;
+            try { errData = await response.json(); } catch (e) {}
+            const msg = (errData && errData.message) ? errData.message : `Lỗi khi tạo file PDF (${response.status})`;
+            Toast.error('Lỗi in lại tem', msg);
+            return;
+        }
+
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = blobUrl;
+        a.download = `Tem_${barcode}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+            window.URL.revokeObjectURL(blobUrl);
+            a.remove();
+        }, 1500);
+
+        Toast.success('Thành công', `Đã xuất file PDF tem: Tem_${barcode}.pdf`);
+    } catch (err) {
+        console.error('Error reprinting label PDF:', err);
+        Toast.error('Lỗi in lại tem', err.message || 'Lỗi kết nối khi xuất PDF tem');
+    } finally {
+        hideLoading();
     }
 }
 
