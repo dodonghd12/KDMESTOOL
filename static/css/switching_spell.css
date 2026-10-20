@@ -149,9 +149,32 @@
     color: #64748b;
 }
 
+/* ── TABLE OVERRIDE & RESET FOR SWITCHING SPELL ── */
+.table-scroll.switching-spell-table-scroll td,
+.table-scroll.switching-spell-table-scroll th,
+.switching-spell-table-scroll table td,
+.switching-spell-table-scroll table th {
+    position: static !important;
+    left: auto !important;
+    box-shadow: none !important;
+    border-right: none !important;
+}
+
+.table-scroll.switching-spell-table-scroll thead th,
+.switching-spell-table-scroll table thead th {
+    position: sticky !important;
+    top: 0 !important;
+    left: auto !important;
+    z-index: 10 !important;
+    background: var(--color-bg-surface-elevated-solid, #1e293b) !important;
+    box-shadow: none !important;
+    border-right: none !important;
+}
+
 /* ── TABLE & CELLS STYLING ── */
 .switching-spell-table-scroll table {
     width: 100%;
+    table-layout: auto;
     border-collapse: collapse;
 }
 
@@ -170,20 +193,27 @@
     vertical-align: middle;
 }
 
+.switching-spell-table-scroll table th:nth-child(1),
 .switching-spell-table-scroll table td:nth-child(1) {
-    width: 50px;
+    width: 50px !important;
+    min-width: 50px !important;
+    max-width: 60px !important;
     text-align: center;
 }
 
+.switching-spell-table-scroll table th:nth-child(2),
 .switching-spell-table-scroll table td:nth-child(2) {
     white-space: normal !important;
     word-break: break-word;
+    text-align: left;
 }
 
+.switching-spell-table-scroll table th:nth-child(3),
 .switching-spell-table-scroll table td:nth-child(3) {
     white-space: nowrap !important;
-    width: 280px;
-    min-width: 240px;
+    width: 280px !important;
+    min-width: 240px !important;
+    text-align: left;
 }
 
 .stations-cell-wrapper {

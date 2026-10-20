@@ -346,6 +346,10 @@
             stationBadgeEl.style.display = 'inline-flex';
         }
         updateClientSearchState();
+
+        if (typeof window.updateTableStickyOffsets === 'function') {
+            window.updateTableStickyOffsets();
+        }
     }
 
     /**

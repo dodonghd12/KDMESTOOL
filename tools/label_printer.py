@@ -152,15 +152,15 @@ def build_label_image(label_data):
     dpi = 300.0
     font_regular, font_bold, font_code = get_arial_fonts(font_size_pt=12, dpi=dpi)
 
-    col1_w = 480
-    col2_w = 1140
-    table_w = col1_w + col2_w # 1620px
+    col1_w = 570
+    col2_w = 1150
+    table_w = col1_w + col2_w # 1720px
     margin_x = 40
     table_top = 75
-    canvas_w = table_w + 2 * margin_x # 1700px
+    canvas_w = table_w + 2 * margin_x # 1800px
 
     normal_row_h = 70
-    barcode_row_h = 165
+    barcode_row_h = 195
 
     # 1. Danh sách các dòng cố định tiêu chuẩn (Dòng 1 đến 11)
     rows = [
@@ -232,14 +232,14 @@ def build_label_image(label_data):
         bc_img = generate_code39(barcode_val, narrow_width=target_narrow, wide_width=target_wide, height=105)
 
         bc_x = margin_x + col1_w + int((col2_w - bc_img.width) / 2)
-        bc_y = cur_y + 10
+        bc_y = cur_y + 12
         img.paste(bc_img, (max(margin_x + col1_w + 10, bc_x), bc_y))
 
         # In chuỗi mã vạch bên dưới vạch barcode (Font 12pt Arial)
         bbox = draw.textbbox((0, 0), barcode_val, font=font_regular)
         txt_w = bbox[2] - bbox[0]
         txt_x = margin_x + col1_w + int((col2_w - txt_w) / 2)
-        txt_y = bc_y + bc_img.height + 6
+        txt_y = bc_y + bc_img.height + 8
         draw.text((txt_x, txt_y), barcode_val, fill='black', font=font_regular)
 
     return img
