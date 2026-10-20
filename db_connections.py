@@ -248,7 +248,8 @@ def _create_mssql_connection(timeout=8):
 
     # 2. Thử qua adodbapi nếu có sẵn (Windows OLE DB)
     try:
-        import adodbapi
+        import importlib
+        adodbapi = importlib.import_module("adodbapi")
         providers = [
             f"Provider=SQLOLEDB;Data Source={ERP_MSSQL_HOST};Initial Catalog={ERP_MSSQL_DB};User ID={ERP_MSSQL_USER};Password={ERP_MSSQL_PWD};",
             f"Provider=MSOLEDBSQL;Data Source={ERP_MSSQL_HOST};Initial Catalog={ERP_MSSQL_DB};User ID={ERP_MSSQL_USER};Password={ERP_MSSQL_PWD};Trust Server Certificate=True;",

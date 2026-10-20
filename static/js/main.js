@@ -239,6 +239,32 @@ const Toast = {
             : (this.DURATIONS[toastType] || 4000);
 
         const { container, doc } = this.getContainer();
+        // Deduplicate identical toasts (prevent double notifications from concurrent/catch triggers)
+        const toastKey = `${toastType}:::${title}:::${message}`;
+        const now = Date.now();
+        if (!this._recentKeys) this._recentKeys = new Map();
+        const lastTime = this._recentKeys.get(toastKey);
+        if (lastTime && (now - lastTime < 1500)) {
+            return null;
+        }
+        this._recentKeys.set(toastKey, now);
+
+        if (this._recentKeys.size > 20) {
+            for (const [k, t] of this._recentKeys.entries()) {
+                if (now - t > 5000) this._recentKeys.delete(k);
+            }
+        }
+
+        // Check if an identical toast is currently visible in DOM
+        const visibleSameToasts = container.querySelectorAll(`.toast-item:not(.removing).toast-${toastType}`);
+        for (const vt of visibleSameToasts) {
+            const vtTitle = vt.querySelector('.toast-title')?.textContent?.trim() || '';
+            const vtMsg = vt.querySelector('.toast-message')?.textContent?.trim() || '';
+            if (vtTitle === title.trim() && vtMsg === message.trim()) {
+                return null;
+            }
+        }
+
         const iconName = this.ICONS[toastType] || 'info';
 
         // Stacking limit: Maximum 3 toasts at any time (persistent toast occupies 1 fixed slot)
@@ -4173,10 +4199,11 @@ async function fetchOutputBarcodeByWorkOrder(type, rowData = null) {
         const data = await apiFetch('/api/workorders/fetch-output-barcodes', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ work_order_id, work_order_status })
+            body: JSON.stringify({ work_order_id, work_order_status }),
+            showErrorToast: false
         });
 
-        if (data.success) {
+        if (data && data.success) {
             if (data.result && data.result.length > 0) {
                 subOutputRawData = data.result;
                 subOutputColumns = data.columns;
@@ -4193,7 +4220,9 @@ async function fetchOutputBarcodeByWorkOrder(type, rowData = null) {
         }
     } catch (err) {
         renderSubOutputBarcodeTable([], []);
-        Toast.error('Lỗi', err.message || 'Lỗi kết nối khi tải tem đầu ra');
+        if (!err.toastShown) {
+            Toast.error('Lỗi', err.message || 'Lỗi kết nối khi tải tem đầu ra');
+        }
     }
 }
 
@@ -4210,10 +4239,11 @@ async function fetchOutputBarcodeByMainWorkOrder(workOrderId = null, workOrderSt
         const data = await apiFetch('/api/workorders/fetch-output-barcodes', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ work_order_id: targetId, work_order_status: targetStatus })
+            body: JSON.stringify({ work_order_id: targetId, work_order_status: targetStatus }),
+            showErrorToast: false
         });
 
-        if (data.success) {
+        if (data && data.success) {
             if (data.result && data.result.length > 0) {
                 outputBarcodeRawData = data.result;
                 outputBarcodeColumns = data.columns;
@@ -4231,7 +4261,9 @@ async function fetchOutputBarcodeByMainWorkOrder(workOrderId = null, workOrderSt
         }
     } catch (err) {
         renderOutputBarcodeTable([], []);
-        Toast.error('Lỗi', err.message || 'Lỗi kết nối khi tải tem đầu ra');
+        if (!err.toastShown) {
+            Toast.error('Lỗi', err.message || 'Lỗi kết nối khi tải tem đầu ra');
+        }
     }
 }
 
