@@ -20,7 +20,7 @@ CODE39_PATTERNS = {
     'O': 'WNNNWNNWN', 'P': 'NNWNWNNWN', 'Q': 'NNNNNNWWW', 'R': 'WNNNNNWWN',
     'S': 'NNWNNNWWN', 'T': 'NNNNWNWWN', 'U': 'WWNNNNNNW', 'V': 'NWWNNNNNW',
     'W': 'WWWNNNNNN', 'X': 'NWNNWNNNW', 'Y': 'WWNNWNNNN', 'Z': 'NWWNWNNNN',
-    '-': 'NWNNNNNNW', '.': 'WWNNNNNNN', ' ': 'NWWNNNNNN', '$': 'NWNWNWNNN',
+    '-': 'NWNNNNWNW', '.': 'WWNNNNWNN', ' ': 'NWWNNNWNN', '$': 'NWNWNWNNN',
     '/': 'NWNWNNNWN', '+': 'NWNNNWNWN', '%': 'NNNWNWNWN', '*': 'NWNNWNWNN'
 }
 
@@ -143,21 +143,25 @@ def get_arial_fonts(font_size_pt=12, dpi=300.0):
 
 def build_label_image(label_data):
     """
-    Dựng hình ảnh con tem hoàn chỉnh chuẩn MES:
+    Dựng hình ảnh con tem hoàn chỉnh chuẩn MES vừa vặn khổ A5 dọc (148mm x 210mm @ 300 DPI):
     - Font size: 12pt Arial (đúng chuẩn thiết kế biểu mẫu).
-    - Biểu mẫu 2L-00-014 ở góc trên bên phải.
-    - Cột 1 (nhãn): ~30% chiều rộng bảng (đủ cho nhãn dài nhất).
-    - Cột 2 (giá trị & barcode): ~70% chiều rộng bảng, barcode trải dài và vạch dày, PDA quét siêu nhạy.
+    - Biểu mẫu 2L-00-014 ở góc trên bên phải căn chuẩn theo mép phải của bảng.
+    - Cột 1 (nhãn): 550px (~34% chiều rộng bảng, đủ cho nhãn tiếng Việt dài nhất).
+    - Cột 2 (giá trị & barcode): 1050px (~66% chiều rộng bảng), barcode Code 39 vạch sắc nét, PDA quét siêu nhạy.
+    - Kích thước canvas A5 dọc: 1748px x 2480px (148mm x 210mm).
+    - Lề an toàn trái/phải: 74px (~6.27mm), đảm bảo máy in không bị cắt mất viền mép.
     """
     dpi = 300.0
     font_regular, font_bold, font_code = get_arial_fonts(font_size_pt=12, dpi=dpi)
 
-    col1_w = 570
-    col2_w = 1150
-    table_w = col1_w + col2_w # 1720px
-    margin_x = 40
+    # Khổ giấy chuẩn A5 dọc ở 300 DPI: 148 mm x 210 mm
+    canvas_w = 1748  # 148 mm (419.52 pt)
+    margin_x = 74    # ~6.27 mm lề an toàn in ấn 2 bên
+    table_w = canvas_w - 2 * margin_x  # 1600 px (135.47 mm)
+
+    col1_w = 550     # Cột nhãn
+    col2_w = table_w - col1_w  # 1050 px (Cột giá trị & mã vạch)
     table_top = 75
-    canvas_w = table_w + 2 * margin_x # 1800px
 
     normal_row_h = 70
     barcode_row_h = 195
@@ -183,15 +187,17 @@ def build_label_image(label_data):
         for lbl, val in specs:
             rows.append((lbl, str(val or "")))
 
-    # Tính toán chiều cao tự co giãn dựa trên số lượng dòng thực tế
+    # Chiều cao chuẩn A5 là 2480px (210mm). Nếu số dòng đặc biệt lớn hơn 30 dòng thì mở rộng.
     total_table_h = len(rows) * normal_row_h + barcode_row_h
-    canvas_h = table_top + total_table_h + 35
+    canvas_h = max(2480, table_top + total_table_h + 80)
 
     img = Image.new('RGB', (canvas_w, canvas_h), 'white')
     draw = ImageDraw.Draw(img)
 
-    # Vẽ mã form 2L-00-014 góc trên bên phải
-    draw.text((canvas_w - margin_x - 170, 25), "2L-00-014", fill='black', font=font_code)
+    # Căn phải mã biểu mẫu 2L-00-014 thẳng hàng với mép phải bảng dữ liệu
+    form_bbox = draw.textbbox((0, 0), "2L-00-014", font=font_code)
+    form_w = form_bbox[2] - form_bbox[0]
+    draw.text((margin_x + table_w - form_w, 25), "2L-00-014", fill='black', font=font_code)
 
     cur_y = table_top
     border_color = (0, 0, 0)
@@ -219,15 +225,16 @@ def build_label_image(label_data):
 
     barcode_val = str(label_data.get("barcode", "") or "").strip().upper()
     if barcode_val:
-        # Tính toán độ rộng vạch tối ưu: ưu tiên narrow=3, wide=8 để vạch dày, nét rõ, PDA quét siêu nhạy
-        target_narrow = 3
-        target_wide = 8
-        # Nếu barcode quá dài, tính độ rộng vạch tối đa vừa vặn cột 2 (không bao giờ < 2px)
+        # Tự động tính độ rộng vạch tối ưu cho cột 2 (1050px)
         num_chars = len(barcode_val) + 2
-        est_width = num_chars * (3 * target_wide + 7 * target_narrow) + target_narrow * 20
-        if est_width > col2_w - 40:
-            target_narrow = max(2, int((col2_w - 50) / (num_chars * 15)))
-            target_wide = int(round(target_narrow * 2.67))
+        w38 = num_chars * (3 * 8 + 7 * 3) + 3 * 20
+        w26 = num_chars * (3 * 6 + 7 * 2) + 2 * 20
+        if w38 <= col2_w - 60:
+            target_narrow, target_wide = 3, 8
+        elif w26 <= col2_w - 60:
+            target_narrow, target_wide = 2, 6
+        else:
+            target_narrow, target_wide = 2, 5
 
         bc_img = generate_code39(barcode_val, narrow_width=target_narrow, wide_width=target_wide, height=105)
 
