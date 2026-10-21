@@ -972,9 +972,9 @@ function enhanceContextMenu() {
 
     document.querySelectorAll('.context-menu-item').forEach(item => {
         const action = item.dataset.action;
-        if (action && actionIcons[action] && !item.querySelector('.material-symbols-outlined')) {
+        if (action && actionIcons[action] && !item.querySelector('.context-menu-item-icon')) {
             const iconSpan = document.createElement('span');
-            iconSpan.className = 'material-symbols-outlined';
+            iconSpan.className = 'material-symbols-outlined context-menu-item-icon';
             iconSpan.textContent = actionIcons[action];
             item.prepend(iconSpan);
         }
@@ -2842,6 +2842,8 @@ function showContextMenu(x, y, tableType = 'main') {
     const maxAllowedWidth = Math.min(300, viewportWidth - 20);
     const maxAllowedHeight = Math.min(480, viewportHeight - 24);
 
+    if (typeof hideReprintPrinterSubmenu === 'function') hideReprintPrinterSubmenu(true);
+
     // Reset styles for clean measurement and ensure it never exceeds viewport
     contextMenu.style.position = 'fixed';
     contextMenu.style.zIndex = '99999';
@@ -2908,18 +2910,36 @@ function updateContextMenu() {
     const isRecipeYaml = (currentTableType === 'recipe' && Array.isArray(rawTableColumns) && rawTableColumns.includes('Tên file') && rawTableColumns.includes('Đường dẫn'));
 
     // Define menu configurations
+    let barcodeActions = [
+        'reprintLabelPdf',
+        'inputBarcode',
+        'feedRecords',
+        'checkScanBarcodeHistory',
+        'checkBarcodeWorkOrder',
+        'mesTracking',
+        'checkBarcodeTransfer',
+        'checkBarcodeExtendDateTime',
+        'fetchOriginalInfo'
+    ];
+
+    // Filter out reprintLabelPdf for specific product types
+    if (currentTableType === 'barcode') {
+        const prodType = String(selectedRowData?.product_type || selectedRowData?.['Loại NVL'] || selectedRowData?.productType || '').trim().toUpperCase();
+        const EXCLUDED_REPRINT_PRODUCT_TYPES = [
+            'GREEN_TIRE',
+            'TIRE',
+            'COMPOUNDING_INGREDIENT',
+            'RUBBER',
+            'ACCELERATOR_INGREDIENT',
+            'RETURN_COMPOUND'
+        ];
+        if (EXCLUDED_REPRINT_PRODUCT_TYPES.includes(prodType)) {
+            barcodeActions = barcodeActions.filter(action => action !== 'reprintLabelPdf');
+        }
+    }
+
     const menuConfig = {
-        'barcode': [
-            'reprintLabelPdf',
-            'inputBarcode',
-            'feedRecords',
-            'checkScanBarcodeHistory',
-            'checkBarcodeWorkOrder',
-            'mesTracking',
-            'checkBarcodeTransfer',
-            'checkBarcodeExtendDateTime',
-            'fetchOriginalInfo'
-        ],
+        'barcode': barcodeActions,
         'recipe': isRecipeYaml ? [
             'searchCommitGitlabByRecipe',
             'searchActionsCommitByRecipe',
@@ -3071,7 +3091,11 @@ function handleContextMenuAction(e) {
             if (typeof fetchPrde === 'function') fetchPrde('prdebc', rowData);
             break;
         case 'reprintLabelPdf':
-            if (typeof reprintLabelPdf === 'function') reprintLabelPdf(rowData);
+            if (typeof handleReprintLabelPdfClick === 'function') {
+                handleReprintLabelPdfClick(rowData);
+            } else if (typeof reprintLabelPdf === 'function') {
+                reprintLabelPdf(rowData);
+            }
             break;
 
         // currentOutputTableType === 'outputBarcodeByFeedRecords'
@@ -3198,6 +3222,9 @@ function enhanceContextMenu() {
     // Reset khi đóng menu
     function closeContextMenu() {
         contextMenu.style.display = 'none';
+        if (typeof hideReprintPrinterSubmenu === 'function') {
+            hideReprintPrinterSubmenu(true);
+        }
         focusedItemIndex = -1;
         
         // Remove tất cả highlight
@@ -3210,16 +3237,24 @@ function enhanceContextMenu() {
 
     // Click hoặc chạm ra ngoài để đóng context menu
     document.addEventListener('click', (e) => {
-        if (contextMenu.style.display === 'block' && !contextMenu.contains(e.target)) {
+        const reprintSub = document.getElementById('reprintPrinterSubmenu');
+        const inSubmenu = reprintSub && reprintSub.contains(e.target);
+        if (contextMenu.style.display === 'block' && !contextMenu.contains(e.target) && !inSubmenu) {
             closeContextMenu();
         }
     });
 
     document.addEventListener('touchstart', (e) => {
-        if (contextMenu.style.display === 'block' && !contextMenu.contains(e.target)) {
+        const reprintSub = document.getElementById('reprintPrinterSubmenu');
+        const inSubmenu = reprintSub && reprintSub.contains(e.target);
+        if (contextMenu.style.display === 'block' && !contextMenu.contains(e.target) && !inSubmenu) {
             closeContextMenu();
         }
     }, { passive: true });
+
+    if (typeof initReprintSubmenuEvents === 'function') {
+        initReprintSubmenuEvents();
+    }
 
     // Khi mở menu, auto-highlight item đầu tiên
     const observer = new MutationObserver((mutations) => {
@@ -3711,6 +3746,292 @@ async function reprintLabelPdf(rowData = null) {
         hideLoading();
     }
 }
+
+
+// ===== CUPS PRINTERS & REPRINT LABEL SUBMENU =====
+let _cupsPrintersCache = { timestamp: 0, printers: [] };
+let _reprintSubmenuHideTimer = null;
+
+async function getAvailableCupsPrinters() {
+    const now = Date.now();
+    if (_cupsPrintersCache.printers.length > 0 && (now - _cupsPrintersCache.timestamp < 30000)) {
+        return _cupsPrintersCache.printers;
+    }
+    try {
+        const resp = await fetch('/api/switching-spell/available-printers');
+        if (resp.ok) {
+            const data = await resp.json();
+            if (data && Array.isArray(data.printers)) {
+                _cupsPrintersCache = { timestamp: now, printers: data.printers };
+                return data.printers;
+            }
+        }
+    } catch (e) {
+        console.warn('Lỗi fetch danh sách máy in CUPS:', e);
+    }
+    return _cupsPrintersCache.printers || [];
+}
+
+function extractStationFromRowData(dataObj) {
+    if (!dataObj) return '';
+    if (dataObj.station && typeof dataObj.station === 'string') return dataObj.station.trim();
+    if (dataObj.info) {
+        try {
+            const infoObj = typeof dataObj.info === 'string' ? JSON.parse(dataObj.info) : dataObj.info;
+            if (infoObj?.production_info?.station) return String(infoObj.production_info.station).trim();
+            if (infoObj?.station) return String(infoObj.station).trim();
+        } catch (e) {}
+    }
+    return '';
+}
+
+function filterPrintersByStation(printers, station) {
+    if (!Array.isArray(printers) || printers.length === 0) return [];
+    const stUpper = (station || '').toUpperCase();
+
+    // Trích xuất mã xưởng/trạm: P5300, P8300, P8400, P9100, P8700...
+    const match = stUpper.match(/P\d{4}/);
+    const pCode = match ? match[0] : '';
+
+    let filtered = [];
+    if (pCode) {
+        filtered = printers.filter(p => {
+            const q = (p.queue_name || '').toUpperCase();
+            if (pCode === 'P9100' || pCode === 'P8700') {
+                return q.includes('KV2_P9100') || q.includes('KV2-P9100') || q.includes('KV2_P8700') || q.includes('KV2-P8700');
+            }
+            return q.includes(`KV2_${pCode}`) || q.includes(`KV2-${pCode}`);
+        });
+    }
+
+    if (filtered.length === 0) {
+        filtered = [...printers];
+    }
+
+    // Smart ranking: từ khóa quy trình từ station (BEAD, TREAD, LINER, NYLON, STEEL, CARCASS, PLY, SIDEWELL...)
+    const keywords = ['BEAD', 'TREAD', 'LINER', 'CARCASS', 'NYLON', 'STEEL', 'PLY', 'SIDEWELL', 'MIXER'];
+    const matchedKeywords = keywords.filter(kw => stUpper.includes(kw));
+
+    return filtered.map(p => {
+        const qUpper = (p.queue_name || '').toUpperCase();
+        let isBestMatch = false;
+        if (matchedKeywords.length > 0) {
+            isBestMatch = matchedKeywords.some(kw => qUpper.includes(kw));
+        }
+        return { ...p, isBestMatch };
+    }).sort((a, b) => {
+        if (a.isBestMatch && !b.isBestMatch) return -1;
+        if (!a.isBestMatch && b.isBestMatch) return 1;
+        return a.queue_name.localeCompare(b.queue_name);
+    });
+}
+
+function positionReprintSubmenu(reprintItem, submenu) {
+    if (!reprintItem || !submenu) return;
+    const itemRect = reprintItem.getBoundingClientRect();
+    const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+
+    const submenuWidth = 280;
+    let left = itemRect.right + 2;
+    if (left + submenuWidth > viewportWidth - 10) {
+        left = Math.max(10, itemRect.left - submenuWidth - 2);
+    }
+
+    let top = itemRect.top;
+    submenu.style.left = `${Math.round(left)}px`;
+    submenu.style.top = `${Math.round(top)}px`;
+
+    const subRect = submenu.getBoundingClientRect();
+    const actualHeight = subRect.height || 260;
+    if (top + actualHeight > viewportHeight - 10) {
+        const adjustedTop = Math.max(10, viewportHeight - actualHeight - 10);
+        submenu.style.top = `${Math.round(adjustedTop)}px`;
+    }
+}
+
+function scheduleHideReprintSubmenu() {
+    if (_reprintSubmenuHideTimer) clearTimeout(_reprintSubmenuHideTimer);
+    _reprintSubmenuHideTimer = setTimeout(() => {
+        hideReprintPrinterSubmenu();
+    }, 200);
+}
+
+function hideReprintPrinterSubmenu(immediate = false) {
+    if (_reprintSubmenuHideTimer) {
+        clearTimeout(_reprintSubmenuHideTimer);
+        _reprintSubmenuHideTimer = null;
+    }
+    const submenu = document.getElementById('reprintPrinterSubmenu');
+    if (submenu) {
+        submenu.style.display = 'none';
+    }
+}
+
+async function showReprintPrinterSubmenu(reprintItem) {
+    if (!reprintItem) return;
+    const submenu = document.getElementById('reprintPrinterSubmenu');
+    if (!submenu) return;
+
+    if (_reprintSubmenuHideTimer) {
+        clearTimeout(_reprintSubmenuHideTimer);
+        _reprintSubmenuHideTimer = null;
+    }
+
+    const titleEl = document.getElementById('reprintSubmenuStationTitle');
+    const listEl = document.getElementById('reprintPrinterList');
+    if (!listEl) return;
+
+    const rowData = selectedRowData || {};
+    const station = extractStationFromRowData(rowData);
+    if (titleEl) {
+        titleEl.textContent = station ? `Trạm: ${station}` : 'Chọn máy in CUPS';
+        titleEl.title = station ? `Trạm sản xuất: ${station}` : 'Chọn máy in';
+    }
+
+    listEl.innerHTML = '<div class="context-submenu-empty"><span class="material-symbols-outlined spin" style="font-size:16px; vertical-align:middle; margin-right:4px;">sync</span> Đang tải máy in...</div>';
+
+    positionReprintSubmenu(reprintItem, submenu);
+    submenu.style.display = 'block';
+
+    const allPrinters = await getAvailableCupsPrinters();
+    const filteredPrinters = filterPrintersByStation(allPrinters, station);
+
+    if (filteredPrinters.length === 0) {
+        listEl.innerHTML = '<div class="context-submenu-empty">Không tìm thấy máy in phù hợp</div>';
+    } else {
+        listEl.innerHTML = filteredPrinters.map(p => {
+            const rawStatus = (p.status || 'Idle').toLowerCase();
+            let statusClass = 'idle';
+            let statusText = 'Idle';
+            if (rawStatus.includes('process') || rawStatus.includes('busy')) {
+                statusClass = 'processing';
+                statusText = 'Busy';
+            } else if (rawStatus.includes('stop') || rawStatus.includes('disabled')) {
+                statusClass = 'stopped';
+                statusText = 'Stopped';
+            }
+            const bestBadge = p.isBestMatch ? '<span class="printer-badge recommended-tag" title="Khớp với trạm sản xuất">Khớp</span>' : '';
+            return `
+                <div class="context-submenu-item ${p.isBestMatch ? 'recommended' : ''}" data-printer="${p.queue_name}" role="menuitem">
+                    <span class="material-symbols-outlined">print</span>
+                    <span class="submenu-item-name" title="${p.queue_name}">${p.queue_name}</span>
+                    ${bestBadge}
+                    <span class="printer-badge ${statusClass}">${statusText}</span>
+                </div>
+            `;
+        }).join('');
+
+        listEl.querySelectorAll('.context-submenu-item').forEach(el => {
+            el.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const printerName = el.dataset.printer;
+                hideReprintPrinterSubmenu(true);
+                const contextMenu = document.getElementById('contextMenu');
+                if (contextMenu) contextMenu.style.display = 'none';
+                await printLabelCups(printerName, selectedRowData);
+            });
+        });
+    }
+
+    positionReprintSubmenu(reprintItem, submenu);
+}
+
+function handleReprintLabelPdfClick(rowData = null) {
+    const reprintItem = document.querySelector('.context-menu-item[data-action="reprintLabelPdf"]');
+    const submenu = document.getElementById('reprintPrinterSubmenu');
+    if (!reprintItem || !submenu) return;
+
+    if (submenu.style.display === 'block') {
+        hideReprintPrinterSubmenu(true);
+    } else {
+        showReprintPrinterSubmenu(reprintItem);
+    }
+}
+
+async function printLabelCups(printerName, rowData = null) {
+    const dataObj = rowData || selectedRowData || {};
+    const barcode = (dataObj.id || dataObj.barcode || '').trim();
+    if (!barcode) {
+        Toast.warning('Cảnh báo', 'Chưa chọn barcode để in lại tem.');
+        return;
+    }
+    if (!printerName) {
+        Toast.warning('Cảnh báo', 'Chưa chọn máy in.');
+        return;
+    }
+
+    const confirmed = (typeof showConfirm === 'function')
+        ? await showConfirm(`Gửi lệnh in tem <strong>${barcode}</strong> tới máy in <strong>${printerName}</strong>?`, 'Xác nhận in tem CUPS')
+        : true;
+    if (!confirmed) return;
+
+    showLoading();
+    try {
+        const response = await fetch('/api/barcodes/print-label-cups', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ barcode, printer_name: printerName })
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+            const jobStr = result.job_id ? ` (Job #${result.job_id})` : '';
+            Toast.success('Thành công', `Đã gửi lệnh in tem ${barcode} tới máy in ${printerName}${jobStr}`);
+        } else {
+            Toast.error('Lỗi in tem', result.message || `Lỗi khi gửi lệnh in tới máy in (${response.status})`);
+        }
+    } catch (err) {
+        console.error('Error sending print job to CUPS:', err);
+        Toast.error('Lỗi in tem', err.message || 'Lỗi kết nối khi gửi lệnh in CUPS');
+    } finally {
+        hideLoading();
+    }
+}
+
+function initReprintSubmenuEvents() {
+    const reprintItem = document.querySelector('.context-menu-item[data-action="reprintLabelPdf"]');
+    const submenu = document.getElementById('reprintPrinterSubmenu');
+    const downloadBtn = document.getElementById('reprintDownloadPdfOption');
+
+    if (reprintItem && !reprintItem._hasSubmenuEvents) {
+        reprintItem._hasSubmenuEvents = true;
+        reprintItem.addEventListener('mouseenter', () => {
+            showReprintPrinterSubmenu(reprintItem);
+        });
+        reprintItem.addEventListener('mouseleave', () => {
+            scheduleHideReprintSubmenu();
+        });
+    }
+
+    if (submenu && !submenu._hasSubmenuEvents) {
+        submenu._hasSubmenuEvents = true;
+        submenu.addEventListener('mouseenter', () => {
+            if (_reprintSubmenuHideTimer) {
+                clearTimeout(_reprintSubmenuHideTimer);
+                _reprintSubmenuHideTimer = null;
+            }
+        });
+        submenu.addEventListener('mouseleave', () => {
+            scheduleHideReprintSubmenu();
+        });
+    }
+
+    if (downloadBtn && !downloadBtn._hasClickEvent) {
+        downloadBtn._hasClickEvent = true;
+        downloadBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            hideReprintPrinterSubmenu(true);
+            const contextMenu = document.getElementById('contextMenu');
+            if (contextMenu) contextMenu.style.display = 'none';
+            reprintLabelPdf(selectedRowData);
+        });
+    }
+}
+window.initReprintSubmenuEvents = initReprintSubmenuEvents;
+window.hideReprintPrinterSubmenu = hideReprintPrinterSubmenu;
+window.showReprintPrinterSubmenu = showReprintPrinterSubmenu;
+window.handleReprintLabelPdfClick = handleReprintLabelPdfClick;
+window.printLabelCups = printLabelCups;
 
 // ===== MES TRACKING MASTER-DETAIL UNIFIED TREE TABLE IMPLEMENTATION =====
 let mesModalNodeCounter = 0;

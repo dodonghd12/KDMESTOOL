@@ -944,7 +944,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.32"
+APP_VERSION = "2.3.33"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -5496,6 +5496,250 @@ def get_prdebc():
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
 
 
+def build_reprint_label_pdf_buffer(raw_barcode: str):
+    """
+    Sinh buffer PDF in lại tem chuẩn MES cho barcode chỉ định.
+    Trả về: (pdf_io: io.BytesIO, final_barcode: str)
+    """
+    barcode = str(raw_barcode or '').strip()
+    if not barcode:
+        raise ValueError('Thiếu Barcode')
+
+    query_mr = """
+        SELECT
+            mr.id,
+            mr.oid,
+            mr.product_id,
+            mr.product_type,
+            mr.quantity,
+            mr.created_at,
+            mr.expiry_time,
+            mr.station,
+            mr.info,
+            cr.sequence,
+            cr.work_order,
+            cr.detail->>'quantity' AS cr_quantity,
+            mr.initial_quantity
+        FROM kvmes.material_resource mr
+        LEFT JOIN kvmes.collect_record cr ON cr.resource_oid = mr.oid
+        LEFT JOIN kvmes.work_order wo ON wo.id = TRIM(cr.work_order)::character(20)
+        WHERE mr.id = %s OR btrim(mr.id) = btrim(%s)
+        ORDER BY wo.reserved_date DESC NULLS LAST, cr.sequence ASC, cr.created_at DESC NULLS LAST
+        LIMIT 1;
+    """
+    result, _ = execute_pg_select_query(query_mr, (barcode, barcode))
+    if not result:
+        raise LookupError(f'Không tìm thấy dữ liệu tem cho barcode: {barcode}')
+
+    row = result[0]
+    (mr_id, mr_oid, product_id, product_type, quantity,
+     created_at, expiry_time, station, info, cr_seq, cr_wo,
+     cr_quantity, mr_initial_quantity) = row
+
+    info_dict = info if isinstance(info, dict) else {}
+    prod_info = info_dict.get('production_info') or {}
+
+    # 1. Station
+    final_station = (station or '').strip() or prod_info.get('station', '') or ''
+    next_station = prod_info.get('next_station', '') or 'next_station'
+
+    # 2. Lot number
+    lot_number = info_dict.get('lot_number', '') or ''
+
+    # 3. Production time
+    prod_time_str = ''
+    if created_at:
+        try:
+            prod_time_str = datetime.fromtimestamp(int(created_at) / 1e9, tz=VN_TZ).strftime('%Y-%m-%d %H:%M:%S')
+        except Exception:
+            pass
+    if not prod_time_str and prod_info.get('production_time'):
+        raw_pt = prod_info['production_time']
+        try:
+            dt = datetime.fromisoformat(str(raw_pt).replace('Z', '+00:00'))
+            prod_time_str = dt.astimezone(VN_TZ).strftime('%Y-%m-%d %H:%M:%S')
+        except Exception:
+            prod_time_str = str(raw_pt)[:19].replace('T', ' ')
+
+    # 4. Expiry time
+    exp_time_str = ''
+    if expiry_time:
+        try:
+            exp_time_str = datetime.fromtimestamp(int(expiry_time) / 1e9, tz=VN_TZ).strftime('%Y-%m-%d %H:%M:%S')
+        except Exception:
+            pass
+
+    # 5. Quantity: Lấy quantity từ collect_record (cr.detail->>'quantity') theo chuẩn api/barcodes/fetch-original-info
+    clean_qty = ''
+    target_qty = cr_quantity if (cr_quantity is not None and str(cr_quantity).strip() != '') else None
+    if target_qty is None:
+        target_qty = mr_initial_quantity
+    if target_qty is None:
+        target_qty = quantity
+
+    if target_qty is not None and str(target_qty).strip() != '':
+        try:
+            clean_qty = f"{float(target_qty):g}"
+        except Exception:
+            clean_qty = str(target_qty).strip()
+
+    # 6. Sequence
+    sequence = cr_seq if cr_seq is not None else ''
+
+    # 7. Recipe ID & Specs
+    recipe_id = prod_info.get('recipe_id') or ''
+    if not recipe_id and cr_wo:
+        wo_res, _ = execute_pg_select_query(
+            "SELECT recipe_id FROM kvmes.work_order WHERE btrim(id) = btrim(%s) LIMIT 1;",
+            (str(cr_wo).strip(),)
+        )
+        if wo_res and wo_res[0] and wo_res[0][0]:
+            recipe_id = wo_res[0][0]
+
+    recipe_notes = None
+    if recipe_id:
+        rec_res, _ = execute_pg_select_query(
+            "SELECT note FROM kvmes.recipe WHERE id = %s LIMIT 1;",
+            (recipe_id,)
+        )
+        if rec_res and rec_res[0]:
+            recipe_notes = rec_res[0][0]
+
+    if not recipe_notes and product_id:
+        rec_res, _ = execute_pg_select_query(
+            "SELECT note FROM kvmes.recipe WHERE product_id = %s ORDER BY released_at DESC LIMIT 1;",
+            (product_id,)
+        )
+        if rec_res and rec_res[0]:
+            recipe_notes = rec_res[0][0]
+
+    from tools.label_printer import parse_recipe_specs, generate_label_pdf
+    specs = parse_recipe_specs(recipe_notes)
+
+    label_data = {
+        "station": final_station,
+        "next_station": next_station,
+        "product_id": product_id or '',
+        "lot_number": lot_number,
+        "production_time": prod_time_str,
+        "expiry_time": exp_time_str,
+        "quantity": clean_qty,
+        "sequence": sequence,
+        "barcode": mr_id or barcode,
+        "recipe_id": recipe_id,
+        "specs": specs
+    }
+
+    pdf_io = generate_label_pdf(label_data)
+    return pdf_io, (mr_id or barcode)
+
+
+def send_cups_print_job(printer_name: str, pdf_bytes: bytes, job_name: str = "reprint_label.pdf", user_name: str = "kdmes") -> dict:
+    """
+    Gửi lệnh in trực tiếp tới hàng đợi CUPS 2.4.7 tại https://198.1.10.85:631/printers/{printer_name}
+    sử dụng chuẩn Internet Printing Protocol (IPP 2.0 RFC 8011).
+    """
+    try:
+        import struct
+        import urllib3
+        import requests
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+        clean_printer = str(printer_name or '').strip()
+        if not clean_printer:
+            return {'success': False, 'message': 'Tên máy in CUPS không hợp lệ'}
+
+        # 1. IPP Header: Version 2.0 (0x0200), Operation Print-Job (0x0002), Request-ID 1 (0x00000001)
+        # Operation attributes tag: 0x01
+        payload = bytearray(b'\x02\x00\x00\x02\x00\x00\x00\x01\x01')
+
+        def add_attr(tag: int, name: str, value: str):
+            payload.append(tag)
+            payload.extend(struct.pack('>H', len(name)))
+            payload.extend(name.encode('utf-8'))
+            val_bytes = value.encode('utf-8')
+            payload.extend(struct.pack('>H', len(val_bytes)))
+            payload.extend(val_bytes)
+
+        add_attr(0x47, 'attributes-charset', 'utf-8')
+        add_attr(0x48, 'attributes-natural-language', 'en')
+        printer_uri = f"ipp://198.1.10.85:631/printers/{clean_printer}"
+        add_attr(0x45, 'printer-uri', printer_uri)
+        add_attr(0x42, 'requesting-user-name', user_name or 'kdmes')
+        add_attr(0x42, 'job-name', job_name or 'reprint_label.pdf')
+        add_attr(0x49, 'document-format', 'application/pdf')
+
+        # End of attributes tag: 0x03
+        payload.append(0x03)
+        # Gắn dữ liệu file PDF
+        payload.extend(pdf_bytes)
+
+        url = f"https://198.1.10.85:631/printers/{clean_printer}"
+        resp = requests.post(
+            url,
+            headers={'Content-Type': 'application/ipp'},
+            data=bytes(payload),
+            verify=False,
+            timeout=10
+        )
+
+        if resp.status_code != 200:
+            return {
+                'success': False,
+                'message': f"Máy chủ CUPS trả về HTTP {resp.status_code}: {resp.text[:120]}"
+            }
+
+        resp_data = resp.content
+        if len(resp_data) < 8:
+            return {'success': False, 'message': 'Phản hồi IPP từ CUPS không hợp lệ (độ dài quá ngắn)'}
+
+        version, status_code, request_id = struct.unpack('>HHI', resp_data[:8])
+        if status_code not in (0x0000, 0x0001):
+            return {
+                'success': False,
+                'message': f"CUPS từ chối lệnh in với mã IPP: 0x{status_code:04x}"
+            }
+
+        job_id = None
+        pos = 8
+        while pos < len(resp_data):
+            tag = resp_data[pos]
+            pos += 1
+            if tag in (0x01, 0x02, 0x03, 0x04, 0x05):
+                if tag == 0x03:
+                    break
+                continue
+            if pos + 2 > len(resp_data):
+                break
+            name_len = struct.unpack('>H', resp_data[pos:pos+2])[0]
+            pos += 2
+            name = resp_data[pos:pos+name_len].decode('utf-8', errors='ignore')
+            pos += name_len
+            if pos + 2 > len(resp_data):
+                break
+            val_len = struct.unpack('>H', resp_data[pos:pos+2])[0]
+            pos += 2
+            raw_val = resp_data[pos:pos+val_len]
+            pos += val_len
+
+            if name == 'job-id' and tag == 0x21 and val_len == 4:
+                job_id = struct.unpack('>i', raw_val)[0]
+                break
+
+        return {
+            'success': True,
+            'job_id': job_id,
+            'status': 'successful-ok',
+            'printer_name': clean_printer
+        }
+    except requests.exceptions.Timeout:
+        return {'success': False, 'message': 'Kết nối tới máy chủ CUPS (198.1.10.85:631) bị timeout'}
+    except requests.exceptions.ConnectionError:
+        return {'success': False, 'message': 'Không thể kết nối tới máy chủ CUPS (198.1.10.85:631)'}
+    except Exception as e:
+        return {'success': False, 'message': f'Lỗi khi gửi lệnh in IPP: {str(e)}'}
+
+
 @app.route('/api/barcodes/reprint-label-pdf', methods=['POST', 'GET'])
 @login_required
 def api_reprint_label_pdf():
@@ -5506,142 +5750,64 @@ def api_reprint_label_pdf():
         if not raw_barcode:
             return jsonify({'success': False, 'message': 'Thiếu Barcode'}), 400
 
-        query_mr = """
-            SELECT
-                mr.id,
-                mr.oid,
-                mr.product_id,
-                mr.product_type,
-                mr.quantity,
-                mr.created_at,
-                mr.expiry_time,
-                mr.station,
-                mr.info,
-                cr.sequence,
-                cr.work_order,
-                cr.detail->>'quantity' AS cr_quantity,
-                mr.initial_quantity
-            FROM kvmes.material_resource mr
-            LEFT JOIN kvmes.collect_record cr ON cr.resource_oid = mr.oid
-            LEFT JOIN kvmes.work_order wo ON wo.id = TRIM(cr.work_order)::character(20)
-            WHERE mr.id = %s OR btrim(mr.id) = btrim(%s)
-            ORDER BY wo.reserved_date DESC NULLS LAST, cr.sequence ASC, cr.created_at DESC NULLS LAST
-            LIMIT 1;
-        """
-        result, _ = execute_pg_select_query(query_mr, (raw_barcode, raw_barcode))
-        if not result:
-            return jsonify({'success': False, 'message': f'Không tìm thấy dữ liệu tem cho barcode: {raw_barcode}'}), 404
-
-        row = result[0]
-        (mr_id, mr_oid, product_id, product_type, quantity,
-         created_at, expiry_time, station, info, cr_seq, cr_wo,
-         cr_quantity, mr_initial_quantity) = row
-
-        info_dict = info if isinstance(info, dict) else {}
-        prod_info = info_dict.get('production_info') or {}
-
-        # 1. Station
-        final_station = (station or '').strip() or prod_info.get('station', '') or ''
-        next_station = prod_info.get('next_station', '') or 'next_station'
-
-        # 2. Lot number
-        lot_number = info_dict.get('lot_number', '') or ''
-
-        # 3. Production time
-        prod_time_str = ''
-        if created_at:
-            try:
-                prod_time_str = datetime.fromtimestamp(int(created_at) / 1e9, tz=VN_TZ).strftime('%Y-%m-%d %H:%M:%S')
-            except Exception:
-                pass
-        if not prod_time_str and prod_info.get('production_time'):
-            raw_pt = prod_info['production_time']
-            try:
-                dt = datetime.fromisoformat(str(raw_pt).replace('Z', '+00:00'))
-                prod_time_str = dt.astimezone(VN_TZ).strftime('%Y-%m-%d %H:%M:%S')
-            except Exception:
-                prod_time_str = str(raw_pt)[:19].replace('T', ' ')
-
-        # 4. Expiry time
-        exp_time_str = ''
-        if expiry_time:
-            try:
-                exp_time_str = datetime.fromtimestamp(int(expiry_time) / 1e9, tz=VN_TZ).strftime('%Y-%m-%d %H:%M:%S')
-            except Exception:
-                pass
-
-        # 5. Quantity: Lấy quantity từ collect_record (cr.detail->>'quantity') theo chuẩn api/barcodes/fetch-original-info
-        clean_qty = ''
-        target_qty = cr_quantity if (cr_quantity is not None and str(cr_quantity).strip() != '') else None
-        if target_qty is None:
-            target_qty = mr_initial_quantity
-        if target_qty is None:
-            target_qty = quantity
-
-        if target_qty is not None and str(target_qty).strip() != '':
-            try:
-                clean_qty = f"{float(target_qty):g}"
-            except Exception:
-                clean_qty = str(target_qty).strip()
-
-        # 6. Sequence
-        sequence = cr_seq if cr_seq is not None else ''
-
-        # 7. Recipe ID & Specs
-        recipe_id = prod_info.get('recipe_id') or ''
-        if not recipe_id and cr_wo:
-            wo_res, _ = execute_pg_select_query(
-                "SELECT recipe_id FROM kvmes.work_order WHERE btrim(id) = btrim(%s) LIMIT 1;",
-                (str(cr_wo).strip(),)
-            )
-            if wo_res and wo_res[0] and wo_res[0][0]:
-                recipe_id = wo_res[0][0]
-
-        recipe_notes = None
-        if recipe_id:
-            rec_res, _ = execute_pg_select_query(
-                "SELECT note FROM kvmes.recipe WHERE id = %s LIMIT 1;",
-                (recipe_id,)
-            )
-            if rec_res and rec_res[0]:
-                recipe_notes = rec_res[0][0]
-
-        if not recipe_notes and product_id:
-            rec_res, _ = execute_pg_select_query(
-                "SELECT note FROM kvmes.recipe WHERE product_id = %s ORDER BY released_at DESC LIMIT 1;",
-                (product_id,)
-            )
-            if rec_res and rec_res[0]:
-                recipe_notes = rec_res[0][0]
-
-        from tools.label_printer import parse_recipe_specs, generate_label_pdf
-        specs = parse_recipe_specs(recipe_notes)
-
-        label_data = {
-            "station": final_station,
-            "next_station": next_station,
-            "product_id": product_id or '',
-            "lot_number": lot_number,
-            "production_time": prod_time_str,
-            "expiry_time": exp_time_str,
-            "quantity": clean_qty,
-            "sequence": sequence,
-            "barcode": mr_id or raw_barcode,
-            "recipe_id": recipe_id,
-            "specs": specs
-        }
-
-        pdf_io = generate_label_pdf(label_data)
+        pdf_io, final_barcode = build_reprint_label_pdf_buffer(raw_barcode)
 
         return send_file(
             pdf_io,
             mimetype='application/pdf',
             as_attachment=True,
-            download_name=f'Tem_{mr_id or raw_barcode}.pdf'
+            download_name=f'Tem_{final_barcode}.pdf'
         )
+    except LookupError as le:
+        return jsonify({'success': False, 'message': str(le)}), 404
+    except ValueError as ve:
+        return jsonify({'success': False, 'message': str(ve)}), 400
     except Exception as e:
         logger.error(f"Lỗi api_reprint_label_pdf: {e}", exc_info=True)
         return jsonify({'success': False, 'message': f'Lỗi tạo file PDF tem: {str(e)}'}), 500
+
+
+@app.route('/api/barcodes/print-label-cups', methods=['POST'])
+@login_required
+def api_print_label_cups():
+    """Gửi lệnh in trực tiếp đến máy in CUPS 2.4.7 qua IPP 2.0."""
+    try:
+        data = request.get_json(silent=True) or {}
+        raw_barcode = str(data.get('barcode') or data.get('id') or '').strip()
+        printer_name = str(data.get('printer_name') or '').strip()
+
+        if not raw_barcode:
+            return jsonify({'success': False, 'message': 'Thiếu mã Barcode để in tem'}), 400
+        if not printer_name:
+            return jsonify({'success': False, 'message': 'Thiếu tên máy in CUPS'}), 400
+
+        pdf_io, final_barcode = build_reprint_label_pdf_buffer(raw_barcode)
+        pdf_bytes = pdf_io.getvalue()
+
+        user_name = session.get('username') or 'kdmes'
+        result = send_cups_print_job(printer_name, pdf_bytes, job_name=f"Tem_{final_barcode}.pdf", user_name=user_name)
+
+        if not result.get('success'):
+            return jsonify({
+                'success': False,
+                'message': result.get('message', 'Lỗi gửi lệnh in tới CUPS'),
+                'printer_name': printer_name
+            }), 502
+
+        return jsonify({
+            'success': True,
+            'message': f"Đã gửi lệnh in tem {final_barcode} tới máy in {printer_name} thành công!",
+            'printer_name': printer_name,
+            'job_id': result.get('job_id'),
+            'status': result.get('status')
+        })
+    except LookupError as le:
+        return jsonify({'success': False, 'message': str(le)}), 404
+    except ValueError as ve:
+        return jsonify({'success': False, 'message': str(ve)}), 400
+    except Exception as e:
+        logger.error(f"Lỗi api_print_label_cups: {e}", exc_info=True)
+        return jsonify({'success': False, 'message': f"Lỗi xử lý in CUPS: {str(e)}"}), 500
 
 
 @app.route('/api/mes/material-history', methods=['POST'])

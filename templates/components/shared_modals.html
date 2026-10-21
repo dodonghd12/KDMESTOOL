@@ -108,7 +108,7 @@
 <!-- Unified Enhanced Context Menu (Shared across Main & All Sub-Pages) -->
 <div id="contextMenu" class="context-menu" role="menu" aria-label="Menu thao tác dòng">
     <!-- Main page barcode actions -->
-    <div class="context-menu-item" data-action="reprintLabelPdf" style="display: none;"><span>In lại tem</span></div>
+    <div class="context-menu-item has-submenu" data-action="reprintLabelPdf" style="display: none;"><span class="context-menu-item-text">In lại tem</span><span class="context-menu-arrow material-symbols-outlined">chevron_right</span></div>
     <div class="context-menu-item" data-action="inputBarcode" style="display: none;"><span>Kiểm tra tem đầu vào</span></div>
     <div class="context-menu-item" data-action="feedRecords" style="display: none;"><span>Kiểm tra tiêu thụ tem</span></div>
     <div class="context-menu-item" data-action="checkScanBarcodeHistory" style="display: none;"><span>Kiểm tra trạm đang nạp tem</span></div>
@@ -135,4 +135,19 @@
 
     <!-- Validate scan barcode specific action -->
     <div class="context-menu-item" data-action="validate_scan_barcode" style="display: none;"><span>Kiểm tra cấp liệu</span></div>
+</div>
+<!-- Submenu danh sách máy in CUPS cho In lại tem -->
+<div id="reprintPrinterSubmenu" class="context-submenu" style="display: none;" role="menu" aria-label="Danh sách máy in">
+    <div class="context-submenu-header">
+        <span class="material-symbols-outlined submenu-header-icon">print</span>
+        <span class="submenu-station-title" id="reprintSubmenuStationTitle">Chọn máy in</span>
+    </div>
+    <div class="context-submenu-body" id="reprintPrinterList">
+        <!-- Render động danh sách máy in -->
+    </div>
+    <div class="context-submenu-divider"></div>
+    <div class="context-submenu-item action-download-pdf" id="reprintDownloadPdfOption" role="menuitem">
+        <span class="material-symbols-outlined">download</span>
+        <span class="submenu-item-name">Tải file PDF (Thủ công)</span>
+    </div>
 </div>

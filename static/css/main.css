@@ -3192,6 +3192,186 @@ body.theme-light .empty-state-icon-wrapper::after {
     margin: 4px 0;
 }
 
+/* Context Menu Arrow & Submenu Support */
+.context-menu-item.has-submenu {
+    position: relative;
+    justify-content: space-between;
+}
+
+.context-menu-arrow {
+    margin-left: auto;
+    font-size: 18px !important;
+    color: var(--color-text-muted) !important;
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), color 0.2s ease !important;
+    pointer-events: none;
+}
+
+.context-menu-item:hover .context-menu-arrow,
+.context-menu-item.focused .context-menu-arrow {
+    color: var(--color-text-inverse) !important;
+    transform: translateX(3px) !important;
+}
+
+/* ===== CONTEXT SUBMENU (CUPS PRINTERS FLYOUT) ===== */
+.context-submenu {
+    display: none;
+    position: fixed;
+    background: var(--color-bg-surface-elevated, #1e293b);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--color-border-interactive, rgba(255, 255, 255, 0.12));
+    border-radius: 10px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45), 0 0 1px rgba(255, 255, 255, 0.2);
+    z-index: 100000;
+    min-width: 270px;
+    max-width: 350px;
+    max-height: 400px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 6px 0;
+    animation: scaleIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.context-submenu-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 14px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--color-text-muted, #94a3b8);
+    letter-spacing: 0.7px;
+    background: var(--color-interactive-bg-hover, rgba(255, 255, 255, 0.05));
+    border-bottom: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.08));
+    user-select: none;
+}
+
+.context-submenu-header .submenu-header-icon {
+    font-size: 15px;
+    color: var(--color-text-accent, #38bdf8);
+}
+
+.submenu-station-title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+}
+
+.context-submenu-body {
+    display: flex;
+    flex-direction: column;
+}
+
+.context-submenu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    cursor: pointer;
+    color: var(--color-text-secondary, #cbd5e1);
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.15s ease;
+    user-select: none;
+}
+
+.context-submenu-item:hover,
+.context-submenu-item.focused {
+    background: var(--color-interactive-bg-hover, rgba(255, 255, 255, 0.08));
+    color: var(--color-text-inverse, #ffffff);
+    padding-left: 17px;
+}
+
+.context-submenu-item .material-symbols-outlined {
+    font-size: 17px;
+    color: var(--color-text-accent, #38bdf8);
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+}
+
+.context-submenu-item:hover .material-symbols-outlined {
+    transform: scale(1.15);
+}
+
+.context-submenu-item .submenu-item-name {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: var(--font-family-mono, monospace);
+    font-size: 12px;
+}
+
+.context-submenu-item.recommended {
+    border-left: 3px solid #38bdf8;
+    background: rgba(56, 189, 248, 0.06);
+}
+
+.context-submenu-item.recommended .submenu-item-name {
+    font-weight: 700;
+    color: var(--color-text-primary, #f8fafc);
+}
+
+.printer-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+}
+
+.printer-badge.idle {
+    background: rgba(34, 197, 94, 0.15);
+    color: #4ade80;
+    border: 1px solid rgba(34, 197, 94, 0.35);
+}
+
+.printer-badge.processing {
+    background: rgba(234, 179, 8, 0.15);
+    color: #facc15;
+    border: 1px solid rgba(234, 179, 8, 0.35);
+}
+
+.printer-badge.stopped {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+.printer-badge.recommended-tag {
+    background: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    margin-right: 4px;
+}
+
+.context-submenu-divider {
+    height: 1px;
+    background: var(--color-border-subtle, rgba(255, 255, 255, 0.08));
+    margin: 4px 0;
+}
+
+.context-submenu-item.action-download-pdf {
+    color: #38bdf8;
+    font-weight: 600;
+}
+
+.context-submenu-item.action-download-pdf .material-symbols-outlined {
+    color: #38bdf8;
+}
+
+.context-submenu-empty {
+    padding: 14px 16px;
+    font-size: 12px;
+    color: var(--color-text-muted, #94a3b8);
+    text-align: center;
+    font-style: italic;
+}
+
 /* ===== OUTPUT BARCODE CONTAINER ===== */
 .output-barcode {
     display: none;
