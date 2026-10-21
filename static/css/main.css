@@ -1549,6 +1549,8 @@ body.theme-light .input-switcher-container[data-active-mode="work_order"] .input
     min-height: 0;
     overflow-x: auto;
     overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border-interactive) var(--color-bg-canvas);
 }
 
 .table-scroll::-webkit-scrollbar {
@@ -3130,17 +3132,21 @@ body.theme-light .empty-state-icon-wrapper::after {
 .context-menu {
     display: none;
     position: absolute;
-    background: var(--color-bg-surface-elevated);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid var(--color-border-interactive);
-    border-radius: 10px;
-    box-shadow: var(--color-shadow-glass), var(--color-border-glow);
+    background: var(--color-bg-surface-card);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--color-border-glass);
+    border-radius: 14px;
+    box-shadow: var(--color-shadow-glass), 0 0 20px var(--color-border-subtle);
     z-index: 1500;
     min-width: 240px;
+    max-height: calc(100vh - 24px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
     padding: 6px 0;
-    overflow: hidden;
     animation: scaleIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border-interactive) var(--color-bg-canvas);
 }
 
 .context-menu-header {
@@ -3216,12 +3222,12 @@ body.theme-light .empty-state-icon-wrapper::after {
 .context-submenu {
     display: none;
     position: fixed;
-    background: var(--color-bg-surface-elevated, #1e293b);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid var(--color-border-interactive, rgba(255, 255, 255, 0.12));
-    border-radius: 10px;
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45), 0 0 1px rgba(255, 255, 255, 0.2);
+    background: var(--color-bg-surface-card);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--color-border-glass);
+    border-radius: 14px;
+    box-shadow: var(--color-shadow-glass), 0 0 20px var(--color-border-subtle);
     z-index: 100000;
     width: max-content;
     min-width: 0;
@@ -3229,8 +3235,34 @@ body.theme-light .empty-state-icon-wrapper::after {
     max-height: 400px;
     overflow-y: auto;
     overscroll-behavior: contain;
-    padding: 4px 0;
+    padding: 6px 0;
     animation: scaleIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border-interactive) var(--color-bg-canvas);
+}
+
+/* Context Menu & Submenu Scrollbars matching .table-scroll */
+.context-menu::-webkit-scrollbar,
+.context-submenu::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.context-menu::-webkit-scrollbar-track,
+.context-submenu::-webkit-scrollbar-track {
+    background: var(--color-bg-canvas);
+    border-radius: 8px;
+}
+
+.context-menu::-webkit-scrollbar-thumb,
+.context-submenu::-webkit-scrollbar-thumb {
+    background: var(--color-border-interactive);
+    border-radius: 8px;
+}
+
+.context-menu::-webkit-scrollbar-thumb:hover,
+.context-submenu::-webkit-scrollbar-thumb:hover {
+    background: var(--color-text-accent);
 }
 
 .context-submenu-body {
@@ -12525,9 +12557,10 @@ body.theme-light .material-transfer-retry-btn.is-success {
     .context-menu {
         position: fixed !important;
         z-index: 99999 !important;
-        border-radius: 12px !important;
-        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.75), 0 0 0 1px var(--color-border-interactive, rgba(61, 213, 192, 0.35)) !important;
-        background: var(--color-bg-surface-elevated, rgba(15, 23, 42, 0.98)) !important;
+        border-radius: 14px !important;
+        border: 1px solid var(--color-border-glass) !important;
+        box-shadow: var(--color-shadow-glass), 0 0 20px var(--color-border-subtle) !important;
+        background: var(--color-bg-surface-card) !important;
         backdrop-filter: blur(20px) !important;
         -webkit-backdrop-filter: blur(20px) !important;
         min-width: 200px !important;
@@ -12536,6 +12569,8 @@ body.theme-light .material-transfer-retry-btn.is-success {
         overflow-y: auto !important;
         overscroll-behavior: contain !important;
         padding: 6px 0 !important;
+        scrollbar-width: thin;
+        scrollbar-color: var(--color-border-interactive) var(--color-bg-canvas);
     }
 
     .context-menu-item {
