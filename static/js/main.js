@@ -4128,10 +4128,11 @@ function highlightDetailsModalText(keyword) {
     const body = modal.querySelector('.details-modal-body');
     const isActionsMode = wrapper && wrapper.classList.contains('has-actions-commit');
     const isYamlMode = wrapper && wrapper.classList.contains('has-yaml-content');
+    const isGitlabDiffMode = wrapper && wrapper.classList.contains('has-gitlab-diff');
 
     const targetContainer = isYamlMode
         ? (wrapper.querySelector('.yaml-code-scroll') || wrapper)
-        : (isActionsMode ? wrapper : body);
+        : (isGitlabDiffMode ? (wrapper.querySelector('.diff-split-container') || wrapper) : (isActionsMode ? wrapper : body));
     if (!targetContainer) return;
 
     if (!window._currentDetailsOriginalHTML) {
@@ -4466,8 +4467,8 @@ function resetDetailsModalBody(modal) {
         body.innerHTML = '';
     }
     if (wrapper) {
-        wrapper.classList.remove('has-actions-commit', 'has-yaml-content');
-        wrapper.querySelectorAll('.actions-version-tabs-bar, #actionsCommitCardsGrid, .actions-syntax-banner, #actionsDiffSection, .yaml-toolbar, .yaml-error-drawer, .yaml-code-scroll, .yaml-path-wrapper, .yaml-toolbar-status').forEach(el => el.remove());
+        wrapper.classList.remove('has-actions-commit', 'has-yaml-content', 'has-gitlab-diff');
+        wrapper.querySelectorAll('.actions-version-tabs-bar, #actionsCommitCardsGrid, .actions-syntax-banner, #actionsDiffSection, .yaml-toolbar, .yaml-error-drawer, .yaml-code-scroll, .yaml-path-wrapper, .yaml-toolbar-status, .diff-compact-header, .diff-split-container, .diff-viewer-empty').forEach(el => el.remove());
     }
 }
 
@@ -4491,10 +4492,23 @@ function showDetailsModal(data) {
         }
         if (copyBtn) copyBtn.style.display = 'none';
         if (content) content.classList.add('details-modal-diff-wide');
-        body.classList.add('details-modal-body-diff');
+        const wrapper = modal.querySelector('.details-modal-body-wrapper');
+        if (body) {
+            body.style.display = 'none';
+            body.classList.remove('details-modal-body-yaml', 'details-modal-body-actions', 'details-modal-body-diff');
+            body.innerHTML = '';
+        }
+
         window._currentRawYamlContent = data['diff'] || '';
-        body.innerHTML = renderDiffViewer(data);
-        window._currentDetailsOriginalHTML = body.innerHTML;
+
+        if (wrapper) {
+            wrapper.classList.add('has-gitlab-diff');
+            wrapper.querySelectorAll('.diff-compact-header, .diff-split-container, .diff-viewer-empty, .yaml-toolbar, .yaml-error-drawer, .yaml-code-scroll, .actions-version-tabs-bar, #actionsCommitCardsGrid, .actions-syntax-banner, #actionsDiffSection').forEach(el => el.remove());
+            wrapper.insertAdjacentHTML('beforeend', renderDiffViewer(data));
+            wrapper.scrollTop = 0;
+            window._currentDetailsOriginalHTML = wrapper.innerHTML;
+        }
+
         const searchInput = document.getElementById('detailsModalSearch');
         if (searchInput) searchInput.value = '';
 
@@ -4777,18 +4791,11 @@ function renderDiffViewer(data) {
         <div class="diff-compact-header">
             <div class="diff-header-top">
                 <div class="diff-commit-title" title="${escapeHtml(message)}">${escapeHtml(firstLineMessage)}</div>
-                <div class="diff-header-meta-group">
-                    ${pipelineDotHtml}
-                    ${commitId ? `<a class="diff-meta-sha-link" href="${escapeHtml(commitWebUrl)}" target="_blank" rel="noopener noreferrer" title="Nhấp để mở commit trên GitLab (Full SHA: ${escapeHtml(commitId)})"><span class="material-symbols-outlined">commit</span> ${escapeHtml(String(commitId).substring(0, 8))} <span class="diff-link-icon">↗</span></a>` : ''}
-                </div>
             </div>
             <div class="diff-header-bottom">
-                <div class="diff-file-tag" title="${escapeHtml(newPath || oldPath)}">
-                    <span class="material-symbols-outlined">description</span>
-                    <span class="diff-file-path-text">${escapeHtml(newPath || oldPath)}</span>
-                    ${isNewFile ? '<span class="diff-badge diff-badge-new">New File</span>' : ''}
-                    ${isRenamed ? `<span class="diff-badge diff-badge-renamed">Renamed</span>` : ''}
-                    ${isDeleted ? '<span class="diff-badge diff-badge-deleted">Deleted</span>' : ''}
+                <div class="diff-header-meta-group">
+                    ${pipelineDotHtml}
+                    ${commitId ? `<a class="diff-meta-sha-link" href="${escapeHtml(commitWebUrl)}" target="_blank" rel="noopener noreferrer" title="Mở trên GitLab: ${escapeHtml(commitId)}"><span class="material-symbols-outlined">commit</span> <span>Open Commit in Gitlabce</span> <span class="material-symbols-outlined yaml-link-open-icon" aria-hidden="true">open_in_new</span></a>` : ''}
                 </div>
                 <div class="diff-meta-info">
                     ${author ? `<span class="diff-meta-tag"><span class="material-symbols-outlined">person</span> ${escapeHtml(author)}</span>` : ''}

@@ -4012,6 +4012,8 @@ tbody tr:has(.table-empty-state):hover td {
 }
 
 /* ===== GITLAB COMMIT SPLIT DIFF VIEWER (CYBERPUNK PRO) ===== */
+.details-modal-content:has(.diff-split-container),
+.details-modal-content:has(.details-modal-body-wrapper.has-gitlab-diff),
 .details-modal-content:has(.details-modal-body-diff),
 .details-modal-content.details-modal-diff-wide {
     background: #1d1f21;
@@ -4175,6 +4177,18 @@ a.pipeline-status-dot:hover {
 .diff-link-icon {
     font-size: 10px;
     opacity: 0.8;
+}
+
+.diff-meta-sha-link .yaml-link-open-icon {
+    font-size: 13px;
+    margin-left: 2px;
+    opacity: 0.7;
+    transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.diff-meta-sha-link:hover .yaml-link-open-icon {
+    opacity: 1;
+    transform: translate(1px, -1px);
 }
 
 .diff-header-bottom {
@@ -4594,7 +4608,8 @@ body.modal-open {
 }
 
 /* ===== YAML VIEWER (CYBERPUNK PRO DIRECT WRAPPER DISPLAY) ===== */
-.details-modal-body-wrapper.has-yaml-content {
+.details-modal-body-wrapper.has-yaml-content,
+.details-modal-body-wrapper.has-gitlab-diff {
     padding: 0 !important;
     overflow: hidden !important;
     display: flex !important;
@@ -9277,7 +9292,8 @@ body.theme-light .ocr-dropzone {
         flex-direction: column !important;
     }
 
-    .details-modal-body-wrapper.has-yaml-content {
+    .details-modal-body-wrapper.has-yaml-content,
+    .details-modal-body-wrapper.has-gitlab-diff {
         padding: 0 !important;
         overflow: hidden !important;
     }
