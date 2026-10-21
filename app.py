@@ -944,7 +944,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.39"
+APP_VERSION = "2.3.40"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -1241,6 +1241,19 @@ def print_barcode_history():
 @app.route('/reprint')
 def reprint():
     return render_page_or_shell('reprint.html', '/reprint', 'Truy vấn in bù')
+
+@app.route('/reprint-label')
+def reprint_label():
+    '''Trang In lại tem (Standalone & Embed-friendly, không có sidebar, mặc định Light Mode).'''
+    current_version = get_asset_version()
+    user_id = session.get('user_id', DEFAULT_MES_USER)
+    user_ip = session.get('user_ip', get_client_ip() or '127.0.0.1')
+    return render_template('reprint_label.html',
+                           is_frame=True,
+                           user_id=user_id,
+                           user_ip=user_ip,
+                           version=current_version,
+                           app_version=APP_VERSION)
 
 @app.route('/material-transfer')
 def material_transfer():
@@ -2127,7 +2140,8 @@ def search_barcode():
                status, expiry_time, 
                created_at, updated_at, updated_by, created_by, 
                standing_time, feed_records_id, info, oid,
-               reprint_reason, collected, erp_tire_barcode_synced
+               reprint_reason, collected, erp_tire_barcode_synced,
+               COALESCE((SELECT cr.detail->>'quantity' FROM kvmes.collect_record cr WHERE cr.resource_oid = kvmes.material_resource.oid ORDER BY cr.sequence DESC LIMIT 1), kvmes.material_resource.quantity::text) AS collect_quantity
         FROM kvmes.material_resource
         WHERE id ILIKE %s
         LIMIT 100;
@@ -2964,10 +2978,17 @@ def fetch_output_barcode_by_work_order():
         query = """
             SELECT
                 mr.id AS barcode,
-                cr.detail->>'quantity' AS quantity,
-                cr.created_at,
-                cr.lot_number,
-                cr.station
+                mr.product_id,
+                mr.product_type,
+                COALESCE((cr.detail->>'quantity')::numeric, mr.quantity) AS quantity,
+                (cr.detail->>'quantity') AS collect_quantity,
+                mr.expiry_time,
+                COALESCE(mr.created_at, cr.created_at) AS created_at,
+                COALESCE(cr.lot_number, mr.info->>'lot_number') AS lot_number,
+                mr.status,
+                mr.created_by,
+                COALESCE(cr.station, mr.info->'production_info'->>'station') AS station,
+                mr.info
             FROM kvmes.collect_record cr
             LEFT JOIN kvmes.material_resource mr
                 ON mr.oid = cr.resource_oid
@@ -2979,7 +3000,7 @@ def fetch_output_barcode_by_work_order():
         if not result:
             return jsonify({'success': False, 'message': 'Đơn điều động không có tem đầu ra'})
 
-        convert_columns = ["created_at"]
+        convert_columns = ["created_at", "expiry_time"]
         result = convert_timestamp(result, column_names, convert_columns)
         serialized_result = [serialize_row(row) for row in result]
 
@@ -5752,6 +5773,10 @@ def api_reprint_label_pdf():
 
         pdf_io, final_barcode = build_reprint_label_pdf_buffer(raw_barcode)
 
+        # Ghi log in lại tem vào \\198.1.10.2\Vitinh\Thu\QUAN TRONG KHONG XOA\reprint_label_log.txt
+        client_ip = get_client_ip()
+        append_reprint_label_log(client_ip, final_barcode)
+
         return send_file(
             pdf_io,
             mimetype='application/pdf',
@@ -5765,6 +5790,22 @@ def api_reprint_label_pdf():
     except Exception as e:
         logger.error(f"Lỗi api_reprint_label_pdf: {e}", exc_info=True)
         return jsonify({'success': False, 'message': f'Lỗi tạo file PDF tem: {str(e)}'}), 500
+
+
+REPRINT_LABEL_LOG_FILE_PATH = r"\\198.1.10.2\Vitinh\Thu\QUAN TRONG KHONG XOA\reprint_label_log.txt"
+
+def append_reprint_label_log(ip: str, barcode: str):
+    """Ghi log in lại tem: Thời gian (UTC+7) | IP người thực hiện | Barcode."""
+    try:
+        now_str = datetime.now(VN_TZ).strftime("%Y-%m-%d %H:%M:%S")
+        dir_path = os.path.dirname(REPRINT_LABEL_LOG_FILE_PATH)
+        if dir_path and not os.path.exists(dir_path):
+            os.makedirs(dir_path, exist_ok=True)
+            
+        with open(REPRINT_LABEL_LOG_FILE_PATH, 'a', encoding='utf-8') as f:
+            f.write(f"{now_str} | {ip or 'Unknown'} | {barcode}\n")
+    except Exception as e:
+        logger.error(f"[REPRINT_LABEL_LOG_ERROR] Lỗi khi ghi file log In lại tem: {e}", exc_info=True)
 
 
 @app.route('/api/barcodes/print-label-cups', methods=['POST'])
@@ -5787,6 +5828,10 @@ def api_print_label_cups():
         user_name = session.get('username') or 'kdmes'
         result = send_cups_print_job(printer_name, pdf_bytes, job_name=f"Tem_{final_barcode}.pdf", user_name=user_name)
 
+        # Ghi log in lại tem vào \\198.1.10.2\Vitinh\Thu\QUAN TRONG KHONG XOA\reprint_label_log.txt
+        client_ip = get_client_ip()
+        append_reprint_label_log(client_ip, final_barcode)
+
         if not result.get('success'):
             return jsonify({
                 'success': False,
@@ -5808,6 +5853,53 @@ def api_print_label_cups():
     except Exception as e:
         logger.error(f"Lỗi api_print_label_cups: {e}", exc_info=True)
         return jsonify({'success': False, 'message': f"Lỗi xử lý in CUPS: {str(e)}"}), 500
+
+
+_p8300_printers_cache = {
+    'timestamp': 0,
+    'data': []
+}
+
+@app.route('/api/printers/p8300', methods=['GET'])
+def api_get_p8300_printers():
+    """Lấy danh sách máy in PCR từ SQL Server 10.33 [P8300].[dbo].[P8300_Printer]."""
+    now = time.time()
+    if _p8300_printers_cache['data'] and (now - _p8300_printers_cache['timestamp'] < 60):
+        return jsonify({
+            'success': True,
+            'printers': _p8300_printers_cache['data'],
+            'count': len(_p8300_printers_cache['data']),
+            'cached': True
+        })
+
+    try:
+        query = """
+            SELECT DISTINCT printername, description, ptype, factory
+            FROM [P8300].[dbo].[P8300_Printer]
+            WHERE ptype != 'G' AND factory = 'PCR'
+            ORDER BY description, printername
+        """
+        rows, cols = execute_mssql_select_query(query)
+        printers = [dict(zip(cols, r)) for r in rows]
+        _p8300_printers_cache['data'] = printers
+        _p8300_printers_cache['timestamp'] = now
+        return jsonify({
+            'success': True,
+            'printers': printers,
+            'count': len(printers),
+            'cached': False
+        })
+    except Exception as e:
+        logger.error(f"Lỗi api_get_p8300_printers: {e}", exc_info=True)
+        if _p8300_printers_cache['data']:
+            return jsonify({
+                'success': True,
+                'printers': _p8300_printers_cache['data'],
+                'count': len(_p8300_printers_cache['data']),
+                'cached': True,
+                'stale': True
+            })
+        return jsonify({'success': False, 'message': str(e), 'printers': []}), 500
 
 
 @app.route('/api/mes/material-history', methods=['POST'])

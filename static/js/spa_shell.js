@@ -7,6 +7,7 @@
         { path: '/scan-barcode-history', frameId: 'view-scan-barcode-history', title: 'Lịch sử quét tem theo Máy' },
         { path: '/print-barcode-history', frameId: 'view-print-barcode-history', title: 'Lịch sử in tem theo Máy' },
         { path: '/validate-scan-barcode', frameId: 'view-validate-scan-barcode', title: 'Kiểm tra cấp liệu' },
+        { path: '/reprint-label', frameId: 'view-reprint-label', title: 'In lại tem' },
         { path: '/reprint', frameId: 'view-reprint', title: 'Truy vấn in bù' },
         { path: '/material-transfer', frameId: 'view-material-transfer', title: 'Tem vận chuyển' },
         { path: '/substitutions', frameId: 'view-substitutions', title: 'NVL thay thế' },

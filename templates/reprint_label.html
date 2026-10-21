@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>In lại tem | KDMES TOOL</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v={{ version }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/smooth_input.css') }}?v={{ version }}">
+
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/favicon.svg') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/material-symbols/material-symbols.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome/css/all.min.css') }}">
+
+    <style>
+        /* ===== REPRINT LABEL STANDALONE LIGHT THEME STYLES ===== */
+        :root,
+        html[data-theme="light"],
+        body.reprint-label-page {
+            --rl-bg: #f8fafc;
+            --rl-card-bg: #ffffff;
+            --rl-border: #e2e8f0;
+            --rl-text-main: #0f172a;
+            --rl-text-muted: #64748b;
+            --rl-primary: #0d9488;
+            --rl-primary-hover: #0f766e;
+            --rl-primary-light: #f0fdfa;
+            --rl-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
+            --rl-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+            background-color: var(--rl-bg) !important;
+            color: var(--rl-text-main) !important;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+
+        .reprint-label-page {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            background: #f8fafc;
+        }
+
+        .reprint-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            max-width: 100%;
+            padding: 16px 20px;
+            box-sizing: border-box;
+            gap: 14px;
+        }
+
+        /* Control Card */
+        .reprint-control-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 14px 18px;
+            box-shadow: var(--rl-shadow-sm);
+        }
+
+        .reprint-control-grid {
+            display: grid;
+            grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) minmax(280px, 1.4fr);
+            gap: 16px;
+            align-items: flex-end;
+        }
+
+        @media (max-width: 900px) {
+            .reprint-control-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .control-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12.5px;
+            font-weight: 600;
+            color: #334155;
+        }
+
+        .control-label .material-symbols-outlined {
+            font-size: 16px;
+            color: #0d9488;
+        }
+
+        /* Barcode & MES Input Box */
+        .barcode-input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+            width: 100%;
+        }
+
+        .barcode-input-field {
+            width: 100%;
+            height: 40px;
+            background: #ffffff;
+            border: 1.5px solid #cbd5e1;
+            border-radius: 8px;
+            padding: 0 34px 0 36px;
+            font-size: 13.5px;
+            font-family: 'JetBrains Mono', Consolas, monospace;
+            font-weight: 600;
+            color: #0f172a;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            box-sizing: border-box;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .barcode-input-field:focus {
+            border-color: #0d9488;
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
+        }
+
+        .barcode-icon-prefix {
+            position: absolute;
+            left: 10px;
+            color: #94a3b8;
+            font-size: 19px;
+            pointer-events: none;
+        }
+
+        .barcode-clear-btn {
+            position: absolute;
+            right: 6px;
+            background: none;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .barcode-clear-btn:hover {
+            color: #e11d48;
+            background: #fee2e2;
+        }
+
+        /* Printer Select */
+        .printer-select-wrapper {
+            position: relative;
+            width: 100%;
+        }
+
+        .printer-select {
+            width: 100%;
+            height: 40px;
+            background: #ffffff;
+            border: 1.5px solid #cbd5e1;
+            border-radius: 8px;
+            padding: 0 34px 0 12px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #0f172a;
+            box-sizing: border-box;
+            outline: none;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .printer-select:focus {
+            border-color: #0d9488;
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
+        }
+
+        /* Red error border when printer is not selected */
+        .printer-select.input-error {
+            border-color: #ef4444 !important;
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25) !important;
+            animation: shakeSelect 0.35s ease-in-out;
+        }
+
+        @keyframes shakeSelect {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-4px); }
+            40%, 80% { transform: translateX(4px); }
+        }
+
+        .printer-select-arrow {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #64748b;
+            font-size: 20px;
+            pointer-events: none;
+        }
+
+        /* Row Action Button */
+        .btn-reprint-action {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            height: 28px;
+            padding: 0 12px;
+            background: #0d9488;
+            color: #ffffff;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 1px 3px rgba(13, 148, 136, 0.25);
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .btn-reprint-action:hover:not(:disabled) {
+            background: #0f766e;
+            transform: translateY(-1px);
+            box-shadow: 0 3px 6px rgba(13, 148, 136, 0.35);
+        }
+
+        .btn-reprint-action:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .btn-reprint-action:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .spin {
+            animation: spinAnim 0.9s linear infinite;
+        }
+
+        @keyframes spinAnim {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Table Card & Container */
+        .reprint-table-card {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 0;
+            box-shadow: var(--rl-shadow-sm);
+            overflow: hidden;
+            min-height: 420px;
+        }
+
+        .reprint-table-scroll {
+            flex: 1;
+            overflow: auto;
+            position: relative;
+        }
+
+        .reprint-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            text-align: left;
+        }
+
+        .reprint-table th {
+            position: sticky;
+            top: 0;
+            background: #f1f5f9;
+            color: #334155;
+            font-weight: 700;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            padding: 10px 14px;
+            border-bottom: 1.5px solid #cbd5e1;
+            white-space: nowrap;
+            z-index: 10;
+        }
+
+        .reprint-table td {
+            padding: 10px 14px;
+            border-bottom: 1px solid #f1f5f9;
+            color: #0f172a;
+            white-space: nowrap;
+            vertical-align: middle;
+        }
+
+        .reprint-table tbody tr {
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+
+        .reprint-table tbody tr:hover {
+            background: #f0fdfa;
+        }
+
+        .reprint-table tbody tr.row-selected {
+            background: #ccfbf1 !important;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            font-size: 11.5px;
+            font-weight: 600;
+        }
+
+        .status-pill.status-ready {
+            background: #dcfce7;
+            color: #15803d;
+            border: 1px solid #bbf7d0;
+        }
+
+        .status-pill.status-other {
+            background: #fef3c7;
+            color: #b45309;
+            border: 1px solid #fde68a;
+        }
+
+        /* Standby Empty State */
+        .reprint-standby {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            min-height: 360px;
+            padding: 32px 16px;
+            color: #64748b;
+            text-align: center;
+        }
+
+        .standby-icon-circle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: #f0fdfa;
+            color: #0d9488;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 12px rgba(13, 148, 136, 0.15);
+        }
+
+        .standby-icon-circle .material-symbols-outlined {
+            font-size: 34px;
+        }
+
+        .standby-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 6px;
+        }
+
+        .standby-desc {
+            font-size: 13px;
+            color: #64748b;
+            max-width: 460px;
+            line-height: 1.5;
+        }
+
+        /* Toast Container (Positioned at Bottom-Right Corner) */
+        .reprint-toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            top: auto;
+            z-index: 99999;
+            display: flex;
+            flex-direction: column-reverse;
+            gap: 10px;
+            max-width: 380px;
+            pointer-events: none;
+        }
+
+        .reprint-toast {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 12px 16px;
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid #0d9488;
+            pointer-events: auto;
+            animation: slideInBottomRight 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+            font-size: 13.5px;
+        }
+
+        .reprint-toast.toast-success { border-left-color: #10b981; }
+        .reprint-toast.toast-error { border-left-color: #ef4444; }
+        .reprint-toast.toast-warning { border-left-color: #f59e0b; }
+        .reprint-toast.toast-info { border-left-color: #0d9488; }
+
+        .toast-icon {
+            font-size: 20px;
+            line-height: 1;
+            margin-top: 1px;
+        }
+        .reprint-toast.toast-success .toast-icon { color: #10b981; }
+        .reprint-toast.toast-error .toast-icon { color: #ef4444; }
+        .reprint-toast.toast-warning .toast-icon { color: #f59e0b; }
+        .reprint-toast.toast-info .toast-icon { color: #0d9488; }
+
+        .toast-content {
+            flex: 1;
+        }
+
+        .toast-title {
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 2px;
+        }
+
+        .toast-msg {
+            color: #475569;
+            line-height: 1.4;
+            font-size: 12.5px;
+        }
+
+        @keyframes slideInBottomRight {
+            from {
+                opacity: 0;
+                transform: translateY(20px) scale(0.96);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+    </style>
+</head>
+<body class="reprint-label-page theme-light">
+    <!-- Standalone Toast Container (Bottom-Right) -->
+    <div id="reprintToastContainer" class="reprint-toast-container" aria-live="polite"></div>
+
+    <div class="reprint-container">
+        <!-- Control Toolbar Card -->
+        <section class="reprint-control-card">
+            <div class="reprint-control-grid">
+                <!-- 1. Barcode Input Group -->
+                <div class="control-group">
+                    <label class="control-label" for="barcodeInput">
+                        <span class="material-symbols-outlined">barcode_scanner</span>
+                        <span>Barcode:</span>
+                    </label>
+                    <div class="barcode-input-wrapper">
+                        <span class="material-symbols-outlined barcode-icon-prefix">qr_code_scanner</span>
+                        <input type="text"
+                               id="barcodeInput"
+                               class="barcode-input-field"
+                               placeholder="Nhập hoặc quét Barcode..."
+                               autocomplete="off"
+                               spellcheck="false"
+                               autofocus>
+                        <button type="button" id="barcodeClearBtn" class="barcode-clear-btn" title="Xóa barcode">
+                            <span class="material-symbols-outlined" style="font-size: 18px;">close</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 2. Mã Mes Input Group -->
+                <div class="control-group">
+                    <label class="control-label" for="mesInput">
+                        <span class="material-symbols-outlined">assignment</span>
+                        <span>Mã Mes:</span>
+                    </label>
+                    <div class="barcode-input-wrapper">
+                        <span class="material-symbols-outlined barcode-icon-prefix">receipt_long</span>
+                        <input type="text"
+                               id="mesInput"
+                               class="barcode-input-field"
+                               placeholder="Nhập mã MES (Work Order)..."
+                               autocomplete="off"
+                               spellcheck="false">
+                        <button type="button" id="mesClearBtn" class="barcode-clear-btn" title="Xóa mã MES">
+                            <span class="material-symbols-outlined" style="font-size: 18px;">close</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 3. Printer Selection Dropdown (Default Empty) -->
+                <div class="control-group">
+                    <label class="control-label" for="printerSelect">
+                        <span class="material-symbols-outlined">print</span>
+                        <span>Chọn máy in:</span>
+                    </label>
+                    <div class="printer-select-wrapper">
+                        <select id="printerSelect" class="printer-select">
+                            <option value="">-- Chọn máy in --</option>
+                            <!-- Dynamically loaded from /api/printers/p8300 -->
+                        </select>
+                        <span class="material-symbols-outlined printer-select-arrow">expand_more</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Table Container Card -->
+        <main class="reprint-table-card">
+            <div class="reprint-table-scroll" id="tableScrollContainer">
+                <!-- Standby Guide State -->
+                <div class="reprint-standby" id="standbyGuide">
+                    <div class="standby-icon-circle">
+                        <span class="material-symbols-outlined">print</span>
+                    </div>
+                    <div class="standby-title">Sẵn sàng in lại tem</div>
+                    <div class="standby-desc">
+                        Vui lòng nhập Barcode hoặc Mã Mes để tra cứu danh sách tem và thực hiện in.
+                    </div>
+                </div>
+
+                <!-- Data Table with user-requested columns and order -->
+                <table class="reprint-table" id="dataTable" style="display: none;">
+                    <thead id="tableHead">
+                        <tr>
+                            <th>Hành động</th>
+                            <th>Barcode</th>
+                            <th>Quy Cách</th>
+                            <th>Loại SP</th>
+                            <th>Số lượng</th>
+                            <th>Hạn Dùng</th>
+                            <th>Ngày SX</th>
+                            <th>Số Lô</th>
+                            <th>Trạng thái</th>
+                            <th>Người tạo</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='js/reprint_label.js') }}?v={{ version }}"></script>
+</body>
+</html>
