@@ -3752,6 +3752,114 @@ async function reprintLabelPdf(rowData = null) {
 let _cupsPrintersCache = { timestamp: 0, printers: [] };
 let _reprintSubmenuHideTimer = null;
 
+const STATION_PRINTER_RECOMMEND_MAP = {
+    // P5300
+    'KV-P5300-CARCASS_PLY-3': 'KV2_P5300_CARCASS_PLY_16.243',
+    'KV-P5300-CARCASS_PLY-4': 'KV2_P5300_CARCASS_PLY_16.243',
+    'KV-P5300-CARCASS_PLY-1': 'KV2_P5300_CARCASS_PLY',
+    'KV-P5300-CARCASS_PLY-2': 'KV2_P5300_CARCASS_PLY',
+    'KV-P5300-BEAD-1': 'KV2_P5300_BEAD_16_205',
+    'KV-P5300-BEAD-2': 'KV2_P5300_BEAD_16_205',
+    'KV-P5300-BF-1': 'KV2_P5300_BEAD_16_205',
+    'KV-P5300-TREAD-1': 'KV2_P5300_TREAD_16_206',
+    'KV-P5300-TREAD-2': 'KV2_P5300_TREAD_16_206',
+    'KV-P5300-INNER LINER-1': 'KV2_P5300_INNER_LINER_16_205',
+    'KV-P5300-PLYBELT-GD0127-1': 'KV2_P5300_PLYBELT_16_81',
+    'KV-P5300-MAYCAN-16': 'KV2_P5300_TREAD_16_206',
+    'KV-P5300-XK-550-22': 'KV2_P5300_TREAD_16_206',
+    // P8300
+    'KV-P8300-INNER LINER-1': 'KV2_P8300_INNER_LINER_10.25',
+    'KV-P8300-SIDEWALL-1': 'KV2_P8300_SIDEWELL_17.57',
+    'KV-P8300-BF-QL1216-1': 'KV2_P8300_BF_8.97',
+    'KV-P8300-BF-QL1622-2': 'KV2_P8300_BF_8.97',
+    'KV-P8300-BF-QLPCR-3': 'KV2_P8300_BF_8.97',
+    'KV-P8300-BF-HW1624-4': 'KV2_P8300_BF_8.97',
+    'KV-P8300-BF-HW1220-5': 'KV2_P8300_BF_8.97',
+    'KV-P8300-BEAD-AW-1224-1': 'KV2_P8300_BEAD-AW_8.96',
+    'KV-P8300-BEAD-AW-1224-2': 'KV2_P8300_BEAD-AW_8.96',
+    'KV-P8300-BEAD-AW-1224-3': 'KV2_P8300_BEAD-AW_8.96',
+    'KV-P8300-STEEL BELT-FC-1': 'KV2_P8300_8.141',
+    'KV-P8300-STEEL BELT-FC-2': 'KV2_P8300_STEEL-BELT_8.129',
+    'KV-P8300-STEEL BELT-SL-3': 'KV2_P8300_STEEL-BELT_8.129',
+    'KV-P8300-PLYBELT-COMERIO-1': 'KV2_P8300_PLYBELT-COMERIO_8.94',
+    'KV-P8300-NYLON BAND-JLB-1': 'KV2_P8300_NYLON-BAND_15.11',
+    'KV-P8300-NYLON BAND-SNOW-1': 'KV2_P8300_NYLON-BAND_15.11',
+    'KV-P8300-NYLON BAND-SNOW-2': 'KV2_P8300_NYLON-BAND_15.11',
+    'KV-P8300-NYLON BAND-SNOW-3': 'KV2_P8300_NYLON-BAND_15.11',
+    'KV-P8300-TREAD-1': 'KV2_P8300_TREAD_8.100',
+    'KV-P8300-TREAD-2': 'KV2_P8300_TREAD_8.100',
+    'KV-P8300-CARCASSPLY-1': 'KV2_P8300_8.95',
+    'KV-P8300-CARCASSPLY-2': 'KV2_P8300_CARCASSPLY_8.103',
+    'KV-P8300-CARCASSPLY-3': 'KV2_P8300_CARCASSPLY_8.103',
+    // P9100 / P8700
+    'KV-P9100-MIXER-370-1': 'KV2_P9100_4.193',
+    'KV-P9100-MIXER-370-2': 'KV2_P9100_4.193',
+    'KV-P9100-MIXER-370-3': 'KV2_P9100_4.193',
+    'KV-P9100-MIXER-370-4': 'KV2_P9100_4.193',
+    'KV-P9100-MIXER-370-5': 'KV2_P9100_8.122',
+    'KV-P9100-MIXER-370-6': 'KV2_P9100_8.122',
+    'KV-P9100-MIXER-370-7': 'KV2_P9100_8.122',
+    'KV-P8700-DRUG-CMPAUTO-1': 'KV2_P9100_8.122',
+    'KV-P8700-DRUG-CMPAUTO-3': 'KV2_P9100_8.122',
+    'KV-P8700-DRUG-ACLAUTO-2': 'KV2_P9100_8.111',
+    'KV-P8700-DRUG-ACLAUTO-4': 'KV2_P9100_8.111',
+    'KV-P9100-MIXER-370-8': 'KV2_P9100_4.140'
+};
+
+function getRecommendedPrinterName(station) {
+    if (!station) return '';
+    const stUpper = String(station).trim().toUpperCase();
+
+    // 1. Khớp trực tiếp trong từ điển trích xuất từ printers-manager.yaml
+    if (STATION_PRINTER_RECOMMEND_MAP[stUpper]) {
+        return STATION_PRINTER_RECOMMEND_MAP[stUpper];
+    }
+
+    const stNorm = stUpper.replace(/[\s_-]+/g, '_');
+    for (const [key, val] of Object.entries(STATION_PRINTER_RECOMMEND_MAP)) {
+        if (key.replace(/[\s_-]+/g, '_') === stNorm) {
+            return val;
+        }
+    }
+
+    // 2. Heuristic quy trình & số máy (ví dụ CARCASS_PLY-3 -> KV2_P5300_CARCASS_PLY_16.243)
+    if (stUpper.includes('CARCASS')) {
+        if (stUpper.includes('3') || stUpper.includes('4')) return 'KV2_P5300_CARCASS_PLY_16.243';
+        if (stUpper.includes('1') || stUpper.includes('2')) return 'KV2_P5300_CARCASS_PLY';
+    }
+    if (stUpper.includes('BEAD')) {
+        if (stUpper.includes('P8300') || stUpper.includes('AW')) return 'KV2_P8300_BEAD-AW_8.96';
+        return 'KV2_P5300_BEAD_16_205';
+    }
+    if (stUpper.includes('TREAD')) {
+        if (stUpper.includes('P8300')) return 'KV2_P8300_TREAD_8.100';
+        return 'KV2_P5300_TREAD_16_206';
+    }
+    if (stUpper.includes('INNER') || stUpper.includes('LINER')) {
+        if (stUpper.includes('P8300')) return 'KV2_P8300_INNER_LINER_10.25';
+        return 'KV2_P5300_INNER_LINER_16_205';
+    }
+    if (stUpper.includes('NYLON') || stUpper.includes('SNOW') || stUpper.includes('WF')) {
+        return 'KV2_P8300_NYLON-BAND_15.11';
+    }
+    if (stUpper.includes('STEEL')) {
+        if (stUpper.includes('1') && !stUpper.includes('2') && !stUpper.includes('3')) return 'KV2_P8300_8.141';
+        return 'KV2_P8300_STEEL-BELT_8.129';
+    }
+    if (stUpper.includes('SIDEWALL') || stUpper.includes('SIDEWELL')) {
+        return 'KV2_P8300_SIDEWELL_17.57';
+    }
+    if (stUpper.includes('PLYBELT')) {
+        if (stUpper.includes('P8300') || stUpper.includes('COMERIO')) return 'KV2_P8300_PLYBELT-COMERIO_8.94';
+        return 'KV2_P5300_PLYBELT_16_81';
+    }
+    if (stUpper.includes('BF')) {
+        if (stUpper.includes('P8300')) return 'KV2_P8300_BF_8.97';
+        return 'KV2_P5300_BEAD_16_205';
+    }
+    return '';
+}
+
 async function getAvailableCupsPrinters() {
     const now = Date.now();
     if (_cupsPrintersCache.printers.length > 0 && (now - _cupsPrintersCache.timestamp < 30000)) {
@@ -3808,20 +3916,15 @@ function filterPrintersByStation(printers, station) {
         filtered = [...printers];
     }
 
-    // Smart ranking: từ khóa quy trình từ station (BEAD, TREAD, LINER, NYLON, STEEL, CARCASS, PLY, SIDEWELL...)
-    const keywords = ['BEAD', 'TREAD', 'LINER', 'CARCASS', 'NYLON', 'STEEL', 'PLY', 'SIDEWELL', 'MIXER'];
-    const matchedKeywords = keywords.filter(kw => stUpper.includes(kw));
+    // Sắp xếp danh sách printer theo dạng recommend đưa máy in phù hợp lên đầu
+    const recommendedPrinter = getRecommendedPrinterName(stUpper);
 
     return filtered.map(p => {
-        const qUpper = (p.queue_name || '').toUpperCase();
-        let isBestMatch = false;
-        if (matchedKeywords.length > 0) {
-            isBestMatch = matchedKeywords.some(kw => qUpper.includes(kw));
-        }
-        return { ...p, isBestMatch };
+        const isRecommend = Boolean(recommendedPrinter && p.queue_name.toUpperCase() === recommendedPrinter.toUpperCase());
+        return { ...p, isRecommend };
     }).sort((a, b) => {
-        if (a.isBestMatch && !b.isBestMatch) return -1;
-        if (!a.isBestMatch && b.isBestMatch) return 1;
+        if (a.isRecommend && !b.isRecommend) return -1;
+        if (!a.isRecommend && b.isRecommend) return 1;
         return a.queue_name.localeCompare(b.queue_name);
     });
 }
@@ -3832,7 +3935,7 @@ function positionReprintSubmenu(reprintItem, submenu) {
     const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
     const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
 
-    const submenuWidth = 280;
+    const submenuWidth = 260;
     let left = itemRect.right + 2;
     if (left + submenuWidth > viewportWidth - 10) {
         left = Math.max(10, itemRect.left - submenuWidth - 2);
@@ -3843,7 +3946,7 @@ function positionReprintSubmenu(reprintItem, submenu) {
     submenu.style.top = `${Math.round(top)}px`;
 
     const subRect = submenu.getBoundingClientRect();
-    const actualHeight = subRect.height || 260;
+    const actualHeight = subRect.height || 220;
     if (top + actualHeight > viewportHeight - 10) {
         const adjustedTop = Math.max(10, viewportHeight - actualHeight - 10);
         submenu.style.top = `${Math.round(adjustedTop)}px`;
@@ -3878,16 +3981,11 @@ async function showReprintPrinterSubmenu(reprintItem) {
         _reprintSubmenuHideTimer = null;
     }
 
-    const titleEl = document.getElementById('reprintSubmenuStationTitle');
     const listEl = document.getElementById('reprintPrinterList');
     if (!listEl) return;
 
     const rowData = selectedRowData || {};
     const station = extractStationFromRowData(rowData);
-    if (titleEl) {
-        titleEl.textContent = station ? `Trạm: ${station}` : 'Chọn máy in CUPS';
-        titleEl.title = station ? `Trạm sản xuất: ${station}` : 'Chọn máy in';
-    }
 
     listEl.innerHTML = '<div class="context-submenu-empty"><span class="material-symbols-outlined spin" style="font-size:16px; vertical-align:middle; margin-right:4px;">sync</span> Đang tải máy in...</div>';
 
@@ -3902,22 +4000,19 @@ async function showReprintPrinterSubmenu(reprintItem) {
     } else {
         listEl.innerHTML = filteredPrinters.map(p => {
             const rawStatus = (p.status || 'Idle').toLowerCase();
-            let statusClass = 'idle';
-            let statusText = 'Idle';
+            let badgeHtml = '';
+            // Loại bỏ hoàn toàn printer-badge idle và recommended-tag
             if (rawStatus.includes('process') || rawStatus.includes('busy')) {
-                statusClass = 'processing';
-                statusText = 'Busy';
+                badgeHtml = '<span class="printer-badge processing">Busy</span>';
             } else if (rawStatus.includes('stop') || rawStatus.includes('disabled')) {
-                statusClass = 'stopped';
-                statusText = 'Stopped';
+                badgeHtml = '<span class="printer-badge stopped">Stopped</span>';
             }
-            const bestBadge = p.isBestMatch ? '<span class="printer-badge recommended-tag" title="Khớp với trạm sản xuất">Khớp</span>' : '';
+
+            // Loại bỏ hoàn toàn icon print khỏi submenu-item-name
             return `
-                <div class="context-submenu-item ${p.isBestMatch ? 'recommended' : ''}" data-printer="${p.queue_name}" role="menuitem">
-                    <span class="material-symbols-outlined">print</span>
+                <div class="context-submenu-item" data-printer="${p.queue_name}" role="menuitem">
                     <span class="submenu-item-name" title="${p.queue_name}">${p.queue_name}</span>
-                    ${bestBadge}
-                    <span class="printer-badge ${statusClass}">${statusText}</span>
+                    ${badgeHtml}
                 </div>
             `;
         }).join('');
