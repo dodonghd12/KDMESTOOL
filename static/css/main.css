@@ -3223,8 +3223,9 @@ body.theme-light .empty-state-icon-wrapper::after {
     border-radius: 10px;
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45), 0 0 1px rgba(255, 255, 255, 0.2);
     z-index: 100000;
-    min-width: 260px;
-    max-width: 340px;
+    width: max-content;
+    min-width: 0;
+    max-width: calc(100vw - 20px);
     max-height: 400px;
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -3244,8 +3245,9 @@ body.theme-light .empty-state-icon-wrapper::after {
     padding: 8px 14px;
     cursor: pointer;
     color: var(--color-text-secondary, #cbd5e1);
-    font-size: 13px;
+    font-size: var(--font-size-base, 13px);
     font-weight: 500;
+    white-space: nowrap;
     transition: all 0.15s ease;
     user-select: none;
 }
@@ -3269,12 +3271,10 @@ body.theme-light .empty-state-icon-wrapper::after {
 }
 
 .context-submenu-item .submenu-item-name {
-    flex: 1;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    font-family: var(--font-family-mono, monospace);
-    font-size: 12px;
+    font-size: var(--font-size-base, 13px);
+    font-weight: 500;
+    color: inherit;
 }
 
 .printer-badge {

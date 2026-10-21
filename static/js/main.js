@@ -3935,22 +3935,23 @@ function positionReprintSubmenu(reprintItem, submenu) {
     const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
     const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
 
-    const submenuWidth = 260;
+    // Chiều rộng thực tế tự động co giãn theo item dài nhất
+    const subRect = submenu.getBoundingClientRect();
+    const submenuWidth = Math.round(subRect.width) || 180;
+    const actualHeight = Math.round(subRect.height) || 220;
+
     let left = itemRect.right + 2;
     if (left + submenuWidth > viewportWidth - 10) {
         left = Math.max(10, itemRect.left - submenuWidth - 2);
     }
 
     let top = itemRect.top;
+    if (top + actualHeight > viewportHeight - 10) {
+        top = Math.max(10, viewportHeight - actualHeight - 10);
+    }
+
     submenu.style.left = `${Math.round(left)}px`;
     submenu.style.top = `${Math.round(top)}px`;
-
-    const subRect = submenu.getBoundingClientRect();
-    const actualHeight = subRect.height || 220;
-    if (top + actualHeight > viewportHeight - 10) {
-        const adjustedTop = Math.max(10, viewportHeight - actualHeight - 10);
-        submenu.style.top = `${Math.round(adjustedTop)}px`;
-    }
 }
 
 function scheduleHideReprintSubmenu() {
