@@ -944,7 +944,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.31"
+APP_VERSION = "2.3.32"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -5518,11 +5518,14 @@ def api_reprint_label_pdf():
                 mr.station,
                 mr.info,
                 cr.sequence,
-                cr.work_order
+                cr.work_order,
+                cr.detail->>'quantity' AS cr_quantity,
+                mr.initial_quantity
             FROM kvmes.material_resource mr
             LEFT JOIN kvmes.collect_record cr ON cr.resource_oid = mr.oid
+            LEFT JOIN kvmes.work_order wo ON wo.id = TRIM(cr.work_order)::character(20)
             WHERE mr.id = %s OR btrim(mr.id) = btrim(%s)
-            ORDER BY cr.created_at DESC
+            ORDER BY wo.reserved_date DESC NULLS LAST, cr.sequence ASC, cr.created_at DESC NULLS LAST
             LIMIT 1;
         """
         result, _ = execute_pg_select_query(query_mr, (raw_barcode, raw_barcode))
@@ -5531,7 +5534,8 @@ def api_reprint_label_pdf():
 
         row = result[0]
         (mr_id, mr_oid, product_id, product_type, quantity,
-         created_at, expiry_time, station, info, cr_seq, cr_wo) = row
+         created_at, expiry_time, station, info, cr_seq, cr_wo,
+         cr_quantity, mr_initial_quantity) = row
 
         info_dict = info if isinstance(info, dict) else {}
         prod_info = info_dict.get('production_info') or {}
@@ -5566,13 +5570,19 @@ def api_reprint_label_pdf():
             except Exception:
                 pass
 
-        # 5. Quantity
+        # 5. Quantity: Lấy quantity từ collect_record (cr.detail->>'quantity') theo chuẩn api/barcodes/fetch-original-info
         clean_qty = ''
-        if quantity is not None:
+        target_qty = cr_quantity if (cr_quantity is not None and str(cr_quantity).strip() != '') else None
+        if target_qty is None:
+            target_qty = mr_initial_quantity
+        if target_qty is None:
+            target_qty = quantity
+
+        if target_qty is not None and str(target_qty).strip() != '':
             try:
-                clean_qty = f"{float(quantity):g}"
+                clean_qty = f"{float(target_qty):g}"
             except Exception:
-                clean_qty = str(quantity)
+                clean_qty = str(target_qty).strip()
 
         # 6. Sequence
         sequence = cr_seq if cr_seq is not None else ''
