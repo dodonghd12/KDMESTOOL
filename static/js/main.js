@@ -2910,6 +2910,7 @@ function updateContextMenu() {
     // Define menu configurations
     const menuConfig = {
         'barcode': [
+            'reprintLabelPdf',
             'inputBarcode',
             'feedRecords',
             'checkScanBarcodeHistory',
@@ -2917,11 +2918,7 @@ function updateContextMenu() {
             'mesTracking',
             'checkBarcodeTransfer',
             'checkBarcodeExtendDateTime',
-            'fetchOriginalInfo',
-            'getPrdeba',
-            'getPrdebb',
-            'getPrdebc',
-            'reprintLabelPdf'
+            'fetchOriginalInfo'
         ],
         'recipe': isRecipeYaml ? [
             'searchCommitGitlabByRecipe',
@@ -2977,6 +2974,9 @@ function setMenuItemsVisibility(allowedActions) {
         const action = item.dataset.action;
         const isVisible = Array.isArray(allowedActions) && allowedActions.includes(action);
         item.style.setProperty('display', isVisible ? 'flex' : 'none', 'important');
+        if (isVisible && Array.isArray(allowedActions)) {
+            item.style.order = allowedActions.indexOf(action);
+        }
     });
 }
 
