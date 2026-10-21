@@ -143,28 +143,27 @@ def get_arial_fonts(font_size_pt=12, dpi=300.0):
 
 def build_label_image(label_data):
     """
-    Dựng hình ảnh con tem hoàn chỉnh chuẩn MES vừa vặn khổ A5 dọc (148mm x 210mm @ 300 DPI):
-    - Font size: 12pt Arial (đúng chuẩn thiết kế biểu mẫu).
+    Dựng hình ảnh con tem hoàn chỉnh chuẩn MES vừa vặn khổ A5 ngang (Landscape: 210mm x 148mm @ 300 DPI):
+    - Khổ giấy A5 Landscape chuẩn: 2480px x 1748px (210mm x 148mm / 595.2pt x 419.5pt).
     - Biểu mẫu 2L-00-014 ở góc trên bên phải căn chuẩn theo mép phải của bảng.
-    - Cột 1 (nhãn): 550px (~34% chiều rộng bảng, đủ cho nhãn tiếng Việt dài nhất).
-    - Cột 2 (giá trị & barcode): 1050px (~66% chiều rộng bảng), barcode Code 39 vạch sắc nét, PDA quét siêu nhạy.
-    - Kích thước canvas A5 dọc: 1748px x 2480px (148mm x 210mm).
-    - Lề an toàn trái/phải: 74px (~6.27mm), đảm bảo máy in không bị cắt mất viền mép.
+    - Cột 1 (nhãn): 680px (~30% chiều rộng bảng, đủ rộng cho mọi nhãn tiếng Việt dài nhất).
+    - Cột 2 (giá trị & barcode): 1600px (~70% chiều rộng bảng), mã vạch Code 39 trải dài, vạch to rõ, PDA quét siêu nhạy.
+    - Chiều cao dòng tự co giãn thông minh (52px - 70px) đảm bảo không bao giờ bị tràn đáy 148mm kể cả khi recipe có nhiều thông số.
     """
     dpi = 300.0
     font_regular, font_bold, font_code = get_arial_fonts(font_size_pt=12, dpi=dpi)
 
-    # Khổ giấy chuẩn A5 dọc ở 300 DPI: 148 mm x 210 mm
-    canvas_w = 1748  # 148 mm (419.52 pt)
-    margin_x = 74    # ~6.27 mm lề an toàn in ấn 2 bên
-    table_w = canvas_w - 2 * margin_x  # 1600 px (135.47 mm)
+    # Khổ giấy chuẩn A5 ngang (Landscape) ở 300 DPI: 210 mm x 148 mm
+    canvas_w = 2480  # 210 mm (595.28 pt)
+    canvas_h = 1748  # 148 mm (419.53 pt)
 
-    col1_w = 550     # Cột nhãn
-    col2_w = table_w - col1_w  # 1050 px (Cột giá trị & mã vạch)
-    table_top = 75
+    margin_x = 100   # ~8.46 mm lề an toàn in ấn 2 bên trái/phải
+    table_w = canvas_w - 2 * margin_x  # 2280 px (193.04 mm)
 
-    normal_row_h = 70
-    barcode_row_h = 195
+    col1_w = 680     # Cột nhãn
+    col2_w = table_w - col1_w  # 1600 px (Cột giá trị & mã vạch)
+    table_top = 70
+    barcode_row_h = 175
 
     # 1. Danh sách các dòng cố định tiêu chuẩn (Dòng 1 đến 11)
     rows = [
@@ -187,9 +186,9 @@ def build_label_image(label_data):
         for lbl, val in specs:
             rows.append((lbl, str(val or "")))
 
-    # Chiều cao chuẩn A5 là 2480px (210mm). Nếu số dòng đặc biệt lớn hơn 30 dòng thì mở rộng.
-    total_table_h = len(rows) * normal_row_h + barcode_row_h
-    canvas_h = max(2480, table_top + total_table_h + 80)
+    # Tự động tính toán chiều cao dòng để luôn vừa vặn 100% trong chiều cao A5 ngang (1748px)
+    max_table_h = canvas_h - table_top - 60
+    normal_row_h = min(70, max(52, int((max_table_h - barcode_row_h) / len(rows))))
 
     img = Image.new('RGB', (canvas_w, canvas_h), 'white')
     draw = ImageDraw.Draw(img)
@@ -197,7 +196,7 @@ def build_label_image(label_data):
     # Căn phải mã biểu mẫu 2L-00-014 thẳng hàng với mép phải bảng dữ liệu
     form_bbox = draw.textbbox((0, 0), "2L-00-014", font=font_code)
     form_w = form_bbox[2] - form_bbox[0]
-    draw.text((margin_x + table_w - form_w, 25), "2L-00-014", fill='black', font=font_code)
+    draw.text((margin_x + table_w - form_w, 20), "2L-00-014", fill='black', font=font_code)
 
     cur_y = table_top
     border_color = (0, 0, 0)
@@ -210,22 +209,22 @@ def build_label_image(label_data):
         # Đường kẻ dọc phân cách 2 cột
         draw.line([margin_x + col1_w, cur_y, margin_x + col1_w, cur_y + normal_row_h], fill=border_color, width=line_w)
 
-        # Chữ cột 1 (Tên trường)
-        draw.text((margin_x + 14, cur_y + 12), lbl, fill='black', font=font_regular)
+        # Chữ cột 1 (Tên trường) căn giữa theo chiều dọc
+        draw.text((margin_x + 16, cur_y + int((normal_row_h - 45) / 2)), lbl, fill='black', font=font_regular)
 
-        # Chữ cột 2 (Giá trị)
-        draw.text((margin_x + col1_w + 16, cur_y + 12), str(val), fill='black', font=font_regular)
+        # Chữ cột 2 (Giá trị) căn giữa theo chiều dọc
+        draw.text((margin_x + col1_w + 18, cur_y + int((normal_row_h - 45) / 2)), str(val), fill='black', font=font_regular)
 
         cur_y += normal_row_h
 
     # Vẽ dòng Mã vạch (Dòng cuối cùng)
     draw.rectangle([margin_x, cur_y, margin_x + table_w, cur_y + barcode_row_h], outline=border_color, width=line_w)
     draw.line([margin_x + col1_w, cur_y, margin_x + col1_w, cur_y + barcode_row_h], fill=border_color, width=line_w)
-    draw.text((margin_x + 14, cur_y + int(barcode_row_h / 2) - 24), "Mã vạch", fill='black', font=font_regular)
+    draw.text((margin_x + 16, cur_y + int(barcode_row_h / 2) - 24), "Mã vạch", fill='black', font=font_regular)
 
     barcode_val = str(label_data.get("barcode", "") or "").strip().upper()
     if barcode_val:
-        # Tự động tính độ rộng vạch tối ưu cho cột 2 (1050px)
+        # Tự động tính độ rộng vạch tối ưu cho cột 2 (1600px)
         num_chars = len(barcode_val) + 2
         w38 = num_chars * (3 * 8 + 7 * 3) + 3 * 20
         w26 = num_chars * (3 * 6 + 7 * 2) + 2 * 20
@@ -236,17 +235,17 @@ def build_label_image(label_data):
         else:
             target_narrow, target_wide = 2, 5
 
-        bc_img = generate_code39(barcode_val, narrow_width=target_narrow, wide_width=target_wide, height=105)
+        bc_img = generate_code39(barcode_val, narrow_width=target_narrow, wide_width=target_wide, height=100)
 
         bc_x = margin_x + col1_w + int((col2_w - bc_img.width) / 2)
-        bc_y = cur_y + 12
+        bc_y = cur_y + 10
         img.paste(bc_img, (max(margin_x + col1_w + 10, bc_x), bc_y))
 
         # In chuỗi mã vạch bên dưới vạch barcode (Font 12pt Arial)
         bbox = draw.textbbox((0, 0), barcode_val, font=font_regular)
         txt_w = bbox[2] - bbox[0]
         txt_x = margin_x + col1_w + int((col2_w - txt_w) / 2)
-        txt_y = bc_y + bc_img.height + 8
+        txt_y = bc_y + bc_img.height + 6
         draw.text((txt_x, txt_y), barcode_val, fill='black', font=font_regular)
 
     return img
