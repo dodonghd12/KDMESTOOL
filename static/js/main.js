@@ -5160,7 +5160,7 @@ async function fetchYamlContent(rowData = null) {
         const body = modal.querySelector('.details-modal-body');
         const titleEl = modal.querySelector('.details-modal-title');
 
-        if (titleEl) titleEl.textContent = `YAML: ${data.file_name || data.file_path}`;
+        if (titleEl) titleEl.textContent = data.file_name || (data.file_path ? data.file_path.split('/').pop() : '') || 'Recipe YAML';
 
         // Lưu raw content để nút copy trong header chép chính xác raw YAML
         window._currentRawYamlContent = data.content;
@@ -6339,14 +6339,14 @@ function renderYamlWithErrors(content, filePath, errors, productType = '', valid
 
     const fileWebUrl = webUrl || (filePath ? `https://gitlabce.kenda.com.tw/tc/recipes/kitting/-/blob/master/${filePath}` : '');
     const pathBadgeHtml = fileWebUrl
-        ? `<a class="yaml-path-badge yaml-path-link" href="${escapeHtml(fileWebUrl)}" target="_blank" rel="noopener noreferrer" title="Nhấp để mở file trên GitLab: ${escapeHtml(filePath)}">` +
+        ? `<a class="yaml-path-badge yaml-path-link" href="${escapeHtml(fileWebUrl)}" target="_blank" rel="noopener noreferrer" title="Mở trên GitLab: ${escapeHtml(filePath)}">` +
               `<span class="material-symbols-outlined" aria-hidden="true">description</span>` +
-              `<span>${escapeHtml(filePath)}</span>` +
+              `<span>Open in Gitlabce</span>` +
               `<span class="material-symbols-outlined yaml-link-open-icon" aria-hidden="true">open_in_new</span>` +
           `</a>`
         : `<span class="yaml-path-badge" title="${escapeHtml(filePath)}">` +
               `<span class="material-symbols-outlined" aria-hidden="true">description</span>` +
-              `${escapeHtml(filePath)}` +
+              `<span>Open in Gitlabce</span>` +
           `</span>`;
 
     const toolbarHtml = `<div class="yaml-toolbar">` +
