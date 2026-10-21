@@ -1050,7 +1050,7 @@ def write_api_log(api: str, user_ip: str, payload=None):
 
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24)
+app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'kdmes-production-secret-key-salt-9810-v2-secure')
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['SESSION_FILE_DIR'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'flask_session')
 Session(app)
