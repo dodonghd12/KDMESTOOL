@@ -961,6 +961,7 @@ function enhanceContextMenu() {
         'getPrdebc': 'dataset',
         'reprintLabelPdf': 'print',
         'outputBarcodeByFeedRecords': 'output',
+        'fetchOutputBarcodeByWorkOrder': 'qr_code_2',
         'searchWorkOrderByRecipe': 'assignment',
         'searchCommitGitlabByRecipe': 'source',
         'searchActionsCommitByRecipe': 'alt_route',
@@ -5197,7 +5198,7 @@ async function fetchYamlContent(rowData = null) {
         if (wrapper) {
             wrapper.classList.add('has-yaml-content');
             wrapper.querySelectorAll('.yaml-toolbar, .yaml-error-drawer, .yaml-code-scroll, .yaml-path-wrapper, .yaml-toolbar-status').forEach(el => el.remove());
-            wrapper.insertAdjacentHTML('beforeend', renderYamlWithErrors(data.content, data.file_path, combinedErrors, resolvedProductType, labelConfigKeys));
+            wrapper.insertAdjacentHTML('beforeend', renderYamlWithErrors(data.content, data.file_path, combinedErrors, resolvedProductType, labelConfigKeys, data.web_url));
             wrapper.scrollTop = 0;
             const codeScroll = wrapper.querySelector('.yaml-code-scroll');
             window._currentDetailsOriginalHTML = codeScroll ? codeScroll.innerHTML : wrapper.innerHTML;
@@ -6283,7 +6284,7 @@ function detectYamlErrors(content, productType = null, labelConfigKeys = null, a
  * @param {Array} validKeys - Danh sách key hợp lệ theo quy cách
  * @returns {string} HTML markup
  */
-function renderYamlWithErrors(content, filePath, errors, productType = '', validKeys = []) {
+function renderYamlWithErrors(content, filePath, errors, productType = '', validKeys = [], webUrl = '') {
     const errorLines = new Set(errors.map(e => e.lineIndex));
     const errorMap   = {};
     errors.forEach(e => {
@@ -6336,12 +6337,21 @@ function renderYamlWithErrors(content, filePath, errors, productType = '', valid
           `</button>`
         : '';
 
+    const fileWebUrl = webUrl || (filePath ? `https://gitlabce.kenda.com.tw/tc/recipes/kitting/-/blob/master/${filePath}` : '');
+    const pathBadgeHtml = fileWebUrl
+        ? `<a class="yaml-path-badge yaml-path-link" href="${escapeHtml(fileWebUrl)}" target="_blank" rel="noopener noreferrer" title="Nhấp để mở file trên GitLab: ${escapeHtml(filePath)}">` +
+              `<span class="material-symbols-outlined" aria-hidden="true">description</span>` +
+              `<span>${escapeHtml(filePath)}</span>` +
+              `<span class="material-symbols-outlined yaml-link-open-icon" aria-hidden="true">open_in_new</span>` +
+          `</a>`
+        : `<span class="yaml-path-badge" title="${escapeHtml(filePath)}">` +
+              `<span class="material-symbols-outlined" aria-hidden="true">description</span>` +
+              `${escapeHtml(filePath)}` +
+          `</span>`;
+
     const toolbarHtml = `<div class="yaml-toolbar">` +
         `<div class="yaml-path-wrapper">` +
-            `<span class="yaml-path-badge" title="${escapeHtml(filePath)}">` +
-                `<span class="material-symbols-outlined" aria-hidden="true">description</span>` +
-                `${escapeHtml(filePath)}` +
-            `</span>` +
+            pathBadgeHtml +
         `</div>` +
         `<div class="yaml-toolbar-status">${statusBadgeHtml}${toggleBtnHtml}</div>` +
     `</div>`;

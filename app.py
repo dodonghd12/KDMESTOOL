@@ -329,6 +329,111 @@ def validate_recipe_yaml_content(content: str, product_type: str = None, label_c
                         'message': "controls: Khóa controls không có dữ liệu, bắt buộc phải khai báo là 'controls: []'"
                     })
 
+    # 4. Kiểm tra các giá trị trong steps -> materials: mid bắt buộc có dữ liệu, high/low không được để trống (nhưng có thể là "")
+    try:
+        composed_tree = yaml.compose(content)
+        if composed_tree:
+            def walk_materials(node, in_step=False):
+                if isinstance(node, yaml.MappingNode):
+                    for k_node, v_node in node.value:
+                        key = str(k_node.value).strip()
+                        if key in ('steps', 'step'):
+                            walk_materials(v_node, in_step=True)
+                        elif key == 'materials' and in_step:
+                            check_materials_list(v_node)
+                        else:
+                            walk_materials(v_node, in_step=in_step)
+                elif isinstance(node, yaml.SequenceNode):
+                    for item in node.value:
+                        walk_materials(item, in_step=in_step)
+
+            def check_materials_list(materials_seq):
+                if not isinstance(materials_seq, yaml.SequenceNode):
+                    return
+                for mat in materials_seq.value:
+                    if not isinstance(mat, yaml.MappingNode):
+                        continue
+                    mat_name = ''
+                    value_node = None
+                    for m_k, m_v in mat.value:
+                        k_str = str(m_k.value).strip()
+                        if k_str == 'name' and hasattr(m_v, 'value'):
+                            mat_name = str(m_v.value).strip()
+                        elif k_str == 'value' and isinstance(m_v, yaml.MappingNode):
+                            value_node = m_v
+
+                    if value_node is None:
+                        continue
+
+                    val_keys = {}
+                    for vk, vv in value_node.value:
+                        val_keys[str(vk.value).strip()] = (vk, vv)
+
+                    # Check mid: bắt buộc có dữ liệu (không được để trống 'mid:', không được để rỗng 'mid: ""')
+                    if 'mid' not in val_keys:
+                        result['errors'].append({
+                            'lineIndex': value_node.start_mark.line,
+                            'line_number': value_node.start_mark.line + 1,
+                            'type': 'material_value_mid_missing',
+                            'message': f"Dòng {value_node.start_mark.line + 1}: Material '{mat_name}' - Mục 'value' thiếu thuộc tính 'mid'. Bắt buộc phải có dữ liệu."
+                        })
+                    else:
+                        k_n, v_n = val_keys['mid']
+                        line_idx = k_n.start_mark.line
+                        is_null = (getattr(v_n, 'tag', '') == 'tag:yaml.org,2002:null')
+                        raw_val = str(getattr(v_n, 'value', '')).strip()
+                        if is_null or raw_val == '':
+                            result['errors'].append({
+                                'lineIndex': line_idx,
+                                'line_number': line_idx + 1,
+                                'type': 'material_value_mid_empty',
+                                'message': f"Dòng {line_idx + 1}: Material '{mat_name}' - Mục 'mid' bắt buộc phải có dữ liệu (không được để trống 'mid:' hoặc để rỗng 'mid: ""')."
+                            })
+
+                    # Check high: không được để trống 'high:' (có thể để rỗng 'high: ""')
+                    if 'high' not in val_keys:
+                        result['errors'].append({
+                            'lineIndex': value_node.start_mark.line,
+                            'line_number': value_node.start_mark.line + 1,
+                            'type': 'material_value_high_missing',
+                            'message': f"Dòng {value_node.start_mark.line + 1}: Material '{mat_name}' - Mục 'value' thiếu thuộc tính 'high' (có thể để rỗng 'high: ""')."
+                        })
+                    else:
+                        k_n, v_n = val_keys['high']
+                        line_idx = k_n.start_mark.line
+                        is_null = (getattr(v_n, 'tag', '') == 'tag:yaml.org,2002:null')
+                        if is_null:
+                            result['errors'].append({
+                                'lineIndex': line_idx,
+                                'line_number': line_idx + 1,
+                                'type': 'material_value_high_null',
+                                'message': f"Dòng {line_idx + 1}: Material '{mat_name}' - Mục 'high' không được để trống 'high:' (có thể để rỗng 'high: ""' nếu không có giá trị)."
+                            })
+
+                    # Check low: không được để trống 'low:' (có thể để rỗng 'low: ""')
+                    if 'low' not in val_keys:
+                        result['errors'].append({
+                            'lineIndex': value_node.start_mark.line,
+                            'line_number': value_node.start_mark.line + 1,
+                            'type': 'material_value_low_missing',
+                            'message': f"Dòng {value_node.start_mark.line + 1}: Material '{mat_name}' - Mục 'value' thiếu thuộc tính 'low' (có thể để rỗng 'low: ""')."
+                        })
+                    else:
+                        k_n, v_n = val_keys['low']
+                        line_idx = k_n.start_mark.line
+                        is_null = (getattr(v_n, 'tag', '') == 'tag:yaml.org,2002:null')
+                        if is_null:
+                            result['errors'].append({
+                                'lineIndex': line_idx,
+                                'line_number': line_idx + 1,
+                                'type': 'material_value_low_null',
+                                'message': f"Dòng {line_idx + 1}: Material '{mat_name}' - Mục 'low' không được để trống 'low:' (có thể để rỗng 'low: ""' nếu không có giá trị)."
+                            })
+
+            walk_materials(composed_tree)
+    except Exception as e:
+        pass
+
     result['total_errors'] = len(result['errors'])
     result['is_valid'] = (result['total_errors'] == 0)
     result['has_indent_error'] = any('thụt lề' in e['message'] or 'indent' in e.get('type', '') for e in result['errors'])
@@ -839,7 +944,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.23"
+APP_VERSION = "2.3.24"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -4428,11 +4533,21 @@ def fetch_yaml_content():
 
         validation_res = validate_recipe_yaml_content(content_decoded, actual_product_type, label_keys, keys_map)
 
+        project_web_urls = {
+            133: 'https://gitlabce.kenda.com.tw/tc/recipes/building',
+            134: 'https://gitlabce.kenda.com.tw/tc/recipes/curing',
+            135: 'https://gitlabce.kenda.com.tw/tc/recipes/kitting',
+            136: 'https://gitlabce.kenda.com.tw/tc/recipes/mixing'
+        }
+        project_web_base = project_web_urls.get(project_id, f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id}')
+        web_url = f'{project_web_base}/-/blob/{target_ref}/{path}'
+
         return jsonify({
             'success': True,
             'content': content_decoded,
             'file_path': path,
             'file_name': file_name,
+            'web_url': web_url,
             'last_commit_id': last_commit_id,
             'is_historical': is_historical,
             'product_type': actual_product_type,
