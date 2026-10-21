@@ -944,7 +944,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.38"
+APP_VERSION = "2.3.39"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -5614,7 +5614,7 @@ def build_reprint_label_pdf_buffer(raw_barcode: str):
             recipe_notes = rec_res[0][0]
 
     from tools.label_printer import parse_recipe_specs, generate_label_pdf
-    specs = parse_recipe_specs(recipe_notes)
+    specs = parse_recipe_specs(recipe_notes, product_type=product_type)
 
     label_data = {
         "station": final_station,

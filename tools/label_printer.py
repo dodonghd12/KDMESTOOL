@@ -34,19 +34,21 @@ SPEC_KEY_TRANSLATIONS = {
     'angle': 'Góc độ',
     'attachment-position': 'Phương thức dán',
     'eco-friendly-oil': 'Dầu bảo vệ môi trường',
-    'working side': 'Hướng làm việc',
-    'opposite working side': 'Hướng đối diện',
+    'working side': 'Bên làm việc',
+    'opposite working side': 'Bên làm việc đối diện',
     'direction': 'Hướng 1B/2B',
+    'direction 1B/2B': 'Hướng 1B/2B',
+    'direction 1b/2b': 'Hướng 1B/2B',
     'color line': 'Đường màu',
     'color-line': 'Đường màu',
     'weight': 'Trọng lượng',
     'total-weight': 'Tổng trọng lượng',
-    'gross weight': 'Trọng lượng tổng',
-    'net weight': 'Trọng lượng tịnh',
+    'gross weight': 'Tổng trọng lượng',
+    'net weight': 'Khối lượng',
     'GC-width': 'Bề rộng GC',
     'tread pattern': 'Hoa lốp',
     'hump width': 'Bề rộng gù',
-    'spray-content': 'Chất quét',
+    'spray-content': 'Nội dung phun chữ',
     'middle-runner-thickness': 'Độ dày runner giữa',
     'middle-runner-width': 'Bề rộng runner giữa',
     'up-runner-thickness': 'Độ dày runner trên',
@@ -56,31 +58,184 @@ SPEC_KEY_TRANSLATIONS = {
     'bead-Filler-width': 'Bề rộng tanh',
     'flipper- width': 'Bề rộng flipper',
     'mooney spec': 'Tiêu chuẩn Mooney',
+    'batch': 'Số mẻ',
+    'bead_sequence': 'Cấu trúc kẽm',
+    'BIC': 'Chu vi trong',
+    'high': 'Chiều cao',
 }
 
-def parse_recipe_specs(note_list):
-    """
-    Trích xuất danh sách thông số kỹ thuật dynamic từ cột recipe.note.
-    Trả về list các tuple (label_tiếng_việt, giá_trị).
-    """
-    specs = []
-    if not note_list:
-        return specs
+# Cấu hình danh mục thông số kỹ thuật bắt buộc theo product_type chuẩn MES (đồng bộ từ label-config.yml của page Thông số kỹ thuật)
+PRODUCT_TYPE_REQUIRED_LABELS = {
+    'BELT_AND_EDGE_GUM_PREASSEMBLY': [
+        ('product code', 'MSTP'),
+        ('tire size', 'Quy cách'),
+        ('width', 'Độ rộng'),
+        ('thickness', 'Độ dày'),
+        ('angle', 'Góc độ'),
+        ('attachment-position', 'Phương thức dán'),
+        ('eco-friendly-oil', 'Dầu bảo vệ môi trường'),
+        ('direction 1B/2B', 'Hướng 1B/2B')
+    ],
+    'STEEL_BELT': [
+        ('product code', 'MSTP'),
+        ('tire size', 'Quy cách'),
+        ('width', 'Độ rộng'),
+        ('thickness', 'Độ dày'),
+        ('angle', 'Góc độ'),
+        ('eco-friendly-oil', 'Dầu bảo vệ môi trường'),
+        ('attachment-position', 'Phương thức dán'),
+        ('direction 1B/2B', 'Hướng 1B/2B')
+    ],
+    'CARCASS_PLY': [
+        ('width', 'Độ rộng'),
+        ('thickness', 'Độ dày'),
+        ('angle', 'Góc độ'),
+        ('eco-friendly-oil', 'Dầu bảo vệ môi trường'),
+        ('tire size', 'Quy cách')
+    ],
+    'INNER_LINER': [
+        ('up-runner-width', 'Độ rộng lớp trên'),
+        ('up-runner-thickness', 'Độ dày lớp trên'),
+        ('middle-runner-width', 'Độ rộng lớp dưới'),
+        ('middle-runner-thickness', 'Độ dày lớp dưới'),
+        ('GC-width', 'Bề rộng GC'),
+        ('width', 'Tổng rộng'),
+        ('thickness', 'Tổng dày'),
+        ('eco-friendly-oil', 'Dầu bảo vệ môi trường')
+    ],
+    'TREAD': [
+        ('product code', 'Mã sản phẩm'),
+        ('tire size', 'Quy cách'),
+        ('width', 'Tổng rộng'),
+        ('hump width', 'Bề rộng gù'),
+        ('color-line', 'Đường màu'),
+        ('spray-content', 'Nội dung phun chữ'),
+        ('eco-friendly-oil', 'Dầu bảo vệ môi trường')
+    ],
+    'BEAD_AND_BEAD_FILLER_PREASSEMBLY': [
+        ('product code', 'MSTP'),
+        ('bead-Filler-high', 'Chiều cao tanh'),
+        ('bead-Filler-thickenss', 'Độ dày tanh'),
+        ('bead-Filler-width', 'Bề rộng tanh'),
+        ('tire size', 'Quy cách'),
+        ('flipper- width', 'Bề rộng flipper'),
+        ('color-line', 'Đường màu'),
+        ('total-weight', 'Tổng trọng lượng')
+    ],
+    'RUBBER': [
+        ('mooney spec', 'Tiêu chuẩn Mooney'),
+        ('eco-friendly-oil', 'Dầu bảo vệ môi trường'),
+        ('batch', 'Số mẻ'),
+        ('weight', 'Trọng lượng')
+    ],
+    'PLY': [
+        ('width', 'Độ rộng'),
+        ('thickness', 'Độ dày'),
+        ('eco-friendly-oil', 'Dầu bảo vệ môi trường'),
+        ('net weight', 'Khối lượng'),
+        ('gross weight', 'Tổng trọng lượng')
+    ],
+    'CAP_PLY': [
+        ('width', 'Độ rộng'),
+        ('thickness', 'Độ dày'),
+        ('eco-friendly-oil', 'Dầu bảo vệ môi trường')
+    ],
+    'SQUEEZE': [
+        ('up-runner-width', 'Độ rộng'),
+        ('up-runner-thickness', 'Độ dày'),
+        ('eco-friendly-oil', 'Dầu bảo vệ môi trường')
+    ],
+    'BEAD': [
+        ('bead_sequence', 'Cấu trúc kẽm'),
+        ('BIC', 'Chu vi trong'),
+        ('width', 'Độ rộng'),
+        ('thickness', 'Độ dày'),
+        ('weight', 'Trọng lượng'),
+        ('color-line', 'Đường màu')
+    ],
+    'BEAD_FILLER': [
+        ('width', 'Độ rộng'),
+        ('high', 'Chiều cao'),
+        ('eco-friendly-oil', 'Dầu bảo vệ môi trường')
+    ],
+    'SIDEWALL': [
+        ('product code', 'MSTP'),
+        ('tire size', 'Quy cách'),
+        ('working side', 'Bên làm việc'),
+        ('opposite working side', 'Bên làm việc đối diện'),
+        ('eco-friendly-oil', 'Dầu bảo vệ môi trường')
+    ],
+    'CHAFER': [
+        ('width', 'Độ rộng'),
+        ('thickness', 'Độ dày')
+    ]
+}
 
-    for item in note_list:
-        if not item or not isinstance(item, str):
-            continue
-        cleaned = item.strip()
-        if not cleaned:
-            continue
-        if ':' in cleaned:
-            k, v = cleaned.split(':', 1)
-            k = k.strip()
-            v = v.strip()
-            label = SPEC_KEY_TRANSLATIONS.get(k, k.replace('-', ' ').title())
-            specs.append((label, v))
-        else:
-            specs.append((cleaned, ''))
+
+def normalize_spec_key(k: str) -> str:
+    import re
+    return re.sub(r'[\s_\-\/]+', '', str(k or '').lower().strip())
+
+
+def parse_recipe_specs(note_list, product_type: str = None):
+    """
+    Trích xuất danh sách thông số kỹ thuật chuẩn MES:
+    - Đối chiếu danh mục bắt buộc theo product_type từ label-config.yml (page Thông số kỹ thuật).
+      Tất cả các trường bắt buộc (như Hướng 1B/2B, Phương thức dán, MSTP...) luôn được hiển thị đúng thứ tự.
+      Nếu trong recipe.note có giá trị thì điền vào, nếu không có giá trị thì để trống "" đúng theo tem thực tế.
+    - Giữ lại và bổ sung các thông số mở rộng khác nếu có trong recipe.note.
+    """
+    parsed_notes = {}
+    raw_notes = []
+    if note_list:
+        for item in note_list:
+            if not item or not isinstance(item, str):
+                continue
+            cleaned = item.strip()
+            if not cleaned:
+                continue
+            if ':' in cleaned:
+                k, v = cleaned.split(':', 1)
+                k_clean = k.strip()
+                v_clean = v.strip()
+                norm_k = normalize_spec_key(k_clean)
+                parsed_notes[norm_k] = (k_clean, v_clean)
+            else:
+                raw_notes.append(cleaned)
+
+    specs = []
+    consumed_keys = set()
+    clean_pt = str(product_type or '').strip().upper()
+
+    # 1. Nếu có cấu hình chuẩn cho product_type từ label-config.yml
+    req_labels = PRODUCT_TYPE_REQUIRED_LABELS.get(clean_pt)
+    if req_labels:
+        for req_key, label_vi in req_labels:
+            norm_req = normalize_spec_key(req_key)
+            val = ""
+            if norm_req in parsed_notes:
+                val = parsed_notes[norm_req][1]
+                consumed_keys.add(norm_req)
+            elif norm_req in ['direction1b2b', 'direction']:
+                for alt in ['direction', 'direction1b2b', 'direction1b']:
+                    if alt in parsed_notes:
+                        val = parsed_notes[alt][1]
+                        consumed_keys.add(alt)
+                        break
+
+            display_label = label_vi or SPEC_KEY_TRANSLATIONS.get(req_key, req_key.replace('-', ' ').title())
+            specs.append((display_label, val))
+
+    # 2. Bổ sung các key có trong recipe.note mà chưa nằm trong cấu hình bắt buộc
+    for norm_k, (k_orig, v_orig) in parsed_notes.items():
+        if norm_k not in consumed_keys:
+            display_label = SPEC_KEY_TRANSLATIONS.get(k_orig, k_orig.replace('-', ' ').title())
+            specs.append((display_label, v_orig))
+
+    # 3. Các dòng raw không có dấu hai chấm
+    for r in raw_notes:
+        specs.append((r, ''))
+
     return specs
 
 
@@ -162,7 +317,7 @@ def build_label_image(label_data):
 
     col1_w = 680     # Cột nhãn
     col2_w = table_w - col1_w  # 1600 px (Cột giá trị & mã vạch)
-    table_top = 70
+    table_top = 80
     barcode_row_h = 175
 
     # 1. Danh sách các dòng cố định tiêu chuẩn (Dòng 1 đến 11)
@@ -196,7 +351,7 @@ def build_label_image(label_data):
     # Căn phải mã biểu mẫu 2L-00-014 thẳng hàng với mép phải bảng dữ liệu
     form_bbox = draw.textbbox((0, 0), "2L-00-014", font=font_code)
     form_w = form_bbox[2] - form_bbox[0]
-    draw.text((margin_x + table_w - form_w, 20), "2L-00-014", fill='black', font=font_code)
+    draw.text((margin_x + table_w - form_w, 28), "2L-00-014", fill='black', font=font_code)
 
     cur_y = table_top
     border_color = (0, 0, 0)
