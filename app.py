@@ -944,7 +944,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.29"
+APP_VERSION = "2.3.30"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -1788,12 +1788,40 @@ def parse_label_datetime(s):
     return None
 
 
+def get_product_id_search_variants(pid):
+    """
+    Tạo các biến thể tìm kiếm cho product_id để khắc phục trường hợp OCR nhận diện sai
+    ký tự đặc biệt (*, +, -, _) thành dấu nháy đơn, nháy kép, khoảng trắng hoặc bỏ sót dấu.
+    """
+    if not pid:
+        return []
+    clean = re.sub(r'\s+', '', str(pid).strip())
+    variants = []
+    def add_var(v):
+        if v and v not in variants:
+            variants.append(v)
+
+    add_var(clean)
+    # 1. Thay thế bất kỳ ký tự phi chữ số nào bằng '%' (e.g. "BH1'5X..." -> "BH1%5X...")
+    fuzzy = re.sub(r'[^A-Za-z0-9]+', '%', clean).strip('%')
+    if fuzzy:
+        add_var(fuzzy)
+
+    # 2. Nếu là chuỗi chữ số liền nhau (length >= 6) nhưng OCR làm mất dấu phân tách (như BH15X169226214A05)
+    # Thử chèn wildcard '%' vào sau ký tự thứ 3 hoặc 4 (vị trí thường có dấu * hoặc + trong mã bán thành phẩm MES)
+    if re.match(r'^[A-Za-z0-9]+$', clean) and len(clean) >= 6:
+        add_var(clean[:3] + '%' + clean[3:])
+        add_var(clean[:4] + '%' + clean[4:])
+
+    return variants
+
+
 def query_material_resource_by_label_fields(label_data):
     """
     Truy vấn bảng kvmes.material_resource theo các thuộc tính trích xuất từ nhãn tem:
     - barcode (id trực tiếp hoặc biến thể OCR)
     - station (info->'production_info'->>'station')
-    - product_id (product_id, hỗ trợ wildcard ký tự phân tách)
+    - product_id (product_id, hỗ trợ wildcard ký tự phân tách và biến thể OCR)
     - lot_number (info->>'lot_number')
     - quantity (quantity)
     - production_time (created_at fast-path)
@@ -1846,11 +1874,11 @@ def query_material_resource_by_label_fields(label_data):
         where_clauses.append('''REPLACE(REPLACE(COALESCE(info->'production_info'->>'station', ''), ' ', ''), '_', '-') ILIKE %s''')
         params.append(f'%{clean_st}%')
 
-    if product_id:
-        clean_pid = re.sub(r'\s+', '', product_id)
-        fuzzy_pid = re.sub(r'[*+\-_.]', '%', clean_pid)
-        where_clauses.append('(product_id ILIKE %s OR product_id ILIKE %s)')
-        params.extend([f'%{clean_pid}%', f'%{fuzzy_pid}%'])
+    pid_variants = get_product_id_search_variants(product_id) if product_id else []
+    if pid_variants:
+        pid_clauses = " OR ".join(["product_id ILIKE %s" for _ in pid_variants])
+        where_clauses.append(f"({pid_clauses})")
+        params.extend([f"%{v}%" for v in pid_variants])
 
     if lot_number:
         clean_lot = re.sub(r'\s+', '', lot_number)
@@ -1865,10 +1893,10 @@ def query_material_resource_by_label_fields(label_data):
             where_clauses.append('quantity = %s')
             params.append(qty_val)
 
-    prod_range = parse_label_datetime_range(prod_time_str, window_sec=2)
-    exp_range = parse_label_datetime_range(exp_time_str, window_sec=2)
+    prod_range = parse_label_datetime_range(prod_time_str, window_sec=3)
+    exp_range = parse_label_datetime_range(exp_time_str, window_sec=3)
 
-    # 2. Fast-path ưu tiên cao nhất: Khớp cả created_at VÀ expiry_time (chính xác đến từng giây)
+    # 2. Fast-path ưu tiên: Khớp cả created_at VÀ expiry_time (chính xác đến từng giây)
     if prod_range and exp_range:
         p_start, p_end = prod_range
         e_start, e_end = exp_range
@@ -1891,29 +1919,13 @@ def query_material_resource_by_label_fields(label_data):
         except Exception as _fe:
             logger.warning(f"Fast path (prod + exp) label query failed: {_fe}")
 
-        # Thử nới lỏng: Khi cả 2 mốc thời gian đều khớp thì đã định danh duy nhất tem vật liệu (kèm số lượng nếu có)
-        relaxed_where = ['created_at BETWEEN %s AND %s', 'expiry_time BETWEEN %s AND %s']
-        relaxed_params = [p_start, p_end, e_start, e_end]
-        if qty_val is not None:
-            relaxed_where.append('quantity = %s')
-            relaxed_params.append(qty_val)
-        q_rel = f"""
-            SELECT {base_cols}
-            FROM kvmes.material_resource
-            WHERE {' AND '.join(relaxed_where)}
-            ORDER BY created_at DESC
-            LIMIT 10;
-        """
-        try:
-            res_rel, col_rel = execute_pg_select_query(q_rel, tuple(relaxed_params))
-            if res_rel:
-                return res_rel, col_rel
-        except Exception as _fe:
-            logger.warning(f"Fast path relaxed label query failed: {_fe}")
-
     # 3. Fast-path theo created_at (Ngày sản xuất)
+    # Vì created_at chính xác đến từng giây ở xưởng MES là định danh độc nhất,
+    # kết hợp cùng product_id (hoặc lot_number hoặc station)
     if prod_range:
         p_start, p_end = prod_range
+
+        # 3.1: created_at + toàn bộ điều kiện lọc
         fast_where = list(where_clauses) + ['created_at BETWEEN %s AND %s']
         fast_params = list(params) + [p_start, p_end]
         q_prod = f"""
@@ -1928,7 +1940,61 @@ def query_material_resource_by_label_fields(label_data):
             if res_prod:
                 return res_prod, col_prod
         except Exception as _fe:
-            logger.warning(f"Fast path prod query failed, falling back: {_fe}")
+            logger.warning(f"Fast path prod query failed: {_fe}")
+
+        # 3.2: Nới lỏng: created_at + product_id variants
+        if pid_variants:
+            pid_sql = " OR ".join(["product_id ILIKE %s" for _ in pid_variants])
+            q_pid = f"""
+                SELECT {base_cols}
+                FROM kvmes.material_resource
+                WHERE created_at BETWEEN %s AND %s AND ({pid_sql})
+                ORDER BY created_at DESC
+                LIMIT 10;
+            """
+            params_pid = [p_start, p_end] + [f"%{v}%" for v in pid_variants]
+            try:
+                res_pid, col_pid = execute_pg_select_query(q_pid, tuple(params_pid))
+                if res_pid:
+                    return res_pid, col_pid
+            except Exception:
+                pass
+
+        # 3.3: Nới lỏng: created_at + lot_number
+        if lot_number:
+            clean_lot = re.sub(r'\s+', '', lot_number)
+            q_lot = f"""
+                SELECT {base_cols}
+                FROM kvmes.material_resource
+                WHERE created_at BETWEEN %s AND %s 
+                  AND REPLACE(COALESCE(info->>'lot_number', ''), ' ', '') ILIKE %s
+                ORDER BY created_at DESC
+                LIMIT 10;
+            """
+            try:
+                res_lot, col_lot = execute_pg_select_query(q_lot, (p_start, p_end, f"%{clean_lot}%"))
+                if res_lot:
+                    return res_lot, col_lot
+            except Exception:
+                pass
+
+        # 3.4: Nới lỏng: created_at + station
+        if station:
+            clean_st = re.sub(r'[^A-Za-z0-9\-_]', '', station)
+            q_st = f"""
+                SELECT {base_cols}
+                FROM kvmes.material_resource
+                WHERE created_at BETWEEN %s AND %s 
+                  AND REPLACE(REPLACE(COALESCE(info->'production_info'->>'station', ''), ' ', ''), '_', '-') ILIKE %s
+                ORDER BY created_at DESC
+                LIMIT 10;
+            """
+            try:
+                res_st, col_st = execute_pg_select_query(q_st, (p_start, p_end, f"%{clean_st}%"))
+                if res_st:
+                    return res_st, col_st
+            except Exception:
+                pass
 
     # 4. Fast-path theo expiry_time (Ngày hết hạn)
     if exp_range:
@@ -1947,9 +2013,28 @@ def query_material_resource_by_label_fields(label_data):
             if res_exp:
                 return res_exp, col_exp
         except Exception as _fe:
-            logger.warning(f"Fast path exp query failed, falling back: {_fe}")
+            logger.warning(f"Fast path exp query failed: {_fe}")
 
-    # 5. Fallback tiêu chuẩn nếu không có mốc thời gian hoặc cần nới lỏng
+    # 5. Khớp theo product_id variants + lot_number (khi không có timestamp hoặc timestamp bị lệch)
+    if pid_variants and lot_number:
+        clean_lot = re.sub(r'\s+', '', lot_number)
+        pid_sql = " OR ".join(["product_id ILIKE %s" for _ in pid_variants])
+        q_pid_lot = f"""
+            SELECT {base_cols}
+            FROM kvmes.material_resource
+            WHERE ({pid_sql}) AND REPLACE(COALESCE(info->>'lot_number', ''), ' ', '') ILIKE %s
+            ORDER BY created_at DESC
+            LIMIT 10;
+        """
+        params_pid_lot = [f"%{v}%" for v in pid_variants] + [f"%{clean_lot}%"]
+        try:
+            res_pl, col_pl = execute_pg_select_query(q_pid_lot, tuple(params_pid_lot))
+            if res_pl:
+                return res_pl, col_pl
+        except Exception:
+            pass
+
+    # 6. Fallback tiêu chuẩn nếu không có mốc thời gian hoặc cần nới lỏng
     query = f"""
         SELECT {base_cols}
         FROM kvmes.material_resource
@@ -1961,7 +2046,7 @@ def query_material_resource_by_label_fields(label_data):
     if res_gen:
         return res_gen, col_gen
 
-    # 6. Fallback cuối cùng bằng chuỗi con mã vạch nhận diện được từ ảnh
+    # 7. Fallback cuối cùng bằng chuỗi con mã vạch nhận diện được từ ảnh
     if barcode and len(barcode) >= 6:
         tail = barcode[-6:]
         q_tail = f"""
@@ -7382,43 +7467,135 @@ def ocr_recognize():
         elif img.mode != 'RGB':
             img = img.convert('RGB')
 
-        # Tối ưu kích thước: Nếu ảnh quá lớn từ điện thoại/camera (>960px), resize nhanh để tăng tốc độ nhận diện
-        if max(img.width, img.height) > 960:
-            img.thumbnail((960, 960), Image.Resampling.BILINEAR)
-        img_np = np.array(img)
+        # Tối ưu kích thước: Nếu ảnh quá lớn từ điện thoại/camera (>1200px), resize nhanh để tăng tốc độ nhận diện
+        if max(img.width, img.height) > 1200:
+            img.thumbnail((1200, 1200), Image.Resampling.BILINEAR)
 
-        result, elapse = engine(img_np, use_angle_cls=False)
+        def score_label_candidate(l_data, bc=None):
+            score = 0
+            if bc and len(bc) >= 8:
+                score += 10
+            if not l_data:
+                return score
+            if l_data.get('barcode') and len(l_data['barcode']) >= 12 and l_data['barcode'][0].upper() == 'V':
+                score += 10
+            elif l_data.get('barcode') and len(l_data['barcode']) >= 8:
+                score += 4
+            pt = l_data.get('production_time')
+            if pt and re.search(r'\d{4}[-/.]\d{1,2}[-/.]\d{1,2}', str(pt)):
+                score += 4
+            et = l_data.get('expiry_time')
+            if et and re.search(r'\d{4}[-/.]\d{1,2}[-/.]\d{1,2}', str(et)):
+                score += 2
+            pid = l_data.get('product_id')
+            if pid and len(pid) >= 5 and not any(w in pid.lower() for w in ['tiep', 'mamay', 'sanpham', 'part']):
+                score += 4
+            lot = l_data.get('lot_number')
+            if lot and re.search(r'\d+[-/]\d+', lot):
+                score += 3
+            st = l_data.get('station')
+            if st and any(k in st.upper() for k in ['KV', 'STEEL', 'FC', 'P8', 'P9', 'MIXER', 'BUILD']):
+                score += 3
+            qty = l_data.get('quantity')
+            if qty and re.search(r'^\d+(?:\.\d+)?$', str(qty).strip()):
+                score += 1
+            return score
+
+        best_angle = 0
+        best_label_data = None
+        best_full_text = ''
+        best_lines = []
+        best_conf = 0.0
+        best_direct_bc = None
+        best_score = -1
+
+        for angle in [0, 90, 270]:
+            cur_img = img if angle == 0 else img.rotate(angle, expand=True)
+            cur_np = np.array(cur_img)
+
+            # Thử đọc trực tiếp barcode 1D/2D bằng zxingcpp / pyzbar
+            direct_bc = None
+            try:
+                import zxingcpp
+                gray = cv2.cvtColor(cur_np, cv2.COLOR_RGB2GRAY) if len(cur_np.shape) == 3 else cur_np
+                for target_mat in [gray, cv2.copyMakeBorder(gray, 20, 20, 20, 20, cv2.BORDER_CONSTANT, value=255)]:
+                    res_zx = zxingcpp.read_barcodes(target_mat)
+                    for r in res_zx:
+                        t = r.text.strip()
+                        if t and len(t) >= 8:
+                            direct_bc = t
+                            break
+                    if direct_bc:
+                        break
+            except Exception:
+                pass
+
+            if not direct_bc:
+                try:
+                    from pyzbar import pyzbar as pzb
+                    gray = cv2.cvtColor(cur_np, cv2.COLOR_RGB2GRAY) if len(cur_np.shape) == 3 else cur_np
+                    decoded_bcs = pzb.decode(gray)
+                    if decoded_bcs:
+                        for b in decoded_bcs:
+                            b_str = b.data.decode('utf-8', errors='ignore').strip()
+                            if b_str and len(b_str) >= 8:
+                                direct_bc = b_str
+                                break
+                except Exception:
+                    pass
+
+            result, elapse = engine(cur_np, use_angle_cls=False)
+            full_text, lines, avg_conf, label_data = clean_and_merge_ocr_results(result)
+
+            sc = score_label_candidate(label_data, direct_bc)
+            if sc > best_score:
+                best_score = sc
+                best_angle = angle
+                best_label_data = label_data
+                best_full_text = full_text
+                best_lines = lines
+                best_conf = avg_conf
+                best_direct_bc = direct_bc
+
+            # Fast exit nếu góc 0 đã có chất lượng tem rất tốt hoặc tìm thấy barcode quang học
+            if angle == 0 and (sc >= 10 or direct_bc):
+                break
+
         elapsed_ms = round((time.perf_counter() - t0) * 1000, 2)
 
-        # Thử giải mã trực tiếp 1D Barcode / QR Code nếu có trong hình ảnh
-        direct_barcode = None
-        try:
-            from pyzbar import pyzbar as pzb
-            decoded_bcs = pzb.decode(img_np)
-            if not decoded_bcs and len(img_np.shape) == 3:
-                import cv2
-                gray_img = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
-                decoded_bcs = pzb.decode(gray_img)
-            if decoded_bcs:
-                for b in decoded_bcs:
-                    b_str = b.data.decode('utf-8', errors='ignore').strip()
-                    if b_str:
-                        direct_barcode = b_str
-                        break
-        except Exception:
-            direct_barcode = None
+        if best_direct_bc and (not best_label_data or not best_label_data.get('barcode')):
+            if not best_label_data:
+                best_label_data = {'is_label': True}
+            best_label_data['barcode'] = best_direct_bc
+            best_label_data['is_label'] = True
 
-        if not result:
-            if direct_barcode:
-                return jsonify({
-                    'success': True,
-                    'engine_available': True,
-                    'text': direct_barcode,
-                    'lines': [direct_barcode],
-                    'confidence': 1.0,
-                    'label_data': {'is_label': True, 'barcode': direct_barcode},
-                    'latency_ms': elapsed_ms
-                })
+        # TỰ ĐỘNG TRA CỨU BARCODE TỪ CSDL NẾU CHƯA CÓ MÃ VẠCH (Smart Database Barcode Resolution)
+        if best_label_data and (best_label_data.get('is_label') or best_score >= 4) and (not best_label_data.get('barcode') or len(best_label_data.get('barcode', '')) < 8):
+            try:
+                mr_res, mr_cols = query_material_resource_by_label_fields(best_label_data)
+                if mr_res and mr_cols and 'id' in mr_cols:
+                    resolved_bc = mr_res[0][mr_cols.index('id')]
+                    if resolved_bc:
+                        best_label_data['barcode'] = resolved_bc
+                        best_label_data['is_label'] = True
+                        best_label_data['resolved_from_db'] = True
+                        if not best_full_text:
+                            best_full_text = resolved_bc
+                        if not best_lines or resolved_bc not in best_lines:
+                            best_lines.insert(0, resolved_bc)
+            except Exception as _dbe:
+                logger.warning(f"Error resolving barcode from DB in ocr_recognize: {_dbe}")
+
+        if best_label_data and best_label_data.get('barcode'):
+            bc_val = best_label_data['barcode']
+            if not best_full_text:
+                best_full_text = bc_val
+            if not best_lines:
+                best_lines = [bc_val]
+            elif bc_val not in best_lines:
+                best_lines.insert(0, bc_val)
+
+        if not best_full_text and not best_lines:
             return jsonify({
                 'success': True,
                 'engine_available': True,
@@ -7429,18 +7606,13 @@ def ocr_recognize():
                 'latency_ms': elapsed_ms
             })
 
-        full_text, lines, avg_conf, label_data = clean_and_merge_ocr_results(result)
-        if direct_barcode and (not label_data or not label_data.get('barcode')):
-            label_data['barcode'] = direct_barcode
-            label_data['is_label'] = True
-
         return jsonify({
             'success': True,
             'engine_available': True,
-            'text': full_text,
-            'lines': lines,
-            'confidence': avg_conf,
-            'label_data': label_data,
+            'text': best_full_text,
+            'lines': best_lines,
+            'confidence': best_conf,
+            'label_data': best_label_data,
             'latency_ms': elapsed_ms
         })
     except Exception as e:
