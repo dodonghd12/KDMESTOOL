@@ -944,7 +944,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.47"
+APP_VERSION = "2.3.48"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -5549,11 +5549,13 @@ def build_reprint_label_pdf_buffer(raw_barcode: str):
         FROM kvmes.material_resource mr
         LEFT JOIN kvmes.collect_record cr ON cr.resource_oid = mr.oid
         LEFT JOIN kvmes.work_order wo ON wo.id = TRIM(cr.work_order)::character(20)
-        WHERE mr.id = %s OR btrim(mr.id) = btrim(%s)
+        WHERE mr.id = %s
         ORDER BY wo.reserved_date DESC NULLS LAST, cr.sequence ASC, cr.created_at DESC NULLS LAST
         LIMIT 1;
     """
-    result, _ = execute_pg_select_query(query_mr, (barcode, barcode))
+    result, _ = execute_pg_select_query(query_mr, (barcode,))
+    if not result and str(barcode).strip() != barcode:
+        result, _ = execute_pg_select_query(query_mr, (str(barcode).strip(),))
     if not result:
         raise LookupError(f'Không tìm thấy dữ liệu tem cho barcode: {barcode}')
 

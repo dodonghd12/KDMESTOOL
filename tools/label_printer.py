@@ -196,10 +196,11 @@ def normalize_spec_key(k: str) -> str:
 def parse_recipe_specs(note_list, product_type: str = None, label_config: dict = None):
     """
     Trích xuất danh sách thông số kỹ thuật chuẩn MES:
-    - Đối chiếu danh mục bắt buộc theo product_type linh động từ label-config.yml (GitLab CE).
-      Tất cả các trường bắt buộc (như Hướng 1B/2B, Phương thức dán, MSTP...) luôn được hiển thị đúng thứ tự.
+    - Tuyệt đối tuân thủ theo danh mục của product_type từ label-config.yml (GitLab CE).
+      Chỉ hiển thị các trường có trong cấu hình của product_type đó.
       Nếu trong recipe.note có giá trị thì điền vào, nếu không có giá trị thì để trống "" đúng theo tem thực tế.
-    - Giữ lại và bổ sung các thông số mở rộng khác nếu có trong recipe.note (ví dụ product code ở CARCASS_PLY).
+      Cho dù recipe note có các key khác (như product code ở CARCASS_PLY) cũng KHÔNG được hiển thị.
+    - Trường hợp dự phòng: chỉ khi product_type không có cấu hình trong label_config mới hiển thị theo recipe note.
     """
     parsed_notes = {}
     raw_notes = []
@@ -220,10 +221,11 @@ def parse_recipe_specs(note_list, product_type: str = None, label_config: dict =
                 raw_notes.append(cleaned)
 
     specs = []
-    consumed_keys = set()
     clean_pt = str(product_type or '').strip().upper()
 
-    # 1. Nếu có cấu hình chuẩn cho product_type từ GitLab CE label-config.yml
+    # 1. Nếu có cấu hình chuẩn cho product_type từ GitLab CE label-config.yml:
+    # Tuyệt đối tuân thủ danh mục của label_config.yaml. Chỉ hiển thị các key được định nghĩa.
+    # Cho dù recipe note có các key khác (như product code ở CARCASS_PLY) cũng KHÔNG được hiển thị.
     active_config = label_config if label_config is not None else get_gitlab_label_config()
     req_labels = active_config.get(clean_pt, [])
     if req_labels:
@@ -232,22 +234,20 @@ def parse_recipe_specs(note_list, product_type: str = None, label_config: dict =
             val = ""
             if norm_req in parsed_notes:
                 val = parsed_notes[norm_req][1]
-                consumed_keys.add(norm_req)
             elif norm_req in ['direction1b2b', 'direction']:
                 for alt in ['direction', 'direction1b2b', 'direction1b']:
                     if alt in parsed_notes:
                         val = parsed_notes[alt][1]
-                        consumed_keys.add(alt)
                         break
 
             display_label = label_vi or SPEC_KEY_TRANSLATIONS.get(req_key, req_key.replace('-', ' ').title())
             specs.append((display_label, val))
+        return specs
 
-    # 2. Bổ sung các key có trong recipe.note mà chưa nằm trong cấu hình bắt buộc
+    # 2. Dự phòng: Chỉ khi product_type hoàn toàn KHÔNG có trong label_config.yaml mới lấy theo recipe.note
     for norm_k, (k_orig, v_orig) in parsed_notes.items():
-        if norm_k not in consumed_keys:
-            display_label = SPEC_KEY_TRANSLATIONS.get(k_orig, k_orig.replace('-', ' ').title())
-            specs.append((display_label, v_orig))
+        display_label = SPEC_KEY_TRANSLATIONS.get(k_orig, k_orig.replace('-', ' ').title())
+        specs.append((display_label, v_orig))
 
     # 3. Các dòng raw không có dấu hai chấm
     for r in raw_notes:
