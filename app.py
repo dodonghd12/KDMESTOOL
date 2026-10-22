@@ -1567,11 +1567,15 @@ def get_postgres_deleted_records_log():
 @login_required
 def get_postgres_audit_slot_status():
     try:
+        from pg_log_shipper import shipper_status
         has_network_dir = os.path.exists(POSTGRES_AUDIT_LOG_NETWORK_DIR)
         return jsonify({
             'status': 'ok',
-            'active': has_network_dir,
+            'active': bool(shipper_status.get('connected') or has_network_dir),
+            'connected': bool(shipper_status.get('connected')),
             'mode': 'native_stream',
+            'last_captured': shipper_status.get('last_captured'),
+            'total_captured': shipper_status.get('total_captured', 0),
             'storage': 'network_share' if has_network_dir else 'local'
         })
     except Exception as e:
