@@ -645,12 +645,12 @@ async function fetchAuditSlotStatus() {
             if (isActive) {
                 dot.style.background = '#22c55e';
                 dot.style.boxShadow = '0 0 8px #22c55e';
-                statusText.textContent = 'Daemon: Online';
+                statusText.textContent = 'Native Stream: Online';
                 statusText.style.color = '#4ade80';
             } else {
                 dot.style.background = '#ef4444';
                 dot.style.boxShadow = '0 0 8px #ef4444';
-                statusText.textContent = 'Daemon: Offline';
+                statusText.textContent = 'Native Stream: Offline';
                 statusText.style.color = '#f87171';
             }
         }

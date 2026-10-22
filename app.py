@@ -1469,6 +1469,12 @@ def get_deleted_files_log():
     })
 
 
+from pg_log_shipper import run_log_shipper_stream
+
+# Khoi chay luong thu thap log xoa tap trung tu PostgreSQL 198.1.10.85
+threading.Thread(target=run_log_shipper_stream, daemon=True, name="PgLogShipper").start()
+
+
 @app.route('/api/postgres/get-deleted-records-log', methods=['POST', 'GET'])
 @login_required
 def get_postgres_deleted_records_log():
@@ -1526,7 +1532,8 @@ def get_postgres_deleted_records_log():
                             if 'records_id' in data:
                                 data['records_id'] = format_pg_array_literal(data['records_id'])
                         
-                        unique_key = (raw_ts, schema, table, client_ip, record_oid, str(data))
+                        raw_ts_str = str(raw_ts)[:19]
+                        unique_key = (raw_ts_str, schema, table, client_ip, record_oid, str(data))
                         if unique_key in seen:
                             continue
                         seen.add(unique_key)
@@ -1560,22 +1567,12 @@ def get_postgres_deleted_records_log():
 @login_required
 def get_postgres_audit_slot_status():
     try:
-        activity_rows, _ = execute_pg_select_query("""
-            SELECT pid 
-            FROM pg_stat_activity 
-            WHERE pid <> pg_backend_pid()
-              AND (
-                  query ILIKE '%%pg_logical_slot_get_changes%%'
-                  OR client_addr = '198.1.10.4'
-              )
-              AND query_start >= NOW() - INTERVAL '1 minute'
-            LIMIT 1
-        """)
-        is_online = bool(activity_rows and len(activity_rows) > 0)
-
+        has_network_dir = os.path.exists(POSTGRES_AUDIT_LOG_NETWORK_DIR)
         return jsonify({
             'status': 'ok',
-            'active': is_online
+            'active': has_network_dir,
+            'mode': 'native_stream',
+            'storage': 'network_share' if has_network_dir else 'local'
         })
     except Exception as e:
         return jsonify({
@@ -5723,9 +5720,37 @@ def send_cups_print_job(printer_name: str, pdf_bytes: bytes, job_name: str = "re
 
         version, status_code, request_id = struct.unpack('>HHI', resp_data[:8])
         if status_code not in (0x0000, 0x0001):
+            status_msg = ''
+            try:
+                pos_err = 8
+                while pos_err < len(resp_data):
+                    t = resp_data[pos_err]
+                    pos_err += 1
+                    if t in (0x01, 0x02, 0x03, 0x04, 0x05):
+                        if t == 0x03:
+                            break
+                        continue
+                    if pos_err + 2 > len(resp_data):
+                        break
+                    n_len = struct.unpack('>H', resp_data[pos_err:pos_err+2])[0]
+                    pos_err += 2
+                    attr_n = resp_data[pos_err:pos_err+n_len].decode('utf-8', errors='ignore')
+                    pos_err += n_len
+                    if pos_err + 2 > len(resp_data):
+                        break
+                    v_len = struct.unpack('>H', resp_data[pos_err:pos_err+2])[0]
+                    pos_err += 2
+                    attr_v = resp_data[pos_err:pos_err+v_len].decode('utf-8', errors='ignore')
+                    pos_err += v_len
+                    if attr_n in ('status-message', 'detailed-status-message') and attr_v:
+                        status_msg = attr_v
+                        break
+            except Exception:
+                pass
+            err_detail = f" ({status_msg})" if status_msg else ""
             return {
                 'success': False,
-                'message': f"CUPS từ chối lệnh in với mã IPP: 0x{status_code:04x}"
+                'message': f"CUPS từ chối lệnh in với mã IPP: 0x{status_code:04x}{err_detail}"
             }
 
         job_id = None
