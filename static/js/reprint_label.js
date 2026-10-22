@@ -47,7 +47,7 @@
         }
 
         initEventListeners();
-        loadPrintersFromSqlServer();
+        loadPrintersFromCups();
     });
 
     /* ══════════════════════════════════════════════════════════════════════
@@ -179,15 +179,15 @@
     }
 
     /* ══════════════════════════════════════════════════════════════════════
-       3. LOAD PRINTERS FROM SQL SERVER 10.33 (/api/printers/p8300)
-       Format: [printername] ([ptype]) — [description]
+       3. LOAD PRINTERS FROM CUPS 2.4.7 (/api/switching-spell/available-printers)
+       Format: [queue_name] — [description]
        Default: Empty (""), forcing user to select a printer
        ══════════════════════════════════════════════════════════════════════ */
-    async function loadPrintersFromSqlServer() {
+    async function loadPrintersFromCups() {
         const select = document.getElementById('printerSelect');
 
         try {
-            const resp = await fetch('/api/printers/p8300');
+            const resp = await fetch('/api/switching-spell/available-printers');
             const data = await resp.json();
 
             if (resp.ok && data.success && Array.isArray(data.printers)) {
@@ -199,13 +199,15 @@
 
                     currentPrinters.forEach(p => {
                         const opt = document.createElement('option');
-                        opt.value = p.printername;
-                        opt.dataset.ptype = p.ptype || '';
+                        opt.value = p.queue_name;
                         opt.dataset.description = p.description || '';
+                        opt.dataset.status = p.status || '';
 
-                        // Format: HL-L2360D 8.129 CBK (B) — Máy in Cắt Bố Kẽm
-                        const ptypeSuffix = p.ptype ? ` (${p.ptype})` : '';
-                        opt.textContent = `${p.printername}${ptypeSuffix} — ${p.description}`;
+                        // Format: KV2_P8300_STEEL-BELT_8.129 — B: cat bo kem + EDGE
+                        const label = p.description && p.description !== p.queue_name
+                            ? `${p.queue_name} — ${p.description}`
+                            : p.queue_name;
+                        opt.textContent = label;
                         select.appendChild(opt);
                     });
 
@@ -213,11 +215,11 @@
                     select.value = '';
                 }
             } else {
-                throw new Error(data.message || 'Không thể lấy danh sách máy in');
+                throw new Error(data.message || 'Không thể lấy danh sách máy in CUPS');
             }
         } catch (err) {
-            console.error('Lỗi load printers:', err);
-            showToast('Cảnh báo', 'Không thể nạp danh sách máy in từ SQL Server 10.33: ' + err.message, 'warning');
+            console.error('Lỗi load printers từ CUPS:', err);
+            showToast('Cảnh báo', 'Không thể nạp danh sách máy in từ CUPS 2.4.7: ' + err.message, 'warning');
         }
     }
 

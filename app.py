@@ -944,7 +944,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.43"
+APP_VERSION = "2.3.44"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -5828,16 +5828,16 @@ def api_print_label_cups():
         user_name = session.get('username') or 'kdmes'
         result = send_cups_print_job(printer_name, pdf_bytes, job_name=f"Tem_{final_barcode}.pdf", user_name=user_name)
 
-        # Ghi log in lại tem vào \\198.1.10.2\Vitinh\Thu\QUAN TRONG KHONG XOA\reprint_label_log.txt
-        client_ip = get_client_ip()
-        append_reprint_label_log(client_ip, final_barcode)
-
         if not result.get('success'):
             return jsonify({
                 'success': False,
                 'message': result.get('message', 'Lỗi gửi lệnh in tới CUPS'),
                 'printer_name': printer_name
             }), 502
+
+        # Chỉ ghi log in lại tem khi lệnh in CUPS thành công
+        client_ip = get_client_ip()
+        append_reprint_label_log(client_ip, final_barcode)
 
         return jsonify({
             'success': True,
@@ -9297,12 +9297,23 @@ _cups_printers_cache = {
     'data': []
 }
 
+EXCLUDED_CUPS_PRINTERS = {
+    'Brother_HL_L2360D_series',
+    'Brother_HL_L2360D_series_94ddf8513242',
+    'Brother_HL_L2360D_series_b42200678b34',
+    'KV2-P8700-8_111'
+}
+
 
 def fetch_cups_printers_list(folder: str = None) -> list:
     """
     Lấy danh sách máy in từ CUPS 2.4.7 tại https://198.1.10.85:631/printers/.
-    Bỏ 3 máy in đầu tiên (Brother HL-L2360D...).
-    Lưu dữ liệu gồm queue_name và status.
+    Loại bỏ các máy in không dùng trong EXCLUDED_CUPS_PRINTERS:
+      - Brother_HL_L2360D_series
+      - Brother_HL_L2360D_series_94ddf8513242
+      - Brother_HL_L2360D_series_b42200678b34
+      - KV2-P8700-8_111
+    Lưu dữ liệu gồm queue_name, description, location và status.
     Lọc theo folder nếu được cung cấp:
       - p8300: KV2_P83...
       - p5300_ic: KV2_P5...
@@ -9327,15 +9338,19 @@ def fetch_cups_printers_list(folder: str = None) -> list:
                 if m:
                     table_html = m.group(1)
                     trs = re.findall(r'<TR[^>]*>(.*?)</TR>', table_html, re.DOTALL | re.IGNORECASE)
-                    for tr in trs[4:]:
+                    for tr in trs[1:]:
                         tds = re.findall(r'<T[DH][^>]*>(.*?)</T[DH]>', tr, re.DOTALL | re.IGNORECASE)
                         clean_tds = [re.sub(r'<[^>]+>', '', td).strip() for td in tds]
                         if clean_tds:
                             queue_name = clean_tds[0]
+                            description = clean_tds[1] if len(clean_tds) > 1 else ''
+                            location = clean_tds[2] if len(clean_tds) > 2 else ''
                             status = clean_tds[4] if len(clean_tds) > 4 else (clean_tds[-1] if len(clean_tds) > 1 else 'Idle')
-                            if queue_name:
+                            if queue_name and queue_name not in EXCLUDED_CUPS_PRINTERS:
                                 printers.append({
                                     'queue_name': queue_name,
+                                    'description': description,
+                                    'location': location,
                                     'status': status or 'Idle'
                                 })
                     if printers:
