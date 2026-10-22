@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>In lại tem | KDMES TOOL</title>
+    <title>In lại tem KD | KDMES TOOL</title>
 
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v={{ version }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/smooth_input.css') }}?v={{ version }}">
@@ -64,6 +64,36 @@
             border-radius: 12px;
             padding: 14px 18px;
             box-shadow: var(--rl-shadow-sm);
+        }
+
+        /* Brand & Page Title Header */
+        .reprint-brand-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .reprint-brand-logo {
+            width: 26px;
+            height: 26px;
+            object-fit: contain;
+            border-radius: 4px;
+            flex-shrink: 0;
+            display: block;
+        }
+
+        .reprint-brand-title {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 700;
+            color: #0f172a;
+            letter-spacing: -0.01em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .reprint-control-grid {
@@ -461,6 +491,17 @@
     <div class="reprint-container">
         <!-- Control Toolbar Card -->
         <section class="reprint-control-card">
+            <!-- Brand & Page Title Header -->
+            <div class="reprint-brand-bar">
+                <img src="{{ url_for('static', filename='img/favicon.svg') }}"
+                     alt="KD Logo"
+                     class="reprint-brand-logo"
+                     onerror="this.onerror=null; this.src='{{ url_for('static', filename='img/kd_favicon.png') }}';">
+                <h1 class="reprint-brand-title">
+                    <span>In lại tem KD</span>
+                </h1>
+            </div>
+
             <div class="reprint-control-grid">
                 <!-- 1. Barcode Input Group -->
                 <div class="control-group">
@@ -473,7 +514,7 @@
                         <input type="text"
                                id="barcodeInput"
                                class="barcode-input-field"
-                               placeholder="Nhập hoặc quét Barcode..."
+                               placeholder="Nhập Barcode..."
                                autocomplete="off"
                                spellcheck="false"
                                autofocus>
@@ -494,7 +535,7 @@
                         <input type="text"
                                id="mesInput"
                                class="barcode-input-field"
-                               placeholder="Nhập mã MES (Work Order)..."
+                               placeholder="Nhập mã MES..."
                                autocomplete="off"
                                spellcheck="false">
                         <button type="button" id="mesClearBtn" class="barcode-clear-btn" title="Xóa mã MES">
@@ -511,7 +552,7 @@
                     </label>
                     <div class="printer-select-wrapper">
                         <select id="printerSelect" class="printer-select">
-                            <option value="">-- Chọn máy in --</option>
+                            <option value="">-----</option>
                             <!-- Dynamically loaded from /api/printers/p8300 -->
                         </select>
                         <span class="material-symbols-outlined printer-select-arrow">expand_more</span>

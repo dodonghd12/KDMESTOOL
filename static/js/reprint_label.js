@@ -195,7 +195,7 @@
 
                 if (select) {
                     // Default empty option
-                    select.innerHTML = '<option value="">-- Chọn máy in --</option>';
+                    select.innerHTML = '<option value="">-----</option>';
 
                     currentPrinters.forEach(p => {
                         const opt = document.createElement('option');
@@ -473,7 +473,7 @@
         const select = document.getElementById('printerSelect');
         const selectedPrinter = select ? select.value.trim() : '';
 
-        if (!selectedPrinter) {
+        if (!selectedPrinter || selectedPrinter === '-----') {
             if (select) {
                 select.classList.remove('input-error');
                 void select.offsetWidth; // Force CSS reflow to re-trigger shake animation
