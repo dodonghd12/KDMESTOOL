@@ -91,7 +91,8 @@ PRODUCT_TYPE_REQUIRED_LABELS = {
         ('thickness', 'Độ dày'),
         ('angle', 'Góc độ'),
         ('eco-friendly-oil', 'Dầu bảo vệ môi trường'),
-        ('tire size', 'Quy cách')
+        ('tire size', 'Quy cách'),
+        ('product code', 'MSTP')
     ],
     'INNER_LINER': [
         ('up-runner-width', 'Độ rộng lớp trên'),
