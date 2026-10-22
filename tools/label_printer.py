@@ -7,6 +7,10 @@ Tối ưu chiều dài và khoảng cách vạch barcode chuẩn công nghiệp 
 
 import io
 import os
+import time
+import requests
+import yaml
+import urllib3
 from PIL import Image, ImageDraw, ImageFont
 
 # Bảng mã Code 39 chuẩn (9 phần tử: 5 bars, 4 spaces; 3 Wide 'W', 6 Narrow 'N')
@@ -64,113 +68,124 @@ SPEC_KEY_TRANSLATIONS = {
     'high': 'Chiều cao',
 }
 
-# Cấu hình danh mục thông số kỹ thuật bắt buộc theo product_type chuẩn MES (đồng bộ từ label-config.yml của page Thông số kỹ thuật)
-PRODUCT_TYPE_REQUIRED_LABELS = {
-    'BELT_AND_EDGE_GUM_PREASSEMBLY': [
-        ('product code', 'MSTP'),
-        ('tire size', 'Quy cách'),
-        ('width', 'Độ rộng'),
-        ('thickness', 'Độ dày'),
-        ('angle', 'Góc độ'),
-        ('attachment-position', 'Phương thức dán'),
-        ('eco-friendly-oil', 'Dầu bảo vệ môi trường'),
-        ('direction 1B/2B', 'Hướng 1B/2B')
-    ],
-    'STEEL_BELT': [
-        ('product code', 'MSTP'),
-        ('tire size', 'Quy cách'),
-        ('width', 'Độ rộng'),
-        ('thickness', 'Độ dày'),
-        ('angle', 'Góc độ'),
-        ('eco-friendly-oil', 'Dầu bảo vệ môi trường'),
-        ('attachment-position', 'Phương thức dán'),
-        ('direction 1B/2B', 'Hướng 1B/2B')
-    ],
-    'CARCASS_PLY': [
-        ('width', 'Độ rộng'),
-        ('thickness', 'Độ dày'),
-        ('angle', 'Góc độ'),
-        ('eco-friendly-oil', 'Dầu bảo vệ môi trường'),
-        ('tire size', 'Quy cách'),
-        ('product code', 'MSTP')
-    ],
-    'INNER_LINER': [
-        ('up-runner-width', 'Độ rộng lớp trên'),
-        ('up-runner-thickness', 'Độ dày lớp trên'),
-        ('middle-runner-width', 'Độ rộng lớp dưới'),
-        ('middle-runner-thickness', 'Độ dày lớp dưới'),
-        ('GC-width', 'Bề rộng GC'),
-        ('width', 'Tổng rộng'),
-        ('thickness', 'Tổng dày'),
-        ('eco-friendly-oil', 'Dầu bảo vệ môi trường')
-    ],
-    'TREAD': [
-        ('product code', 'Mã sản phẩm'),
-        ('tire size', 'Quy cách'),
-        ('width', 'Tổng rộng'),
-        ('hump width', 'Bề rộng gù'),
-        ('color-line', 'Đường màu'),
-        ('spray-content', 'Nội dung phun chữ'),
-        ('eco-friendly-oil', 'Dầu bảo vệ môi trường')
-    ],
-    'BEAD_AND_BEAD_FILLER_PREASSEMBLY': [
-        ('product code', 'MSTP'),
-        ('bead-Filler-high', 'Chiều cao tanh'),
-        ('bead-Filler-thickenss', 'Độ dày tanh'),
-        ('bead-Filler-width', 'Bề rộng tanh'),
-        ('tire size', 'Quy cách'),
-        ('flipper- width', 'Bề rộng flipper'),
-        ('color-line', 'Đường màu'),
-        ('total-weight', 'Tổng trọng lượng')
-    ],
-    'RUBBER': [
-        ('mooney spec', 'Tiêu chuẩn Mooney'),
-        ('eco-friendly-oil', 'Dầu bảo vệ môi trường'),
-        ('batch', 'Số mẻ'),
-        ('weight', 'Trọng lượng')
-    ],
-    'PLY': [
-        ('width', 'Độ rộng'),
-        ('thickness', 'Độ dày'),
-        ('eco-friendly-oil', 'Dầu bảo vệ môi trường'),
-        ('net weight', 'Khối lượng'),
-        ('gross weight', 'Tổng trọng lượng')
-    ],
-    'CAP_PLY': [
-        ('width', 'Độ rộng'),
-        ('thickness', 'Độ dày'),
-        ('eco-friendly-oil', 'Dầu bảo vệ môi trường')
-    ],
-    'SQUEEZE': [
-        ('up-runner-width', 'Độ rộng'),
-        ('up-runner-thickness', 'Độ dày'),
-        ('eco-friendly-oil', 'Dầu bảo vệ môi trường')
-    ],
-    'BEAD': [
-        ('bead_sequence', 'Cấu trúc kẽm'),
-        ('BIC', 'Chu vi trong'),
-        ('width', 'Độ rộng'),
-        ('thickness', 'Độ dày'),
-        ('weight', 'Trọng lượng'),
-        ('color-line', 'Đường màu')
-    ],
-    'BEAD_FILLER': [
-        ('width', 'Độ rộng'),
-        ('high', 'Chiều cao'),
-        ('eco-friendly-oil', 'Dầu bảo vệ môi trường')
-    ],
-    'SIDEWALL': [
-        ('product code', 'MSTP'),
-        ('tire size', 'Quy cách'),
-        ('working side', 'Bên làm việc'),
-        ('opposite working side', 'Bên làm việc đối diện'),
-        ('eco-friendly-oil', 'Dầu bảo vệ môi trường')
-    ],
-    'CHAFER': [
-        ('width', 'Độ rộng'),
-        ('thickness', 'Độ dày')
+# Cấu hình danh mục thông số kỹ thuật linh động từ GitLab CE (không set cứng)
+def get_gitlab_token() -> str:
+    """Lấy token xác thực GitLab CE từ biến môi trường hoặc file cấu hình .env."""
+    token = os.environ.get('GITLAB_PRIVATE_TOKEN', '').strip()
+    if token:
+        return token
+    candidate_paths = [
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '.env'),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env'),
+        os.path.join(os.getcwd(), '.env'),
+        r'E:\KV2_Services\KDMES\MATERIALMANAGEMENT_PUBLISH\.env',
+        r'\\198.1.9.245\KV2_Services\KDMES\MATERIALMANAGEMENT_PUBLISH\.env'
     ]
-}
+    for env_path in candidate_paths:
+        if os.path.exists(env_path):
+            try:
+                with open(env_path, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        line = line.strip()
+                        if line.startswith('GITLAB_PRIVATE_TOKEN='):
+                            val = line.split('=', 1)[1].strip().strip('"\'')
+                            if val:
+                                os.environ['GITLAB_PRIVATE_TOKEN'] = val
+                                return val
+            except Exception:
+                pass
+    return os.environ.get('GITLAB_PRIVATE_TOKEN', '')
+
+
+_GITLAB_LABEL_CONFIG_CACHE = {}
+_GITLAB_LABEL_CONFIG_TIMESTAMP = 0
+_CACHE_TTL_SECONDS = 300  # Cache 5 phút, tự động làm mới khi hết hạn
+
+
+def get_gitlab_label_config(force_refresh: bool = False) -> dict:
+    """
+    Tải danh mục thông số kỹ thuật linh động trực tiếp từ GitLab CE (Project 113, yamls/label-config.yml).
+    Không set cứng cấu hình, đảm bảo tự động cập nhật ngay khi file trên GitLab thay đổi.
+    Tối ưu hiệu năng bằng in-memory cache 5 phút (tránh nghẽn mạng khi in liên tục).
+    Trả về: { 'CARCASS_PLY': [('width', 'Độ rộng'), ...], ... }
+    """
+    global _GITLAB_LABEL_CONFIG_CACHE, _GITLAB_LABEL_CONFIG_TIMESTAMP
+    now = time.time()
+    if not force_refresh and _GITLAB_LABEL_CONFIG_CACHE and (now - _GITLAB_LABEL_CONFIG_TIMESTAMP < _CACHE_TTL_SECONDS):
+        return _GITLAB_LABEL_CONFIG_CACHE
+
+    token = get_gitlab_token()
+    headers = {'PRIVATE-TOKEN': token, 'User-Agent': 'KDMESTOOL-Client/1.0'} if token else {'User-Agent': 'KDMESTOOL-Client/1.0'}
+    url = 'https://gitlabce.kenda.com.tw/api/v4/projects/113/repository/files/yamls%2Flabel-config.yml/raw'
+
+    try:
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        resp = requests.get(url, params={'ref': 'master'}, headers=headers, timeout=5, verify=False)
+        if resp.status_code == 200 and resp.text:
+            parsed = yaml.safe_load(resp.text)
+            config_map = {}
+            if isinstance(parsed, list):
+                for item in parsed:
+                    if not isinstance(item, dict):
+                        continue
+                    ptype = str(item.get('product-type') or '').strip().upper()
+                    if not ptype:
+                        continue
+                    configs = item.get('configs', {})
+                    req_labels = configs.get('required-labels', []) if isinstance(configs, dict) else []
+                    pair_list = []
+                    for lbl in req_labels:
+                        if isinstance(lbl, dict):
+                            key = str(lbl.get('key') or '').strip()
+                            if not key:
+                                continue
+                            langs = lbl.get('languages', {}) if isinstance(lbl.get('languages'), dict) else {}
+                            l_lower = {str(k).lower(): str(v).strip() for k, v in langs.items() if v}
+                            vi_label = l_lower.get('vi') or l_lower.get('vn') or ''
+                            pair_list.append((key, vi_label))
+                    if pair_list:
+                        config_map[ptype] = pair_list
+            if config_map:
+                _GITLAB_LABEL_CONFIG_CACHE = config_map
+                _GITLAB_LABEL_CONFIG_TIMESTAMP = now
+                return config_map
+    except Exception:
+        if _GITLAB_LABEL_CONFIG_CACHE:
+            return _GITLAB_LABEL_CONFIG_CACHE
+
+    return _GITLAB_LABEL_CONFIG_CACHE or {}
+
+
+class DynamicRequiredLabels(dict):
+    """
+    Truy xuất danh mục thông số kỹ thuật linh động từ GitLab CE theo thời gian thực,
+    thay thế dictionary tĩnh set cứng, tương thích ngược 100% với các hàm gọi cũ.
+    """
+    def __getitem__(self, key):
+        cfg = get_gitlab_label_config()
+        return cfg.get(str(key or '').strip().upper(), [])
+
+    def get(self, key, default=None):
+        cfg = get_gitlab_label_config()
+        val = cfg.get(str(key or '').strip().upper())
+        return val if val is not None else default
+
+    def __contains__(self, key):
+        cfg = get_gitlab_label_config()
+        return str(key or '').strip().upper() in cfg
+
+    def items(self):
+        return get_gitlab_label_config().items()
+
+    def keys(self):
+        return get_gitlab_label_config().keys()
+
+    def values(self):
+        return get_gitlab_label_config().values()
+
+
+# Đối tượng Dynamic thay thế dictionary tĩnh set cứng
+PRODUCT_TYPE_REQUIRED_LABELS = DynamicRequiredLabels()
 
 
 def normalize_spec_key(k: str) -> str:
@@ -178,13 +193,13 @@ def normalize_spec_key(k: str) -> str:
     return re.sub(r'[\s_\-\/]+', '', str(k or '').lower().strip())
 
 
-def parse_recipe_specs(note_list, product_type: str = None):
+def parse_recipe_specs(note_list, product_type: str = None, label_config: dict = None):
     """
     Trích xuất danh sách thông số kỹ thuật chuẩn MES:
-    - Đối chiếu danh mục bắt buộc theo product_type từ label-config.yml (page Thông số kỹ thuật).
+    - Đối chiếu danh mục bắt buộc theo product_type linh động từ label-config.yml (GitLab CE).
       Tất cả các trường bắt buộc (như Hướng 1B/2B, Phương thức dán, MSTP...) luôn được hiển thị đúng thứ tự.
       Nếu trong recipe.note có giá trị thì điền vào, nếu không có giá trị thì để trống "" đúng theo tem thực tế.
-    - Giữ lại và bổ sung các thông số mở rộng khác nếu có trong recipe.note.
+    - Giữ lại và bổ sung các thông số mở rộng khác nếu có trong recipe.note (ví dụ product code ở CARCASS_PLY).
     """
     parsed_notes = {}
     raw_notes = []
@@ -208,8 +223,9 @@ def parse_recipe_specs(note_list, product_type: str = None):
     consumed_keys = set()
     clean_pt = str(product_type or '').strip().upper()
 
-    # 1. Nếu có cấu hình chuẩn cho product_type từ label-config.yml
-    req_labels = PRODUCT_TYPE_REQUIRED_LABELS.get(clean_pt)
+    # 1. Nếu có cấu hình chuẩn cho product_type từ GitLab CE label-config.yml
+    active_config = label_config if label_config is not None else get_gitlab_label_config()
+    req_labels = active_config.get(clean_pt, [])
     if req_labels:
         for req_key, label_vi in req_labels:
             norm_req = normalize_spec_key(req_key)
