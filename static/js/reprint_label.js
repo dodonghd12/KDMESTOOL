@@ -48,7 +48,23 @@
 
         initEventListeners();
         loadPrintersFromCups();
+        initUserBadge();
     });
+
+    function getCurrentReprintUsername() {
+        const urlParams = new URLSearchParams(window.location.search);
+        return (urlParams.get('username') || window.REPRINT_CONFIG?.username || '').trim();
+    }
+
+    function initUserBadge() {
+        const uname = getCurrentReprintUsername();
+        const userBadge = document.getElementById('reprintUserBadge');
+        const userNameText = document.getElementById('reprintUserNameText');
+        if (uname && userBadge && userNameText) {
+            userNameText.textContent = uname;
+            userBadge.style.display = 'inline-flex';
+        }
+    }
 
     /* ══════════════════════════════════════════════════════════════════════
        2. EVENT LISTENERS SETUP
@@ -517,12 +533,15 @@
         try {
             showToast('Đang gửi lệnh in', `Đang gửi lệnh in tem ${barcode} tới máy in: ${printerLabel}...`, 'info');
 
+            const currentUsername = getCurrentReprintUsername();
+
             const resp = await fetch('/api/barcodes/print-label-cups', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     barcode: barcode,
-                    printer_name: selectedPrinter
+                    printer_name: selectedPrinter,
+                    username: currentUsername
                 })
             });
 

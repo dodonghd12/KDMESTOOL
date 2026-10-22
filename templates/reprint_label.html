@@ -97,6 +97,26 @@
             gap: 8px;
         }
 
+        .reprint-user-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            margin-left: auto;
+            padding: 3px 10px;
+            background: #f1f5f9;
+            color: #334155;
+            border: 1px solid #e2e8f0;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+
+        .reprint-user-badge .material-symbols-outlined {
+            font-size: 15px;
+            color: #0d9488;
+        }
+
         .reprint-control-grid {
             display: grid;
             grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) minmax(280px, 1.4fr);
@@ -501,6 +521,10 @@
                 <h1 class="reprint-brand-title">
                     <span>IN LẠI TEM KD</span>
                 </h1>
+                <div class="reprint-user-badge" id="reprintUserBadge" {% if not username %}style="display: none;"{% endif %} title="Tài khoản thực hiện">
+                    <span class="material-symbols-outlined">person</span>
+                    <span id="reprintUserNameText">{{ username }}</span>
+                </div>
             </div>
 
             <div class="reprint-control-grid">
@@ -598,7 +622,12 @@
         </main>
     </div>
 
-    <!-- Scripts -->
+    <!-- Global Configuration & State -->
+    <script>
+        window.REPRINT_CONFIG = {
+            username: {{ (username or '') | tojson }}
+        };
+    </script>
     <script src="{{ url_for('static', filename='js/reprint_label.js') }}?v={{ version }}"></script>
 </body>
 </html>
