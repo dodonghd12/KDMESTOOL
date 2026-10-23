@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Time Turner | Nhật Ký In Lại Tem</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v={{ version }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/smooth_input.css') }}?v={{ version }}">
+
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/favicon.svg') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome/css/all.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/material-symbols/material-symbols.css') }}">
+    <style>
+        .time-turner-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            line-height: 1.3;
+        }
+        .time-turner-badge-ip {
+            background: rgba(59, 130, 246, 0.15);
+            color: #60a5fa;
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        }
+        .time-turner-badge-user {
+            background: rgba(168, 85, 247, 0.15);
+            color: #c084fc;
+            border: 1px solid rgba(168, 85, 247, 0.25);
+        }
+        .time-turner-barcode-cell {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-weight: 600;
+            color: #38bdf8;
+            cursor: pointer;
+            padding: 3px 8px;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+        .time-turner-barcode-cell:hover {
+            background: rgba(56, 189, 248, 0.15);
+            color: #7dd3fc;
+        }
+        .time-turner-btn-action {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.05);
+            color: #cbd5e1;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .time-turner-btn-action:hover {
+            background: rgba(56, 189, 248, 0.2);
+            border-color: rgba(56, 189, 248, 0.4);
+            color: #38bdf8;
+            transform: translateY(-1px);
+        }
+        .time-turner-btn-action:active {
+            transform: translateY(0);
+        }
+        .time-turner-spin {
+            animation: ttSpin 1s linear infinite;
+        }
+        @keyframes ttSpin {
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="time-turner {% if is_frame %}is-spa-frame{% endif %} app-loading-state">
+    {% if not is_frame %}{% include "components/sidebar.html" %}{% endif %}
+
+    <div class="container" autocomplete="off">
+        <div class="search-section">
+            <div class="search-row" style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
+                <!-- 1. btnRefresh -->
+                <button type="button" id="btnRefresh" class="winx-btn winx-btn-primary btn-refresh" style="height: 44px; padding: 0 22px; font-size: 14px; font-weight: 700; letter-spacing: 0.5px; flex-shrink: 0;" aria-label="Refresh dữ liệu file log">
+                    <span class="material-symbols-outlined" id="btnRefreshIcon" style="font-size: 20px !important;">refresh</span>
+                    <span>Refresh</span>
+                </button>
+
+                <!-- 2. input barcode -->
+                <div class="input-box" style="min-width: 250px; max-width: 320px; flex-shrink: 0;">
+                    <input type="text" id="barcode" class="input" placeholder=" " autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+                    <label class="user-label">Mã Barcode</label>
+                </div>
+
+                <!-- 3. clientSearch -->
+                <div class="input-wrapper" style="min-width: 200px; max-width: 380px; flex: 1;">
+                    <input placeholder="Tìm kiếm nhanh trong bảng..." class="input" id="clientSearch" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text" aria-label="Tìm kiếm trong bảng">
+                </div>
+
+                <!-- 4. Log File Status Badge -->
+                <div id="logStatusBadge" style="margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 13px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 6px 14px; flex-shrink: 0;" title="reprint_label_log.txt">
+                    <span id="logStatusDot" style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; display: inline-block;"></span>
+                    <span id="logStatusText" style="color: #cbd5e1; font-weight: 500;">reprint_label_log.txt</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <div class="table-scroll">
+                <table>
+                    <thead id="tableHead">
+                        <tr>
+                            <th style="width: 70px; text-align: center;">STT</th>
+                            <th style="width: 200px;">Thời gian in</th>
+                            <th style="width: 170px;">IP máy khách</th>
+                            <th style="width: 170px;">Người in</th>
+                            <th>Mã Barcode</th>
+                            <th style="width: 120px; text-align: center;">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+
+            <div class="table-footer hidden">
+                <div class="table-footer-left">
+                    <div class="row-count">Số dòng: <span id="rowCount">0</span></div>
+                </div>
+                <nav aria-label="pagination" class="pagination-nav" id="paginationNav"></nav>
+                <div class="table-footer-right" style="display: flex; align-items: center; gap: 10px;">
+                    <button class="btn-export-excel" id="exportExcelBtn" aria-label="Xuất dữ liệu ra file Excel">
+                        <div class="btn-export-excel-wrapper">
+                            <div class="text">Xuất Excel</div>
+                            <span class="icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" width="2em" height="2em" preserveAspectRatio="xMidYMid meet" viewBox="0 0 24 24">
+                                    <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 0 0 4.561 21h14.878a2 2 0 0 0 1.94-1.515L22 17"></path>
+                                </svg>
+                            </span>
+                        </div>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% include "components/shared_modals.html" %}
+
+    <script src="{{ url_for('static', filename='vendor/xlsx/xlsx.full.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/smooth_input.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/time_turner.js') }}?v={{ version }}"></script>
+</body>
+</html>

@@ -303,6 +303,7 @@
         <iframe id="view-reparo-spell" class="spa-view-frame {% if initial_path == '/reparo-spell' %}active{% endif %}" {% if initial_path == '/reparo-spell' %}src="{{ url_for('reparo_spell', frame='1') }}"{% else %}data-src="{{ url_for('reparo_spell', frame='1') }}"{% endif %} title="Reparo Spell"></iframe>
         <iframe id="view-avada-kedavra" class="spa-view-frame {% if initial_path == '/avada-kedavra' %}active{% endif %}" {% if initial_path == '/avada-kedavra' %}src="{{ url_for('avada_kedavra', frame='1') }}"{% else %}data-src="{{ url_for('avada_kedavra', frame='1') }}"{% endif %} title="Avada Kedavra"></iframe>
         <iframe id="view-switching-spell" class="spa-view-frame {% if initial_path == '/switching-spell' %}active{% endif %}" {% if initial_path == '/switching-spell' %}src="{{ url_for('switching_spell', frame='1') }}"{% else %}data-src="{{ url_for('switching_spell', frame='1') }}"{% endif %} title="Switching Spell"></iframe>
+        <iframe id="view-time-turner" class="spa-view-frame {% if initial_path == '/time-turner' %}active{% endif %}" {% if initial_path == '/time-turner' %}src="{{ url_for('time_turner', frame='1') }}"{% else %}data-src="{{ url_for('time_turner', frame='1') }}"{% endif %} title="Time Turner"></iframe>
     </main>
 
     {% include "components/shared_modals.html" %}

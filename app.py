@@ -1304,6 +1304,10 @@ def reparo_spell():
 def switching_spell():
     return render_page_or_shell('switching_spell.html', '/switching-spell', 'Switching Spell')
 
+@app.route('/time-turner')
+def time_turner():
+    return render_page_or_shell('time_turner.html', '/time-turner', 'Time Turner')
+
 @app.route('/create-kd-account')
 def create_kd_account():
     return render_page_or_shell('create_kd_account.html', '/create-kd-account', 'Tạo Tài Khoản')
@@ -5843,6 +5847,71 @@ def append_reprint_label_log(ip: str, barcode: str, username: str = None):
             f.write(f"{now_str} | {ip or 'Unknown'} | {username or 'Unknown'} | {barcode}\n")
     except Exception as e:
         logger.error(f"[REPRINT_LABEL_LOG_ERROR] Lỗi khi ghi file log In lại tem: {e}", exc_info=True)
+
+
+@app.route('/api/time-turner/get-log', methods=['GET', 'POST'])
+@login_required
+def api_time_turner_get_log():
+    """Truy vấn dữ liệu lịch sử file log In lại tem (reprint_label_log.txt)."""
+    try:
+        data = request.get_json(silent=True) or {}
+        filter_barcode = str(data.get('barcode') or request.args.get('barcode') or '').strip().lower()
+
+        file_path = REPRINT_LABEL_LOG_FILE_PATH
+        if not os.path.exists(file_path):
+            local_fallback = os.path.join(app.root_path, 'reprint_label_log.txt')
+            if os.path.exists(local_fallback):
+                file_path = local_fallback
+
+        if not os.path.exists(file_path):
+            return jsonify({
+                'success': True,
+                'total': 0,
+                'records': [],
+                'file_path': file_path,
+                'message': 'Chưa tìm thấy file log hoặc file chưa được tạo.'
+            })
+
+        records = []
+        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            for line_no, raw_line in enumerate(f, start=1):
+                line = raw_line.strip()
+                if not line:
+                    continue
+                parts = [p.strip() for p in line.split('|')]
+                timestamp = parts[0] if len(parts) > 0 else ''
+                ip = parts[1] if len(parts) > 1 else ''
+                username = parts[2] if len(parts) > 2 else ''
+                barcode = parts[3] if len(parts) > 3 else ''
+                if len(parts) > 4:
+                    barcode = ' | '.join(parts[3:])
+
+                if filter_barcode and filter_barcode not in barcode.lower():
+                    continue
+
+                records.append({
+                    'line_no': line_no,
+                    'timestamp': timestamp,
+                    'ip': ip,
+                    'username': username,
+                    'barcode': barcode
+                })
+
+        records.reverse()
+        return jsonify({
+            'success': True,
+            'total': len(records),
+            'records': records,
+            'file_path': file_path
+        })
+    except Exception as e:
+        logger.error(f"[TIME_TURNER_LOG_ERROR] Lỗi đọc file log In lại tem: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'message': f"Lỗi đọc file log: {str(e)}",
+            'records': [],
+            'total': 0
+        }), 500
 
 
 @app.route('/api/barcodes/print-label-cups', methods=['POST'])

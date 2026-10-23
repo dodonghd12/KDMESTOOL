@@ -21,7 +21,8 @@
         { path: '/check-kd-account', frameId: 'view-check-kd-account', title: 'Kiểm Tra Tài Khoản' },
         { path: '/reparo-spell', frameId: 'view-reparo-spell', title: 'Reparo Spell' },
         { path: '/avada-kedavra', frameId: 'view-avada-kedavra', title: 'Avada Kedavra' },
-        { path: '/switching-spell', frameId: 'view-switching-spell', title: 'Switching Spell' }
+        { path: '/switching-spell', frameId: 'view-switching-spell', title: 'Switching Spell' },
+        { path: '/time-turner', frameId: 'view-time-turner', title: 'Time Turner' }
     ];
 
     let currentRoutePath = null;
