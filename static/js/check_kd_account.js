@@ -538,7 +538,43 @@
             const roleContainer = document.createElement('div');
             roleContainer.style.cssText = 'display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 4px 0;';
 
-            // Render each role badge
+            // 1. Nút + (Add Role) chuyển về ngoài cùng bên trái (cố định vị trí để thao tác tiện lợi)
+            const missingRoles = ROLE_DEFINITIONS.filter(r => !acc.currentRoles.includes(r.id));
+            if (missingRoles.length > 0) {
+                const btnAdd = document.createElement('button');
+                btnAdd.type = 'button';
+                btnAdd.title = 'Thêm phân quyền cho tài khoản này';
+                btnAdd.style.cssText = 'display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 5px; border: 1px dashed rgba(56, 189, 248, 0.5); background: rgba(56, 189, 248, 0.1); color: #38bdf8; cursor: pointer; padding: 0; box-sizing: border-box; flex-shrink: 0; transition: all 0.2s;';
+                btnAdd.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display: block; pointer-events: none;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>`;
+
+                btnAdd.addEventListener('mouseenter', () => {
+                    btnAdd.style.background = 'rgba(56, 189, 248, 0.25)';
+                    btnAdd.style.borderColor = '#38bdf8';
+                    btnAdd.style.transform = 'scale(1.08)';
+                });
+                btnAdd.addEventListener('mouseleave', () => {
+                    btnAdd.style.background = 'rgba(56, 189, 248, 0.1)';
+                    btnAdd.style.borderColor = 'rgba(56, 189, 248, 0.5)';
+                    btnAdd.style.transform = 'scale(1)';
+                });
+
+                btnAdd.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const openRoleDropdownAction = () => {
+                        showRoleSelectDropdown(btnAdd, acc, missingRoles);
+                    };
+
+                    if (typeof window.ensureAccountSecurityUnlocked === 'function') {
+                        window.ensureAccountSecurityUnlocked(openRoleDropdownAction);
+                    } else {
+                        openRoleDropdownAction();
+                    }
+                });
+
+                roleContainer.appendChild(btnAdd);
+            }
+
+            // 2. Render từng role badge (nằm bên phải nút +)
             acc.currentRoles.forEach(roleId => {
                 const badge = document.createElement('span');
                 badge.style.cssText = 'display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 6px; background: rgba(192, 132, 252, 0.12); color: #c084fc; border: 1px solid rgba(192, 132, 252, 0.3); font-size: 12px; font-weight: 600; line-height: 1.3; transition: all 0.15s;';
@@ -582,42 +618,6 @@
                 badge.appendChild(roleText);
                 roleContainer.appendChild(badge);
             });
-
-            // Nút + (Add Role) nếu chưa có đủ 10 roles (Pixel-perfect centered SVG, Guarded by Security Gate)
-            const missingRoles = ROLE_DEFINITIONS.filter(r => !acc.currentRoles.includes(r.id));
-            if (missingRoles.length > 0) {
-                const btnAdd = document.createElement('button');
-                btnAdd.type = 'button';
-                btnAdd.title = 'Thêm phân quyền cho tài khoản này';
-                btnAdd.style.cssText = 'display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 5px; border: 1px dashed rgba(56, 189, 248, 0.5); background: rgba(56, 189, 248, 0.1); color: #38bdf8; cursor: pointer; padding: 0; box-sizing: border-box; flex-shrink: 0; transition: all 0.2s;';
-                btnAdd.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display: block; pointer-events: none;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>`;
-
-                btnAdd.addEventListener('mouseenter', () => {
-                    btnAdd.style.background = 'rgba(56, 189, 248, 0.25)';
-                    btnAdd.style.borderColor = '#38bdf8';
-                    btnAdd.style.transform = 'scale(1.08)';
-                });
-                btnAdd.addEventListener('mouseleave', () => {
-                    btnAdd.style.background = 'rgba(56, 189, 248, 0.1)';
-                    btnAdd.style.borderColor = 'rgba(56, 189, 248, 0.5)';
-                    btnAdd.style.transform = 'scale(1)';
-                });
-
-                btnAdd.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const openRoleDropdownAction = () => {
-                        showRoleSelectDropdown(btnAdd, acc, missingRoles);
-                    };
-
-                    if (typeof window.ensureAccountSecurityUnlocked === 'function') {
-                        window.ensureAccountSecurityUnlocked(openRoleDropdownAction);
-                    } else {
-                        openRoleDropdownAction();
-                    }
-                });
-
-                roleContainer.appendChild(btnAdd);
-            }
 
             tdRoles.appendChild(roleContainer);
             tr.appendChild(tdRoles);
@@ -686,8 +686,9 @@
 
             item.addEventListener('click', (e) => {
                 e.stopPropagation();
-                account.currentRoles.push(r.id);
-                account.currentRoles.sort((a, b) => a - b);
+                if (!account.currentRoles.includes(r.id)) {
+                    account.currentRoles.push(r.id);
+                }
                 checkAndUpdateDirtyState();
                 closeRoleDropdown();
                 renderTableBody();
