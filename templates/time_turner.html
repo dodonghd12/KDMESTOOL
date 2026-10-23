@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Time Turner | Nhật Ký In Lại Tem</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v={{ version }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/smooth_input.css') }}?v={{ version }}">
@@ -21,6 +21,94 @@
         @keyframes ttSpin {
             100% { transform: rotate(360deg); }
         }
+
+        /* ── TỐI ƯU GIAO DIỆN DI ĐỘNG (MOBILE RESPONSIVE OPTIMIZATION) ── */
+        @media (max-width: 768px) {
+            body.time-turner .container {
+                padding: 8px !important;
+                gap: 8px !important;
+            }
+            .time-turner .search-section {
+                margin-bottom: 6px !important;
+                width: 100% !important;
+            }
+            .time-turner .search-row {
+                display: flex !important;
+                flex-direction: row !important;
+                align-items: center !important;
+                gap: 8px !important;
+                width: 100% !important;
+                flex-wrap: nowrap !important;
+            }
+            .time-turner #btnRefresh {
+                height: 38px !important;
+                padding: 0 12px !important;
+                font-size: 13px !important;
+                flex: 0 0 auto !important;
+                border-radius: 8px !important;
+            }
+            .time-turner .search-row > .input-wrapper {
+                flex: 1 1 auto !important;
+                min-width: 0 !important;
+                max-width: 100% !important;
+                width: 100% !important;
+                height: 38px !important;
+                margin: 0 !important;
+            }
+            .time-turner .search-row > .input-wrapper .input {
+                height: 38px !important;
+                font-size: 16px !important;
+                padding: 0 12px !important;
+                border-radius: 8px !important;
+            }
+            .time-turner .table-container {
+                border-radius: 10px !important;
+                margin-bottom: 0 !important;
+            }
+            .time-turner .table-scroll table th,
+            .time-turner .table-scroll table td {
+                padding: 8px 10px !important;
+                font-size: 12.5px !important;
+            }
+            .time-turner .table-scroll table th:nth-child(1),
+            .time-turner .table-scroll table td:nth-child(1) {
+                width: 48px !important;
+                min-width: 48px !important;
+                max-width: 48px !important;
+                text-align: center !important;
+            }
+            .time-turner .table-footer:not(.hidden) {
+                padding: 6px 8px !important;
+                min-height: 38px !important;
+                display: flex !important;
+                justify-content: space-between !important;
+                align-items: center !important;
+                gap: 6px !important;
+                flex-wrap: wrap !important;
+            }
+            .time-turner .table-footer-left .row-count {
+                font-size: 11.5px !important;
+                padding: 2px 6px !important;
+            }
+            .time-turner .btn-export-excel {
+                height: 28px !important;
+                padding: 0 8px !important;
+                font-size: 11.5px !important;
+            }
+            .time-turner .btn-export-excel svg {
+                width: 1.2em !important;
+                height: 1.2em !important;
+            }
+            .time-turner .pagination-nav {
+                gap: 2px !important;
+            }
+            .time-turner .pagination-nav button {
+                min-width: 28px !important;
+                height: 28px !important;
+                font-size: 12px !important;
+                padding: 0 6px !important;
+            }
+        }
     </style>
 </head>
 <body class="time-turner {% if is_frame %}is-spa-frame{% endif %} app-loading-state">
@@ -28,28 +116,16 @@
 
     <div class="container" autocomplete="off">
         <div class="search-section">
-            <div class="search-row" style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
+            <div class="search-row" style="display: flex; align-items: center; gap: 12px; width: 100%;">
                 <!-- 1. btnRefresh -->
-                <button type="button" id="btnRefresh" class="winx-btn winx-btn-primary btn-refresh" style="height: 44px; padding: 0 22px; font-size: 14px; font-weight: 700; letter-spacing: 0.5px; flex-shrink: 0;" aria-label="Refresh dữ liệu file log">
+                <button type="button" id="btnRefresh" class="winx-btn winx-btn-primary btn-refresh" style="height: 42px; padding: 0 20px; font-size: 14px; font-weight: 700; letter-spacing: 0.5px; flex-shrink: 0;" aria-label="Refresh dữ liệu file log">
                     <span class="material-symbols-outlined" id="btnRefreshIcon" style="font-size: 20px !important;">refresh</span>
                     <span>Refresh</span>
                 </button>
 
-                <!-- 2. input barcode -->
-                <div class="input-box" style="min-width: 250px; max-width: 320px; flex-shrink: 0;">
-                    <input type="text" id="barcode" class="input" placeholder=" " autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
-                    <label class="user-label">Mã Barcode</label>
-                </div>
-
-                <!-- 3. clientSearch -->
-                <div class="input-wrapper" style="min-width: 200px; max-width: 380px; flex: 1;">
+                <!-- 2. clientSearch (Không bao giờ bị disable) -->
+                <div class="input-wrapper" style="min-width: 200px; max-width: 500px; flex: 1;">
                     <input placeholder="Tìm kiếm nhanh trong bảng..." class="input" id="clientSearch" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text" aria-label="Tìm kiếm trong bảng">
-                </div>
-
-                <!-- 4. Log File Status Badge -->
-                <div id="logStatusBadge" style="margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 13px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 6px 14px; flex-shrink: 0;" title="reprint_label_log.txt">
-                    <span id="logStatusDot" style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; display: inline-block;"></span>
-                    <span id="logStatusText" style="color: #cbd5e1; font-weight: 500;">reprint_label_log.txt</span>
                 </div>
             </div>
         </div>

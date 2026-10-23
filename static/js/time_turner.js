@@ -3,7 +3,7 @@
  * KDMES TOOL — TIME TURNER CONTROLLER
  * Quản lý & Hiển thị Nhật ký in lại tem (reprint_label_log.txt)
  * Hiển thị bảng dạng chuẩn đồng bộ hoàn toàn với Postgres Deleted Data
- * Hỗ trợ Phân trang (30 dòng/trang), Lọc Barcode & Tìm kiếm toàn cục, Xuất Excel
+ * Hỗ trợ Phân trang (30 dòng/trang), Tìm kiếm toàn cục, Xuất Excel
  * ==============================================================================
  */
 
@@ -16,7 +16,6 @@
     const PAGE_SIZE = 30;
     let currentPage = 1;
     let totalPages = 1;
-    let barcodeDebounceTimer = null;
     let clientSearchDebounceTimer = null;
 
     if (document.readyState === 'loading') {
@@ -26,14 +25,38 @@
     }
 
     function initTimeTurner() {
+        ensureClientSearchAlwaysEnabled();
         initControls();
         setupExportHook();
         fetchLogRecords();
     }
 
+    /**
+     * Đảm bảo ô ClientSearch KHÔNG BAO GIỜ bị disable dưới mọi tình huống
+     */
+    function ensureClientSearchAlwaysEnabled() {
+        const clientSearchInput = document.getElementById('clientSearch');
+        if (!clientSearchInput) return;
+
+        clientSearchInput.disabled = false;
+        clientSearchInput.removeAttribute('disabled');
+
+        try {
+            Object.defineProperty(clientSearchInput, 'disabled', {
+                get: () => false,
+                set: () => false,
+                configurable: true
+            });
+        } catch (e) {}
+    }
+
+    // Ghi đè hàm updateClientSearchState của main.js cho trang Time Turner để không bao giờ disable ô tìm kiếm
+    window.updateClientSearchState = function () {
+        ensureClientSearchAlwaysEnabled();
+    };
+
     function initControls() {
         const btnRefresh = document.getElementById('btnRefresh');
-        const barcodeInput = document.getElementById('barcode');
         const clientSearchInput = document.getElementById('clientSearch');
 
         if (btnRefresh) {
@@ -42,29 +65,12 @@
             });
         }
 
-        if (barcodeInput) {
-            barcodeInput.addEventListener('input', () => {
-                clearTimeout(barcodeDebounceTimer);
-                barcodeDebounceTimer = setTimeout(() => {
-                    applyFilters(true);
-                }, 250);
-            });
-
-            barcodeInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    clearTimeout(barcodeDebounceTimer);
-                    applyFilters(true);
-                }
-            });
-        }
-
         if (clientSearchInput) {
             clientSearchInput.addEventListener('input', () => {
                 clearTimeout(clientSearchDebounceTimer);
                 clientSearchDebounceTimer = setTimeout(() => {
                     applyFilters(true);
-                }, 200);
+                }, 150);
             });
         }
 
@@ -101,8 +107,6 @@
         const btnRefresh = document.getElementById('btnRefresh');
         const refreshIcon = document.getElementById('btnRefreshIcon');
         const tableBody = document.getElementById('tableBody');
-        const logStatusText = document.getElementById('logStatusText');
-        const logStatusDot = document.getElementById('logStatusDot');
 
         if (btnRefresh) btnRefresh.disabled = true;
         if (refreshIcon) refreshIcon.classList.add('time-turner-spin');
@@ -130,18 +134,10 @@
             const data = await res.json();
             if (data && data.success) {
                 allLogRecords = Array.isArray(data.records) ? data.records : [];
-                if (logStatusText) {
-                    logStatusText.textContent = `reprint_label_log.txt (${allLogRecords.length} lượt)`;
-                }
-                if (logStatusDot) {
-                    logStatusDot.style.background = '#10b981';
-                }
             } else {
                 allLogRecords = [];
                 const errMsg = (data && data.message) || 'Không thể đọc file log';
                 if (typeof showToast === 'function') showToast(errMsg, 'error');
-                if (logStatusText) logStatusText.textContent = 'Lỗi file log';
-                if (logStatusDot) logStatusDot.style.background = '#ef4444';
             }
         } catch (err) {
             console.error('[TimeTurner] Fetch log error:', err);
@@ -149,43 +145,29 @@
             if (typeof showToast === 'function') {
                 showToast('Lỗi kết nối máy chủ khi đọc nhật ký in tem', 'error');
             }
-            if (logStatusText) logStatusText.textContent = 'Mất kết nối log';
-            if (logStatusDot) logStatusDot.style.background = '#ef4444';
         } finally {
             if (btnRefresh) btnRefresh.disabled = false;
             if (refreshIcon) refreshIcon.classList.remove('time-turner-spin');
+            ensureClientSearchAlwaysEnabled();
             applyFilters(false);
             document.body.classList.remove('app-loading-state');
         }
     }
 
     function applyFilters(resetToFirstPage = true) {
-        const barcodeInput = document.getElementById('barcode');
         const clientSearchInput = document.getElementById('clientSearch');
-
-        const barcodeVal = (barcodeInput ? barcodeInput.value : '').trim().toLowerCase();
         const searchVal = (clientSearchInput ? clientSearchInput.value : '').trim().toLowerCase();
 
         currentFilteredRecords = allLogRecords.filter(item => {
+            if (!searchVal) return true;
+
             const itemBarcode = (item.barcode || '').toLowerCase();
             const itemIp = (item.ip || '').toLowerCase();
             const itemUser = (item.username || '').toLowerCase();
             const itemTime = (item.timestamp || '').toLowerCase();
+            const combined = `${itemTime} ${itemIp} ${itemUser} ${itemBarcode}`;
 
-            // Lọc theo Barcode
-            if (barcodeVal && !itemBarcode.includes(barcodeVal)) {
-                return false;
-            }
-
-            // Lọc theo ô Client Search
-            if (searchVal) {
-                const combined = `${itemTime} ${itemIp} ${itemUser} ${itemBarcode}`;
-                if (!combined.includes(searchVal)) {
-                    return false;
-                }
-            }
-
-            return true;
+            return combined.includes(searchVal);
         });
 
         // Cập nhật dữ liệu toàn cục để tương thích hệ thống
@@ -205,6 +187,7 @@
         }
 
         renderCurrentPage();
+        ensureClientSearchAlwaysEnabled();
     }
 
     function renderCurrentPage() {
@@ -230,6 +213,7 @@
                 displayTable([], tableColumns);
             }
             if (paginationNav) paginationNav.innerHTML = '';
+            ensureClientSearchAlwaysEnabled();
             return;
         }
 
@@ -261,6 +245,8 @@
                 renderSimplePagination(paginationNav);
             }
         }
+
+        ensureClientSearchAlwaysEnabled();
     }
 
     function renderSimplePagination(container) {
