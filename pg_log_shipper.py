@@ -73,26 +73,70 @@ def load_seen_keys(target_dir: str):
 def get_target_dir():
     return POSTGRES_AUDIT_LOG_NETWORK_DIR if os.path.exists(POSTGRES_AUDIT_LOG_NETWORK_DIR) else POSTGRES_AUDIT_LOG_LOCAL_DIR
 
-def enrich_material_resource(oid_or_id: str) -> dict:
-    """Truy vấn collect_record và work_order để lấy thông tin sản xuất của tem đã xóa."""
-    info = {
-        "oid": oid_or_id,
+def enrich_material_resource(oid_or_id: str, client_user: str = "system", id_key: str = "oid") -> dict:
+    """Truy vấn collect_record và work_order để tái tạo đầy đủ 22 cột chuẩn của kvmes.material_resource."""
+    now_ns = int(time.time() * 1e9)
+    default_expiry_ns = now_ns + int(7 * 24 * 3600 * 1e9)
+
+    record = {
+        "oid": oid_or_id if id_key == "oid" else "",
         "id": oid_or_id,
         "product_id": "",
         "product_type": "",
         "quantity": 0.0,
+        "status": 1,
+        "expiry_time": default_expiry_ns,
+        "info": {
+            "unit": "",
+            "grade": "",
+            "remark": "",
+            "purchase": {
+                "item_no": "",
+                "order_no": "",
+                "delivery_count": ""
+            },
+            "change_log": None,
+            "lot_number": "",
+            "min_dosage": "0",
+            "hold_reason": 0,
+            "inspections": [],
+            "deferrals_count": 0,
+            "production_info": {
+                "station": "",
+                "recipe_id": "",
+                "next_station": "",
+                "process_name": "",
+                "process_type": "PRODUCE",
+                "production_time": datetime.now().isoformat() + "Z"
+            },
+            "planned_quantity": "0",
+            "additional_fields": None,
+            "is_special_approved": False,
+            "inspection_serial_number": ""
+        },
+        "warehouse_id": "",
+        "warehouse_location": "",
+        "updated_at": now_ns,
+        "updated_by": client_user or "system",
+        "created_at": now_ns,
+        "created_by": client_user or "system",
         "station": "",
-        "lot_number": "",
-        "work_order": "",
-        "operator_id": ""
+        "feed_records_id": "{}",
+        "batch_count": 0,
+        "reprint_reason": 0,
+        "collected": False,
+        "erp_tire_barcode_synced": False,
+        "standing_time": 0,
+        "initial_quantity": 0.0
     }
+
     try:
         from db_connections import get_pg_connection
         with get_pg_connection() as conn:
             cur = conn.cursor()
             cur.execute("""
-                SELECT cr.oid, cr.work_order, cr.lot_number, cr.station, cr.detail,
-                       wo.information
+                SELECT cr.oid, cr.work_order, cr.lot_number, cr.station, cr.detail, cr.created_at,
+                       wo.information, wo.recipe_id, wo.process_name, wo.process_type
                 FROM kvmes.collect_record cr
                 LEFT JOIN kvmes.work_order wo ON cr.work_order = wo.id
                 WHERE cr.resource_oid::text = %s
@@ -100,24 +144,58 @@ def enrich_material_resource(oid_or_id: str) -> dict:
             """, (oid_or_id,))
             row = cur.fetchone()
             if row:
-                _, wo_id, lot_no, station, detail, wo_info = row
-                info["work_order"] = wo_id or ""
-                info["lot_number"] = lot_no or ""
-                info["station"] = station or ""
-                
-                if isinstance(detail, dict):
+                cr_oid, wo_id, lot_no, station, detail, cr_created_at, wo_info, recipe_id, proc_name, proc_type = row
+                record["collected"] = True
+                if station:
+                    record["station"] = station
+                    record["info"]["production_info"]["station"] = station
+                if lot_no:
+                    record["info"]["lot_number"] = lot_no
+                if recipe_id:
+                    record["info"]["production_info"]["recipe_id"] = recipe_id
+                if proc_name:
+                    record["info"]["production_info"]["process_name"] = proc_name
+                if proc_type:
+                    record["info"]["production_info"]["process_type"] = proc_type
+
+                if cr_created_at:
                     try:
-                        info["quantity"] = float(detail.get("quantity", 0) or 0)
+                        c_ts = int(cr_created_at)
+                        record["created_at"] = c_ts
+                        record["updated_at"] = c_ts
+                        record["standing_time"] = c_ts
+                        record["expiry_time"] = c_ts + int(7 * 24 * 3600 * 1e9)
+                        dt = datetime.fromtimestamp(c_ts / 1e9)
+                        record["info"]["production_info"]["production_time"] = dt.isoformat() + "Z"
+                    except Exception:
+                        pass
+
+                if isinstance(detail, dict):
+                    qty = 0.0
+                    try:
+                        qty = float(detail.get("quantity", 0) or 0)
                     except (ValueError, TypeError):
-                        info["quantity"] = 0.0
-                    info["operator_id"] = detail.get("operator_id", "")
-                
+                        pass
+                    record["quantity"] = qty
+                    record["initial_quantity"] = qty
+                    record["batch_count"] = int(detail.get("batch_count", 0) or 0)
+                    op_id = detail.get("operator_id") or client_user
+                    if op_id:
+                        record["created_by"] = op_id
+                        record["updated_by"] = op_id
+
                 if isinstance(wo_info, dict):
-                    info["product_id"] = wo_info.get("product_id", "")
-                    info["product_type"] = wo_info.get("product_type", "")
+                    record["product_id"] = wo_info.get("product_id", "")
+                    record["product_type"] = wo_info.get("product_type", "")
+                    plan_qty = wo_info.get("plan_quantity", {})
+                    if isinstance(plan_qty, dict):
+                        record["info"]["planned_quantity"] = str(plan_qty.get("plan_quantity", "0"))
+                    elif plan_qty:
+                        record["info"]["planned_quantity"] = str(plan_qty)
     except Exception as e:
         logger.error(f"Error enriching material_resource {oid_or_id}: {e}")
-    return info
+
+    return record
 
 def append_to_audit_jsonl(entry: dict):
     """Ghi 1 bản ghi audit vào file deleted_records_YYYY-MM-DD.jsonl."""
@@ -237,11 +315,7 @@ def run_log_shipper_stream():
                             # Trích xuất được trực tiếp (simple query / pgAdmin multi-line / IN (...))
                             for val in vals:
                                 if table == 'material_resource':
-                                    enriched = enrich_material_resource(val)
-                                    enriched['deleted_by'] = entry['user']
-                                    enriched['client_ip'] = entry['ip']
-                                    enriched['statement'] = msg.strip()
-                                    rec_data = enriched
+                                    rec_data = enrich_material_resource(val, client_user=entry['user'], id_key=id_key)
                                 else:
                                     rec_data = {
                                         id_key: val,
@@ -265,11 +339,7 @@ def run_log_shipper_stream():
                     if params:
                         for p_val in params:
                             if info['table'] == 'material_resource':
-                                enriched = enrich_material_resource(p_val)
-                                enriched['deleted_by'] = info['user']
-                                enriched['client_ip'] = info['ip']
-                                enriched['statement'] = info['msg'].strip()
-                                rec_data = enriched
+                                rec_data = enrich_material_resource(p_val, client_user=info['user'], id_key=info['id_key'])
                             else:
                                 rec_data = {
                                     info['id_key']: p_val,
