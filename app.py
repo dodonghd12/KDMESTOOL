@@ -5890,6 +5890,44 @@ def api_time_turner_get_log():
         }), 500
 
 
+def check_reprint_account_permission(username: str):
+    """
+    Kiểm tra quyền in lại tem KD trong bảng kvmes.account:
+    - Nếu username không tồn tại: (False, 'Account KD không tồn tại, vui lòng liên hệ IT!', 400)
+    - Nếu username không có role 7: (False, 'Account không có quyền thực hiện in lại tem KD!', 403)
+    - Hợp lệ: (True, clean_id, 200)
+    """
+    uname = str(username or '').strip()
+    if not uname or uname.lower() in ('unknown', 'none', 'null'):
+        return False, 'Account KD không tồn tại, vui lòng liên hệ IT!', 400
+
+    try:
+        acc_sql = "SELECT id, roles FROM kvmes.account WHERE id = %s OR id ILIKE %s LIMIT 1;"
+        acc_rows, _ = execute_pg_select_query(acc_sql, (uname, uname))
+        if not acc_rows or len(acc_rows) == 0:
+            return False, 'Account KD không tồn tại, vui lòng liên hệ IT!', 400
+
+        raw_roles = acc_rows[0][1]
+        has_role_7 = False
+        if isinstance(raw_roles, (list, tuple, set)):
+            has_role_7 = (7 in raw_roles or '7' in raw_roles)
+        elif isinstance(raw_roles, str):
+            cleaned = raw_roles.strip('{}[]() ')
+            parts = [p.strip() for p in cleaned.split(',') if p.strip()]
+            has_role_7 = ('7' in parts or 7 in parts)
+        elif isinstance(raw_roles, (int, float)):
+            has_role_7 = (int(raw_roles) == 7)
+
+        if not has_role_7:
+            return False, 'Account không có quyền thực hiện in lại tem KD!', 403
+
+        clean_id = str(acc_rows[0][0] or uname).strip()
+        return True, clean_id, 200
+    except Exception as e:
+        logger.error(f"[CHECK_REPRINT_ACCOUNT_ERROR] Lỗi kiểm tra account {uname}: {e}", exc_info=True)
+        return False, f'Lỗi hệ thống khi kiểm tra tài khoản: {str(e)}', 500
+
+
 @app.route('/api/barcodes/print-label-cups', methods=['POST'])
 @login_required
 def api_print_label_cups():
@@ -5898,6 +5936,14 @@ def api_print_label_cups():
         data = request.get_json(silent=True) or {}
         raw_barcode = str(data.get('barcode') or data.get('id') or '').strip()
         printer_name = str(data.get('printer_name') or '').strip()
+        client_username = str(data.get('username') or request.args.get('username') or session.get('username') or '').strip()
+
+        # 1. Kiểm tra username trước khi thực hiện API: check trong bảng kvmes.account
+        ok, msg_or_id, status_code = check_reprint_account_permission(client_username)
+        if not ok:
+            return jsonify({'success': False, 'message': msg_or_id}), status_code
+
+        client_username = msg_or_id
 
         if not raw_barcode:
             return jsonify({'success': False, 'message': 'Thiếu mã Barcode để in tem'}), 400
@@ -5907,8 +5953,7 @@ def api_print_label_cups():
         pdf_io, final_barcode = build_reprint_label_pdf_buffer(raw_barcode)
         pdf_bytes = pdf_io.getvalue()
 
-        client_username = str(data.get('username') or request.args.get('username') or session.get('username') or 'Unknown').strip()
-        user_name = client_username if client_username != 'Unknown' else (session.get('username') or 'kdmes')
+        user_name = client_username if client_username else (session.get('username') or 'kdmes')
         result = send_cups_print_job(printer_name, pdf_bytes, job_name=f"Tem_{final_barcode}.pdf", user_name=user_name)
 
         if not result.get('success'):

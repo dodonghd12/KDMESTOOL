@@ -555,7 +555,9 @@
             }
         } catch (err) {
             console.error('Lỗi in tem:', err);
-            showToast('Lỗi in tem', err.message || 'Không thể thực hiện in tem', 'error');
+            const errMsg = err.message || 'Không thể thực hiện in tem';
+            const title = (errMsg.includes('không tồn tại') || errMsg.includes('không có quyền')) ? 'Cảnh báo tài khoản' : 'Lỗi in tem';
+            showToast(title, errMsg, 'error');
         } finally {
             if (triggerBtn) {
                 triggerBtn.disabled = false;
