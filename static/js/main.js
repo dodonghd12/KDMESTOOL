@@ -2247,6 +2247,15 @@ function displayTable(result, columns) {
                 td.textContent = cellValue;
             }
 
+            // Đổi màu vàng cho cột key ở trang Thông số kỹ thuật nếu key có resource: 2
+            if ((currentTableType === 'technical_specifications' || document.body.classList.contains('technical-specifications')) && (colName === 'key' || cellIndex === 0)) {
+                if (typeof window.isTechnicalSpecResource2 === 'function' && window.isTechnicalSpecResource2(cellValue)) {
+                    td.style.color = '#facc15';
+                    td.style.fontWeight = '700';
+                    td.title = `${fullValue} (resource: 2 - Giá trị để trống trên tem / Value is blank)`;
+                }
+            }
+
             // Always store full value for double-click and operations
             td.dataset.fullValue = fullValue;
 

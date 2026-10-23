@@ -142,7 +142,8 @@ def get_gitlab_label_config(force_refresh: bool = False) -> dict:
                             langs = lbl.get('languages', {}) if isinstance(lbl.get('languages'), dict) else {}
                             l_lower = {str(k).lower(): str(v).strip() for k, v in langs.items() if v}
                             vi_label = l_lower.get('vi') or l_lower.get('vn') or ''
-                            pair_list.append((key, vi_label))
+                            resource = lbl.get('resource')
+                            pair_list.append((key, vi_label, resource))
                     if pair_list:
                         config_map[ptype] = pair_list
             if config_map:
@@ -229,16 +230,35 @@ def parse_recipe_specs(note_list, product_type: str = None, label_config: dict =
     active_config = label_config if label_config is not None else get_gitlab_label_config()
     req_labels = active_config.get(clean_pt, [])
     if req_labels:
-        for req_key, label_vi in req_labels:
+        for item in req_labels:
+            if len(item) >= 3:
+                req_key, label_vi, resource = item[0], item[1], item[2]
+            else:
+                req_key, label_vi = item[0], item[1]
+                resource = None
+
             norm_req = normalize_spec_key(req_key)
+
+            # Quy chuẩn hệ thống MES (Project 113 label-config):
+            # 0: recipe.note (mặc định)
+            # 1: recipe.commonProperty
+            # 2: value is blank (luôn để trống giá trị trên tem in ra)
+            is_resource_blank = False
+            if resource is not None:
+                try:
+                    is_resource_blank = (int(resource) == 2)
+                except (ValueError, TypeError):
+                    is_resource_blank = (str(resource).strip() == '2')
+
             val = ""
-            if norm_req in parsed_notes:
-                val = parsed_notes[norm_req][1]
-            elif norm_req in ['direction1b2b', 'direction']:
-                for alt in ['direction', 'direction1b2b', 'direction1b']:
-                    if alt in parsed_notes:
-                        val = parsed_notes[alt][1]
-                        break
+            if not is_resource_blank:
+                if norm_req in parsed_notes:
+                    val = parsed_notes[norm_req][1]
+                elif norm_req in ['direction1b2b', 'direction']:
+                    for alt in ['direction', 'direction1b2b', 'direction1b']:
+                        if alt in parsed_notes:
+                            val = parsed_notes[alt][1]
+                            break
 
             display_label = label_vi or SPEC_KEY_TRANSLATIONS.get(req_key, req_key.replace('-', ' ').title())
             specs.append((display_label, val))

@@ -608,6 +608,7 @@ def get_technical_specifications_data(force_refresh: bool = False) -> dict:
     product_types = []
     config_map = {}
     keys_by_product_type = {}
+    resource_map = {}
 
     if content_raw_lc:
         try:
@@ -623,13 +624,21 @@ def get_technical_specifications_data(force_refresh: bool = False) -> dict:
                         req_labels = configs.get('required-labels', []) if isinstance(configs, dict) else []
                         rows = []
                         keys = []
+                        res_dict = {}
                         for lbl in req_labels:
                             if isinstance(lbl, dict):
                                 key = lbl.get('key', '')
-                                langs = lbl.get('languages', {}) if isinstance(lbl.get('languages'), dict) else {}
-                                l_lower = {str(k).lower(): str(v).strip() for k, v in langs.items() if v}
+                                resource = lbl.get('resource')
                                 if key:
                                     keys.append(key)
+                                    if resource is not None:
+                                        try:
+                                            res_val = int(resource)
+                                        except (ValueError, TypeError):
+                                            res_val = str(resource).strip()
+                                        res_dict[key] = res_val
+                                langs = lbl.get('languages', {}) if isinstance(lbl.get('languages'), dict) else {}
+                                l_lower = {str(k).lower(): str(v).strip() for k, v in langs.items() if v}
                                 if key or langs:
                                     rows.append([
                                         key,
@@ -641,6 +650,8 @@ def get_technical_specifications_data(force_refresh: bool = False) -> dict:
                                     ])
                         config_map[ptype] = rows
                         keys_by_product_type[ptype] = keys
+                        if res_dict:
+                            resource_map[ptype] = res_dict
         except Exception as e:
             app.logger.error(f"Error parsing technical-specifications yaml: {e}")
 
@@ -669,6 +680,7 @@ def get_technical_specifications_data(force_refresh: bool = False) -> dict:
         'product_types': product_types,
         'config_map': config_map,
         'keys_by_product_type': keys_by_product_type,
+        'resource_map': resource_map,
         'limitary_hours': limitary_hours,
         'expdays': expdays,
         'source': 'gitlab'

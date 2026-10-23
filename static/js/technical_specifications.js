@@ -39,10 +39,18 @@ const PREFERRED_ORDER = [
 
 let productTypes = [];
 let configMap = {};
+let resourceMap = {};
 let limitaryHoursMap = {};
 let expdaysMap = {};
 let currentProductType = '';
 let productTypeSearchTimeout = null;
+
+window.isTechnicalSpecResource2 = function (key) {
+    if (!currentProductType || !resourceMap[currentProductType]) return false;
+    const cleanKey = String(key || '').trim();
+    const resVal = resourceMap[currentProductType][cleanKey];
+    return resVal === 2 || resVal === '2';
+};
 
 function getProductTypeLabel(pt) {
     if (!pt) return '';
@@ -257,6 +265,8 @@ async function loadTechnicalSpecifications() {
 
         productTypes = rawTypes;
         configMap = res.config_map || {};
+        resourceMap = res.resource_map || {};
+        window.technicalSpecResourceMap = resourceMap;
         limitaryHoursMap = res.limitary_hours || {};
         expdaysMap = res.expdays || {};
 
@@ -337,6 +347,28 @@ function selectProductType(ptype, force = false) {
         `Không có thông số kỹ thuật nào cho loại sản phẩm: ${label}`,
         `Tải thành công thông số kỹ thuật: ${label} (${rows.length} dòng)`
     );
+
+    applyResource2Styling();
+}
+
+function applyResource2Styling() {
+    if (!currentProductType || !resourceMap[currentProductType]) return;
+    const resMapForType = resourceMap[currentProductType];
+    const tbody = document.getElementById('tableBody');
+    if (!tbody) return;
+    const trs = tbody.querySelectorAll('tr');
+    trs.forEach(tr => {
+        const firstTd = tr.querySelector('td');
+        if (firstTd) {
+            const keyText = (firstTd.textContent || '').trim();
+            const resVal = resMapForType[keyText];
+            if (resVal === 2 || resVal === '2') {
+                firstTd.style.color = '#facc15';
+                firstTd.style.fontWeight = '700';
+                firstTd.title = `${keyText} (resource: 2 - Giá trị để trống trên tem / Value is blank)`;
+            }
+        }
+    });
 }
 
 function renderInitialEmptyState(message = 'Vui lòng chọn loại sản phẩm') {
