@@ -12,7 +12,7 @@
 
     let allLogRecords = [];
     let currentFilteredRecords = [];
-    const tableColumns = ['STT', 'Thời gian in', 'IP máy khách', 'Người in', 'Mã Barcode'];
+    const tableColumns = ['Thời gian in (UTC+7)', 'IP', 'Người in', 'Barcode'];
     const PAGE_SIZE = 30;
     let currentPage = 1;
     let totalPages = 1;
@@ -82,8 +82,7 @@
 
     function setupExportHook() {
         window.getPageExportData = function () {
-            const rows = (currentFilteredRecords || []).map((rec, idx) => [
-                idx + 1,
+            const rows = (currentFilteredRecords || []).map((rec) => [
                 rec.timestamp || '',
                 rec.ip || '',
                 rec.username || '',
@@ -112,11 +111,11 @@
         if (refreshIcon) refreshIcon.classList.add('time-turner-spin');
 
         if (typeof showTableSkeleton === 'function') {
-            showTableSkeleton(5, 5);
+            showTableSkeleton(4, 5);
         } else if (tableBody) {
             tableBody.innerHTML = `
                 <tr>
-                    <td colspan="5" style="text-align: center; padding: 36px 16px; color: var(--color-text-muted, #94a3b8);">
+                    <td colspan="4" style="text-align: center; padding: 36px 16px; color: var(--color-text-muted, #94a3b8);">
                         <span class="material-symbols-outlined time-turner-spin" style="font-size: 28px; vertical-align: middle;">sync</span>
                         <span style="margin-left: 8px;">Đang tải dữ liệu nhật ký in tem...</span>
                     </td>
@@ -220,8 +219,7 @@
         const startIndex = (currentPage - 1) * PAGE_SIZE;
         const pageRecords = currentFilteredRecords.slice(startIndex, startIndex + PAGE_SIZE);
 
-        const pageRows = pageRecords.map((item, idx) => [
-            startIndex + idx + 1,
+        const pageRows = pageRecords.map((item) => [
             item.timestamp || '-',
             item.ip || 'Unknown',
             item.username || 'Unknown',

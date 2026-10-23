@@ -70,13 +70,6 @@
                 padding: 8px 10px !important;
                 font-size: 12.5px !important;
             }
-            .time-turner .table-scroll table th:nth-child(1),
-            .time-turner .table-scroll table td:nth-child(1) {
-                width: 48px !important;
-                min-width: 48px !important;
-                max-width: 48px !important;
-                text-align: center !important;
-            }
             .time-turner .table-footer:not(.hidden) {
                 padding: 6px 8px !important;
                 min-height: 38px !important;
@@ -123,9 +116,9 @@
                     <span>Refresh</span>
                 </button>
 
-                <!-- 2. clientSearch (Không bao giờ bị disable) -->
-                <div class="input-wrapper" style="min-width: 200px; max-width: 500px; flex: 1;">
-                    <input placeholder="Tìm kiếm nhanh trong bảng..." class="input" id="clientSearch" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text" aria-label="Tìm kiếm trong bảng">
+                <!-- 2. clientSearch (Đồng bộ kích thước với các page khác & không bao giờ bị disable) -->
+                <div class="input-wrapper" style="min-width: 200px; max-width: 350px; flex: 1;">
+                    <input placeholder="Tìm kiếm..." class="input" id="clientSearch" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text" aria-label="Tìm kiếm trong bảng">
                 </div>
             </div>
         </div>
