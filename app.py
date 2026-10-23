@@ -318,7 +318,8 @@ def validate_recipe_yaml_content(content: str, product_type: str = None, label_c
                     nxt = lines[j].lstrip(' ')
                     if not nxt or nxt.startswith('#'):
                         continue
-                    if (len(lines[j]) - len(nxt)) > indent:
+                    nxt_indent = len(lines[j]) - len(nxt)
+                    if nxt_indent > indent or (nxt_indent == indent and nxt.startswith('-')):
                         has_children = True
                     break
                 if not has_children:
@@ -390,45 +391,7 @@ def validate_recipe_yaml_content(content: str, product_type: str = None, label_c
                                 'message': f"Dòng {line_idx + 1}: Material '{mat_name}' - Mục 'mid' bắt buộc phải có dữ liệu (không được để trống 'mid:' hoặc để rỗng 'mid: ""')."
                             })
 
-                    # Check high: không được để trống 'high:' (có thể để rỗng 'high: ""')
-                    if 'high' not in val_keys:
-                        result['errors'].append({
-                            'lineIndex': value_node.start_mark.line,
-                            'line_number': value_node.start_mark.line + 1,
-                            'type': 'material_value_high_missing',
-                            'message': f"Dòng {value_node.start_mark.line + 1}: Material '{mat_name}' - Mục 'value' thiếu thuộc tính 'high' (có thể để rỗng 'high: ""')."
-                        })
-                    else:
-                        k_n, v_n = val_keys['high']
-                        line_idx = k_n.start_mark.line
-                        is_null = (getattr(v_n, 'tag', '') == 'tag:yaml.org,2002:null')
-                        if is_null:
-                            result['errors'].append({
-                                'lineIndex': line_idx,
-                                'line_number': line_idx + 1,
-                                'type': 'material_value_high_null',
-                                'message': f"Dòng {line_idx + 1}: Material '{mat_name}' - Mục 'high' không được để trống 'high:' (có thể để rỗng 'high: ""' nếu không có giá trị)."
-                            })
-
-                    # Check low: không được để trống 'low:' (có thể để rỗng 'low: ""')
-                    if 'low' not in val_keys:
-                        result['errors'].append({
-                            'lineIndex': value_node.start_mark.line,
-                            'line_number': value_node.start_mark.line + 1,
-                            'type': 'material_value_low_missing',
-                            'message': f"Dòng {value_node.start_mark.line + 1}: Material '{mat_name}' - Mục 'value' thiếu thuộc tính 'low' (có thể để rỗng 'low: ""')."
-                        })
-                    else:
-                        k_n, v_n = val_keys['low']
-                        line_idx = k_n.start_mark.line
-                        is_null = (getattr(v_n, 'tag', '') == 'tag:yaml.org,2002:null')
-                        if is_null:
-                            result['errors'].append({
-                                'lineIndex': line_idx,
-                                'line_number': line_idx + 1,
-                                'type': 'material_value_low_null',
-                                'message': f"Dòng {line_idx + 1}: Material '{mat_name}' - Mục 'low' không được để trống 'low:' (có thể để rỗng 'low: ""' nếu không có giá trị)."
-                            })
+                    # Lưu ý: Mục 'high' và 'low' trong materials được phép để trống ('high: ', 'low: ') hoặc không khai báo
 
             walk_materials(composed_tree)
     except Exception as e:
