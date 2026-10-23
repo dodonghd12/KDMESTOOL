@@ -5245,6 +5245,7 @@ def fetch_technical_specifications():
         'product_types': data.get('product_types', []),
         'config_map': data.get('config_map', {}),
         'keys_by_product_type': data.get('keys_by_product_type', {}),
+        'resource_map': data.get('resource_map', {}),
         'limitary_hours': data.get('limitary_hours', {}),
         'expdays': data.get('expdays', {}),
         'columns': ['key', 'VN', 'CN', 'TW', 'EN', 'ID']
