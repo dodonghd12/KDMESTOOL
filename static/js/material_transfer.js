@@ -247,14 +247,6 @@ async function fetchFailedMaterialTransfers() {
         );
 
         applyMaterialTransferTableEnhancements();
-
-        if (typeof Toast !== 'undefined') {
-            if (formattedRows.length > 0) {
-                Toast.success('Thành công', `Đã tải ${formattedRows.length} giao dịch vận chuyển FAILED`);
-            } else {
-                Toast.info('Thông báo', 'Không có giao dịch nào có trạng thái FAILED');
-            }
-        }
     } catch (error) {
         console.error('Error fetching failed material transfers:', error);
         if (typeof Toast !== 'undefined') {
