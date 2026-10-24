@@ -21,8 +21,12 @@
     <div class="container check-kd-account-container" autocomplete="off">
         <!-- ── TOP SEARCH & FILTER BAR ── -->
         <div class="search-section" style="padding-top: 6px;">
-            <div class="search-row check-account-search-col">
-                <div class="input-box">
+            <div class="search-row check-account-search-col" style="display: flex; align-items: center; gap: 8px;">
+                <button type="button" id="btnFetchAllAccounts" class="winx-btn winx-btn-primary btn-refresh" style="height: 38px; padding: 0 14px; font-size: 13px; font-weight: 700; flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px;" aria-label="Tải toàn bộ tài khoản" title="Tải toàn bộ tài khoản từ kvmes.account">
+                    <span class="material-symbols-outlined" id="btnFetchAllAccountsIcon" style="font-size: 18px !important;">group</span>
+                    <span>Tất cả</span>
+                </button>
+                <div class="input-box" style="flex: 1;">
                     <input required placeholder=" " type="text" id="accountIdInput" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="input">
                     <label class="user-label">Tên tài khoản</label>
                 </div>

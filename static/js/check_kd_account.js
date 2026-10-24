@@ -85,6 +85,14 @@
             }, 100);
         }
 
+        const btnFetchAll = document.getElementById('btnFetchAllAccounts');
+        if (btnFetchAll) {
+            btnFetchAll.addEventListener('click', (e) => {
+                e.preventDefault();
+                fetchAllAccountRecords();
+            });
+        }
+
         if (exportBtn) {
             exportBtn.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -100,6 +108,130 @@
     });
 
     // ── 4. API CALL & DATA FETCHING ─────────────────────────────────────────────
+    async function fetchAllAccountRecords() {
+        if (isFetchingAccounts) return;
+        isFetchingAccounts = true;
+
+        const btn = document.getElementById('btnFetchAllAccounts');
+        const icon = document.getElementById('btnFetchAllAccountsIcon');
+        if (btn) btn.disabled = true;
+        if (icon) icon.classList.add('time-turner-spin');
+
+        const container = document.getElementById('checkAccountTableContainer');
+        const tbody = document.getElementById('checkAccountTableBody');
+        const rowCount = document.getElementById('rowCount');
+
+        closeRoleDropdown();
+
+        if (container) {
+            container.classList.remove('hidden');
+            container.style.display = 'flex';
+        }
+
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="4" style="text-align: center; padding: 48px 16px; color: var(--color-text-muted);">
+                        <span class="material-symbols-outlined" style="font-size: 36px; animation: spin 1s linear infinite; display: block; margin: 0 auto 12px; color: #3b82f6;">progress_activity</span>
+                        <div style="font-size: 14px; font-weight: 500;">Đang tải toàn bộ tài khoản từ kvmes.account...</div>
+                    </td>
+                </tr>
+            `;
+        }
+
+        try {
+            const res = await fetch('/api/account/fetch-all-accounts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            let data = null;
+            try {
+                data = await res.json();
+            } catch (e) {
+                if (typeof isUnauthorizedResponse === 'function' && isUnauthorizedResponse(res.status, null)) {
+                    if (typeof showAuthExpiredModal === 'function') showAuthExpiredModal();
+                    throw new Error('Phiên đăng nhập đã hết hạn');
+                }
+                if (!res.ok) throw new Error(`Lỗi máy chủ (${res.status})`);
+            }
+
+            if (typeof isUnauthorizedResponse === 'function' && isUnauthorizedResponse(res.status, data)) {
+                if (typeof showAuthExpiredModal === 'function') showAuthExpiredModal(data ? data.message : null);
+                throw new Error(data ? data.message : 'Unauthorized');
+            }
+
+            if (!data || !data.success) {
+                throw new Error(data ? data.message : 'Không nhận được dữ liệu từ máy chủ');
+            }
+
+            // Map and initialize record objects
+            allAccountRecords = (data.result || []).map(item => {
+                let initialRoles = [];
+                if (Array.isArray(item.roles_list)) {
+                    initialRoles = item.roles_list.map(Number).filter(n => !isNaN(n));
+                } else if (typeof item.roles === 'string' && item.roles.startsWith('{')) {
+                    initialRoles = item.roles.replace(/[{}]/g, '').split(',').map(x => parseInt(x.trim(), 10)).filter(x => !isNaN(x));
+                }
+                initialRoles.sort((a, b) => a - b);
+
+                const pwd = item.password !== undefined && item.password !== null ? String(item.password) : '-';
+
+                return {
+                    id: String(item.id || '').trim(),
+                    department_id: String(item.department_id || '-').trim(),
+                    originalPassword: pwd,
+                    originalRoles: [...initialRoles],
+                    currentPassword: pwd,
+                    currentRoles: [...initialRoles],
+                    isRevealed: false,
+                    isEditingPassword: false,
+                    editPasswordValue: pwd,
+                    passwordModified: false,
+                    rolesModified: false,
+                    isDirty: false
+                };
+            });
+
+            checkAndUpdateDirtyState();
+            const clientSearchInp = document.getElementById('clientSearch');
+            if (allAccountRecords.length > 0) {
+                if (container) {
+                    container.classList.remove('hidden');
+                    container.style.display = 'flex';
+                }
+                if (clientSearchInp) {
+                    clientSearchInp.disabled = false;
+                    clientSearchInp.removeAttribute('disabled');
+                }
+            }
+            applyClientFilter();
+
+            if (typeof Toast !== 'undefined') {
+                Toast.success('Thành công', `Đã tải toàn bộ ${allAccountRecords.length} tài khoản từ kvmes.account`);
+            }
+        } catch (err) {
+            console.error('Lỗi khi tải toàn bộ tài khoản:', err);
+            if (typeof Toast !== 'undefined') {
+                Toast.error('Lỗi tra cứu', err.message || 'Không thể kết nối đến máy chủ');
+            }
+            if (tbody) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="4" style="text-align: center; padding: 48px 16px; color: #f87171;">
+                            <span class="material-symbols-outlined" style="font-size: 36px; opacity: 0.7; display: block; margin-bottom: 8px;">error</span>
+                            <div style="font-size: 14px; font-weight: 500;">${typeof escapeHtml === 'function' ? escapeHtml(err.message) : err.message}</div>
+                        </td>
+                    </tr>
+                `;
+            }
+        } finally {
+            isFetchingAccounts = false;
+            if (btn) btn.disabled = false;
+            if (icon) icon.classList.remove('time-turner-spin');
+        }
+    }
+
     async function fetchAccountRecords(query, isManualSubmit = false) {
         if (isFetchingAccounts) return;
         lastQueryTerm = query;

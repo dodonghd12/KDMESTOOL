@@ -919,7 +919,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.49"
+APP_VERSION = "2.3.50"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -3933,6 +3933,52 @@ def get_material_transfer():
     except Exception as e:
         logger.error(f"Error fetching material transfer: {e}")
         return jsonify({'success': False, 'message': f'Lỗi truy vấn: {str(e)}'}), 500
+
+
+@app.route('/api/material-transfer/failed', methods=['GET', 'POST'])
+@login_required
+def api_material_transfer_failed():
+    """Lấy danh sách các giao dịch chuyển kho có trạng thái FAILED từ kvmes.material_resource_transaction."""
+    try:
+        query = """
+            SELECT 
+                material_resource_oid, 
+                from_location_oid, 
+                to_location_oid, 
+                status, 
+                transaction_time, 
+                created_at, 
+                created_by
+            FROM kvmes.material_resource_transaction
+            WHERE UPPER(TRIM(status)) = 'FAILED'
+            ORDER BY created_at DESC;
+        """
+        result, column_names = execute_pg_select_query(query)
+        default_cols = [
+            'material_resource_oid', 'from_location_oid', 'to_location_oid',
+            'status', 'transaction_time', 'created_at', 'created_by'
+        ]
+        if result:
+            convert_columns = ["transaction_time", "created_at"]
+            result = convert_timestamp(result, column_names, convert_columns)
+            serialized_result = [serialize_row(list(row), column_names) for row in result]
+            return jsonify({
+                'success': True,
+                'result': serialized_result,
+                'columns': column_names or default_cols,
+                'total': len(serialized_result)
+            })
+        else:
+            return jsonify({
+                'success': True,
+                'result': [],
+                'columns': default_cols,
+                'total': 0
+            })
+    except Exception as e:
+        logger.error(f"Error fetching failed material transfers: {e}", exc_info=True)
+        return jsonify({'success': False, 'message': f'Lỗi truy vấn giao dịch FAILED: {str(e)}'}), 500
+
 
 @app.route('/api/material-transfer/retry-failed', methods=['POST'])
 @login_required
@@ -8390,6 +8436,74 @@ def api_check_kd_account():
             'success': False,
             'message': f'Lỗi hệ thống khi tra cứu tài khoản: {str(e)}',
             'error_type': 'exception'
+        }), 500
+
+
+@app.route('/api/account/fetch-all-accounts', methods=['GET', 'POST'])
+@login_required
+def api_fetch_all_accounts():
+    """Tải toàn bộ danh sách tài khoản từ bảng kvmes.account."""
+    try:
+        sql = """
+        SELECT 
+            a.id, 
+            a.password, 
+            a.roles, 
+            u.department_id, 
+            u.active_directory_account
+        FROM kvmes.account a
+        LEFT JOIN kvmes."user" u ON a.id = u.id
+        ORDER BY a.id ASC;
+        """
+        rows, cols = execute_pg_select_query(sql)
+
+        result_list = []
+        for r in (rows or []):
+            acc_id = str(r[0] or '').strip()
+            raw_pwd = r[1]
+            roles_val = r[2]
+            dept_id = str(r[3] or '').strip() if r[3] is not None else '-'
+            ad_account = str(r[4] or '').strip() if r[4] is not None else '-'
+
+            roles_list = []
+            if isinstance(roles_val, (list, tuple, set)):
+                for x in roles_val:
+                    try:
+                        roles_list.append(int(x))
+                    except (ValueError, TypeError):
+                        pass
+                roles_str = '{' + ','.join(str(x) for x in roles_list) + '}'
+            elif roles_val is not None:
+                try:
+                    roles_list = [int(roles_val)]
+                except (ValueError, TypeError):
+                    roles_list = []
+                roles_str = str(roles_val)
+            else:
+                roles_str = '-'
+
+            pwd_resolved = resolve_mes_account_password(acc_id, raw_pwd)
+
+            result_list.append({
+                'id': acc_id,
+                'password': pwd_resolved,
+                'roles': roles_str,
+                'roles_list': roles_list,
+                'department_id': dept_id or '-',
+                'active_directory_account': ad_account or '-'
+            })
+
+        return jsonify({
+            'success': True,
+            'result': result_list,
+            'total': len(result_list)
+        })
+
+    except Exception as e:
+        app.logger.error(f"Lỗi API fetch-all-accounts: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'message': f'Lỗi hệ thống khi tải toàn bộ tài khoản: {str(e)}'
         }), 500
 
 

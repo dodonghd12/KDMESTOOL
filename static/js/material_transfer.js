@@ -75,6 +75,15 @@ function initializeMaterialTransferEventListeners() {
         });
     }
 
+    // 3.5. Button fetch FAILED material transfers
+    const btnFailed = document.getElementById('btnFailedTransfers');
+    if (btnFailed) {
+        btnFailed.addEventListener('click', function(e) {
+            e.preventDefault();
+            fetchFailedMaterialTransfers();
+        });
+    }
+
     // 4. Handle click on retry button in FAILED status rows
     document.addEventListener('click', async function (e) {
         const btn = e.target.closest('.material-transfer-retry-btn');
@@ -166,6 +175,96 @@ function initializeMaterialTransferEventListeners() {
             if (typeof Toast !== 'undefined') Toast.error('Lỗi kết nối', 'Không thể gửi yêu cầu cập nhật trạng thái');
         }
     });
+}
+
+async function fetchFailedMaterialTransfers() {
+    const btn = document.getElementById('btnFailedTransfers');
+    const icon = document.getElementById('btnFailedTransfersIcon');
+    if (btn) btn.disabled = true;
+    if (icon) icon.classList.add('is-spinning');
+
+    if (typeof showTableSkeleton === 'function') {
+        showTableSkeleton(7, 8);
+    }
+
+    try {
+        const response = await fetch('/api/material-transfer/failed', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        let data = null;
+        try {
+            data = await response.json();
+        } catch (e) { }
+
+        if (typeof isUnauthorizedResponse === 'function' && isUnauthorizedResponse(response.status, data)) {
+            if (typeof showAuthExpiredModal === 'function') {
+                showAuthExpiredModal(data ? data.message : null);
+            }
+            clearTable();
+            return;
+        }
+
+        if (!response.ok || (data && data.success === false)) {
+            if (typeof Toast !== 'undefined') {
+                Toast.error('Lỗi truy vấn', (data && data.message) ? data.message : `Lỗi (${response.status})`);
+            }
+            clearTable();
+            return;
+        }
+
+        const rawRows = (data && Array.isArray(data.result)) ? data.result : [];
+        const rawCols = (data && Array.isArray(data.columns)) ? data.columns : [];
+        currentRawCols = rawCols;
+
+        const displayColumns = rawCols.map(c => COLUMN_HEADERS_MAP[c] || c);
+
+        const fromLocIdx = rawCols.indexOf('from_location_oid');
+        const toLocIdx = rawCols.indexOf('to_location_oid');
+
+        const formattedRows = rawRows.map(row => {
+            const newRow = Array.isArray(row) ? [...row] : Object.values(row);
+            if (fromLocIdx !== -1 && newRow[fromLocIdx] != null) {
+                const rawVal = String(newRow[fromLocIdx]).trim();
+                const locName = LOCATION_NAME_MAP[rawVal];
+                if (locName) newRow[fromLocIdx] = `${locName} (${rawVal})`;
+            }
+            if (toLocIdx !== -1 && newRow[toLocIdx] != null) {
+                const rawVal = String(newRow[toLocIdx]).trim();
+                const locName = LOCATION_NAME_MAP[rawVal];
+                if (locName) newRow[toLocIdx] = `${locName} (${rawVal})`;
+            }
+            return newRow;
+        });
+
+        setTableData(
+            formattedRows,
+            displayColumns,
+            'material_transfer',
+            'Không có giao dịch nào bị FAILED',
+            `Tìm thấy ${formattedRows.length} giao dịch vận chuyển FAILED`
+        );
+
+        applyMaterialTransferTableEnhancements();
+
+        if (typeof Toast !== 'undefined') {
+            if (formattedRows.length > 0) {
+                Toast.success('Thành công', `Đã tải ${formattedRows.length} giao dịch vận chuyển FAILED`);
+            } else {
+                Toast.info('Thông báo', 'Không có giao dịch nào có trạng thái FAILED');
+            }
+        }
+    } catch (error) {
+        console.error('Error fetching failed material transfers:', error);
+        if (typeof Toast !== 'undefined') {
+            Toast.error('Lỗi', 'Lỗi kết nối khi tải danh sách giao dịch FAILED');
+        }
+        clearTable();
+    } finally {
+        if (btn) btn.disabled = false;
+        if (icon) icon.classList.remove('is-spinning');
+    }
 }
 
 async function searchMaterialTransfer() {
