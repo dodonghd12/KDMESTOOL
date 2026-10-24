@@ -5894,7 +5894,7 @@ def check_reprint_account_permission(username: str):
     """
     Kiểm tra quyền in lại tem KD trong bảng kvmes.account:
     - Nếu username không tồn tại: (False, 'Account KD không tồn tại, vui lòng liên hệ IT!', 400)
-    - Nếu username không có role 7: (False, 'Account không có quyền thực hiện in lại tem KD!', 403)
+    - Nếu username không có ít nhất 1 trong các role (1, 2, 12): (False, 'Account không có quyền thực hiện in lại tem KD!', 403)
     - Hợp lệ: (True, clean_id, 200)
     """
     uname = str(username or '').strip()
@@ -5908,17 +5908,18 @@ def check_reprint_account_permission(username: str):
             return False, 'Account KD không tồn tại, vui lòng liên hệ IT!', 400
 
         raw_roles = acc_rows[0][1]
-        has_role_7 = False
+        allowed_roles = {1, 2, 12}
+        has_permission = False
         if isinstance(raw_roles, (list, tuple, set)):
-            has_role_7 = (7 in raw_roles or '7' in raw_roles)
+            has_permission = any(int(r) in allowed_roles for r in raw_roles if str(r).strip().isdigit())
         elif isinstance(raw_roles, str):
             cleaned = raw_roles.strip('{}[]() ')
             parts = [p.strip() for p in cleaned.split(',') if p.strip()]
-            has_role_7 = ('7' in parts or 7 in parts)
+            has_permission = any(int(p) in allowed_roles for p in parts if str(p).strip().isdigit())
         elif isinstance(raw_roles, (int, float)):
-            has_role_7 = (int(raw_roles) == 7)
+            has_permission = (int(raw_roles) in allowed_roles)
 
-        if not has_role_7:
+        if not has_permission:
             return False, 'Account không có quyền thực hiện in lại tem KD!', 403
 
         clean_id = str(acc_rows[0][0] or uname).strip()
