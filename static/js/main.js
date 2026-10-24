@@ -7122,7 +7122,11 @@ function renderOutputBarcodeTable(rows, columns) {
             if (isMissingCollect && valIdx === barcodeColIdx && cellValue !== '-') {
                 td.innerHTML = `<div style="display:inline-flex; align-items:center; gap:6px;">
                     <span style="font-weight:600; color:#b45309;">${escapeHtml(cellValue)}</span>
-                    <span class="badge" style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; font-size:10px; font-weight:700; padding:1px 5px; border-radius:3px; white-space:nowrap;" title="Lỗi MES: Chưa lưu collect_record / Chưa in tem giấy">CHƯA IN TEM</span>
+                    <span class="badge-missing-collect" data-barcode="${escapeHtml(cellValue)}" data-type="main" title="Nhấn giữ 2 giây để tự động khắc phục tem lỗi">
+                        <span class="badge-text">LỖI</span>
+                        <span class="material-symbols-outlined badge-icon">sync</span>
+                        <span class="badge-hold-progress"></span>
+                    </span>
                 </div>`;
             } else if (isMissingCollect && valIdx === collectQtyIdx && cellValue === '-') {
                 td.innerHTML = `<span style="color:#d97706; font-style:italic; font-size:12px;" title="Lỗi MES: Chưa lưu collect_record">- (Chưa lưu)</span>`;
@@ -7144,28 +7148,7 @@ function renderOutputBarcodeTable(rows, columns) {
     const count = rows.length;
     if (rowCount) rowCount.textContent = count;
 
-    // Check missing collect records for fix button
-    const fixBtn = document.getElementById('fixOutputMissingCollectBtn');
-    const missingBarcodes = [];
-    if (collectQtyIdx >= 0 && Array.isArray(rows)) {
-        rows.forEach(r => {
-            const q = r[collectQtyIdx];
-            if (q === null || q === undefined || String(q).trim() === '' || String(q).trim() === '-') {
-                const bc = barcodeColIdx >= 0 ? r[barcodeColIdx] : null;
-                if (bc) missingBarcodes.push(bc);
-            }
-        });
-    }
 
-    if (fixBtn) {
-        if (missingBarcodes.length > 0) {
-            fixBtn.style.display = 'inline-flex';
-            fixBtn.innerHTML = `<span class="material-symbols-outlined" style="font-size: 16px;">playlist_add_check</span><span>Bổ sung Collect Record (${missingBarcodes.length})</span>`;
-            fixBtn.onclick = () => handleFixMissingCollectRecords(missingBarcodes, 'main');
-        } else {
-            fixBtn.style.display = 'none';
-        }
-    }
 
     updateOutputVisibleRowCount();
     updateTableStickyOffsets();
@@ -7328,7 +7311,11 @@ function renderSubOutputBarcodeTable(rows, columns) {
             if (isMissingCollect && valIdx === barcodeColIdx && cellValue !== '-') {
                 td.innerHTML = `<div style="display:inline-flex; align-items:center; gap:6px;">
                     <span style="font-weight:600; color:#b45309;">${escapeHtml(cellValue)}</span>
-                    <span class="badge" style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; font-size:10px; font-weight:700; padding:1px 5px; border-radius:3px; white-space:nowrap;" title="Lỗi MES: Chưa lưu collect_record / Chưa in tem giấy">CHƯA IN TEM</span>
+                    <span class="badge-missing-collect" data-barcode="${escapeHtml(cellValue)}" data-type="sub" title="Nhấn giữ 2 giây để tự động khắc phục tem lỗi">
+                        <span class="badge-text">LỖI</span>
+                        <span class="material-symbols-outlined badge-icon">sync</span>
+                        <span class="badge-hold-progress"></span>
+                    </span>
                 </div>`;
             } else if (isMissingCollect && valIdx === collectQtyIdx && cellValue === '-') {
                 td.innerHTML = `<span style="color:#d97706; font-style:italic; font-size:12px;" title="Lỗi MES: Chưa lưu collect_record">- (Chưa lưu)</span>`;
@@ -7350,62 +7337,38 @@ function renderSubOutputBarcodeTable(rows, columns) {
     const count = rows.length;
     if (rowCount) rowCount.textContent = count;
 
-    // Check missing collect records for sub fix button
-    const subFixBtn = document.getElementById('fixSubOutputMissingCollectBtn');
-    const subMissingBarcodes = [];
-    if (collectQtyIdx >= 0 && Array.isArray(rows)) {
-        rows.forEach(r => {
-            const q = r[collectQtyIdx];
-            if (q === null || q === undefined || String(q).trim() === '' || String(q).trim() === '-') {
-                const bc = barcodeColIdx >= 0 ? r[barcodeColIdx] : null;
-                if (bc) subMissingBarcodes.push(bc);
-            }
-        });
-    }
 
-    if (subFixBtn) {
-        if (subMissingBarcodes.length > 0) {
-            subFixBtn.style.display = 'inline-flex';
-            subFixBtn.innerHTML = `<span class="material-symbols-outlined" style="font-size: 16px;">playlist_add_check</span><span>Bổ sung Collect Record (${subMissingBarcodes.length})</span>`;
-            subFixBtn.onclick = () => handleFixMissingCollectRecords(subMissingBarcodes, 'sub');
-        } else {
-            subFixBtn.style.display = 'none';
-        }
-    }
 
     updateSubOutputVisibleRowCount();
     updateTableStickyOffsets();
 }
 
-async function handleFixMissingCollectRecords(missingBarcodes = [], type = 'main') {
+async function triggerFixCollectBadge(badgeEl) {
+    if (!badgeEl || badgeEl.classList.contains('is-loading')) return;
+
+    const barcode = badgeEl.dataset.barcode;
+    const type = badgeEl.dataset.type || 'main';
     const workOrderId = (type === 'main' ? currentMainWorkOrderId : currentSubWorkOrderId) || (selectedRowData ? (selectedRowData['id'] || selectedRowData['work_order']) : null);
+
     if (!workOrderId) {
         Toast.warning('Cảnh báo', 'Không xác định được mã đơn điều động!');
         return;
     }
 
-    const count = missingBarcodes.length;
-    const barcodeListStr = missingBarcodes.slice(0, 5).join(', ') + (count > 5 ? ` ... và ${count - 5} tem khác` : '');
+    badgeEl.classList.add('is-loading');
 
-    const confirmed = await showConfirm(
-        `Phát hiện ${count} tem chưa lưu collect_record cho đơn "${workOrderId}":\n\n${barcodeListStr}\n\nBạn có chắc chắn muốn bổ sung vào bảng kvmes.collect_record và đồng bộ trạng thái batch MES?`
-    );
-    if (!confirmed) return;
-
-    showLoading();
     try {
         const resp = await apiFetch('/api/workorders/fix-missing-collect-records', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 work_order_id: workOrderId,
-                barcodes: missingBarcodes
+                barcodes: barcode ? [barcode] : []
             })
         });
-        hideLoading();
 
         if (resp && resp.success) {
-            Toast.success('Thành công', resp.message || `Đã bổ sung thành công ${resp.inserted_count || count} bản ghi collect_record!`);
+            Toast.success('Thành công', resp.message || `Đã khắc phục thành công tem ${barcode || ''}!`);
             if (type === 'main') {
                 if (typeof fetchOutputBarcodeByMainWorkOrder === 'function') {
                     fetchOutputBarcodeByMainWorkOrder(workOrderId);
@@ -7416,14 +7379,70 @@ async function handleFixMissingCollectRecords(missingBarcodes = [], type = 'main
                 }
             }
         } else {
-            Toast.error('Lỗi', (resp && resp.message) ? resp.message : 'Không thể bổ sung collect_record');
+            badgeEl.classList.remove('is-loading');
+            Toast.error('Lỗi', (resp && resp.message) ? resp.message : 'Không thể khắc phục tem lỗi');
         }
     } catch (err) {
-        hideLoading();
+        badgeEl.classList.remove('is-loading');
         Toast.error('Lỗi', err.message || 'Lỗi khi gọi API bổ sung collect_record');
     }
 }
-window.handleFixMissingCollectRecords = handleFixMissingCollectRecords;
+window.triggerFixCollectBadge = triggerFixCollectBadge;
+
+// Global hold 2s listener for .badge-missing-collect
+let activeHoldBadge = null;
+let activeHoldTimer = null;
+
+function clearBadgeHold() {
+    if (activeHoldTimer) {
+        clearTimeout(activeHoldTimer);
+        activeHoldTimer = null;
+    }
+    if (activeHoldBadge) {
+        activeHoldBadge.classList.remove('is-holding');
+        activeHoldBadge = null;
+    }
+}
+
+document.addEventListener('mousedown', (e) => {
+    const badge = e.target.closest('.badge-missing-collect');
+    if (!badge || e.button !== 0 || badge.classList.contains('is-loading')) return;
+
+    clearBadgeHold();
+    activeHoldBadge = badge;
+    badge.classList.add('is-holding');
+
+    activeHoldTimer = setTimeout(() => {
+        const targetBadge = activeHoldBadge;
+        clearBadgeHold();
+        if (targetBadge) {
+            triggerFixCollectBadge(targetBadge);
+        }
+    }, 2000);
+});
+
+document.addEventListener('mouseup', clearBadgeHold);
+document.addEventListener('mouseleave', clearBadgeHold);
+
+document.addEventListener('touchstart', (e) => {
+    const badge = e.target.closest('.badge-missing-collect');
+    if (!badge || badge.classList.contains('is-loading')) return;
+
+    clearBadgeHold();
+    activeHoldBadge = badge;
+    badge.classList.add('is-holding');
+
+    activeHoldTimer = setTimeout(() => {
+        const targetBadge = activeHoldBadge;
+        clearBadgeHold();
+        if (targetBadge) {
+            triggerFixCollectBadge(targetBadge);
+        }
+    }, 2000);
+}, { passive: true });
+
+document.addEventListener('touchend', clearBadgeHold);
+document.addEventListener('touchcancel', clearBadgeHold);
 
 function initClientSearch() {
     const searchInput = document.getElementById('clientSearch');
