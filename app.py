@@ -919,7 +919,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.51"
+APP_VERSION = "2.3.55"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -2960,12 +2960,14 @@ def fetch_output_barcode_by_work_order():
         return jsonify({'success': False, 'message': 'Thiếu Work Order ID'})
 
     try:
-        query = """
+        # 1. Tra cứu tem đầu ra từ kvmes.collect_record (quy trình in chuẩn)
+        query_cr = """
             SELECT
                 mr.id AS barcode,
                 mr.product_id,
                 mr.product_type,
                 COALESCE((cr.detail->>'quantity')::numeric, mr.quantity) AS quantity,
+                mr.initial_quantity,
                 (cr.detail->>'quantity') AS collect_quantity,
                 mr.expiry_time,
                 COALESCE(mr.created_at, cr.created_at) AS created_at,
@@ -2981,24 +2983,309 @@ def fetch_output_barcode_by_work_order():
             ORDER BY cr.sequence ASC
         """
 
-        result, column_names = execute_pg_select_query(query, (raw_work_order_id, clean_work_order_id, clean_work_order_id))
-        if not result:
+        result_cr, column_names = execute_pg_select_query(query_cr, (raw_work_order_id, clean_work_order_id, clean_work_order_id))
+        result_cr = result_cr or []
+        base_cols = list(column_names) if column_names else [
+            'barcode', 'product_id', 'product_type', 'quantity', 'initial_quantity', 'collect_quantity',
+            'expiry_time', 'created_at', 'lot_number', 'status', 'created_by', 'station', 'info'
+        ]
+
+        # 2. Tra cứu kvmes.batch theo work order (sử dụng index batch_pkey / idx_batch_trim_wo: 0.1ms)
+        query_batch = """
+            SELECT "number", status, records_id 
+            FROM kvmes.batch 
+            WHERE work_order = %s OR work_order = %s OR btrim(work_order) = btrim(%s)
+            ORDER BY "number" ASC
+        """
+        b_rows, _ = execute_pg_select_query(query_batch, (raw_work_order_id, clean_work_order_id, clean_work_order_id))
+        
+        patterns = []
+        for b_num, b_stat, r_ids in (b_rows or []):
+            for rid in (r_ids or []):
+                patterns.append(f'%{rid}%')
+
+        batch_mr_rows = []
+        mr_cols = []
+        if patterns:
+            # Tra cứu material_resource qua GIN trgm index idx_material_resource_feed_records_trgm (chỉ mất ~100ms thay vì seq scan 36tr dòng)
+            query_mr = """
+                SELECT 
+                    mr.id AS barcode,
+                    mr.product_id,
+                    mr.product_type,
+                    mr.quantity,
+                    mr.initial_quantity,
+                    NULL::text AS collect_quantity,
+                    mr.expiry_time,
+                    mr.created_at,
+                    mr.info->>'lot_number' AS lot_number,
+                    mr.status,
+                    mr.created_by,
+                    mr.info->'production_info'->>'station' AS station,
+                    mr.info,
+                    mr.feed_records_id
+                FROM kvmes.material_resource mr
+                WHERE kvmes.immutable_array_to_string(mr.feed_records_id, ' ') LIKE ANY(%s)
+                ORDER BY mr.created_at ASC
+            """
+            mr_rows, mr_cols = execute_pg_select_query(query_mr, (patterns,))
+            batch_mr_rows = mr_rows or []
+
+        found_barcodes = set()
+        barcode_idx = base_cols.index('barcode') if 'barcode' in base_cols else 0
+
+        combined_rows = []
+        # Các dòng đã lưu collect_record thành công
+        for cr_row in result_cr:
+            row_list = list(cr_row)
+            bc = row_list[barcode_idx] if barcode_idx < len(row_list) else None
+            if bc:
+                found_barcodes.add(bc)
+            combined_rows.append(row_list)
+
+        # Các dòng từ batch bị thiếu collect_record (collect_quantity = null)
+        if batch_mr_rows and mr_cols:
+            bc_idx = mr_cols.index('barcode')
+            for r in batch_mr_rows:
+                code = r[bc_idx]
+                if code and code not in found_barcodes:
+                    found_barcodes.add(code)
+                    new_row = [
+                        r[mr_cols.index('barcode')],
+                        r[mr_cols.index('product_id')],
+                        r[mr_cols.index('product_type')],
+                        r[mr_cols.index('quantity')],
+                        r[mr_cols.index('initial_quantity')],
+                        None,  # collect_quantity chưa có do lỗi collect_record
+                        r[mr_cols.index('expiry_time')],
+                        r[mr_cols.index('created_at')],
+                        r[mr_cols.index('lot_number')],
+                        r[mr_cols.index('status')],
+                        r[mr_cols.index('created_by')],
+                        r[mr_cols.index('station')],
+                        r[mr_cols.index('info')]
+                    ]
+                    combined_rows.append(new_row)
+
+        if not combined_rows:
             return jsonify({'success': False, 'message': 'Đơn điều động không có tem đầu ra'})
 
+        final_columns = base_cols
         convert_columns = ["created_at", "expiry_time"]
-        result = convert_timestamp(result, column_names, convert_columns)
-        serialized_result = [serialize_row(row) for row in result]
+        converted_result = convert_timestamp(combined_rows, final_columns, convert_columns)
+        serialized_result = [serialize_row(row) for row in converted_result]
 
         return jsonify({
             'success': True,
             'result': serialized_result,
-            'columns': column_names
+            'columns': final_columns
         })
 
     except Exception as e:
         return jsonify({
             'success': False,
             'message': f'Lỗi: {str(e)}'
+        })
+
+
+@app.route('/api/workorders/fix-missing-collect-records', methods=['POST'])
+@login_required
+def api_fix_missing_collect_records():
+    """
+    Bổ sung các bản ghi collect_record bị thiếu vào kvmes.collect_record
+    cho các tem đã sản xuất (có trong material_resource / batch) nhưng chưa lưu collect_record.
+    Đồng thời cập nhật kvmes.batch.status = 2.
+    """
+    data = request.get_json() or {}
+    work_order_id = str(data.get('work_order_id') or '').strip()
+    target_barcodes = data.get('barcodes') or []
+    username = str(data.get('username') or session.get('user_id') or '').strip()
+
+    if not work_order_id:
+        return jsonify({'success': False, 'message': 'Thiếu mã đơn điều động (work_order_id)'})
+
+    try:
+        # 1. Tìm các batch của đơn
+        query_batch = """
+            SELECT "number", status, records_id 
+            FROM kvmes.batch 
+            WHERE work_order = %s OR work_order = %s OR btrim(work_order) = btrim(%s)
+            ORDER BY "number" ASC
+        """
+        b_rows, _ = execute_pg_select_query(query_batch, (work_order_id, work_order_id, work_order_id))
+        patterns = []
+        for b_num, b_stat, r_ids in (b_rows or []):
+            for rid in (r_ids or []):
+                patterns.append(f'%{rid}%')
+
+        if not patterns:
+            return jsonify({'success': False, 'message': 'Không tìm thấy dữ liệu batch của đơn điều động'})
+
+        # 2. Tìm các material_resource của đơn chưa có trong collect_record
+        query_mr = """
+            SELECT 
+                mr.oid,
+                mr.id AS barcode,
+                mr.product_id,
+                mr.product_type,
+                mr.quantity,
+                mr.initial_quantity,
+                mr.expiry_time,
+                mr.created_at,
+                mr.created_by,
+                mr.info,
+                mr.feed_records_id
+            FROM kvmes.material_resource mr
+            WHERE kvmes.immutable_array_to_string(mr.feed_records_id, ' ') LIKE ANY(%s)
+              AND NOT EXISTS (
+                  SELECT 1 FROM kvmes.collect_record cr
+                  WHERE cr.resource_oid = mr.oid
+              )
+            ORDER BY mr.created_at ASC
+        """
+        mr_rows, mr_cols = execute_pg_select_query(query_mr, (patterns,))
+        if not mr_rows:
+            return jsonify({'success': False, 'message': 'Không có tem nào bị thiếu collect_record cho đơn này.'})
+
+        missing_mrs = [dict(zip(mr_cols, r)) for r in mr_rows]
+        if target_barcodes:
+            clean_targets = {str(b).strip() for b in target_barcodes if str(b).strip()}
+            missing_mrs = [m for m in missing_mrs if m['barcode'] in clean_targets]
+            if not missing_mrs:
+                return jsonify({'success': False, 'message': 'Các mã barcode được chọn không thuộc danh sách tem bị thiếu.'})
+
+        # 3. Lấy thông tin trạm và work_date từ đơn hoặc collect_record hiện có
+        query_wo = """
+            SELECT station, reserved_date, information
+            FROM kvmes.work_order
+            WHERE id = %s OR id = %s OR btrim(id) = btrim(%s)
+            LIMIT 1
+        """
+        wo_rows, _ = execute_pg_select_query(query_wo, (work_order_id, work_order_id, work_order_id))
+        wo_station = wo_rows[0][0] if wo_rows else ''
+        wo_reserved_date = wo_rows[0][1] if wo_rows else None
+
+        # 4. Thực thi Transaction Insert vào kvmes.collect_record và update kvmes.batch
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                # Lấy MAX(sequence) hiện tại
+                cur.execute("""
+                    SELECT COALESCE(MAX(sequence), 0)
+                    FROM kvmes.collect_record
+                    WHERE work_order = %s OR work_order = %s OR btrim(work_order) = btrim(%s)
+                """, (work_order_id, work_order_id, work_order_id))
+                max_seq = cur.fetchone()[0] or 0
+
+                # Lấy work_date và shift_group từ collect_record cũ nếu có
+                cur.execute("""
+                    SELECT work_date, COALESCE((detail->>'shift_group')::int, 2)
+                    FROM kvmes.collect_record
+                    WHERE work_order = %s OR work_order = %s OR btrim(work_order) = btrim(%s)
+                    ORDER BY sequence ASC LIMIT 1
+                """, (work_order_id, work_order_id, work_order_id))
+                cr_ref = cur.fetchone()
+                ref_work_date = cr_ref[0] if cr_ref else None
+                ref_shift = cr_ref[1] if cr_ref else 2
+
+                inserted_items = []
+                now_ns = int(time.time() * 1e9)
+
+                for mr in missing_mrs:
+                    max_seq += 1
+                    mr_oid = mr['oid']
+                    barcode = mr['barcode']
+                    info_raw = mr.get('info')
+                    info_dict = info_raw if isinstance(info_raw, dict) else (json.loads(info_raw) if info_raw else {})
+
+                    lot_number = info_dict.get('lot_number') or ''
+                    prod_info = info_dict.get('production_info') or {}
+                    station = prod_info.get('station') or wo_station or ''
+                    creator = mr.get('created_by') or username or '026379'
+                    created_at_ns = mr.get('created_at') or now_ns
+
+                    # Xác định work_date
+                    if ref_work_date:
+                        work_date = ref_work_date
+                    elif wo_reserved_date:
+                        work_date = str(wo_reserved_date)[:10]
+                    else:
+                        ts_sec = created_at_ns / 1e9 if created_at_ns > 1e15 else created_at_ns
+                        work_date = datetime.fromtimestamp(ts_sec, VN_TZ).strftime('%Y-%m-%d')
+
+                    # Tạo detail JSON
+                    qty_val = mr.get('quantity') or 0
+                    try:
+                        qty_str = str(int(float(qty_val)))
+                    except Exception:
+                        qty_str = str(qty_val)
+
+                    detail_obj = {
+                        "quantity": qty_str,
+                        "batch_count": 0,
+                        "operator_id": creator,
+                        "shift_group": ref_shift,
+                        "uploaded_by": ""
+                    }
+                    new_oid = str(uuid.uuid4())
+
+                    # Insert collect_record
+                    cur.execute("""
+                        INSERT INTO kvmes.collect_record (
+                            work_order, sequence, lot_number, station, resource_oid,
+                            detail, created_at, oid, work_date
+                        ) VALUES (
+                            %s, %s, %s, %s, %s, %s, %s, %s, %s
+                        )
+                    """, (
+                        work_order_id,
+                        max_seq,
+                        lot_number,
+                        station,
+                        mr_oid,
+                        json.dumps(detail_obj),
+                        created_at_ns,
+                        new_oid,
+                        work_date
+                    ))
+
+                    # Update kvmes.batch status = 2
+                    feed_records = mr.get('feed_records_id') or []
+                    if feed_records:
+                        cur.execute("""
+                            UPDATE kvmes.batch
+                            SET status = 2, updated_at = %s, updated_by = %s
+                            WHERE (work_order = %s OR work_order = %s OR btrim(work_order) = btrim(%s))
+                              AND records_id && %s
+                              AND status = 1
+                        """, (now_ns, username or creator, work_order_id, work_order_id, work_order_id, feed_records))
+
+                    inserted_items.append({
+                        'barcode': barcode,
+                        'sequence': max_seq,
+                        'quantity': qty_str
+                    })
+
+                conn.commit()
+
+        # Ghi log file hoạt động
+        try:
+            with open(API_LOG_FILE_PATH, "a", encoding="utf-8") as f:
+                f.write(f"[{datetime.now(VN_TZ).strftime('%Y-%m-%d %H:%M:%S')}] User: {username or 'unknown'} - Action: FIX_MISSING_COLLECT - WO: {work_order_id} - Inserted: {len(inserted_items)} items: {[i['barcode'] for i in inserted_items]}\n")
+        except Exception:
+            pass
+
+        return jsonify({
+            'success': True,
+            'message': f'Đã bổ sung thành công {len(inserted_items)} bản ghi collect_record cho đơn {work_order_id}!',
+            'inserted_count': len(inserted_items),
+            'inserted_items': inserted_items
+        })
+
+    except Exception as e:
+        logger.error(f"Lỗi khi bổ sung collect_record: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'message': f'Lỗi hệ thống khi bổ sung collect_record: {str(e)}'
         })
 
 

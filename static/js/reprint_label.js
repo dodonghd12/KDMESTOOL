@@ -23,6 +23,7 @@
     let selectedBarcode = null;
     let isPrinting = false;
     let isSearching = false;
+    let currentMesWorkOrderId = null;
     let barcodeDebounceTimer = null;
     let mesDebounceTimer = null;
 
@@ -290,6 +291,7 @@
     async function executeMesSearch(workOrderId) {
         if (!workOrderId || isSearching) return;
         isSearching = true;
+        currentMesWorkOrderId = workOrderId;
 
         renderTableSkeleton();
 
@@ -376,6 +378,7 @@
                 selectedBarcode = bc;
             }
 
+
             // Quantity strictly from collect_record
             const collectQty = (item.collect_quantity !== undefined && item.collect_quantity !== null && item.collect_quantity !== '')
                 ? item.collect_quantity
@@ -391,7 +394,9 @@
                         <span>In</span>
                     </button>
                 </td>
-                <td><strong>${bc}</strong></td>
+                <td>
+                    <strong>${bc}</strong>
+                </td>
                 <td><strong>${item.product_id || '-'}</strong></td>
                 <td><span style="font-size:11.5px; font-weight:600; color:#475569;">${item.product_type || '-'}</span></td>
                 <td><strong style="color:#0f766e; font-size:14px;">${collectQty}</strong></td>

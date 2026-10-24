@@ -4705,8 +4705,12 @@ async function fetchOutputBarcodeByWorkOrder(type, rowData = null) {
     }
 }
 
+let currentMainWorkOrderId = null;
+let currentSubWorkOrderId = null;
+
 async function fetchOutputBarcodeByMainWorkOrder(workOrderId = null, workOrderStatus = null) {
     const targetId = workOrderId || (selectedRowData ? (selectedRowData['id'] || selectedRowData['work_order']) : null);
+    currentMainWorkOrderId = targetId;
     const targetStatus = (workOrderStatus !== undefined && workOrderStatus !== null) ? workOrderStatus : (selectedRowData ? selectedRowData['status'] : null);
 
     if (!targetId) {
@@ -7061,8 +7065,20 @@ function renderOutputBarcodeTable(rows, columns) {
     const truncateThreshold = 50;
     const displayLength = 45;
 
+    const barcodeColIdx = (columns && Array.isArray(columns)) ? (columns.indexOf('barcode') >= 0 ? columns.indexOf('barcode') : columns.indexOf('id')) : -1;
+    const collectQtyIdx = (columns && Array.isArray(columns)) ? columns.indexOf('collect_quantity') : -1;
+
     rows.forEach(row => {
         const tr = document.createElement('tr');
+        const rawCollectQty = (collectQtyIdx >= 0) ? row[collectQtyIdx] : null;
+        const isMissingCollect = (collectQtyIdx >= 0 && (rawCollectQty === null || rawCollectQty === undefined || String(rawCollectQty).trim() === '' || String(rawCollectQty).trim() === '-'));
+        if (isMissingCollect) {
+            tr.classList.add('row-missing-collect');
+            tr.style.backgroundColor = 'rgba(245, 158, 11, 0.09)';
+            tr.style.borderLeft = '4px solid #f59e0b';
+            tr.title = 'Lỗi MES: Tem này chưa lưu collect_record và chưa in tem giấy cho xưởng tiếp theo!';
+        }
+
         row.forEach((val, valIdx) => {
             const td = document.createElement('td');
             const colName = (columns && columns.length > valIdx) ? String(columns[valIdx]).trim() : '';
@@ -7101,15 +7117,24 @@ function renderOutputBarcodeTable(rows, columns) {
                 fullValue = '-';
             }
 
-            if (cellValue.length > truncateThreshold) {
-                td.textContent = cellValue.substring(0, displayLength) + '...';
-                td.title = fullValue;
-                td.classList.add('truncated-cell');
-            } else {
-                td.textContent = cellValue;
-            }
-
             td.dataset.fullValue = fullValue;
+
+            if (isMissingCollect && valIdx === barcodeColIdx && cellValue !== '-') {
+                td.innerHTML = `<div style="display:inline-flex; align-items:center; gap:6px;">
+                    <span style="font-weight:600; color:#b45309;">${escapeHtml(cellValue)}</span>
+                    <span class="badge" style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; font-size:10px; font-weight:700; padding:1px 5px; border-radius:3px; white-space:nowrap;" title="Lỗi MES: Chưa lưu collect_record / Chưa in tem giấy">CHƯA IN TEM</span>
+                </div>`;
+            } else if (isMissingCollect && valIdx === collectQtyIdx && cellValue === '-') {
+                td.innerHTML = `<span style="color:#d97706; font-style:italic; font-size:12px;" title="Lỗi MES: Chưa lưu collect_record">- (Chưa lưu)</span>`;
+            } else {
+                if (cellValue.length > truncateThreshold) {
+                    td.textContent = cellValue.substring(0, displayLength) + '...';
+                    td.title = fullValue;
+                    td.classList.add('truncated-cell');
+                } else {
+                    td.textContent = cellValue;
+                }
+            }
 
             tr.appendChild(td);
         });
@@ -7118,6 +7143,30 @@ function renderOutputBarcodeTable(rows, columns) {
 
     const count = rows.length;
     if (rowCount) rowCount.textContent = count;
+
+    // Check missing collect records for fix button
+    const fixBtn = document.getElementById('fixOutputMissingCollectBtn');
+    const missingBarcodes = [];
+    if (collectQtyIdx >= 0 && Array.isArray(rows)) {
+        rows.forEach(r => {
+            const q = r[collectQtyIdx];
+            if (q === null || q === undefined || String(q).trim() === '' || String(q).trim() === '-') {
+                const bc = barcodeColIdx >= 0 ? r[barcodeColIdx] : null;
+                if (bc) missingBarcodes.push(bc);
+            }
+        });
+    }
+
+    if (fixBtn) {
+        if (missingBarcodes.length > 0) {
+            fixBtn.style.display = 'inline-flex';
+            fixBtn.innerHTML = `<span class="material-symbols-outlined" style="font-size: 16px;">playlist_add_check</span><span>Bổ sung Collect Record (${missingBarcodes.length})</span>`;
+            fixBtn.onclick = () => handleFixMissingCollectRecords(missingBarcodes, 'main');
+        } else {
+            fixBtn.style.display = 'none';
+        }
+    }
+
     updateOutputVisibleRowCount();
     updateTableStickyOffsets();
 }
@@ -7222,8 +7271,20 @@ function renderSubOutputBarcodeTable(rows, columns) {
     const truncateThreshold = 50;
     const displayLength = 45;
 
+    const barcodeColIdx = (columns && Array.isArray(columns)) ? (columns.indexOf('barcode') >= 0 ? columns.indexOf('barcode') : columns.indexOf('id')) : -1;
+    const collectQtyIdx = (columns && Array.isArray(columns)) ? columns.indexOf('collect_quantity') : -1;
+
     rows.forEach(row => {
         const tr = document.createElement('tr');
+        const rawCollectQty = (collectQtyIdx >= 0) ? row[collectQtyIdx] : null;
+        const isMissingCollect = (collectQtyIdx >= 0 && (rawCollectQty === null || rawCollectQty === undefined || String(rawCollectQty).trim() === '' || String(rawCollectQty).trim() === '-'));
+        if (isMissingCollect) {
+            tr.classList.add('row-missing-collect');
+            tr.style.backgroundColor = 'rgba(245, 158, 11, 0.09)';
+            tr.style.borderLeft = '4px solid #f59e0b';
+            tr.title = 'Lỗi MES: Tem này chưa lưu collect_record và chưa in tem giấy cho xưởng tiếp theo!';
+        }
+
         row.forEach((val, valIdx) => {
             const td = document.createElement('td');
             const colName = (columns && columns.length > valIdx) ? String(columns[valIdx]).trim() : '';
@@ -7262,15 +7323,24 @@ function renderSubOutputBarcodeTable(rows, columns) {
                 fullValue = '-';
             }
 
-            if (cellValue.length > truncateThreshold) {
-                td.textContent = cellValue.substring(0, displayLength) + '...';
-                td.title = fullValue;
-                td.classList.add('truncated-cell');
-            } else {
-                td.textContent = cellValue;
-            }
-
             td.dataset.fullValue = fullValue;
+
+            if (isMissingCollect && valIdx === barcodeColIdx && cellValue !== '-') {
+                td.innerHTML = `<div style="display:inline-flex; align-items:center; gap:6px;">
+                    <span style="font-weight:600; color:#b45309;">${escapeHtml(cellValue)}</span>
+                    <span class="badge" style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; font-size:10px; font-weight:700; padding:1px 5px; border-radius:3px; white-space:nowrap;" title="Lỗi MES: Chưa lưu collect_record / Chưa in tem giấy">CHƯA IN TEM</span>
+                </div>`;
+            } else if (isMissingCollect && valIdx === collectQtyIdx && cellValue === '-') {
+                td.innerHTML = `<span style="color:#d97706; font-style:italic; font-size:12px;" title="Lỗi MES: Chưa lưu collect_record">- (Chưa lưu)</span>`;
+            } else {
+                if (cellValue.length > truncateThreshold) {
+                    td.textContent = cellValue.substring(0, displayLength) + '...';
+                    td.title = fullValue;
+                    td.classList.add('truncated-cell');
+                } else {
+                    td.textContent = cellValue;
+                }
+            }
 
             tr.appendChild(td);
         });
@@ -7279,9 +7349,81 @@ function renderSubOutputBarcodeTable(rows, columns) {
 
     const count = rows.length;
     if (rowCount) rowCount.textContent = count;
+
+    // Check missing collect records for sub fix button
+    const subFixBtn = document.getElementById('fixSubOutputMissingCollectBtn');
+    const subMissingBarcodes = [];
+    if (collectQtyIdx >= 0 && Array.isArray(rows)) {
+        rows.forEach(r => {
+            const q = r[collectQtyIdx];
+            if (q === null || q === undefined || String(q).trim() === '' || String(q).trim() === '-') {
+                const bc = barcodeColIdx >= 0 ? r[barcodeColIdx] : null;
+                if (bc) subMissingBarcodes.push(bc);
+            }
+        });
+    }
+
+    if (subFixBtn) {
+        if (subMissingBarcodes.length > 0) {
+            subFixBtn.style.display = 'inline-flex';
+            subFixBtn.innerHTML = `<span class="material-symbols-outlined" style="font-size: 16px;">playlist_add_check</span><span>Bổ sung Collect Record (${subMissingBarcodes.length})</span>`;
+            subFixBtn.onclick = () => handleFixMissingCollectRecords(subMissingBarcodes, 'sub');
+        } else {
+            subFixBtn.style.display = 'none';
+        }
+    }
+
     updateSubOutputVisibleRowCount();
     updateTableStickyOffsets();
 }
+
+async function handleFixMissingCollectRecords(missingBarcodes = [], type = 'main') {
+    const workOrderId = (type === 'main' ? currentMainWorkOrderId : currentSubWorkOrderId) || (selectedRowData ? (selectedRowData['id'] || selectedRowData['work_order']) : null);
+    if (!workOrderId) {
+        Toast.warning('Cảnh báo', 'Không xác định được mã đơn điều động!');
+        return;
+    }
+
+    const count = missingBarcodes.length;
+    const barcodeListStr = missingBarcodes.slice(0, 5).join(', ') + (count > 5 ? ` ... và ${count - 5} tem khác` : '');
+
+    const confirmed = await showConfirm(
+        `Phát hiện ${count} tem chưa lưu collect_record cho đơn "${workOrderId}":\n\n${barcodeListStr}\n\nBạn có chắc chắn muốn bổ sung vào bảng kvmes.collect_record và đồng bộ trạng thái batch MES?`
+    );
+    if (!confirmed) return;
+
+    showLoading();
+    try {
+        const resp = await apiFetch('/api/workorders/fix-missing-collect-records', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                work_order_id: workOrderId,
+                barcodes: missingBarcodes
+            })
+        });
+        hideLoading();
+
+        if (resp && resp.success) {
+            Toast.success('Thành công', resp.message || `Đã bổ sung thành công ${resp.inserted_count || count} bản ghi collect_record!`);
+            if (type === 'main') {
+                if (typeof fetchOutputBarcodeByMainWorkOrder === 'function') {
+                    fetchOutputBarcodeByMainWorkOrder(workOrderId);
+                }
+            } else {
+                if (typeof fetchOutputBarcodeByRecipe === 'function') {
+                    fetchOutputBarcodeByRecipe(selectedRowData || {});
+                }
+            }
+        } else {
+            Toast.error('Lỗi', (resp && resp.message) ? resp.message : 'Không thể bổ sung collect_record');
+        }
+    } catch (err) {
+        hideLoading();
+        Toast.error('Lỗi', err.message || 'Lỗi khi gọi API bổ sung collect_record');
+    }
+}
+window.handleFixMissingCollectRecords = handleFixMissingCollectRecords;
 
 function initClientSearch() {
     const searchInput = document.getElementById('clientSearch');

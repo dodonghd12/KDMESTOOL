@@ -12603,4 +12603,31 @@ body.theme-light .material-transfer-retry-btn.is-success {
     #sidebar .top-quick-actions {
         display: none !important;
     }
-}
+}
+
+
+/* Button Bổ sung Collect Record cho tem thiếu */
+.btn-fix-missing-collect {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: #ffffff !important;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(217, 119, 6, 0.2);
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+.btn-fix-missing-collect:hover {
+    background: linear-gradient(135deg, #d97706, #b45309);
+    box-shadow: 0 4px 8px rgba(217, 119, 6, 0.3);
+    transform: translateY(-1px);
+}
+.btn-fix-missing-collect:active {
+    transform: translateY(0);
+}
