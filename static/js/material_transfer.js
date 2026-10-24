@@ -184,7 +184,7 @@ async function fetchFailedMaterialTransfers() {
     if (icon) icon.classList.add('is-spinning');
 
     if (typeof showTableSkeleton === 'function') {
-        showTableSkeleton(7, 8);
+        showTableSkeleton(11, 8);
     }
 
     try {

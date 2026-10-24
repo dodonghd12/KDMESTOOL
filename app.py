@@ -919,7 +919,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.50"
+APP_VERSION = "2.3.51"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -3938,26 +3938,33 @@ def get_material_transfer():
 @app.route('/api/material-transfer/failed', methods=['GET', 'POST'])
 @login_required
 def api_material_transfer_failed():
-    """Lấy danh sách các giao dịch chuyển kho có trạng thái FAILED từ kvmes.material_resource_transaction."""
+    """Lấy danh sách các giao dịch chuyển kho có trạng thái FAILED từ kvmes.material_resource_transaction (join kvmes.material_resource)."""
+    columns_default = [
+        'id', 'from_location_oid', 'to_location_oid', 'status',
+        'product_id', 'product_type', 'quantity', 'transaction_time',
+        'created_at', 'created_by', 'material_resource_oid'
+    ]
     try:
         query = """
             SELECT 
-                material_resource_oid, 
-                from_location_oid, 
-                to_location_oid, 
-                status, 
-                transaction_time, 
-                created_at, 
-                created_by
-            FROM kvmes.material_resource_transaction
-            WHERE UPPER(TRIM(status)) = 'FAILED'
-            ORDER BY created_at DESC;
+                mr.id,
+                mrt.from_location_oid,
+                mrt.to_location_oid,
+                mrt.status,
+                mr.product_id,
+                mr.product_type,
+                mr.quantity,
+                mrt.transaction_time,
+                mrt.created_at,
+                mrt.created_by,
+                mrt.material_resource_oid
+            FROM kvmes.material_resource mr
+            JOIN kvmes.material_resource_transaction mrt 
+                ON mr.oid = mrt.material_resource_oid
+            WHERE UPPER(TRIM(mrt.status)) = 'FAILED'
+            ORDER BY mrt.created_at DESC;
         """
         result, column_names = execute_pg_select_query(query)
-        default_cols = [
-            'material_resource_oid', 'from_location_oid', 'to_location_oid',
-            'status', 'transaction_time', 'created_at', 'created_by'
-        ]
         if result:
             convert_columns = ["transaction_time", "created_at"]
             result = convert_timestamp(result, column_names, convert_columns)
@@ -3965,14 +3972,14 @@ def api_material_transfer_failed():
             return jsonify({
                 'success': True,
                 'result': serialized_result,
-                'columns': column_names or default_cols,
+                'columns': column_names or columns_default,
                 'total': len(serialized_result)
             })
         else:
             return jsonify({
                 'success': True,
                 'result': [],
-                'columns': default_cols,
+                'columns': columns_default,
                 'total': 0
             })
     except Exception as e:
