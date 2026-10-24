@@ -3947,19 +3947,19 @@ def api_material_transfer_failed():
     try:
         query = """
             SELECT 
-                mr.id,
+                COALESCE(mr.id, '-') AS id,
                 mrt.from_location_oid,
                 mrt.to_location_oid,
                 mrt.status,
-                mr.product_id,
-                mr.product_type,
-                mr.quantity,
+                COALESCE(mr.product_id, '-') AS product_id,
+                COALESCE(mr.product_type, '-') AS product_type,
+                COALESCE(mr.quantity, 0) AS quantity,
                 mrt.transaction_time,
                 mrt.created_at,
                 mrt.created_by,
                 mrt.material_resource_oid
-            FROM kvmes.material_resource mr
-            JOIN kvmes.material_resource_transaction mrt 
+            FROM kvmes.material_resource_transaction mrt
+            LEFT JOIN kvmes.material_resource mr 
                 ON mr.oid = mrt.material_resource_oid
             WHERE UPPER(TRIM(mrt.status)) = 'FAILED'
             ORDER BY mrt.created_at DESC;
