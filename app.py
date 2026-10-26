@@ -919,7 +919,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.61"
+APP_VERSION = "2.3.62"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -6231,42 +6231,9 @@ def api_time_turner_get_log():
 
 
 def check_reprint_account_permission(username: str):
-    """
-    Kiểm tra quyền in lại tem KD trong bảng kvmes.account:
-    - Nếu username không tồn tại: (False, 'Account KD không tồn tại, vui lòng liên hệ IT!', 400)
-    - Nếu username không có ít nhất 1 trong các role (1, 2, 12): (False, 'Account không có quyền thực hiện in lại tem KD!', 403)
-    - Hợp lệ: (True, clean_id, 200)
-    """
+    """Không áp dụng giới hạn phân quyền khi in lại tem."""
     uname = str(username or '').strip()
-    if not uname or uname.lower() in ('unknown', 'none', 'null'):
-        return False, 'Account KD không tồn tại, vui lòng liên hệ IT!', 400
-
-    try:
-        acc_sql = "SELECT id, roles FROM kvmes.account WHERE id = %s OR id ILIKE %s LIMIT 1;"
-        acc_rows, _ = execute_pg_select_query(acc_sql, (uname, uname))
-        if not acc_rows or len(acc_rows) == 0:
-            return False, 'Account KD không tồn tại, vui lòng liên hệ IT!', 400
-
-        raw_roles = acc_rows[0][1]
-        allowed_roles = {1, 2, 12}
-        has_permission = False
-        if isinstance(raw_roles, (list, tuple, set)):
-            has_permission = any(int(r) in allowed_roles for r in raw_roles if str(r).strip().isdigit())
-        elif isinstance(raw_roles, str):
-            cleaned = raw_roles.strip('{}[]() ')
-            parts = [p.strip() for p in cleaned.split(',') if p.strip()]
-            has_permission = any(int(p) in allowed_roles for p in parts if str(p).strip().isdigit())
-        elif isinstance(raw_roles, (int, float)):
-            has_permission = (int(raw_roles) in allowed_roles)
-
-        if not has_permission:
-            return False, 'Account không có quyền thực hiện in lại tem KD!', 403
-
-        clean_id = str(acc_rows[0][0] or uname).strip()
-        return True, clean_id, 200
-    except Exception as e:
-        logger.error(f"[CHECK_REPRINT_ACCOUNT_ERROR] Lỗi kiểm tra account {uname}: {e}", exc_info=True)
-        return False, f'Lỗi hệ thống khi kiểm tra tài khoản: {str(e)}', 500
+    return True, uname or 'Unknown', 200
 
 
 @app.route('/api/barcodes/print-label-cups', methods=['POST'])
@@ -6281,14 +6248,6 @@ def api_print_label_cups():
         raw_barcode = str(data.get('barcode') or data.get('id') or '').strip()
         printer_name = str(data.get('printer_name') or '').strip()
         client_username = str(data.get('username') or request.args.get('username') or session.get('username') or '').strip()
-
-        # 1. Kiểm tra username trước khi thực hiện API: check trong bảng kvmes.account
-        ok, msg_or_id, status_code = check_reprint_account_permission(client_username)
-        if not ok:
-            append_reprint_label_log(client_ip, raw_barcode or 'Unknown', username=client_username or 'Unknown', note=f"Thất bại, {msg_or_id}")
-            return jsonify({'success': False, 'message': msg_or_id}), status_code
-
-        client_username = msg_or_id
 
         if not raw_barcode:
             append_reprint_label_log(client_ip, 'Unknown', username=client_username or 'Unknown', note="Thất bại, Thiếu mã Barcode để in tem")
