@@ -3344,7 +3344,11 @@ async function showFeedRecords(rowData = null) {
             outputBarcodeColumns = data.columns;
             currentOutputTableType = 'outputBarcodeByFeedRecords';
             renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
-            Toast.success('Thành công', `Tìm thấy ${data.result.length} đơn điều động tiêu thụ tem`);
+            const hasWO = data.result.some(r => r[0] && r[0] !== '-');
+            const msg = hasWO 
+                ? `Tìm thấy ${data.result.length} đơn điều động tiêu thụ & bind tem` 
+                : `Tìm thấy thông tin bind tem trên trạm (${data.result.length} vị trí)`;
+            Toast.success('Thành công', msg);
         } else {
             currentOutputTableType = null;
             renderOutputBarcodeTable([], []);
@@ -7119,7 +7123,15 @@ function renderOutputBarcodeTable(rows, columns) {
 
             td.dataset.fullValue = fullValue;
 
-            if (isMissingCollect && valIdx === barcodeColIdx && cellValue !== '-') {
+            if (colName === 'bind_status') {
+                if (cellValue === 'Đang bind') {
+                    td.innerHTML = `<span style="display:inline-flex; align-items:center; gap:5px; font-weight:600; color:#059669;"><span style="width:7px; height:7px; border-radius:50%; background:#10b981; display:inline-block;"></span>Đang bind</span>`;
+                } else if (cellValue === 'Đã unbind') {
+                    td.innerHTML = `<span style="color:#64748b; font-weight:500;">Đã unbind</span>`;
+                } else {
+                    td.textContent = cellValue;
+                }
+            } else if (isMissingCollect && valIdx === barcodeColIdx && cellValue !== '-') {
                 td.innerHTML = `<div style="display:inline-flex; align-items:center; gap:6px;">
                     <span style="font-weight:600; color:#b45309;">${escapeHtml(cellValue)}</span>
                     <span class="badge-missing-collect" data-barcode="${escapeHtml(cellValue)}" data-type="main" title="Nhấn giữ 2 giây để tự động khắc phục tem lỗi">
@@ -7308,7 +7320,15 @@ function renderSubOutputBarcodeTable(rows, columns) {
 
             td.dataset.fullValue = fullValue;
 
-            if (isMissingCollect && valIdx === barcodeColIdx && cellValue !== '-') {
+            if (colName === 'bind_status') {
+                if (cellValue === 'Đang bind') {
+                    td.innerHTML = `<span style="display:inline-flex; align-items:center; gap:5px; font-weight:600; color:#059669;"><span style="width:7px; height:7px; border-radius:50%; background:#10b981; display:inline-block;"></span>Đang bind</span>`;
+                } else if (cellValue === 'Đã unbind') {
+                    td.innerHTML = `<span style="color:#64748b; font-weight:500;">Đã unbind</span>`;
+                } else {
+                    td.textContent = cellValue;
+                }
+            } else if (isMissingCollect && valIdx === barcodeColIdx && cellValue !== '-') {
                 td.innerHTML = `<div style="display:inline-flex; align-items:center; gap:6px;">
                     <span style="font-weight:600; color:#b45309;">${escapeHtml(cellValue)}</span>
                     <span class="badge-missing-collect" data-barcode="${escapeHtml(cellValue)}" data-type="sub" title="Nhấn giữ 2 giây để tự động khắc phục tem lỗi">

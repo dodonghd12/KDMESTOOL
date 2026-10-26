@@ -919,7 +919,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.62"
+APP_VERSION = "2.3.63"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -2761,6 +2761,11 @@ def get_used_history_by_barcode():
         'recipe_id',
         'station',
         'reserved_date',
+        'site',
+        'bind_status',
+        'bind_time',
+        'bound_by',
+        'remaining_quantity',
         'consumption',
         'total_barcode',
         'total_fail_barcode',
@@ -2771,12 +2776,109 @@ def get_used_history_by_barcode():
         with get_pg_connection() as conn:
             cursor = conn.cursor()
 
-            # 1. Query feed_records directly using GIN index on materials
+            # 0. Query default quantity from kvmes.material_resource as fallback
+            cursor.execute("SELECT quantity FROM kvmes.material_resource WHERE id = %s LIMIT 1;", (material_oid,))
+            mr_row = cursor.fetchone()
+            default_mr_qty = float(mr_row[0]) if (mr_row and mr_row[0] is not None) else None
+
+            # 1. Query site_contents for this barcode to get bind info across all stations/sites
+            cursor.execute("""
+                WITH barcode_sc AS (
+                    SELECT 
+                        sc.station,
+                        sc.name AS site,
+                        sc.index AS site_index,
+                        sc.updated_at,
+                        sc.updated_by,
+                        to_timestamp(sc.updated_at::numeric / 1e9) AT TIME ZONE 'Asia/Ho_Chi_Minh' AS bind_time_ts,
+                        CASE 
+                            WHEN sc.content ? 'slot' AND (sc.content#>>'{slot,material,resource_id}') = %s 
+                            THEN (sc.content#>>'{slot,material,quantity}')::numeric
+                            ELSE NULL 
+                        END AS slot_qty,
+                        (
+                            SELECT (c->'material'->>'quantity')::numeric
+                            FROM jsonb_array_elements(sc.content->'container') c
+                            WHERE (c->'material'->>'resource_id') = %s
+                            LIMIT 1
+                        ) AS container_qty
+                    FROM kvmes.site_contents sc
+                    WHERE (((sc.content -> 'slot') -> 'material') ->> 'resource_id') = %s
+                       OR (sc.content ? 'container' AND sc.content->'container' @> jsonb_build_array(jsonb_build_object('material', jsonb_build_object('resource_id', %s::text))))
+                ),
+                latest_sc AS (
+                    SELECT DISTINCT ON (sc.station, sc.name, sc.index)
+                        sc.station,
+                        sc.name AS site,
+                        sc.index AS site_index,
+                        sc.updated_at,
+                        sc.content
+                    FROM kvmes.site_contents sc
+                    JOIN (SELECT DISTINCT station, site, site_index FROM barcode_sc) bsc
+                      ON bsc.station = sc.station AND bsc.site = sc.name AND bsc.site_index = sc.index
+                    ORDER BY sc.station, sc.name, sc.index, sc.updated_at DESC
+                )
+                SELECT DISTINCT ON (bsc.station, bsc.site)
+                    bsc.station,
+                    bsc.site,
+                    to_char(bsc.bind_time_ts, 'YYYY-MM-DD HH24:MI:SS') AS bind_time,
+                    bsc.updated_by AS bound_by,
+                    CASE 
+                        WHEN (lsc.content ? 'slot' AND (lsc.content#>>'{slot,material,resource_id}') = %s)
+                          OR (lsc.content ? 'container' AND lsc.content->'container' @> jsonb_build_array(jsonb_build_object('material', jsonb_build_object('resource_id', %s::text))))
+                        THEN 'Đang bind'
+                        ELSE 'Đã unbind'
+                    END AS bind_status,
+                    COALESCE(
+                        CASE 
+                            WHEN (lsc.content ? 'slot' AND (lsc.content#>>'{slot,material,resource_id}') = %s)
+                            THEN (lsc.content#>>'{slot,material,quantity}')::numeric
+                            WHEN (lsc.content ? 'container')
+                            THEN (
+                                SELECT (c->'material'->>'quantity')::numeric
+                                FROM jsonb_array_elements(lsc.content->'container') c
+                                WHERE (c->'material'->>'resource_id') = %s
+                                LIMIT 1
+                            )
+                            ELSE NULL
+                        END,
+                        bsc.container_qty,
+                        bsc.slot_qty
+                    ) AS remaining_qty
+                FROM barcode_sc bsc
+                JOIN latest_sc lsc 
+                  ON lsc.station = bsc.station AND lsc.site = bsc.site AND lsc.site_index = bsc.site_index
+                ORDER BY bsc.station, bsc.site, bsc.updated_at DESC;
+            """, (material_oid, material_oid, material_oid, material_oid, material_oid, material_oid, material_oid, material_oid))
+            sc_rows = cursor.fetchall()
+
+            # Build site_info lookup maps
+            site_info_by_st_site = {}
+            site_info_by_st = {}
+            all_sc_sites = []
+            for r in (sc_rows or []):
+                st, site, b_time, b_user, b_status, rem_qty = r
+                val_qty = float(rem_qty) if rem_qty is not None else default_mr_qty
+                entry = {
+                    'station': st,
+                    'site': site or '-',
+                    'bind_time': b_time or '-',
+                    'bound_by': b_user or '-',
+                    'bind_status': b_status or '-',
+                    'remaining_qty': val_qty if val_qty is not None else '-'
+                }
+                site_info_by_st_site[(st, site)] = entry
+                if st not in site_info_by_st:
+                    site_info_by_st[st] = entry
+                all_sc_sites.append(entry)
+
+            # 2. Query feed_records directly using GIN index on materials
             cursor.execute("""
                 SELECT 
                     f.id,
                     f.time,
                     site_elem->>'station' AS station,
+                    site_elem->'site'->>'name' AS site_name,
                     (elem->>'quantity')::numeric AS fed_quantity
                 FROM kvmes.feed_record f
                 CROSS JOIN LATERAL jsonb_array_elements(f.materials) site_elem
@@ -2785,15 +2887,40 @@ def get_used_history_by_barcode():
                   AND elem->>'resource_id' = %s
             """, (material_oid, material_oid))
             matched_feeds = cursor.fetchall()
-            if not matched_feeds:
+
+            # Trường hợp 1: Không có feed_record và cũng không có site_contents -> Trả về rỗng
+            if not matched_feeds and not all_sc_sites:
                 return jsonify({'success': True, 'result': [], 'columns': columns})
 
-            feed_qty_map = {row[0]: float(row[3] or 0) for row in matched_feeds}
+            # Trường hợp 2: Chưa phát sinh feed_record nhưng ĐÃ BIND vào site_contents -> Hiển thị thông tin bind
+            if not matched_feeds and all_sc_sites:
+                res_rows = []
+                for sc_item in all_sc_sites:
+                    row = [
+                        '-',
+                        '-',
+                        sc_item['station'],
+                        '-',
+                        sc_item['site'],
+                        sc_item['bind_status'],
+                        sc_item['bind_time'],
+                        sc_item['bound_by'],
+                        sc_item['remaining_qty'],
+                        '0',
+                        0,
+                        0,
+                        0
+                    ]
+                    res_rows.append(serialize_row(row))
+                return jsonify({'success': True, 'result': res_rows, 'columns': columns})
+
+            feed_qty_map = {row[0]: float(row[4] or 0) for row in matched_feeds}
+            feed_site_map = {row[0]: (row[2], row[3]) for row in matched_feeds}
             matched_feed_ids = list(feed_qty_map.keys())
             feed_dates = [row[1] for row in matched_feeds if row[1]]
             feed_stations = list({row[2] for row in matched_feeds if row[2]})
 
-            # 2. Query candidate work orders and batches (leveraging station and date indexes)
+            # 3. Query candidate work orders and batches (leveraging station and date indexes)
             if feed_dates and feed_stations:
                 min_date = min(feed_dates).date() - timedelta(days=14)
                 max_date = max(feed_dates).date() + timedelta(days=14)
@@ -2861,15 +2988,41 @@ def get_used_history_by_barcode():
 
             candidate_batches = cursor.fetchall()
             if not candidate_batches:
+                if all_sc_sites:
+                    res_rows = []
+                    for sc_item in all_sc_sites:
+                        row = [
+                            '-',
+                            '-',
+                            sc_item['station'],
+                            '-',
+                            sc_item['site'],
+                            sc_item['bind_status'],
+                            sc_item['bind_time'],
+                            sc_item['bound_by'],
+                            sc_item['remaining_qty'],
+                            '0',
+                            0,
+                            0,
+                            0
+                        ]
+                        res_rows.append(serialize_row(row))
+                    return jsonify({'success': True, 'result': res_rows, 'columns': columns})
                 return jsonify({'success': True, 'result': [], 'columns': columns})
 
-            # 3. Aggregate batches and fed quantities
+            # 4. Aggregate batches and fed quantities
             matched_work_orders = set()
             batch_data = {}
+            wo_sites = {}
             for b in candidate_batches:
                 wo, b_seq, status, records_id, recipe_id, station, res_date = b
                 matched_work_orders.add(wo)
-                fed_qty = sum(feed_qty_map[fid] for fid in (records_id or []) if fid in feed_qty_map)
+                fed_qty = 0.0
+                for fid in (records_id or []):
+                    if fid in feed_qty_map:
+                        fed_qty += feed_qty_map[fid]
+                        if fid in feed_site_map:
+                            wo_sites[wo] = feed_site_map[fid][1]
                 key = (wo, b_seq)
                 batch_data[key] = {
                     'wo': wo,
@@ -2882,7 +3035,7 @@ def get_used_history_by_barcode():
                     'output_qty': 0.0
                 }
 
-            # 4. Fetch collect_records for matched work orders to get output quantities
+            # 5. Fetch collect_records for matched work orders to get output quantities
             if matched_work_orders:
                 cursor.execute("""
                     SELECT 
@@ -2897,16 +3050,24 @@ def get_used_history_by_barcode():
                     if key in batch_data:
                         batch_data[key]['output_qty'] = float(out_qty or 0)
 
-            # 5. Group by work order
+            # 6. Group by work order
             summary = {}
             for (wo, b_seq), binfo in batch_data.items():
                 if wo not in summary:
                     res_date_str = binfo['reserved_date'].strftime('%Y-%m-%d') if hasattr(binfo['reserved_date'], 'strftime') else str(binfo['reserved_date']) if binfo['reserved_date'] else None
+                    st = binfo['station']
+                    site_name = wo_sites.get(wo, '')
+                    s_info = site_info_by_st_site.get((st, site_name)) or site_info_by_st.get(st) or {}
                     summary[wo] = {
                         'work_order': wo,
                         'recipe_id': binfo['recipe_id'],
-                        'station': binfo['station'],
+                        'station': st,
                         'reserved_date': res_date_str,
+                        'site': site_name or s_info.get('site', '-'),
+                        'bind_status': s_info.get('bind_status', '-'),
+                        'bind_time': s_info.get('bind_time', '-'),
+                        'bound_by': s_info.get('bound_by', '-'),
+                        'remaining_quantity': s_info.get('remaining_qty', '-'),
                         'total_barcode': 0,
                         'total_fail_barcode': 0,
                         'total_output_qty': 0.0,
@@ -2920,8 +3081,10 @@ def get_used_history_by_barcode():
                 summary[wo]['total_consumption'] += binfo['fed_qty']
 
             result_rows = []
+            covered_stations = set()
             for wo in sorted(summary.keys()):
                 s = summary[wo]
+                covered_stations.add(s['station'])
                 if s['total_output_qty'] > 0:
                     consumption = str(round(s['total_consumption'] / s['total_output_qty'], 6))
                 else:
@@ -2932,12 +3095,37 @@ def get_used_history_by_barcode():
                     s['recipe_id'],
                     s['station'],
                     s['reserved_date'],
+                    s['site'],
+                    s['bind_status'],
+                    s['bind_time'],
+                    s['bound_by'],
+                    s['remaining_quantity'],
                     consumption,
                     s['total_barcode'],
                     s['total_fail_barcode'],
                     round(s['total_consumption'], 6)
                 ]
                 result_rows.append(serialize_row(row))
+
+            # Nếu tem Đang bind trên một trạm khác chưa chạy đơn điều động nào, bổ sung dòng trạm đó
+            for sc_item in all_sc_sites:
+                if sc_item['bind_status'] == 'Đang bind' and sc_item['station'] not in covered_stations:
+                    row = [
+                        '-',
+                        '-',
+                        sc_item['station'],
+                        '-',
+                        sc_item['site'],
+                        sc_item['bind_status'],
+                        sc_item['bind_time'],
+                        sc_item['bound_by'],
+                        sc_item['remaining_qty'],
+                        '0',
+                        0,
+                        0,
+                        0
+                    ]
+                    result_rows.append(serialize_row(row))
 
             return jsonify({
                 'success': True,
@@ -2946,6 +3134,7 @@ def get_used_history_by_barcode():
             })
 
     except Exception as e:
+        logger.error(f"[CHECK_USED_HISTORY_ERROR] Lỗi kiểm tra tiêu thụ tem: {e}", exc_info=True)
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
 
 @app.route('/api/workorders/fetch-output-barcodes', methods=['POST'])
