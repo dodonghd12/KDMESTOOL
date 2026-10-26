@@ -919,7 +919,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.59"
+APP_VERSION = "2.3.60"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -6161,7 +6161,7 @@ def append_reprint_label_log(ip: str, barcode: str, username: str = None, note: 
             clean_note = clean_note[:997] + '...'
 
         insert_sql = """
-            INSERT INTO [dbo].[InLaiTemKD_Log] ([barcode], [user], [ip], [intime], [note])
+            INSERT INTO [dbo].[InLaiTemKD_Log] ([barcode], [username], [ip], [intime], [note])
             VALUES (?, ?, ?, ?, ?);
         """
         execute_mssql_dml_query(insert_sql, (clean_barcode, clean_user, clean_ip, now_str, clean_note))
@@ -6179,31 +6179,34 @@ def api_time_turner_get_log():
 
         query = """
             SELECT 
+                [id],
                 [barcode],
-                [user],
+                [username],
                 [ip],
                 CONVERT(VARCHAR(19), [intime], 120) AS intime,
                 [note]
             FROM [dbo].[InLaiTemKD_Log]
-            ORDER BY [intime] DESC;
+            ORDER BY [id] DESC;
         """
         rows, cols = execute_mssql_select_query(query)
 
         records = []
-        for line_no, r in enumerate(rows or [], start=1):
-            b_code = str(r[0] or '')
-            u_name = str(r[1] or '')
-            c_ip = str(r[2] or '')
-            i_time = str(r[3] or '')
-            c_note = str(r[4] or 'Thành công')
+        for r in (rows or []):
+            rec_id = r[0]
+            b_code = str(r[1] or '')
+            u_name = str(r[2] or '')
+            c_ip = str(r[3] or '')
+            i_time = str(r[4] or '')
+            c_note = str(r[5] or 'Thành công')
 
             if filter_keyword:
-                combined = f"{b_code} {c_note} {u_name} {c_ip}".lower()
+                combined = f"{rec_id} {b_code} {c_note} {u_name} {c_ip}".lower()
                 if filter_keyword not in combined:
                     continue
 
             records.append({
-                'line_no': line_no,
+                'id': rec_id,
+                'line_no': rec_id,
                 'timestamp': i_time,
                 'ip': c_ip,
                 'username': u_name,
@@ -6215,7 +6218,7 @@ def api_time_turner_get_log():
             'success': True,
             'total': len(records),
             'records': records,
-            'columns': ['Thời gian in (UTC+7)', 'IP', 'Người in', 'Barcode', 'Ghi chú']
+            'columns': ['ID', 'Thời gian in (UTC+7)', 'IP', 'Người in', 'Barcode', 'Ghi chú']
         })
     except Exception as e:
         logger.error(f"[TIME_TURNER_LOG_ERROR] Lỗi truy vấn bảng InLaiTemKD_Log: {e}", exc_info=True)
