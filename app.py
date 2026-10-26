@@ -919,7 +919,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.60"
+APP_VERSION = "2.3.61"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -6218,7 +6218,7 @@ def api_time_turner_get_log():
             'success': True,
             'total': len(records),
             'records': records,
-            'columns': ['ID', 'Thời gian in (UTC+7)', 'IP', 'Người in', 'Barcode', 'Ghi chú']
+            'columns': ['Thời gian in (UTC+7)', 'IP', 'Người in', 'Barcode', 'Ghi chú']
         })
     except Exception as e:
         logger.error(f"[TIME_TURNER_LOG_ERROR] Lỗi truy vấn bảng InLaiTemKD_Log: {e}", exc_info=True)

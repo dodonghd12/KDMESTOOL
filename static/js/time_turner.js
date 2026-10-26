@@ -12,7 +12,7 @@
 
     let allLogRecords = [];
     let currentFilteredRecords = [];
-    const tableColumns = ['ID', 'Thời gian in (UTC+7)', 'IP', 'Người in', 'Barcode', 'Ghi chú'];
+    const tableColumns = ['Thời gian in (UTC+7)', 'IP', 'Người in', 'Barcode', 'Ghi chú'];
     const PAGE_SIZE = 30;
     let currentPage = 1;
     let totalPages = 1;
@@ -83,7 +83,6 @@
     function setupExportHook() {
         window.getPageExportData = function () {
             const rows = (currentFilteredRecords || []).map((rec) => [
-                rec.id || rec.line_no || '',
                 rec.timestamp || '',
                 rec.ip || '',
                 rec.username || '',
@@ -113,11 +112,11 @@
         if (refreshIcon) refreshIcon.classList.add('time-turner-spin');
 
         if (typeof showTableSkeleton === 'function') {
-            showTableSkeleton(6, 5);
+            showTableSkeleton(5, 5);
         } else if (tableBody) {
             tableBody.innerHTML = `
                 <tr>
-                    <td colspan="6" style="text-align: center; padding: 36px 16px; color: var(--color-text-muted, #94a3b8);">
+                    <td colspan="5" style="text-align: center; padding: 36px 16px; color: var(--color-text-muted, #94a3b8);">
                         <span class="material-symbols-outlined time-turner-spin" style="font-size: 28px; vertical-align: middle;">sync</span>
                         <span style="margin-left: 8px;">Đang tải dữ liệu nhật ký in tem...</span>
                     </td>
@@ -224,7 +223,6 @@
         const pageRecords = currentFilteredRecords.slice(startIndex, startIndex + PAGE_SIZE);
 
         const pageRows = pageRecords.map((item) => [
-            item.id || item.line_no || '-',
             item.timestamp || '-',
             item.ip || 'Unknown',
             item.username || 'Unknown',
@@ -234,7 +232,6 @@
 
         if (typeof displayTable === 'function') {
             displayTable(pageRows, tableColumns);
-            enhanceNoteColumn();
         }
 
         // Render phân trang đồng bộ với Postgres Deleted Data
@@ -292,35 +289,6 @@
         }
     }
 
-    function enhanceNoteColumn() {
-        const tableBody = document.getElementById('tableBody');
-        if (!tableBody) return;
-
-        const trs = tableBody.querySelectorAll('tr');
-        trs.forEach(tr => {
-            const tds = tr.querySelectorAll('td');
-            if (tds.length >= 2) {
-                const noteTd = tds[tds.length - 1];
-                const text = (noteTd.textContent || '').trim();
-                if (text === 'Thành công') {
-                    noteTd.innerHTML = `
-                        <span class="badge" style="background: rgba(16, 185, 129, 0.12); color: #059669; border: 1px solid rgba(16, 185, 129, 0.28); font-weight: 700; font-size: 11px; padding: 2px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;">
-                            <span class="material-symbols-outlined" style="font-size: 14px; line-height: 1;">check_circle</span>
-                            <span>Thành công</span>
-                        </span>
-                    `;
-                } else if (text.startsWith('Thất bại')) {
-                    const safeText = escapeHtml(text);
-                    noteTd.innerHTML = `
-                        <span class="badge" style="background: rgba(239, 68, 68, 0.12); color: #dc2626; border: 1px solid rgba(239, 68, 68, 0.28); font-weight: 600; font-size: 11px; padding: 2px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; word-break: break-word;" title="${safeText}">
-                            <span class="material-symbols-outlined" style="font-size: 14px; line-height: 1; flex-shrink: 0;">cancel</span>
-                            <span>${safeText}</span>
-                        </span>
-                    `;
-                }
-            }
-        });
-    }
 
     function escapeHtml(str) {
         if (!str) return '';
