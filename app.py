@@ -21,7 +21,7 @@ import glob
 import subprocess
 import shutil
 from typing import Optional
-from db_execute import (execute_pg_select_query, execute_pg_update_query, execute_pg_dev_select_query, execute_pg_insert_query, execute_mssql_select_query)
+from db_execute import (execute_pg_select_query, execute_pg_update_query, execute_pg_dev_select_query, execute_pg_insert_query, execute_mssql_select_query, execute_mssql_dml_query)
 from db_connections import (
     get_pg_connection,
     get_pg_dev_connection,
@@ -919,7 +919,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.58"
+APP_VERSION = "2.3.59"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -6149,89 +6149,79 @@ def api_reprint_label_pdf():
         return jsonify({'success': False, 'message': f'Lỗi tạo file PDF tem: {str(e)}'}), 500
 
 
-REPRINT_LABEL_LOG_FILE_PATH = r"\\198.1.10.2\Vitinh\Thu\QUAN TRONG KHONG XOA\reprint_label_log.txt"
-
 def append_reprint_label_log(ip: str, barcode: str, username: str = None, note: str = "Thành công"):
-    """Ghi log in lại tem: Thời gian (UTC+7) | IP người thực hiện | Username | Barcode | Ghi chú."""
+    """Ghi log in lại tem trực tiếp vào bảng [erp].[dbo].[InLaiTemKD_Log] trên SQL Server 198.1.10.33."""
     try:
         now_str = datetime.now(VN_TZ).strftime("%Y-%m-%d %H:%M:%S")
-        dir_path = os.path.dirname(REPRINT_LABEL_LOG_FILE_PATH)
-        if dir_path and not os.path.exists(dir_path):
-            os.makedirs(dir_path, exist_ok=True)
-            
-        clean_note = str(note or 'Thành công').replace('\r', ' ').replace('\n', ' ').strip().replace('|', ';')
-        log_line = f"{now_str} | {ip or 'Unknown'} | {username or 'Unknown'} | {barcode or 'Unknown'} | {clean_note}\n"
+        clean_barcode = str(barcode or '').strip()
+        clean_user = str(username or 'Unknown').strip()
+        clean_ip = str(ip or 'Unknown').strip()
+        clean_note = str(note or 'Thành công').replace('\r', ' ').replace('\n', ' ').strip()
+        if len(clean_note) > 1000:
+            clean_note = clean_note[:997] + '...'
 
-        with open(REPRINT_LABEL_LOG_FILE_PATH, 'a', encoding='utf-8') as f:
-            f.write(log_line)
+        insert_sql = """
+            INSERT INTO [dbo].[InLaiTemKD_Log] ([barcode], [user], [ip], [intime], [note])
+            VALUES (?, ?, ?, ?, ?);
+        """
+        execute_mssql_dml_query(insert_sql, (clean_barcode, clean_user, clean_ip, now_str, clean_note))
     except Exception as e:
-        logger.error(f"[REPRINT_LABEL_LOG_ERROR] Lỗi khi ghi file log In lại tem: {e}", exc_info=True)
+        logger.error(f"[REPRINT_LABEL_LOG_ERROR] Lỗi khi ghi log In lại tem vào SQL Server: {e}", exc_info=True)
 
 
 @app.route('/api/time-turner/get-log', methods=['GET', 'POST'])
 @login_required
 def api_time_turner_get_log():
-    """Truy vấn dữ liệu lịch sử file log In lại tem (reprint_label_log.txt)."""
+    """Truy vấn dữ liệu lịch sử In lại tem từ bảng [erp].[dbo].[InLaiTemKD_Log] trên SQL Server 198.1.10.33."""
     try:
         data = request.get_json(silent=True) or {}
-        filter_barcode = str(data.get('barcode') or request.args.get('barcode') or '').strip().lower()
+        filter_keyword = str(data.get('barcode') or data.get('keyword') or request.args.get('barcode') or '').strip().lower()
 
-        file_path = REPRINT_LABEL_LOG_FILE_PATH
-        if not os.path.exists(file_path):
-            local_fallback = os.path.join(app.root_path, 'reprint_label_log.txt')
-            if os.path.exists(local_fallback):
-                file_path = local_fallback
-
-        if not os.path.exists(file_path):
-            return jsonify({
-                'success': True,
-                'total': 0,
-                'records': [],
-                'file_path': file_path,
-                'message': 'Chưa tìm thấy file log hoặc file chưa được tạo.'
-            })
+        query = """
+            SELECT 
+                [barcode],
+                [user],
+                [ip],
+                CONVERT(VARCHAR(19), [intime], 120) AS intime,
+                [note]
+            FROM [dbo].[InLaiTemKD_Log]
+            ORDER BY [intime] DESC;
+        """
+        rows, cols = execute_mssql_select_query(query)
 
         records = []
-        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-            for line_no, raw_line in enumerate(f, start=1):
-                line = raw_line.strip()
-                if not line:
+        for line_no, r in enumerate(rows or [], start=1):
+            b_code = str(r[0] or '')
+            u_name = str(r[1] or '')
+            c_ip = str(r[2] or '')
+            i_time = str(r[3] or '')
+            c_note = str(r[4] or 'Thành công')
+
+            if filter_keyword:
+                combined = f"{b_code} {c_note} {u_name} {c_ip}".lower()
+                if filter_keyword not in combined:
                     continue
-                parts = [p.strip() for p in line.split('|')]
-                timestamp = parts[0] if len(parts) > 0 else ''
-                ip = parts[1] if len(parts) > 1 else ''
-                username = parts[2] if len(parts) > 2 else ''
-                barcode = parts[3] if len(parts) > 3 else ''
-                # Nếu file cũ chỉ có 4 cột thì ghi chú mặc định là Thành công
-                note = ' | '.join(parts[4:]).strip() if len(parts) > 4 else 'Thành công'
 
-                if filter_barcode:
-                    combined_check = f"{barcode} {note} {username} {ip}".lower()
-                    if filter_barcode not in combined_check:
-                        continue
+            records.append({
+                'line_no': line_no,
+                'timestamp': i_time,
+                'ip': c_ip,
+                'username': u_name,
+                'barcode': b_code,
+                'note': c_note
+            })
 
-                records.append({
-                    'line_no': line_no,
-                    'timestamp': timestamp,
-                    'ip': ip,
-                    'username': username,
-                    'barcode': barcode,
-                    'note': note
-                })
-
-        records.reverse()
         return jsonify({
             'success': True,
             'total': len(records),
             'records': records,
-            'columns': ['Thời gian in (UTC+7)', 'IP', 'Người in', 'Barcode', 'Ghi chú'],
-            'file_path': file_path
+            'columns': ['Thời gian in (UTC+7)', 'IP', 'Người in', 'Barcode', 'Ghi chú']
         })
     except Exception as e:
-        logger.error(f"[TIME_TURNER_LOG_ERROR] Lỗi đọc file log In lại tem: {e}", exc_info=True)
+        logger.error(f"[TIME_TURNER_LOG_ERROR] Lỗi truy vấn bảng InLaiTemKD_Log: {e}", exc_info=True)
         return jsonify({
             'success': False,
-            'message': f"Lỗi đọc file log: {str(e)}",
+            'message': f"Lỗi đọc dữ liệu nhật ký in tem: {str(e)}",
             'records': [],
             'total': 0
         }), 500

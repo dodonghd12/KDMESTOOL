@@ -143,6 +143,45 @@ def execute_mssql_select_query(query, params=()):
     except Exception as e:
         raise _classify_db_exception(e, "SQL Server ERP (198.1.10.33/erp)")
 
+
+
+def execute_mssql_dml_query(query, params=()):
+    """
+    Thực thi câu lệnh DML (INSERT, UPDATE, DELETE, DDL) trên SQL Server ERP (198.1.10.33/erp).
+    """
+    try:
+        with get_erp_mssql_connection() as conn:
+            cursor = conn.cursor()
+            if params:
+                cursor.execute(query, params)
+            else:
+                cursor.execute(query)
+            conn.commit()
+            cursor.close()
+            return True
+    except Exception as e:
+        raise _classify_db_exception(e, "SQL Server ERP DML (198.1.10.33/erp)")
+
+def execute_mssql_insert_query(table_name, data):
+    """
+    Thực thi câu lệnh INSERT vào bảng trên SQL Server ERP (198.1.10.33/erp).
+    data: dict chứa tên cột và giá trị tương ứng.
+    """
+    if not data:
+        return False
+    try:
+        columns = list(data.keys())
+        placeholders = ', '.join(['?'] * len(columns))
+        col_names = ', '.join([f"[{col}]" for col in columns])
+        values = tuple(data[col] for col in columns)
+
+        query = f"INSERT INTO {table_name} ({col_names}) VALUES ({placeholders})"
+        return execute_mssql_dml_query(query, values)
+    except Exception as e:
+        raise _classify_db_exception(e, f"SQL Server ERP Insert vào {table_name}")
+
 # Aliases
 execute_erp_mssql_select_query = execute_mssql_select_query
 execute_sqlserver_select_query = execute_mssql_select_query
+execute_erp_mssql_dml_query = execute_mssql_dml_query
+execute_sqlserver_dml_query = execute_mssql_dml_query
