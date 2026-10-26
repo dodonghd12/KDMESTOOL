@@ -919,7 +919,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.57"
+APP_VERSION = "2.3.58"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -6132,7 +6132,7 @@ def api_reprint_label_pdf():
         # Ghi log in lại tem vào \\198.1.10.2\Vitinh\Thu\QUAN TRONG KHONG XOA\reprint_label_log.txt
         client_ip = get_client_ip()
         client_username = str(data.get('username') or request.args.get('username') or session.get('username') or 'Unknown').strip()
-        append_reprint_label_log(client_ip, final_barcode, username=client_username)
+        append_reprint_label_log(client_ip, final_barcode, username=client_username, note='Thành công')
 
         return send_file(
             pdf_io,
@@ -6151,16 +6151,19 @@ def api_reprint_label_pdf():
 
 REPRINT_LABEL_LOG_FILE_PATH = r"\\198.1.10.2\Vitinh\Thu\QUAN TRONG KHONG XOA\reprint_label_log.txt"
 
-def append_reprint_label_log(ip: str, barcode: str, username: str = None):
-    """Ghi log in lại tem: Thời gian (UTC+7) | IP người thực hiện | Username | Barcode."""
+def append_reprint_label_log(ip: str, barcode: str, username: str = None, note: str = "Thành công"):
+    """Ghi log in lại tem: Thời gian (UTC+7) | IP người thực hiện | Username | Barcode | Ghi chú."""
     try:
         now_str = datetime.now(VN_TZ).strftime("%Y-%m-%d %H:%M:%S")
         dir_path = os.path.dirname(REPRINT_LABEL_LOG_FILE_PATH)
         if dir_path and not os.path.exists(dir_path):
             os.makedirs(dir_path, exist_ok=True)
             
+        clean_note = str(note or 'Thành công').replace('\r', ' ').replace('\n', ' ').strip().replace('|', ';')
+        log_line = f"{now_str} | {ip or 'Unknown'} | {username or 'Unknown'} | {barcode or 'Unknown'} | {clean_note}\n"
+
         with open(REPRINT_LABEL_LOG_FILE_PATH, 'a', encoding='utf-8') as f:
-            f.write(f"{now_str} | {ip or 'Unknown'} | {username or 'Unknown'} | {barcode}\n")
+            f.write(log_line)
     except Exception as e:
         logger.error(f"[REPRINT_LABEL_LOG_ERROR] Lỗi khi ghi file log In lại tem: {e}", exc_info=True)
 
@@ -6199,18 +6202,21 @@ def api_time_turner_get_log():
                 ip = parts[1] if len(parts) > 1 else ''
                 username = parts[2] if len(parts) > 2 else ''
                 barcode = parts[3] if len(parts) > 3 else ''
-                if len(parts) > 4:
-                    barcode = ' | '.join(parts[3:])
+                # Nếu file cũ chỉ có 4 cột thì ghi chú mặc định là Thành công
+                note = ' | '.join(parts[4:]).strip() if len(parts) > 4 else 'Thành công'
 
-                if filter_barcode and filter_barcode not in barcode.lower():
-                    continue
+                if filter_barcode:
+                    combined_check = f"{barcode} {note} {username} {ip}".lower()
+                    if filter_barcode not in combined_check:
+                        continue
 
                 records.append({
                     'line_no': line_no,
                     'timestamp': timestamp,
                     'ip': ip,
                     'username': username,
-                    'barcode': barcode
+                    'barcode': barcode,
+                    'note': note
                 })
 
         records.reverse()
@@ -6218,6 +6224,7 @@ def api_time_turner_get_log():
             'success': True,
             'total': len(records),
             'records': records,
+            'columns': ['Thời gian in (UTC+7)', 'IP', 'Người in', 'Barcode', 'Ghi chú'],
             'file_path': file_path
         })
     except Exception as e:
@@ -6272,7 +6279,10 @@ def check_reprint_account_permission(username: str):
 @app.route('/api/barcodes/print-label-cups', methods=['POST'])
 @login_required
 def api_print_label_cups():
-    """Gửi lệnh in trực tiếp đến máy in CUPS 2.4.7 qua IPP 2.0."""
+    """Gửi lệnh in trực tiếp đến máy in CUPS 2.4.7 qua IPP 2.0 (Ghi nhận log cả Thành công và Thất bại)."""
+    client_ip = get_client_ip()
+    raw_barcode = ''
+    client_username = ''
     try:
         data = request.get_json(silent=True) or {}
         raw_barcode = str(data.get('barcode') or data.get('id') or '').strip()
@@ -6282,13 +6292,16 @@ def api_print_label_cups():
         # 1. Kiểm tra username trước khi thực hiện API: check trong bảng kvmes.account
         ok, msg_or_id, status_code = check_reprint_account_permission(client_username)
         if not ok:
+            append_reprint_label_log(client_ip, raw_barcode or 'Unknown', username=client_username or 'Unknown', note=f"Thất bại, {msg_or_id}")
             return jsonify({'success': False, 'message': msg_or_id}), status_code
 
         client_username = msg_or_id
 
         if not raw_barcode:
+            append_reprint_label_log(client_ip, 'Unknown', username=client_username or 'Unknown', note="Thất bại, Thiếu mã Barcode để in tem")
             return jsonify({'success': False, 'message': 'Thiếu mã Barcode để in tem'}), 400
         if not printer_name:
+            append_reprint_label_log(client_ip, raw_barcode, username=client_username or 'Unknown', note="Thất bại, Thiếu tên máy in CUPS")
             return jsonify({'success': False, 'message': 'Thiếu tên máy in CUPS'}), 400
 
         pdf_io, final_barcode = build_reprint_label_pdf_buffer(raw_barcode)
@@ -6298,15 +6311,16 @@ def api_print_label_cups():
         result = send_cups_print_job(printer_name, pdf_bytes, job_name=f"Tem_{final_barcode}.pdf", user_name=user_name)
 
         if not result.get('success'):
+            err_msg = result.get('message', 'Lỗi gửi lệnh in tới CUPS')
+            append_reprint_label_log(client_ip, final_barcode, username=client_username, note=f"Thất bại, {err_msg}")
             return jsonify({
                 'success': False,
-                'message': result.get('message', 'Lỗi gửi lệnh in tới CUPS'),
+                'message': err_msg,
                 'printer_name': printer_name
             }), 502
 
-        # Chỉ ghi log in lại tem khi lệnh in CUPS thành công
-        client_ip = get_client_ip()
-        append_reprint_label_log(client_ip, final_barcode, username=client_username)
+        # Ghi log in lại tem khi lệnh in CUPS thành công
+        append_reprint_label_log(client_ip, final_barcode, username=client_username, note="Thành công")
 
         return jsonify({
             'success': True,
@@ -6316,12 +6330,18 @@ def api_print_label_cups():
             'status': result.get('status')
         })
     except LookupError as le:
-        return jsonify({'success': False, 'message': str(le)}), 404
+        err_msg = str(le)
+        append_reprint_label_log(client_ip, raw_barcode or 'Unknown', username=client_username or 'Unknown', note=f"Thất bại, {err_msg}")
+        return jsonify({'success': False, 'message': err_msg}), 404
     except ValueError as ve:
-        return jsonify({'success': False, 'message': str(ve)}), 400
+        err_msg = str(ve)
+        append_reprint_label_log(client_ip, raw_barcode or 'Unknown', username=client_username or 'Unknown', note=f"Thất bại, {err_msg}")
+        return jsonify({'success': False, 'message': err_msg}), 400
     except Exception as e:
+        err_msg = str(e)
         logger.error(f"Lỗi api_print_label_cups: {e}", exc_info=True)
-        return jsonify({'success': False, 'message': f"Lỗi xử lý in CUPS: {str(e)}"}), 500
+        append_reprint_label_log(client_ip, raw_barcode or 'Unknown', username=client_username or 'Unknown', note=f"Thất bại, {err_msg}")
+        return jsonify({'success': False, 'message': f"Lỗi xử lý in CUPS: {err_msg}"}), 500
 
 
 _p8300_printers_cache = {
