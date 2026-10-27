@@ -3056,7 +3056,14 @@ function handleContextMenuAction(e) {
     // Determine data source table:
     // If context menu was triggered from output table or is an output action, use selectedOutputRowData
     const isOutputTable = currentContextMenuTableType === 'output' || ['outputByBarcode', 'outputByRecipe', 'outputBarcodeByFeedRecords'].includes(action);
-    const rowData = isOutputTable ? (selectedOutputRowData || selectedRowData) : (selectedRowData || selectedOutputRowData);
+    let rowData = isOutputTable ? (selectedOutputRowData || selectedRowData) : (selectedRowData || selectedOutputRowData);
+    if (!rowData && (selectedRow || selectedOutputRow) && typeof handleRowClick === 'function') {
+        const fallbackTarget = isOutputTable ? selectedOutputRow : (selectedRow || selectedOutputRow);
+        if (fallbackTarget) {
+            handleRowClick({ target: fallbackTarget });
+            rowData = isOutputTable ? (selectedOutputRowData || selectedRowData) : (selectedRowData || selectedOutputRowData);
+        }
+    }
     
     const contextMenu = document.getElementById('contextMenu');
     if (contextMenu) contextMenu.style.display = 'none';

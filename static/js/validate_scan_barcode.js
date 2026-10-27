@@ -13,10 +13,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Initialize: disable station on load
     document.getElementById('station').disabled = true;
     
-    // Close context menu on click outside
-    document.addEventListener('click', function() {
-        document.getElementById('contextMenu').style.display = 'none';
-    });
+    // Context menu outside click handled by main.js
     
     // Close comparison modal on outside click
     document.getElementById('comparisonModal').addEventListener('click', function(e) {
@@ -151,8 +148,14 @@ function initializeValidateScanBarcodeEventListeners() {
     document.getElementById('tableBody').addEventListener('click', handleRowClick);
     document.getElementById('tableBody').addEventListener('contextmenu', handleContextMenu);
     
-    // Context menu item
-    document.querySelector('.context-menu-item').addEventListener('click', handleContextMenuAction);
+    // Context menu item for validate_scan_barcode
+    const validateMenuItem = document.querySelector('.context-menu-item[data-action="validate_scan_barcode"]');
+    if (validateMenuItem) {
+        validateMenuItem.addEventListener('click', (e) => {
+            if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+            handleContextMenuAction(e);
+        });
+    }
 }
 
 function showDepartmentDropdown(items) {
@@ -415,11 +418,11 @@ async function searchWorkOrders(station) {
 }
 
 function handleRowClick(e) {
-    const row = e.target.closest('tr');
-    if (!row) return;
+    const row = (e && e.target) ? e.target.closest('tr') : (e && e.closest ? e.closest('tr') : (selectedRow || null));
+    if (!row || row.querySelector('.table-empty-state') || row.classList.contains('skeleton-row')) return;
     
     // Remove previous selection
-    document.querySelectorAll('#tableBody tr').forEach(r => r.classList.remove('selected'));
+    document.querySelectorAll('#tableBody tr, .table-container tbody tr').forEach(r => r.classList.remove('selected'));
     
     // Add selection to current row
     row.classList.add('selected');
@@ -427,16 +430,23 @@ function handleRowClick(e) {
     
     // Get row data
     const cells = row.querySelectorAll('td');
-    const columns = Array.from(document.querySelectorAll('#tableHead th')).map(th => th.textContent);
-    selectedRowData = {};
+    const columns = Array.from(document.querySelectorAll('#tableHead th')).map(th => th.textContent.trim());
+    const rawData = {};
     columns.forEach((col, index) => {
-        selectedRowData[col] = cells[index]?.textContent || '';
+        const cell = cells[index];
+        rawData[col] = (cell?.dataset?.fullValue !== undefined) ? cell.dataset.fullValue : (cell?.textContent.trim() || '');
     });
+    if (typeof normalizeRowData === 'function') {
+        selectedRowData = normalizeRowData(rawData);
+    } else {
+        selectedRowData = rawData;
+    }
+    window.selectedRowData = selectedRowData;
 }
 
 function handleContextMenu(e) {
     if (e && typeof e.preventDefault === 'function') e.preventDefault();
-    const row = (e && e.target) ? e.target.closest('tr') : selectedRow;
+    const row = (e && e.target) ? e.target.closest('tr') : (selectedRow || null);
     if (!row) return;
     
     handleRowClick(e);
@@ -456,19 +466,32 @@ function handleContextMenu(e) {
 }
 
 function handleContextMenuAction(e) {
-    const action = e.target.dataset.action;
-    if (!selectedRowData) return;
+    if (e && typeof e.stopPropagation === 'function') {
+        e.stopPropagation();
+    }
+    const item = (e && e.target) ? e.target.closest('.context-menu-item') : null;
+    const action = item ? item.dataset.action : null;
     
+    const contextMenu = document.getElementById('contextMenu');
+    if (contextMenu) contextMenu.style.display = 'none';
+
+    if (!action) return;
+
     if (action === 'validate_scan_barcode') {
         validateScanBarcode();
     }
-    
-    document.getElementById('contextMenu').style.display = 'none';
 }
+window.handleContextMenuAction = handleContextMenuAction;
 
 async function validateScanBarcode() {
-    const recipeId = selectedRowData ? (selectedRowData['recipe_id'] || '') : '';
-    const station = selectedRowData ? (selectedRowData['station'] || '') : (document.getElementById('station')?.value || '');
+    let rowData = selectedRowData;
+    if (!rowData && selectedRow) {
+        handleRowClick({ target: selectedRow });
+        rowData = selectedRowData;
+    }
+
+    const recipeId = rowData ? (rowData['recipe_id'] || rowData['recipeId'] || rowData['recipe'] || '') : '';
+    const station = rowData ? (rowData['station'] || '') : (document.getElementById('station')?.value || '');
     
     if (!recipeId || !station) {
         showAlert('Thiếu thông tin recipe_id hoặc station', 'warning');
@@ -495,7 +518,7 @@ async function validateScanBarcode() {
         }
         
         if (data && data.success) {
-            const workOrderId = selectedRowData ? (selectedRowData['id'] || selectedRowData['ID'] || '') : '';
+            const workOrderId = rowData ? (rowData['id'] || rowData['ID'] || '') : '';
             displayComparison(data.result, recipeId, station, workOrderId);
         } else {
             showAlert((data && data.message) || 'Có lỗi xảy ra', 'error');
