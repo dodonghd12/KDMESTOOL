@@ -919,7 +919,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.63"
+APP_VERSION = "2.3.64"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -3890,9 +3890,34 @@ def get_department_list():
         elif isinstance(data, list):
             dept_data = data
         
+        normalized_data = []
+        for item in dept_data:
+            if isinstance(item, dict):
+                dept_id = str(
+                    item.get('departmentId') or 
+                    item.get('departmentID') or 
+                    item.get('id') or 
+                    item.get('department') or 
+                    ''
+                ).strip()
+                dept_dict = dict(item)
+                dept_dict['id'] = dept_id
+                dept_dict['departmentId'] = dept_id
+                dept_dict['departmentID'] = dept_id
+                normalized_data.append(dept_dict)
+            elif isinstance(item, str):
+                s_id = item.strip()
+                normalized_data.append({
+                    'id': s_id,
+                    'departmentId': s_id,
+                    'departmentID': s_id
+                })
+            else:
+                normalized_data.append(item)
+        
         return jsonify({
             'error': False,
-            'data': dept_data
+            'data': normalized_data
         })
     
     except Exception as e:
@@ -3922,10 +3947,21 @@ def get_station_list_by_department():
         stations = []
         if data.get('data'):
             for item in data['data']:
-                stations.append({
-                    'id': item.get('ID', ''),
-                    'name': item.get('name', '')
-                })
+                if isinstance(item, dict):
+                    st_id = str(item.get('id') or item.get('ID') or item.get('stationId') or item.get('stationID') or '').strip()
+                    st_name = str(item.get('name') or item.get('Name') or st_id).strip()
+                    stations.append({
+                        'id': st_id,
+                        'ID': st_id,
+                        'name': st_name
+                    })
+                elif isinstance(item, str):
+                    s_str = item.strip()
+                    stations.append({
+                        'id': s_str,
+                        'ID': s_str,
+                        'name': s_str
+                    })
         
         _STATIONS_CACHE[department_oid] = {
             'data': stations,

@@ -89,7 +89,7 @@ function initializeCheckScanHistoryByStationEventListeners() {
         // Filter and show dropdown immediately
         const keyword = value.toUpperCase();
         const filtered = departments.filter(dept => {
-            const id = (dept.id || '').toUpperCase();
+            const id = (dept.id || dept.departmentId || dept.departmentID || '').toUpperCase();
             return id.includes(keyword);
         });
         
@@ -193,7 +193,7 @@ function showDepartmentDropdown(items) {
     items.forEach(dept => {
         const item = document.createElement('div');
         item.className = 'dropdown-item';
-        const deptId = dept.id || '';
+        const deptId = dept.id || dept.departmentId || dept.departmentID || '';
         item.textContent = deptId;
         item.dataset.value = deptId;
         item.addEventListener('mousedown', async (e) => {
@@ -245,7 +245,7 @@ function handleDepartmentSearch() {
     
     // Filter departments
     const filtered = departments.filter(dept => {
-        const id = (dept.id || '').toUpperCase();
+        const id = (dept.id || dept.departmentId || dept.departmentID || '').toUpperCase();
         return id.includes(keyword);
     });
     
@@ -282,12 +282,12 @@ async function handleDepartmentChange() {
     }
     
     // Find department OID - try exact match first
-    let dept = departments.find(d => (d.id) === departmentValue);
+    let dept = departments.find(d => (d.id || d.departmentId || d.departmentID) === departmentValue);
     
     // If not found, try case-insensitive match
     if (!dept) {
         dept = departments.find(d => {
-            const id = (d.id || '').toUpperCase();
+            const id = (d.id || d.departmentId || d.departmentID || '').toUpperCase();
             return id === departmentValue.toUpperCase();
         });
     }
@@ -354,13 +354,13 @@ async function checkAndLoadStations() {
     
     // Check if the value matches exactly with a department
     const dept = departments.find(d => {
-        const id = (d.id || '').toUpperCase();
+        const id = (d.id || d.departmentId || d.departmentID || '').toUpperCase();
         return id === departmentValue.toUpperCase();
     });
     
     if (dept) {
         // Found exact match, load stations
-        const deptOid = dept.id;
+        const deptOid = dept.id || dept.departmentId || dept.departmentID;
         if (currentDepartmentOid !== deptOid || stations.length === 0) {
             currentDepartmentOid = deptOid;
             stationInput.value = '';
@@ -441,7 +441,7 @@ function showStationDropdown(items) {
     items.forEach(station => {
         const item = document.createElement('div');
         item.className = 'dropdown-item';
-        const stationId = station.id || '';
+        const stationId = station.id || station.ID || station.name || (typeof station === 'string' ? station : '');
         item.textContent = stationId;
         item.dataset.value = stationId;
         item.addEventListener('mousedown', (e) => {

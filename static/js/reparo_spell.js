@@ -1102,7 +1102,7 @@ async function initMRFormUI() {
     const createdByDropdown = document.getElementById('mr_created_by_dropdown');
 
     function getDeptCode(dept) {
-        return String(dept.departmentID || '').toUpperCase();
+        return String(dept.departmentID || dept.departmentId || dept.id || '').toUpperCase();
     }
 
     function getDeptOid(dept) {

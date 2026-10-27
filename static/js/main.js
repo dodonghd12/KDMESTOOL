@@ -1388,7 +1388,7 @@ async function getDepartments(forceRefresh = false) {
 
     if (!forceRefresh) {
         // 1. If already fetched and cached in top window's in-memory lifetime, return it immediately
-        if (topWin.__kd_departments && Array.isArray(topWin.__kd_departments) && topWin.__kd_departments.length > 0) {
+        if (topWin.__kd_departments && Array.isArray(topWin.__kd_departments) && topWin.__kd_departments.length > 0 && (topWin.__kd_departments[0]?.id || topWin.__kd_departments[0]?.departmentId)) {
             departments = topWin.__kd_departments;
             window.departments = topWin.__kd_departments;
             return topWin.__kd_departments;
@@ -1427,12 +1427,20 @@ async function getDepartments(forceRefresh = false) {
 
             const items = (result && result.data) || [];
             const depts = items.map(item => {
-                const idVal = item.departmentID || item.id || '';
+                const idVal = String(
+                    item.departmentId ||
+                    item.departmentID ||
+                    item.id ||
+                    item.department ||
+                    (typeof item === 'string' ? item : '') ||
+                    ''
+                ).trim();
                 return {
                     id: idVal,
+                    departmentId: idVal,
                     departmentID: idVal
                 };
-            });
+            }).filter(d => d.id !== '');
 
             topWin.__kd_departments = depts;
             departments = depts;
