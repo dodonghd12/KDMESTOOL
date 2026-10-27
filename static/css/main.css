@@ -5649,9 +5649,8 @@ body.theme-light .yaml-code-scroll::-webkit-scrollbar-track {
 }
 
 .comparison-table .yaml-usage-text {
-    font-size: var(--font-size-xs, 12px);
-    font-weight: 500;
-    color: var(--color-text-accent, #38bdf8);
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
     margin-top: 4px;
     line-height: 1.3;
 }
@@ -12058,6 +12057,11 @@ body.theme-light .material-transfer-retry-btn.is-success {
     .comparison-table .barcode-meta-row {
         gap: 8px !important;
         font-size: 11px !important;
+    }
+
+    .comparison-table .yaml-usage-text {
+        font-size: 11px !important;
+        margin-top: 2px !important;
     }
 
     .comparison-copy-btn {
