@@ -663,10 +663,10 @@ function displayComparison(result, recipeId, station, workOrderId) {
     // Create comparison table
     let html = '<table class="comparison-table">';
     html += '<thead><tr>';
-    html += '<th style="width: 24%;">Site (Trạm)</th>';
-    html += '<th style="width: 42%;">Tem Đầu Vào</th>';
+    html += '<th style="width: 20%;">Site (Trạm)</th>';
     html += '<th style="width: 22%;">Quy Cách YAML</th>';
-    html += '<th style="width: 12%; text-align: center;">Trạng thái</th>';
+    html += '<th style="width: 44%;">Tem Đầu Vào</th>';
+    html += '<th style="width: 14%; text-align: center;">Trạng thái</th>';
     html += '</tr></thead>';
     html += '<tbody>';
     
@@ -738,7 +738,7 @@ function displayComparison(result, recipeId, station, workOrderId) {
 
             html += `<tr class="${rowClass}">`;
 
-            // 1. Site (Trạm) - Rowspan on first row
+            // 1. Site (Trạm) & 2. YAML - Rowspan on first row
             if (isFirst) {
                 const rowspanAttr = rowCount > 1 ? ` rowspan="${rowCount}"` : '';
                 const countBadge = rowCount > 1
@@ -749,6 +749,9 @@ function displayComparison(result, recipeId, station, workOrderId) {
                 html += `<span class="site-name"><strong>${escapeHtml(group.site || '')}</strong></span>`;
                 if (countBadge) html += countBadge;
                 html += `</div></td>`;
+
+                // 2. YAML column - Rowspan on first row (Cột thứ 2)
+                html += `<td class="yaml-cell"${rowspanAttr}>${yamlHtml}</td>`;
             }
 
             // 2. NVL column - show site_id (recipe name), barcode, quantity, expiry
@@ -812,11 +815,7 @@ function displayComparison(result, recipeId, station, workOrderId) {
             }
             html += '</td>';
 
-            // 3. YAML column - Rowspan on first row
-            if (isFirst) {
-                const rowspanAttr = rowCount > 1 ? ` rowspan="${rowCount}"` : '';
-                html += `<td class="yaml-cell"${rowspanAttr}>${yamlHtml}</td>`;
-            }
+
 
             // 4. Status
             html += '<td class="status-cell" style="text-align: center;">';
