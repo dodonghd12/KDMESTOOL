@@ -692,7 +692,14 @@ function displayComparison(result, recipeId, station, workOrderId) {
         // 2. NVL column - show site_id (recipe name), barcode, quantity, expiry
         html += '<td class="material-cell">';
         const isMismatch = Boolean(item._hasBarcode && !item._isMatch);
-        html += `<div class="site-id-text${isMismatch ? ' mismatch' : ''}">${item.site_id ? escapeHtml(item.site_id) : '<span class="empty-cell">N/A</span>'}${isMismatch ? ' <span class="badge-tag-mismatch">SAI QUY CÁCH</span>' : ''}</div>`;
+        const isSubstitute = Boolean(item.is_substitute || item.substituted);
+        let siteBadgeHtml = '';
+        if (isMismatch) {
+            siteBadgeHtml = ' <span class="badge-tag-mismatch">SAI QUY CÁCH</span>';
+        } else if (isSubstitute) {
+            siteBadgeHtml = ` <span class="badge-tag-substitute" title="Nguyên liệu thay thế hợp lệ cho quy cách ${escapeHtml(item.recipe_name || '')}">THAY THẾ</span>`;
+        }
+        html += `<div class="site-id-text${isMismatch ? ' mismatch' : (isSubstitute ? ' substitute' : '')}">${item.site_id ? escapeHtml(item.site_id) : '<span class="empty-cell">N/A</span>'}${siteBadgeHtml}</div>`;
         
         // Copy error button helper
         const renderCopyBtn = () => {
@@ -767,6 +774,8 @@ function displayComparison(result, recipeId, station, workOrderId) {
             html += '<span class="status-pill status-expired"><span class="material-symbols-outlined">schedule</span> HẾT HẠN</span>';
         } else if (item._isEmptyQuantity) {
             html += '<span class="status-pill status-empty-qty"><span class="material-symbols-outlined">production_quantity_limits</span> HẾT SỐ LƯỢNG</span>';
+        } else if (item.is_substitute || item.substituted) {
+            html += `<span class="status-pill status-substitute" title="Quy cách chuẩn: ${escapeHtml(item.recipe_name || '')} - Sử dụng NVL thay thế hợp lệ"><span class="material-symbols-outlined">swap_horiz</span> THAY THẾ (OK)</span>`;
         } else {
             html += '<span class="status-pill status-match"><span class="material-symbols-outlined">check</span> OK</span>';
         }

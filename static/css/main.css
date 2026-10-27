@@ -5633,6 +5633,33 @@ body.theme-light .yaml-code-scroll::-webkit-scrollbar-track {
     white-space: nowrap;
     line-height: 1.4;
 }
+.comparison-table .badge-tag-substitute {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: #d97706;
+    color: #ffffff;
+    font-size: var(--font-size-xs, 11px);
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    margin-left: 4px;
+    white-space: nowrap;
+    line-height: 1.4;
+}
+
+.comparison-table .status-pill.status-substitute {
+    background: rgba(245, 158, 11, 0.15);
+    color: #d97706;
+    border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+[data-theme="dark"] .comparison-table .status-pill.status-substitute {
+    background: rgba(245, 158, 11, 0.2);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.5);
+}
+
 
 .comparison-table .yaml-cell {
     font-weight: 600;

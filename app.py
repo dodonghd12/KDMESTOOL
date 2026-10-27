@@ -919,7 +919,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.68"
+APP_VERSION = "2.3.69"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -4154,6 +4154,34 @@ def validate_scan_barcode_by_station():
                 except Exception as e:
                     continue
 
+        # Query substitution mappings for recipe materials
+        unique_mat_names = list({m['name'].strip().upper() for m in recipe_materials if m.get('name')})
+        sub_map = {}
+        if unique_mat_names:
+            try:
+                sub_query = """
+                    SELECT UPPER(TRIM(id)), substitutions
+                    FROM kvmes.substitution_mapping
+                    WHERE UPPER(TRIM(id)) = ANY(%s)
+                """
+                sub_res, sub_cols = execute_pg_select_query(sub_query, (unique_mat_names,))
+                for row in sub_res:
+                    orig_id = row[0]
+                    subs = row[1]
+                    if isinstance(subs, str):
+                        try:
+                            subs = json.loads(subs)
+                        except Exception:
+                            subs = []
+                    if isinstance(subs, list):
+                        allowed_ids = set()
+                        for s in subs:
+                            if isinstance(s, dict) and s.get('ID'):
+                                allowed_ids.add(str(s['ID']).strip().upper())
+                        sub_map[orig_id] = allowed_ids
+            except Exception as e:
+                sub_map = {}
+
         # Compare and match
         comparison_result = []
         for recipe_mat in recipe_materials:
@@ -4167,7 +4195,18 @@ def validate_scan_barcode_by_station():
             for site_mat in site_materials:
                 if site_mat['name'] == recipe_site:
                     matched = True
-                    is_match = (recipe_name == site_mat['id'])
+                    site_id_str = (site_mat['id'] or '').strip()
+                    recipe_name_str = (recipe_name or '').strip()
+
+                    is_exact_match = (recipe_name_str.upper() == site_id_str.upper()) if (recipe_name_str and site_id_str) else False
+                    is_substitute_match = False
+                    if not is_exact_match and recipe_name_str and site_id_str:
+                        allowed_subs = sub_map.get(recipe_name_str.upper(), set())
+                        if site_id_str.upper() in allowed_subs:
+                            is_substitute_match = True
+
+                    is_match = is_exact_match or is_substitute_match
+
                     comparison_result.append([
                         recipe_site,           # 0
                         recipe_name,           # 1
@@ -4177,7 +4216,8 @@ def validate_scan_barcode_by_station():
                         None,                  # 5: expiry_time
                         None,                  # 6: quantity
                         recipe_mid,            # 7: mid (hao dùng)
-                        recipe_unit            # 8: unit
+                        recipe_unit,           # 8: unit
+                        is_substitute_match    # 9: is_substitute
                     ])
                     break
             
@@ -4191,7 +4231,8 @@ def validate_scan_barcode_by_station():
                     None,           # 5: expiry_time
                     None,           # 6: quantity
                     recipe_mid,     # 7: mid (hao dùng)
-                    recipe_unit     # 8: unit
+                    recipe_unit,    # 8: unit
+                    False           # 9: is_substitute
                 ])
         
         # Get expiry_time for each barcode
@@ -4210,7 +4251,7 @@ def validate_scan_barcode_by_station():
                     item[6] = expiry_result[0][1]  # quantity
         
         # Convert timestamp columns (expiry_time is at index 5)
-        column_names = ['site', 'recipe_name', 'site_id', 'site_barcode', 'match', 'expiry_time', 'quantity', 'mid', 'unit']
+        column_names = ['site', 'recipe_name', 'site_id', 'site_barcode', 'match', 'expiry_time', 'quantity', 'mid', 'unit', 'is_substitute']
         convert_columns = ['expiry_time']
         comparison_result = convert_timestamp(comparison_result, column_names, convert_columns)
         
@@ -4231,7 +4272,9 @@ def validate_scan_barcode_by_station():
                 'mid': row[7],
                 'unit': row[8],
                 'usage': row[7],
-                'hao_dung': row[7]
+                'hao_dung': row[7],
+                'is_substitute': row[9] if len(row) > 9 else False,
+                'substituted': row[9] if len(row) > 9 else False
             })
         
         return jsonify({
