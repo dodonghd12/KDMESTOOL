@@ -774,8 +774,6 @@ function displayComparison(result, recipeId, station, workOrderId) {
             html += '<span class="status-pill status-expired"><span class="material-symbols-outlined">schedule</span> HẾT HẠN</span>';
         } else if (item._isEmptyQuantity) {
             html += '<span class="status-pill status-empty-qty"><span class="material-symbols-outlined">production_quantity_limits</span> HẾT SỐ LƯỢNG</span>';
-        } else if (item.is_substitute || item.substituted) {
-            html += `<span class="status-pill status-substitute" title="Quy cách chuẩn: ${escapeHtml(item.recipe_name || '')} - Sử dụng NVL thay thế hợp lệ"><span class="material-symbols-outlined">swap_horiz</span> THAY THẾ (OK)</span>`;
         } else {
             html += '<span class="status-pill status-match"><span class="material-symbols-outlined">check</span> OK</span>';
         }

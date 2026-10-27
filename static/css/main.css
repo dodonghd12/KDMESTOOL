@@ -5648,17 +5648,6 @@ body.theme-light .yaml-code-scroll::-webkit-scrollbar-track {
     line-height: 1.4;
 }
 
-.comparison-table .status-pill.status-substitute {
-    background: rgba(245, 158, 11, 0.15);
-    color: #d97706;
-    border: 1px solid rgba(245, 158, 11, 0.4);
-}
-
-[data-theme="dark"] .comparison-table .status-pill.status-substitute {
-    background: rgba(245, 158, 11, 0.2);
-    color: #fbbf24;
-    border: 1px solid rgba(245, 158, 11, 0.5);
-}
 
 
 .comparison-table .yaml-cell {
