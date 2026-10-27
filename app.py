@@ -919,7 +919,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.65"
+APP_VERSION = "2.3.66"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -4036,15 +4036,39 @@ def validate_scan_barcode_by_station():
                 else:
                     configs_data = recipe_configs
                 
-                if isinstance(configs_data, list) and len(configs_data) > 0:
-                    steps = configs_data[0].get('steps', [])
-                    if steps and len(steps) > 0:
-                        materials = steps[0].get('materials', [])
-                        for mat in materials:
+                if isinstance(configs_data, list):
+                    for cfg in configs_data:
+                        steps = cfg.get('steps', []) if isinstance(cfg, dict) else []
+                        for step in steps:
+                            materials = step.get('materials', []) if isinstance(step, dict) else []
+                            for mat in materials:
+                                val_obj = mat.get('value', {}) if isinstance(mat.get('value'), dict) else {}
+                                mid = val_obj.get('mid')
+                                unit = val_obj.get('unit', '')
+                                recipe_materials.append({
+                                    'name': mat.get('name', ''),
+                                    'site': mat.get('site', ''),
+                                    'mid': mid,
+                                    'unit': unit
+                                })
+                elif isinstance(configs_data, dict):
+                    for step in configs_data.get('steps', []):
+                        for mat in step.get('materials', []):
+                            val_obj = mat.get('value', {}) if isinstance(mat.get('value'), dict) else {}
                             recipe_materials.append({
                                 'name': mat.get('name', ''),
-                                'site': mat.get('site', '')
+                                'site': mat.get('site', ''),
+                                'mid': val_obj.get('mid'),
+                                'unit': val_obj.get('unit', '')
                             })
+                    for mat in configs_data.get('materials', []):
+                        val_obj = mat.get('value', {}) if isinstance(mat.get('value'), dict) else {}
+                        recipe_materials.append({
+                            'name': mat.get('name', ''),
+                            'site': mat.get('site', ''),
+                            'mid': val_obj.get('mid'),
+                            'unit': val_obj.get('unit', '')
+                        })
             except Exception as e:
                 return jsonify({'success': False, 'message': f'Lỗi parse configs: {str(e)}'})
             
@@ -4089,6 +4113,8 @@ def validate_scan_barcode_by_station():
         for recipe_mat in recipe_materials:
             recipe_name = recipe_mat['name']
             recipe_site = recipe_mat['site']
+            recipe_mid = recipe_mat.get('mid')
+            recipe_unit = recipe_mat.get('unit', '')
             
             # Find matching site material
             matched = False
@@ -4097,25 +4123,29 @@ def validate_scan_barcode_by_station():
                     matched = True
                     is_match = (recipe_name == site_mat['id'])
                     comparison_result.append([
-                        recipe_site,           # site
-                        recipe_name,           # recipe_name
-                        site_mat['id'],        # site_id
-                        site_mat['barcode'],   # site_barcode
-                        is_match,              # match
-                        None,                   # expiry_time
-                        None                    # quantity
+                        recipe_site,           # 0
+                        recipe_name,           # 1
+                        site_mat['id'],        # 2
+                        site_mat['barcode'],   # 3
+                        is_match,              # 4
+                        None,                  # 5: expiry_time
+                        None,                  # 6: quantity
+                        recipe_mid,            # 7: mid (hao dùng)
+                        recipe_unit            # 8: unit
                     ])
                     break
             
             if not matched:
                 comparison_result.append([
-                    recipe_site,    # site
-                    recipe_name,    # recipe_name
-                    None,           # site_id
-                    None,           # site_barcode
-                    False,          # match
-                    None,            # expiry_time
-                    None             # quantity
+                    recipe_site,    # 0
+                    recipe_name,    # 1
+                    None,           # 2
+                    None,           # 3
+                    False,          # 4
+                    None,           # 5: expiry_time
+                    None,           # 6: quantity
+                    recipe_mid,     # 7: mid (hao dùng)
+                    recipe_unit     # 8: unit
                 ])
         
         # Get expiry_time for each barcode
@@ -4134,7 +4164,7 @@ def validate_scan_barcode_by_station():
                     item[6] = expiry_result[0][1]  # quantity
         
         # Convert timestamp columns (expiry_time is at index 5)
-        column_names = ['site', 'recipe_name', 'site_id', 'site_barcode', 'match', 'expiry_time', 'quantity']
+        column_names = ['site', 'recipe_name', 'site_id', 'site_barcode', 'match', 'expiry_time', 'quantity', 'mid', 'unit']
         convert_columns = ['expiry_time']
         comparison_result = convert_timestamp(comparison_result, column_names, convert_columns)
         
@@ -4151,7 +4181,11 @@ def validate_scan_barcode_by_station():
                 'site_barcode': row[3],
                 'match': row[4],
                 'expiry_time': row[5],
-                'quantity': row[6]
+                'quantity': row[6],
+                'mid': row[7],
+                'unit': row[8],
+                'usage': row[7],
+                'hao_dung': row[7]
             })
         
         return jsonify({

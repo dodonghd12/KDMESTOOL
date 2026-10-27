@@ -741,8 +741,19 @@ function displayComparison(result, recipeId, station, workOrderId) {
         }
         html += '</td>';
         
-        // 3. YAML column - only show recipe_name
-        html += `<td class="yaml-cell">${item.recipe_name ? escapeHtml(item.recipe_name) : '<span class="empty-cell">N/A</span>'}</td>`;
+        // 3. YAML column - show recipe_name (line 1) and Hao dùng (line 2)
+        const usageVal = (item.mid !== null && item.mid !== undefined && item.mid !== '')
+            ? item.mid
+            : ((item.usage !== null && item.usage !== undefined && item.usage !== '')
+                ? item.usage
+                : ((item.hao_dung !== null && item.hao_dung !== undefined && item.hao_dung !== '') ? item.hao_dung : null));
+
+        let yamlHtml = `<div class="yaml-recipe-name">${item.recipe_name ? escapeHtml(item.recipe_name) : '<span class="empty-cell">N/A</span>'}</div>`;
+        if (usageVal !== null && usageVal !== undefined && usageVal !== '') {
+            const unitTitle = item.unit ? ` title="Đơn vị: ${escapeHtml(String(item.unit))}"` : '';
+            yamlHtml += `<div class="yaml-usage-text"${unitTitle}>Hao dùng : ${escapeHtml(String(usageVal))}</div>`;
+        }
+        html += `<td class="yaml-cell">${yamlHtml}</td>`;
         
         // 4. Status
         html += '<td class="status-cell" style="text-align: center;">';

@@ -5641,6 +5641,21 @@ body.theme-light .yaml-code-scroll::-webkit-scrollbar-track {
     vertical-align: middle;
 }
 
+.comparison-table .yaml-recipe-name {
+    font-weight: 600;
+    color: var(--color-text-primary);
+    font-size: var(--font-size-base);
+    line-height: 1.35;
+}
+
+.comparison-table .yaml-usage-text {
+    font-size: var(--font-size-xs, 12px);
+    font-weight: 500;
+    color: var(--color-text-accent, #38bdf8);
+    margin-top: 4px;
+    line-height: 1.3;
+}
+
 /* Dòng 2: barcode-highlight */
 .comparison-table .barcode-highlight {
     display: inline-flex;
