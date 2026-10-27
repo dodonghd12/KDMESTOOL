@@ -5647,6 +5647,59 @@ body.theme-light .yaml-code-scroll::-webkit-scrollbar-track {
     white-space: nowrap;
     line-height: 1.4;
 }
+/* Rowspan & Multi-barcode grouping styles for CONTAINER mode */
+.comparison-table .badge-tag-site-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    background: rgba(34, 211, 238, 0.12);
+    color: #22d3ee;
+    border: 1px solid rgba(34, 211, 238, 0.35);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.comparison-table .badge-tag-site-count .count-icon {
+    font-size: 13px;
+}
+
+.comparison-table .barcode-seq-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: rgba(148, 163, 184, 0.15);
+    color: var(--color-text-muted, #94a3b8);
+    font-size: 10px;
+    font-weight: 700;
+    margin-right: 4px;
+    line-height: 1.3;
+    vertical-align: middle;
+}
+
+.comparison-table tr.group-inner-row td.material-cell,
+.comparison-table tr.group-inner-row td.status-cell {
+    border-bottom: 1px dashed rgba(148, 163, 184, 0.22) !important;
+}
+
+.comparison-table .site-cell[rowspan],
+.comparison-table .yaml-cell[rowspan] {
+    vertical-align: middle !important;
+    border-bottom: 1px solid var(--color-border-subtle) !important;
+}
+
+.comparison-table .site-title-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
 
 
 

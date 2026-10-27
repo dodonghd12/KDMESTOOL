@@ -670,116 +670,173 @@ function displayComparison(result, recipeId, station, workOrderId) {
     html += '</tr></thead>';
     html += '<tbody>';
     
+    // Group evaluatedItems by site (to support rowspan when a site has multiple barcodes in CONTAINER mode)
+    const siteGroups = [];
+    const siteGroupMap = new Map();
+
     evaluatedItems.forEach(item => {
-        let rowClass = 'row-match';
-        if (!item._isValid) {
-            if (!item._hasBarcode || !item._isMatch) {
-                rowClass = 'row-mismatch';
-            } else if (item._isExpired) {
-                rowClass = 'row-mismatch row-expired';
-            } else if (item._isEmptyQuantity) {
-                rowClass = 'row-mismatch row-empty-quantity';
-            } else {
-                rowClass = 'row-mismatch';
-            }
+        const key = item.site || '__empty__';
+        if (!siteGroupMap.has(key)) {
+            const group = {
+                site: item.site || '',
+                recipe_name: item.recipe_name,
+                mid: item.mid,
+                unit: item.unit,
+                usage: item.usage,
+                hao_dung: item.hao_dung,
+                items: []
+            };
+            siteGroupMap.set(key, group);
+            siteGroups.push(group);
         }
-        
-        html += `<tr class="comparison-row ${rowClass}">`;
-        
-        // 1. Site
-        html += `<td class="site-cell"><strong>${escapeHtml(item.site || '')}</strong></td>`;
-        
-        // 2. NVL column - show site_id (recipe name), barcode, quantity, expiry
-        html += '<td class="material-cell">';
-        const isMismatch = Boolean(item._hasBarcode && !item._isMatch);
-        const isSubstitute = Boolean(item.is_substitute || item.substituted);
-        let siteBadgeHtml = '';
-        if (isMismatch) {
-            siteBadgeHtml = ' <span class="badge-tag-mismatch">SAI QUY CÁCH</span>';
-        } else if (isSubstitute) {
-            siteBadgeHtml = ` <span class="badge-tag-substitute" title="Nguyên liệu thay thế hợp lệ cho quy cách ${escapeHtml(item.recipe_name || '')}">THAY THẾ</span>`;
-        }
-        html += `<div class="site-id-text${isMismatch ? ' mismatch' : (isSubstitute ? ' substitute' : '')}">${item.site_id ? escapeHtml(item.site_id) : '<span class="empty-cell">N/A</span>'}${siteBadgeHtml}</div>`;
-        
-        // Copy error button helper
-        const renderCopyBtn = () => {
-            if (!item._isMatch || !item._isValid || item.match === false) {
-                const statusText = getValidationStatusText(item);
-                const copyText = `Trạm ${item.site || ''} Tem ${item.site_barcode || ''} ${statusText}`.replace(/\s+/g, ' ').trim();
-                return `<button type="button" class="comparison-copy-btn" data-copy-text="${escapeHtml(copyText)}" onclick="copyValidationRowText(event, this)" title="Sao chép thông tin lỗi: ${escapeHtml(copyText)}" aria-label="Sao chép thông tin lỗi">` +
-                    `<span class="material-symbols-outlined" aria-hidden="true">content_copy</span>` +
-                    `<span>Copy</span>` +
-                `</button>`;
-            }
-            return '';
-        };
+        siteGroupMap.get(key).items.push(item);
+    });
 
-        if (item._hasBarcode) {
-            let barcodeClass = 'barcode-highlight';
-            if (item._isEmptyQuantity) {
-                barcodeClass += ' empty-quantity';
-            } else if (item._isExpired) {
-                barcodeClass += ' expired';
-            }
+    siteGroups.forEach(group => {
+        const rowCount = group.items.length;
 
-            // barcode row with inline copy button
-            html += `<div class="barcode-row-wrap">`;
-            html += `<div class="${barcodeClass}"><span class="material-symbols-outlined barcode-icon">qr_code_2</span>${escapeHtml(item.site_barcode)}</div>`;
-            html += renderCopyBtn();
-            html += `</div>`;
+        // Pre-generate YAML HTML for this site (shared across rows in this group)
+        const usageVal = (group.mid !== null && group.mid !== undefined && group.mid !== '')
+            ? group.mid
+            : ((group.usage !== null && group.usage !== undefined && group.usage !== '')
+                ? group.usage
+                : ((group.hao_dung !== null && group.hao_dung !== undefined && group.hao_dung !== '') ? group.hao_dung : null));
 
-            // Số lượng & HSD
-            const quantityText = (item.quantity !== null && item.quantity !== undefined)
-                ? item.quantity
-                : 'N/A';
-            const expiryText = item.expiry_time
-                ? new Date(item.expiry_time).toLocaleString('vi-VN')
-                : 'N/A';
-
-            html += `<div class="barcode-meta-row">`;
-            html += `<span class="meta-item${item._isEmptyQuantity ? ' empty-quantity' : ''}"><span class="material-symbols-outlined">inventory_2</span> SL: <strong>${escapeHtml(String(quantityText))}</strong>${item._isEmptyQuantity ? ' <span class="badge-tag-empty-qty">HẾT SỐ LƯỢNG</span>' : ''}</span>`;
-            html += `<span class="meta-item${item._isExpired ? ' expired' : ''}"><span class="material-symbols-outlined">schedule</span> HSD: <strong>${escapeHtml(expiryText)}</strong>${item._isExpired ? ' <span class="badge-tag-expired">HẾT HẠN</span>' : ''}</span>`;
-            html += `</div>`;
-        } else {
-            html += `<div class="barcode-row-wrap">`;
-            html += `<div class="empty-cell">Chưa quét tem</div>`;
-            html += renderCopyBtn();
-            html += `</div>`;
-        }
-        html += '</td>';
-        
-        // 3. YAML column - show recipe_name (line 1) and Hao dùng (line 2)
-        const usageVal = (item.mid !== null && item.mid !== undefined && item.mid !== '')
-            ? item.mid
-            : ((item.usage !== null && item.usage !== undefined && item.usage !== '')
-                ? item.usage
-                : ((item.hao_dung !== null && item.hao_dung !== undefined && item.hao_dung !== '') ? item.hao_dung : null));
-
-        let yamlHtml = `<div class="yaml-recipe-name">${item.recipe_name ? escapeHtml(item.recipe_name) : '<span class="empty-cell">N/A</span>'}</div>`;
+        let yamlHtml = `<div class="yaml-recipe-name">${group.recipe_name ? escapeHtml(group.recipe_name) : '<span class="empty-cell">N/A</span>'}</div>`;
         if (usageVal !== null && usageVal !== undefined && usageVal !== '') {
-            const unitTitle = item.unit ? ` title="Đơn vị: ${escapeHtml(String(item.unit))}"` : '';
+            const unitTitle = group.unit ? ` title="Đơn vị: ${escapeHtml(String(group.unit))}"` : '';
             yamlHtml += `<div class="yaml-usage-text"${unitTitle}>Hao dùng : ${escapeHtml(String(usageVal))}</div>`;
         }
-        html += `<td class="yaml-cell">${yamlHtml}</td>`;
-        
-        // 4. Status
-        html += '<td class="status-cell" style="text-align: center;">';
-        if (!item._hasBarcode) {
-            html += '<span class="status-pill status-missing"><span class="material-symbols-outlined">qr_code_scanner</span> CHƯA QUÉT</span>';
-        } else if (!item._isMatch) {
-            html += '<span class="status-pill status-mismatch"><span class="material-symbols-outlined">close</span> SAI QUY CÁCH</span>';
-        } else if (item._isExpired && item._isEmptyQuantity) {
-            html += '<span class="status-pill status-expired"><span class="material-symbols-outlined">schedule</span> HẾT HẠN & SL</span>';
-        } else if (item._isExpired) {
-            html += '<span class="status-pill status-expired"><span class="material-symbols-outlined">schedule</span> HẾT HẠN</span>';
-        } else if (item._isEmptyQuantity) {
-            html += '<span class="status-pill status-empty-qty"><span class="material-symbols-outlined">production_quantity_limits</span> HẾT SỐ LƯỢNG</span>';
-        } else {
-            html += '<span class="status-pill status-match"><span class="material-symbols-outlined">check</span> OK</span>';
-        }
-        html += '</td>';
 
-        html += '</tr>';
+        group.items.forEach((item, itemIdx) => {
+            const isFirst = (itemIdx === 0);
+            const isLast = (itemIdx === rowCount - 1);
+
+            let rowClass = 'comparison-row';
+            if (!item._isValid) {
+                if (!item._hasBarcode || !item._isMatch) {
+                    rowClass += ' row-mismatch';
+                } else if (item._isExpired) {
+                    rowClass += ' row-mismatch row-expired';
+                } else if (item._isEmptyQuantity) {
+                    rowClass += ' row-mismatch row-empty-quantity';
+                } else {
+                    rowClass += ' row-mismatch';
+                }
+            } else {
+                rowClass += ' row-match';
+            }
+
+            if (rowCount > 1) {
+                rowClass += ' has-multi-barcodes';
+                if (!isLast) {
+                    rowClass += ' group-inner-row';
+                } else {
+                    rowClass += ' group-last-row';
+                }
+            }
+
+            html += `<tr class="${rowClass}">`;
+
+            // 1. Site (Trạm) - Rowspan on first row
+            if (isFirst) {
+                const rowspanAttr = rowCount > 1 ? ` rowspan="${rowCount}"` : '';
+                const countBadge = rowCount > 1
+                    ? `<span class="badge-tag-site-count" title="Trạm dạng CONTAINER: Có ${rowCount} tem quét vào"><span class="material-symbols-outlined count-icon">layers</span> ${rowCount} tem</span>`
+                    : '';
+                html += `<td class="site-cell"${rowspanAttr}>`;
+                html += `<div class="site-title-row">`;
+                html += `<span class="site-name"><strong>${escapeHtml(group.site || '')}</strong></span>`;
+                if (countBadge) html += countBadge;
+                html += `</div></td>`;
+            }
+
+            // 2. NVL column - show site_id (recipe name), barcode, quantity, expiry
+            html += '<td class="material-cell">';
+            const isMismatch = Boolean(item._hasBarcode && !item._isMatch);
+            const isSubstitute = Boolean(item.is_substitute || item.substituted);
+            let siteBadgeHtml = '';
+            if (isMismatch) {
+                siteBadgeHtml = ' <span class="badge-tag-mismatch">SAI QUY CÁCH</span>';
+            } else if (isSubstitute) {
+                siteBadgeHtml = ` <span class="badge-tag-substitute" title="Nguyên liệu thay thế hợp lệ cho quy cách ${escapeHtml(group.recipe_name || '')}">THAY THẾ</span>`;
+            }
+
+            const seqPill = rowCount > 1 ? `<span class="barcode-seq-pill">#${itemIdx + 1}</span> ` : '';
+            html += `<div class="site-id-text${isMismatch ? ' mismatch' : (isSubstitute ? ' substitute' : '')}">${seqPill}${item.site_id ? escapeHtml(item.site_id) : '<span class="empty-cell">N/A</span>'}${siteBadgeHtml}</div>`;
+
+            // Copy error button helper
+            const renderCopyBtn = () => {
+                if (!item._isMatch || !item._isValid || item.match === false) {
+                    const statusText = getValidationStatusText(item);
+                    const copyText = `Trạm ${item.site || ''} Tem ${item.site_barcode || ''} ${statusText}`.replace(/\s+/g, ' ').trim();
+                    return `<button type="button" class="comparison-copy-btn" data-copy-text="${escapeHtml(copyText)}" onclick="copyValidationRowText(event, this)" title="Sao chép thông tin lỗi: ${escapeHtml(copyText)}" aria-label="Sao chép thông tin lỗi">` +
+                        `<span class="material-symbols-outlined" aria-hidden="true">content_copy</span>` +
+                        `<span>Copy</span>` +
+                    `</button>`;
+                }
+                return '';
+            };
+
+            if (item._hasBarcode) {
+                let barcodeClass = 'barcode-highlight';
+                if (item._isEmptyQuantity) {
+                    barcodeClass += ' empty-quantity';
+                } else if (item._isExpired) {
+                    barcodeClass += ' expired';
+                }
+
+                // barcode row with inline copy button
+                html += `<div class="barcode-row-wrap">`;
+                html += `<div class="${barcodeClass}"><span class="material-symbols-outlined barcode-icon">qr_code_2</span>${escapeHtml(item.site_barcode)}</div>`;
+                html += renderCopyBtn();
+                html += `</div>`;
+
+                // Số lượng & HSD
+                const quantityText = (item.quantity !== null && item.quantity !== undefined)
+                    ? item.quantity
+                    : 'N/A';
+                const expiryText = item.expiry_time
+                    ? new Date(item.expiry_time).toLocaleString('vi-VN')
+                    : 'N/A';
+
+                html += `<div class="barcode-meta-row">`;
+                html += `<span class="meta-item${item._isEmptyQuantity ? ' empty-quantity' : ''}"><span class="material-symbols-outlined">inventory_2</span> SL: <strong>${escapeHtml(String(quantityText))}</strong>${item._isEmptyQuantity ? ' <span class="badge-tag-empty-qty">HẾT SỐ LƯỢNG</span>' : ''}</span>`;
+                html += `<span class="meta-item${item._isExpired ? ' expired' : ''}"><span class="material-symbols-outlined">schedule</span> HSD: <strong>${escapeHtml(expiryText)}</strong>${item._isExpired ? ' <span class="badge-tag-expired">HẾT HẠN</span>' : ''}</span>`;
+                html += `</div>`;
+            } else {
+                html += `<div class="barcode-row-wrap">`;
+                html += `<div class="empty-cell">Chưa quét tem</div>`;
+                html += renderCopyBtn();
+                html += `</div>`;
+            }
+            html += '</td>';
+
+            // 3. YAML column - Rowspan on first row
+            if (isFirst) {
+                const rowspanAttr = rowCount > 1 ? ` rowspan="${rowCount}"` : '';
+                html += `<td class="yaml-cell"${rowspanAttr}>${yamlHtml}</td>`;
+            }
+
+            // 4. Status
+            html += '<td class="status-cell" style="text-align: center;">';
+            if (!item._hasBarcode) {
+                html += '<span class="status-pill status-missing"><span class="material-symbols-outlined">qr_code_scanner</span> CHƯA QUÉT</span>';
+            } else if (!item._isMatch) {
+                html += '<span class="status-pill status-mismatch"><span class="material-symbols-outlined">close</span> SAI QUY CÁCH</span>';
+            } else if (item._isExpired && item._isEmptyQuantity) {
+                html += '<span class="status-pill status-expired"><span class="material-symbols-outlined">schedule</span> HẾT HẠN & SL</span>';
+            } else if (item._isExpired) {
+                html += '<span class="status-pill status-expired"><span class="material-symbols-outlined">schedule</span> HẾT HẠN</span>';
+            } else if (item._isEmptyQuantity) {
+                html += '<span class="status-pill status-empty-qty"><span class="material-symbols-outlined">production_quantity_limits</span> HẾT SỐ LƯỢNG</span>';
+            } else {
+                html += '<span class="status-pill status-match"><span class="material-symbols-outlined">check</span> OK</span>';
+            }
+            html += '</td>';
+
+            html += '</tr>';
+        });
     });
     
     html += '</tbody></table>';
