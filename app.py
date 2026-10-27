@@ -919,7 +919,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.70"
+APP_VERSION = "2.3.71"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -4122,18 +4122,20 @@ def validate_scan_barcode_by_station():
                     else:
                         content_data = content
                     
-                    slot = content_data.get('slot', {})
-                    material = slot.get('material', {})
-                    material_obj = material.get('material', {})
+                    slot = content_data.get('slot', {}) if isinstance(content_data, dict) else {}
+                    material = slot.get('material', {}) if isinstance(slot, dict) else {}
+                    material_obj = material.get('material', {}) if isinstance(material, dict) else {}
                     
                     material_id = material_obj.get('id', '')
                     resource_id = material.get('resource_id', '')
+                    slot_qty = material.get('quantity')
                     
                     if material_id or resource_id:
                         site_materials.append({
                             'name': name,
                             'id': material_id,
-                            'barcode': resource_id
+                            'barcode': resource_id,
+                            'quantity': slot_qty
                         })
 
                     # Support container format (e.g. for MIXER, OPENMILL, PLYBELT)
@@ -4145,11 +4147,13 @@ def validate_scan_barcode_by_station():
                                 c_mat_obj = c_mat.get('material', {}) if isinstance(c_mat.get('material'), dict) else {}
                                 c_mat_id = c_mat_obj.get('id', '') or c_mat.get('id', '')
                                 c_res_id = c_mat.get('resource_id', '') or c_item.get('resource_id', '')
+                                c_qty = c_mat.get('quantity') or c_item.get('quantity')
                                 if c_mat_id or c_res_id:
                                     site_materials.append({
                                         'name': name,
                                         'id': c_mat_id,
-                                        'barcode': c_res_id
+                                        'barcode': c_res_id,
+                                        'quantity': c_qty
                                     })
                 except Exception as e:
                     continue
@@ -4182,7 +4186,7 @@ def validate_scan_barcode_by_station():
             except Exception as e:
                 sub_map = {}
 
-        # Compare and match
+        # Compare and match: allow MULTIPLE barcodes per site (e.g. CONTAINER)
         comparison_result = []
         for recipe_mat in recipe_materials:
             recipe_name = recipe_mat['name']
@@ -4190,11 +4194,10 @@ def validate_scan_barcode_by_station():
             recipe_mid = recipe_mat.get('mid')
             recipe_unit = recipe_mat.get('unit', '')
             
-            # Find matching site material
-            matched = False
-            for site_mat in site_materials:
-                if site_mat['name'] == recipe_site:
-                    matched = True
+            matching_site_mats = [sm for sm in site_materials if sm['name'] == recipe_site]
+            
+            if matching_site_mats:
+                for site_mat in matching_site_mats:
                     site_id_str = (site_mat['id'] or '').strip()
                     recipe_name_str = (recipe_name or '').strip()
 
@@ -4214,14 +4217,12 @@ def validate_scan_barcode_by_station():
                         site_mat['barcode'],   # 3
                         is_match,              # 4
                         None,                  # 5: expiry_time
-                        None,                  # 6: quantity
+                        site_mat.get('quantity'), # 6: quantity (site_view fallback)
                         recipe_mid,            # 7: mid (hao dùng)
                         recipe_unit,           # 8: unit
                         is_substitute_match    # 9: is_substitute
                     ])
-                    break
-            
-            if not matched:
+            else:
                 comparison_result.append([
                     recipe_site,    # 0
                     recipe_name,    # 1
@@ -4248,7 +4249,14 @@ def validate_scan_barcode_by_station():
                 
                 if expiry_result and len(expiry_result) > 0:
                     item[5] = expiry_result[0][0]  # expiry_time
-                    item[6] = expiry_result[0][1]  # quantity
+                    mr_qty = expiry_result[0][1]   # quantity from material_resource
+                    if (mr_qty is None or float(mr_qty) <= 0) and item[6] is not None:
+                        try:
+                            item[6] = float(item[6])
+                        except (ValueError, TypeError):
+                            item[6] = mr_qty
+                    else:
+                        item[6] = mr_qty
         
         # Convert timestamp columns (expiry_time is at index 5)
         column_names = ['site', 'recipe_name', 'site_id', 'site_barcode', 'match', 'expiry_time', 'quantity', 'mid', 'unit', 'is_substitute']
