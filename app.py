@@ -919,7 +919,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.67"
+APP_VERSION = "2.3.68"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -4025,7 +4025,36 @@ def validate_scan_barcode_by_station():
         if not recipe_result:
             return jsonify({'success': False, 'message': 'Không tìm thấy recipe'})
         
-        recipe_configs = recipe_result[0][recipe_columns.index('configs')]
+        # Select best recipe row matching station, or fallback to PRODUCE type
+        selected_row = None
+        for row in recipe_result:
+            cfg = row[recipe_columns.index('configs')]
+            if isinstance(cfg, str):
+                try:
+                    cfg_data = json.loads(cfg)
+                except Exception:
+                    cfg_data = []
+            else:
+                cfg_data = cfg
+
+            if isinstance(cfg_data, list):
+                for c in cfg_data:
+                    if isinstance(c, dict) and station in c.get('stations', []):
+                        selected_row = row
+                        break
+            elif isinstance(cfg_data, dict):
+                if station in cfg_data.get('stations', []):
+                    selected_row = row
+
+            if selected_row:
+                break
+
+        if not selected_row:
+            type_idx = recipe_columns.index('type')
+            produce_rows = [r for r in recipe_result if r[type_idx] == 'PRODUCE']
+            selected_row = produce_rows[0] if produce_rows else recipe_result[0]
+
+        recipe_configs = selected_row[recipe_columns.index('configs')]
         
         # Parse configs to get materials from steps
         recipe_materials = []
@@ -4100,11 +4129,28 @@ def validate_scan_barcode_by_station():
                     material_id = material_obj.get('id', '')
                     resource_id = material.get('resource_id', '')
                     
-                    site_materials.append({
-                        'name': name,
-                        'id': material_id,
-                        'barcode': resource_id
-                    })
+                    if material_id or resource_id:
+                        site_materials.append({
+                            'name': name,
+                            'id': material_id,
+                            'barcode': resource_id
+                        })
+
+                    # Support container format (e.g. for MIXER, OPENMILL, PLYBELT)
+                    container = content_data.get('container', []) if isinstance(content_data, dict) else []
+                    if isinstance(container, list):
+                        for c_item in container:
+                            if isinstance(c_item, dict):
+                                c_mat = c_item.get('material', {}) if isinstance(c_item.get('material'), dict) else c_item
+                                c_mat_obj = c_mat.get('material', {}) if isinstance(c_mat.get('material'), dict) else {}
+                                c_mat_id = c_mat_obj.get('id', '') or c_mat.get('id', '')
+                                c_res_id = c_mat.get('resource_id', '') or c_item.get('resource_id', '')
+                                if c_mat_id or c_res_id:
+                                    site_materials.append({
+                                        'name': name,
+                                        'id': c_mat_id,
+                                        'barcode': c_res_id
+                                    })
                 except Exception as e:
                     continue
 
