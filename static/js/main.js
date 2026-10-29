@@ -2813,6 +2813,16 @@ function handleContextMenuUnified(e, tableType = 'main') {
         handleRowClick(e);
     } else {
         handleOutputRowClick(e);
+        // Nếu là bảng outputBarcodeByFeedRecords mà work_order rỗng/null/- thì chặn không mở context menu
+        if (currentOutputTableType === 'outputBarcodeByFeedRecords') {
+            const wo = selectedOutputRowData ? (selectedOutputRowData.work_order || selectedOutputRowData['work_order']) : null;
+            const cleanWo = String(wo || '').trim();
+            if (!cleanWo || cleanWo === '-' || cleanWo.toLowerCase() === 'null' || cleanWo.toLowerCase() === 'undefined') {
+                const contextMenu = document.getElementById('contextMenu');
+                if (contextMenu) contextMenu.style.display = 'none';
+                return false;
+            }
+        }
     }
 
     let posX = (e && typeof e.clientX === 'number') ? e.clientX : (e && typeof e.pageX === 'number' ? e.pageX : (window.innerWidth / 2));
@@ -2994,7 +3004,18 @@ function updateOutputContextMenu() {
         'outputBarcodeByFeedRecords': ['outputBarcodeByFeedRecords']
     };
 
-    const allowedActions = menuConfig[currentOutputTableType] || [];
+    let allowedActions = menuConfig[currentOutputTableType] || [];
+
+    // Nếu là bảng 'outputBarcodeByFeedRecords' (Kiểm tra tiêu thụ tem)
+    // Chỉ khi cột work_order có dữ liệu hợp lệ (không null, không '-') thì mới mở context menu ('Xem tem đầu ra')
+    if (currentOutputTableType === 'outputBarcodeByFeedRecords') {
+        const wo = selectedOutputRowData ? (selectedOutputRowData.work_order || selectedOutputRowData['work_order']) : null;
+        const cleanWo = String(wo || '').trim();
+        if (!cleanWo || cleanWo === '-' || cleanWo.toLowerCase() === 'null' || cleanWo.toLowerCase() === 'undefined') {
+            allowedActions = [];
+        }
+    }
+
     setMenuItemsVisibility(allowedActions);
 
     return allowedActions;

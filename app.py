@@ -2767,7 +2767,6 @@ def get_used_history_by_barcode():
         'bind_status',
         'bind_time',
         'bound_by',
-        'remaining_quantity',
         'consumption',
         'total_barcode',
         'total_fail_barcode',
@@ -2912,7 +2911,6 @@ def get_used_history_by_barcode():
                         'Đang bind',
                         sc_item['bind_time'],
                         sc_item['bound_by'],
-                        sc_item['remaining_qty'],
                         0,
                         0,
                         0,
@@ -3092,7 +3090,6 @@ def get_used_history_by_barcode():
                         s['bind_status'],
                         s['bind_time'],
                         s['bound_by'],
-                        s['remaining_quantity'],
                         consumption,
                         s['total_barcode'],
                         s['total_fail_barcode'],
@@ -3147,7 +3144,6 @@ def get_used_history_by_barcode():
                         None,                         # bind_status: null (-)
                         None,                         # bind_time: null (-)
                         bound_by_val,                 # bound_by: 'p8300' hoặc null (-)
-                        default_mr_qty,               # remaining_quantity: -61
                         fed_qty,                      # consumption: 352 / 426
                         out_barcode_count,            # total_barcode: 1
                         0,                            # total_fail_barcode: 0
@@ -3167,7 +3163,6 @@ def get_used_history_by_barcode():
                         'Đang bind',
                         sc_item['bind_time'],
                         sc_item['bound_by'],
-                        sc_item['remaining_qty'],
                         0,
                         0,
                         0,
