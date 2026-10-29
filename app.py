@@ -6093,7 +6093,11 @@ def get_station_configuration_list():
     query = """
         SELECT 
             name AS "Trạm", 
-            attributes->>'sub_type' AS "Loại", 
+            CASE (attributes->>'sub_type')
+                WHEN '1' THEN 'SLOT'
+                WHEN '2' THEN 'CONTAINER'
+                ELSE attributes->>'sub_type'
+            END AS "Loại", 
             updated_at, 
             updated_by, 
             created_at, 
