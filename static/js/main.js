@@ -5607,7 +5607,7 @@ async function fetchCommitGitlabByRecipe(recipeId = null, productType = null) {
  * Mở modal chi tiết và hiển thị nội dung YAML/YML chuẩn format code highlight
  * Dùng chung cho: Avada Kedavra (docker-compose.yml), Switching Spell (printers-manager.yaml), Recipe YAML...
  */
-function openYamlViewerModal(title, content, filePath = '') {
+function openYamlViewerModal(title, content, filePath = '', showToolbar = false) {
     const modal = document.getElementById('detailsModal');
     if (!modal) return;
     resetDetailsModalBody(modal);
@@ -5631,6 +5631,12 @@ function openYamlViewerModal(title, content, filePath = '') {
         wrapper.classList.add('has-yaml-content');
         wrapper.querySelectorAll('.diff-compact-header, .diff-split-container, .diff-viewer-empty, .yaml-toolbar, .yaml-error-drawer, .yaml-code-scroll, .actions-version-tabs-bar, #actionsCommitCardsGrid, .actions-syntax-banner, #actionsDiffSection').forEach(el => el.remove());
         wrapper.insertAdjacentHTML('beforeend', renderYamlWithErrors(content || '', filePath || title, []));
+        
+        // Riêng detailModal xem printers-manager.yaml và docker-compose.yml thì loại bỏ yaml-toolbar
+        if (!showToolbar) {
+            wrapper.querySelectorAll('.yaml-toolbar, .yaml-error-drawer').forEach(el => el.remove());
+        }
+
         wrapper.scrollTop = 0;
         const codeScroll = wrapper.querySelector('.yaml-code-scroll');
         window._currentDetailsOriginalHTML = codeScroll ? codeScroll.innerHTML : wrapper.innerHTML;
