@@ -7141,10 +7141,8 @@ function renderOutputBarcodeTable(rows, columns) {
             if (colName === 'bind_status') {
                 if (cellValue === 'Đang bind') {
                     td.innerHTML = `<span style="display:inline-flex; align-items:center; gap:5px; font-weight:600; color:#059669;"><span style="width:7px; height:7px; border-radius:50%; background:#10b981; display:inline-block;"></span>Đang bind</span>`;
-                } else if (cellValue === 'Đã unbind') {
-                    td.innerHTML = `<span style="color:#64748b; font-weight:500;">Đã unbind</span>`;
                 } else {
-                    td.textContent = cellValue;
+                    td.textContent = '-';
                 }
             } else if (isMissingCollect && valIdx === barcodeColIdx && cellValue !== '-') {
                 td.innerHTML = `<div style="display:inline-flex; align-items:center; gap:6px;">
@@ -7338,10 +7336,8 @@ function renderSubOutputBarcodeTable(rows, columns) {
             if (colName === 'bind_status') {
                 if (cellValue === 'Đang bind') {
                     td.innerHTML = `<span style="display:inline-flex; align-items:center; gap:5px; font-weight:600; color:#059669;"><span style="width:7px; height:7px; border-radius:50%; background:#10b981; display:inline-block;"></span>Đang bind</span>`;
-                } else if (cellValue === 'Đã unbind') {
-                    td.innerHTML = `<span style="color:#64748b; font-weight:500;">Đã unbind</span>`;
                 } else {
-                    td.textContent = cellValue;
+                    td.textContent = '-';
                 }
             } else if (isMissingCollect && valIdx === barcodeColIdx && cellValue !== '-') {
                 td.innerHTML = `<div style="display:inline-flex; align-items:center; gap:6px;">
