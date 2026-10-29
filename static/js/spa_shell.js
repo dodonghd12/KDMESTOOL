@@ -39,6 +39,11 @@
     }
 
     function switchPage(targetPath, pushState = true) {
+        const checkNorm = getNormalizedPath(targetPath);
+        if (checkNorm === '/reparo-spell') {
+            switchPage('/main', pushState);
+            return;
+        }
         const normPath = getNormalizedPath(targetPath);
         let route = SPA_ROUTES.find(r => r.path === normPath);
 

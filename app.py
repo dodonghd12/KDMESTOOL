@@ -1275,7 +1275,7 @@ def avada_kedavra():
 
 @app.route('/reparo-spell')
 def reparo_spell():
-    return render_page_or_shell('reparo_spell.html', '/reparo-spell', 'Reparo Spell')
+    return redirect(url_for('main'))
 
 @app.route('/switching-spell')
 def switching_spell():
@@ -2763,14 +2763,14 @@ def get_used_history_by_barcode():
         'recipe_id',
         'station',
         'reserved_date',
-        'site',
-        'bind_status',
-        'bind_time',
-        'bound_by',
         'consumption',
         'total_barcode',
         'total_fail_barcode',
-        'total_consumption'
+        'total_consumption',
+        'site',
+        'bind_status',
+        'bind_time',
+        'bound_by'
     ]
 
     try:
@@ -2907,14 +2907,14 @@ def get_used_history_by_barcode():
                         None,
                         sc_item['station'],
                         None,
+                        0,
+                        0,
+                        0,
+                        0,
                         sc_item['site'],
                         'Đang bind',
                         sc_item['bind_time'],
-                        sc_item['bound_by'],
-                        0,
-                        0,
-                        0,
-                        0
+                        sc_item['bound_by']
                     ]
                     res_rows.append(serialize_row(row))
                 return jsonify({'success': True, 'result': res_rows, 'columns': columns})
@@ -3086,14 +3086,14 @@ def get_used_history_by_barcode():
                         s['recipe_id'],
                         s['station'],
                         s['reserved_date'],
-                        s['site'],
-                        s['bind_status'],
-                        s['bind_time'],
-                        s['bound_by'],
                         consumption,
                         s['total_barcode'],
                         s['total_fail_barcode'],
-                        round(s['total_consumption'], 6)
+                        round(s['total_consumption'], 6),
+                        s['site'],
+                        s['bind_status'],
+                        s['bind_time'],
+                        s['bound_by']
                     ]
                     result_rows.append(serialize_row(row))
 
@@ -3140,14 +3140,14 @@ def get_used_history_by_barcode():
                         recipe_id_val,                # recipe_id: null (-)
                         station_val,                  # station: 'KV-P8300-RETURNCOMPOUND'
                         None,                         # reserved_date: null (-)
-                        (feed_site or '').strip() or None, # site: null (-)
-                        None,                         # bind_status: null (-)
-                        None,                         # bind_time: null (-)
-                        bound_by_val,                 # bound_by: 'p8300' hoặc null (-)
                         fed_qty,                      # consumption: 352 / 426
                         out_barcode_count,            # total_barcode: 1
                         0,                            # total_fail_barcode: 0
-                        fed_qty                       # total_consumption: 352 / 426
+                        fed_qty,                      # total_consumption: 352 / 426
+                        (feed_site or '').strip() or None, # site: null (-)
+                        None,                         # bind_status: null (-)
+                        None,                         # bind_time: null (-)
+                        bound_by_val                  # bound_by: 'p8300' hoặc null (-)
                     ]
                     result_rows.append(serialize_row(row))
 
@@ -3159,14 +3159,14 @@ def get_used_history_by_barcode():
                         None,
                         sc_item['station'],
                         None,
+                        0,
+                        0,
+                        0,
+                        0,
                         sc_item['site'],
                         'Đang bind',
                         sc_item['bind_time'],
-                        sc_item['bound_by'],
-                        0,
-                        0,
-                        0,
-                        0
+                        sc_item['bound_by']
                     ]
                     result_rows.append(serialize_row(row))
 
@@ -9649,6 +9649,34 @@ def toggle_remote_avada_kedavra(target_action: str, client_ip: str, server_ip: s
         'message': f'Đã {"kích hoạt" if new_is_active else "ngưng kích hoạt"} Avada Kedavra trên máy chủ {target_host} thành công',
         'logs': logs_generated
     }
+
+@app.route('/api/avada-kedavra/compose-content', methods=['GET'])
+def api_avada_kedavra_compose_content():
+    """Lấy nội dung file docker-compose.yml của máy chủ chỉ định (198.1.10.85 hoặc 198.1.10.8)."""
+    try:
+        server_ip = request.args.get('server', DEFAULT_AVADA_KEDAVRA_SERVER)
+        cfg = get_avada_kedavra_server_config(server_ip)
+        target_host = cfg["host"]
+        compose_file = cfg["compose_file"]
+        out, _ = run_avada_kedavra_ssh_cmd(f"cat {compose_file}", server_ip=target_host, timeout=10)
+        if not out.strip():
+            return jsonify({
+                'success': False,
+                'message': f'Không thể đọc nội dung file {compose_file} trên {target_host}'
+            }), 500
+        return jsonify({
+            'success': True,
+            'server': target_host,
+            'compose_file': compose_file,
+            'content': out
+        })
+    except Exception as e:
+        app.logger.error(f"Lỗi tải nội dung docker-compose.yml ({server_ip}): {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'message': f'Lỗi tải nội dung docker-compose.yml: {str(e)}'
+        }), 500
+
 
 @app.route('/api/avada-kedavra/status', methods=['GET'])
 def api_avada_kedavra_status():

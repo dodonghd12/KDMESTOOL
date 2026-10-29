@@ -85,6 +85,47 @@
         }
 
         // Tự động kiểm tra trạng thái và tải log ban đầu theo máy chủ đã chọn
+                // Nút mở nội dung file docker-compose.yml theo máy chủ hiện tại (currentServer)
+        const btnOpenComposeYaml = document.getElementById('btnOpenComposeYaml');
+        if (btnOpenComposeYaml) {
+            btnOpenComposeYaml.addEventListener('click', async () => {
+                const labelEl = document.getElementById('currentServerLabel');
+                const labelText = (labelEl ? labelEl.textContent : '').trim();
+                let targetServer = currentServer;
+                if (labelText.includes('198.1.10.85')) targetServer = '198.1.10.85';
+                else if (labelText.includes('198.1.10.8')) targetServer = '198.1.10.8';
+
+                showStepBadge(`Đang tải docker-compose.yml (${targetServer})...`, 'description', 'progress');
+                btnOpenComposeYaml.disabled = true;
+
+                try {
+                    const res = await fetch(`/api/avada-kedavra/compose-content?server=${encodeURIComponent(targetServer)}`);
+                    const data = await res.json();
+                    if (!data || !data.success) {
+                        Toast.error('Lỗi', data?.message || 'Không thể tải docker-compose.yml');
+                        showStepBadge('Lỗi tải docker-compose.yml', 'error', 'error');
+                        return;
+                    }
+
+                    showStepBadge(`Đã tải docker-compose.yml (${targetServer})`, 'check_circle', 'success');
+                    if (typeof openYamlViewerModal === 'function') {
+                        openYamlViewerModal(`docker-compose.yml (root@${targetServer})`, data.content, data.compose_file);
+                    } else if (typeof showDetailsModal === 'function') {
+                        showDetailsModal({
+                            'File': data.compose_file,
+                            'Server': `root@${targetServer}`,
+                            'Content': data.content
+                        });
+                    }
+                } catch (err) {
+                    Toast.error('Lỗi', `Lỗi kết nối tải docker-compose.yml: ${err.message}`);
+                    showStepBadge('Lỗi kết nối tải docker-compose.yml', 'error', 'error');
+                } finally {
+                    btnOpenComposeYaml.disabled = false;
+                }
+            });
+        }
+
         fetchStatusAndLogs(false, false);
     }
 

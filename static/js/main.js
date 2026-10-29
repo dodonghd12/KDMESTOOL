@@ -5603,6 +5603,47 @@ async function fetchCommitGitlabByRecipe(recipeId = null, productType = null) {
     }
 }
 
+/**
+ * Mở modal chi tiết và hiển thị nội dung YAML/YML chuẩn format code highlight
+ * Dùng chung cho: Avada Kedavra (docker-compose.yml), Switching Spell (printers-manager.yaml), Recipe YAML...
+ */
+function openYamlViewerModal(title, content, filePath = '') {
+    const modal = document.getElementById('detailsModal');
+    if (!modal) return;
+    resetDetailsModalBody(modal);
+    const copyBtn = document.getElementById('copyDetailsBtn');
+    if (copyBtn) copyBtn.style.display = 'none';
+
+    const body = modal.querySelector('.details-modal-body');
+    const titleEl = modal.querySelector('.details-modal-title');
+
+    if (titleEl) titleEl.textContent = title || (filePath ? filePath.split('/').pop() : '') || 'YAML Content';
+    window._currentRawYamlContent = content || '';
+
+    if (body) {
+        body.style.display = 'none';
+        body.classList.remove('details-modal-body-yaml', 'details-modal-body-actions', 'details-modal-body-diff');
+        body.innerHTML = '';
+    }
+
+    const wrapper = modal.querySelector('.details-modal-body-wrapper');
+    if (wrapper) {
+        wrapper.classList.add('has-yaml-content');
+        wrapper.querySelectorAll('.diff-compact-header, .diff-split-container, .diff-viewer-empty, .yaml-toolbar, .yaml-error-drawer, .yaml-code-scroll, .actions-version-tabs-bar, #actionsCommitCardsGrid, .actions-syntax-banner, #actionsDiffSection').forEach(el => el.remove());
+        wrapper.insertAdjacentHTML('beforeend', renderYamlWithErrors(content || '', filePath || title, []));
+        wrapper.scrollTop = 0;
+        const codeScroll = wrapper.querySelector('.yaml-code-scroll');
+        window._currentDetailsOriginalHTML = codeScroll ? codeScroll.innerHTML : wrapper.innerHTML;
+    }
+
+    const searchInput = document.getElementById('detailsModalSearch');
+    if (searchInput) searchInput.value = '';
+
+    modal.classList.remove('hidden');
+    document.body.classList.add('modal-open');
+}
+window.openYamlViewerModal = openYamlViewerModal;
+
 async function fetchYamlContent(rowData = null) {
     const dataObj = rowData || selectedRowData;
     const info = getRecipeInfoFromRow(dataObj);

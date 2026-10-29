@@ -68,6 +68,53 @@
             });
         }
 
+                // Nút xem nội dung file printers-manager.yaml
+        const btnOpenPrintersYaml = document.getElementById('btnOpenPrintersYaml');
+        if (btnOpenPrintersYaml) {
+            btnOpenPrintersYaml.addEventListener('click', async () => {
+                const folder = selectedFolder || (folderSelect ? folderSelect.value : '');
+                if (!folder) {
+                    Toast.warning('Cảnh báo', 'Vui lòng chọn một thư mục máy in (p5300_ic, p8300, p8400, p9100) để xem printers-manager.yaml');
+                    if (folderSelect) folderSelect.focus();
+                    return;
+                }
+
+                showStepBadge(`Đang tải printers-manager.yaml (${folder})...`, 'description', 'progress');
+                btnOpenPrintersYaml.disabled = true;
+
+                try {
+                    const res = await apiFetch('/api/switching-spell/printers', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ folder, server: currentServer }),
+                        showErrorToast: false
+                    });
+
+                    if (!res || !res.success || !res.raw_yaml) {
+                        Toast.error('Lỗi', res?.message || 'Không thể đọc nội dung printers-manager.yaml');
+                        showStepBadge('Lỗi tải printers-manager.yaml', 'error', 'error');
+                        return;
+                    }
+
+                    showStepBadge(`Đã tải printers-manager.yaml (${folder})`, 'check_circle', 'success');
+                    if (typeof openYamlViewerModal === 'function') {
+                        openYamlViewerModal(`printers-manager.yaml (${folder})`, res.raw_yaml, res.yaml_path || `KV2/${folder}/assets/services/printers/printers-manager.yaml`);
+                    } else if (typeof showDetailsModal === 'function') {
+                        showDetailsModal({
+                            'File': res.yaml_path || `KV2/${folder}/printers-manager.yaml`,
+                            'Folder': folder,
+                            'Content': res.raw_yaml
+                        });
+                    }
+                } catch (err) {
+                    Toast.error('Lỗi', `Lỗi kết nối tải printers-manager.yaml: ${err.message}`);
+                    showStepBadge('Lỗi kết nối tải printers-manager.yaml', 'error', 'error');
+                } finally {
+                    btnOpenPrintersYaml.disabled = false;
+                }
+            });
+        }
+
         // 4. Nút làm mới
         if (refreshBtn) {
             refreshBtn.addEventListener('click', () => {
