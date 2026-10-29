@@ -28,12 +28,261 @@ CODE39_PATTERNS = {
     '/': 'NWNWNNNWN', '+': 'NWNNNWNWN', '%': 'NNNWNWNWN', '*': 'NWNNWNWNN'
 }
 
-# Từ điển ánh xạ thông số kỹ thuật tiếng Anh trong recipe note sang tiếng Việt chuẩn
+# Cấu hình chuẩn 15 loại bán thành phẩm từ bảng kvmes.material_resource_config (Hệ thống MES)
+# Đảm bảo thứ tự hiển thị, mã nguồn và nhãn tiếng Việt chuẩn xác 100% như tem chính thống MES
+BUILTIN_LABEL_CONFIGS = {
+    'TREAD': [
+        ('product code', 'Mã sản phẩm', 0),
+        ('tire size', 'Quy cách', 0),
+        ('width', 'Tổng rộng', 0),
+        ('hump width', 'Rộng vai', 0),
+        ('color-line', 'Đường chỉ', 0),
+        ('spray-content', 'Nội dung phun chữ', 0),
+        ('eco-friendly-oil', 'Dầu bảo vệ môi trường', 0),
+    ],
+    'STEEL_BELT': [
+        ('product code', 'MSTP', 0),
+        ('tire size', 'Quy cách', 0),
+        ('width', 'Độ rộng', 0),
+        ('thickness', 'Độ dày', 0),
+        ('angle', 'Góc độ', 0),
+        ('eco-friendly-oil', 'Dầu bảo vệ môi trường', 0),
+        ('attachment-position', 'Phương thức dán', 2),
+        ('direction 1B/2B', 'Hướng 1B/2B', 2),
+    ],
+    'BELT_AND_EDGE_GUM_PREASSEMBLY': [
+        ('product code', 'MSTP', 0),
+        ('tire size', 'Quy cách', 0),
+        ('width', 'Độ rộng', 0),
+        ('thickness', 'Độ dày', 0),
+        ('angle', 'Góc độ', 0),
+        ('attachment-position', 'Phương thức dán', 0),
+        ('eco-friendly-oil', 'Dầu bảo vệ môi trường', 0),
+        ('direction 1B/2B', 'Hướng 1B/2B', 2),
+    ],
+    'CARCASS_PLY': [
+        ('width', 'Độ rộng', 0),
+        ('thickness', 'Độ dày', 0),
+        ('angle', 'Góc độ', 0),
+        ('eco-friendly-oil', 'Dầu bảo vệ môi trường', 0),
+        ('tire size', 'Quy cách', 0),
+    ],
+    'CAP_PLY': [
+        ('width', 'Độ rộng', 0),
+        ('thickness', 'Độ dày', 0),
+        ('eco-friendly-oil', 'Dầu bảo vệ môi trường', 0),
+    ],
+    'PLY': [
+        ('width', 'Độ rộng', 0),
+        ('thickness', 'Độ dày', 0),
+        ('eco-friendly-oil', 'Dầu bảo vệ môi trường', 0),
+        ('net weight', 'Khối lượng', 2),
+        ('gross weight', 'Tổng trọng lượng', 2),
+    ],
+    'INNER_LINER': [
+        ('up-runner-width', 'Độ rộng  lớp trên', 0),
+        ('up-runner-thickness', 'Độ dày lớp trên', 0),
+        ('middle-runner-width', 'Độ rộng lớp dưới', 0),
+        ('middle-runner-thickness', 'Độ dày lớp dưới', 0),
+        ('GC-width', 'Độ rộng GC', 0),
+        ('width', 'Tổng rộng', 0),
+        ('thickness', 'Tổng dày', 0),
+        ('eco-friendly-oil', 'Dầu bảo vệ môi trường', 0),
+    ],
+    'BEAD': [
+        ('bead_sequence', 'Cấu trúc kẽm', 0),
+        ('BIC', 'Chu vi trong', 0),
+        ('width', 'Độ rộng', 0),
+        ('thickness', 'Độ dày', 0),
+        ('weight', 'Trọng lượng', 0),
+        ('color-line', 'Đường chỉ', 0),
+    ],
+    'BEAD_AND_BEAD_FILLER_PREASSEMBLY': [
+        ('product code', 'Mã sản phẩm', 0),
+        ('bead-Filler-high', 'Độ cao', 0),
+        ('flipper- width', 'Độ rộng vải chống cọ', 0),
+        ('total-weight', 'Trọng lượng', 0),
+        ('tire size', 'Quy cách', 0),
+        ('color-line', 'Đường chỉ', 0),
+        ('spray-content', '', 0),
+    ],
+    'BEAD_FILLER': [
+        ('width', 'Độ rộng', 0),
+        ('high', 'Độ cao', 0),
+        ('eco-friendly-oil', 'Dầu bảo vệ môi trường', 0),
+    ],
+    'CHAFER': [
+        ('width', 'Độ rộng', 0),
+        ('thickness', 'Độ dày', 0),
+    ],
+    'GREEN_TIRE': [
+        ('product code', 'Mã sản phẩm', 0),
+        ('tire size', 'quy cách', 0),
+        ('tread pattern', 'Hoa văn', 0),
+        ('color-line', 'Đường chỉ', 0),
+        ('weight', 'Trọng lượng', 0),
+        ('rt location', 'Vị trí băng phản quang', 0),
+        ('logo location', 'Vị trí tem', 0),
+        ('inside paine', 'Dung dịch phun phủ mặt trong', 0),
+        ('puncture', 'Đâm lỗ vỏ sống', 0),
+    ],
+    'RUBBER': [
+        ('mooney spec', 'mooney spec', 0),
+        ('eco-friendly-oil', 'Dầu bảo vệ môi trường', 0),
+        ('batch', 'Số mẻ', 2),
+        ('weight', 'Trọng lượng', 2),
+        ('', '', 2),
+    ],
+    'SIDEWALL': [
+        ('product code', 'MSTP', 0),
+        ('tire size', '', 0),
+        ('working side', 'Bên làm việc', 0),
+        ('opposite working side', 'Bên làm việc đối diện', 0),
+        ('eco-friendly-oil', 'Dầu bảo vệ môi trường', 0),
+    ],
+    'SQUEEZE': [
+        ('up-runner-width', 'Độ rộng', 0),
+        ('up-runner-thickness', 'Độ dày', 0),
+        ('eco-friendly-oil', 'Dầu bảo vệ môi trường', 2),
+    ],
+}
+
+# Từ điển ánh xạ nhãn tiếng Việt riêng biệt theo từng product_type (Không được dùng chung nhầm lẫn)
+PRODUCT_TYPE_SPEC_TRANSLATIONS = {
+    'TREAD': {
+        'product code': 'Mã sản phẩm',
+        'product Code': 'Mã sản phẩm',
+        'tire size': 'Quy cách',
+        'width': 'Tổng rộng',
+        'hump width': 'Rộng vai',
+        'color-line': 'Đường chỉ',
+        'color line': 'Đường chỉ',
+        'spray-content': 'Nội dung phun chữ',
+        'spray content': 'Nội dung phun chữ',
+        'eco-friendly-oil': 'Dầu bảo vệ môi trường',
+    },
+    'STEEL_BELT': {
+        'product code': 'MSTP',
+        'product Code': 'MSTP',
+        'tire size': 'Quy cách',
+        'width': 'Độ rộng',
+        'thickness': 'Độ dày',
+        'angle': 'Góc độ',
+        'eco-friendly-oil': 'Dầu bảo vệ môi trường',
+        'attachment-position': 'Phương thức dán',
+        'direction 1B/2B': 'Hướng 1B/2B',
+        'direction': 'Hướng 1B/2B',
+    },
+    'BELT_AND_EDGE_GUM_PREASSEMBLY': {
+        'product code': 'MSTP',
+        'product Code': 'MSTP',
+        'tire size': 'Quy cách',
+        'width': 'Độ rộng',
+        'thickness': 'Độ dày',
+        'angle': 'Góc độ',
+        'attachment-position': 'Phương thức dán',
+        'eco-friendly-oil': 'Dầu bảo vệ môi trường',
+        'direction 1B/2B': 'Hướng 1B/2B',
+        'direction': 'Hướng 1B/2B',
+    },
+    'GREEN_TIRE': {
+        'product code': 'Mã sản phẩm',
+        'product Code': 'Mã sản phẩm',
+        'tire size': 'quy cách',
+        'tread pattern': 'Hoa văn',
+        'color-line': 'Đường chỉ',
+        'color line': 'Đường chỉ',
+        'weight': 'Trọng lượng',
+        'rt location': 'Vị trí băng phản quang',
+        'logo location': 'Vị trí tem',
+        'inside paine': 'Dung dịch phun phủ mặt trong',
+        'puncture': 'Đâm lỗ vỏ sống',
+    },
+    'BEAD_AND_BEAD_FILLER_PREASSEMBLY': {
+        'product code': 'Mã sản phẩm',
+        'product Code': 'Mã sản phẩm',
+        'bead-Filler-high': 'Độ cao',
+        'flipper- width': 'Độ rộng vải chống cọ',
+        'total-weight': 'Trọng lượng',
+        'tire size': 'Quy cách',
+        'color-line': 'Đường chỉ',
+        'color line': 'Đường chỉ',
+        'spray-content': 'Nội dung phun chữ',
+    },
+    'INNER_LINER': {
+        'up-runner-width': 'Độ rộng  lớp trên',
+        'up-runner-thickness': 'Độ dày lớp trên',
+        'middle-runner-width': 'Độ rộng lớp dưới',
+        'middle-runner-thickness': 'Độ dày lớp dưới',
+        'GC-width': 'Độ rộng GC',
+        'width': 'Tổng rộng',
+        'thickness': 'Tổng dày',
+        'eco-friendly-oil': 'Dầu bảo vệ môi trường',
+    },
+    'BEAD': {
+        'bead_sequence': 'Cấu trúc kẽm',
+        'BIC': 'Chu vi trong',
+        'width': 'Độ rộng',
+        'thickness': 'Độ dày',
+        'weight': 'Trọng lượng',
+        'color-line': 'Đường chỉ',
+        'color line': 'Đường chỉ',
+    },
+    'BEAD_FILLER': {
+        'width': 'Độ rộng',
+        'high': 'Độ cao',
+        'eco-friendly-oil': 'Dầu bảo vệ môi trường',
+    },
+    'CARCASS_PLY': {
+        'width': 'Độ rộng',
+        'thickness': 'Độ dày',
+        'angle': 'Góc độ',
+        'eco-friendly-oil': 'Dầu bảo vệ môi trường',
+        'tire size': 'Quy cách',
+    },
+    'CAP_PLY': {
+        'width': 'Độ rộng',
+        'thickness': 'Độ dày',
+        'eco-friendly-oil': 'Dầu bảo vệ môi trường',
+    },
+    'PLY': {
+        'width': 'Độ rộng',
+        'thickness': 'Độ dày',
+        'eco-friendly-oil': 'Dầu bảo vệ môi trường',
+        'net weight': 'Khối lượng',
+        'gross weight': 'Tổng trọng lượng',
+    },
+    'SIDEWALL': {
+        'product code': 'MSTP',
+        'product Code': 'MSTP',
+        'tire size': 'Quy cách',
+        'working side': 'Bên làm việc',
+        'opposite working side': 'Bên làm việc đối diện',
+        'eco-friendly-oil': 'Dầu bảo vệ môi trường',
+    },
+    'SQUEEZE': {
+        'up-runner-width': 'Độ rộng',
+        'up-runner-thickness': 'Độ dày',
+        'eco-friendly-oil': 'Dầu bảo vệ môi trường',
+    },
+    'CHAFER': {
+        'width': 'Độ rộng',
+        'thickness': 'Độ dày',
+    },
+    'RUBBER': {
+        'mooney spec': 'Tiêu chuẩn Mooney',
+        'eco-friendly-oil': 'Dầu bảo vệ môi trường',
+        'batch': 'Số mẻ',
+        'weight': 'Trọng lượng',
+    }
+}
+
+# Từ điển ánh xạ thông số kỹ thuật chung (fallback cấp cuối khi không xác định được product_type)
 SPEC_KEY_TRANSLATIONS = {
-    'product code': 'MSTP',
-    'product Code': 'MSTP',
+    'product code': 'Mã sản phẩm',
+    'product Code': 'Mã sản phẩm',
     'tire size': 'Quy cách',
-    'width': 'Độ rộng',
+    'width': 'Tổng rộng',
     'thickness': 'Độ dày',
     'angle': 'Góc độ',
     'attachment-position': 'Phương thức dán',
@@ -43,15 +292,15 @@ SPEC_KEY_TRANSLATIONS = {
     'direction': 'Hướng 1B/2B',
     'direction 1B/2B': 'Hướng 1B/2B',
     'direction 1b/2b': 'Hướng 1B/2B',
-    'color line': 'Đường màu',
-    'color-line': 'Đường màu',
+    'color line': 'Đường chỉ',
+    'color-line': 'Đường chỉ',
     'weight': 'Trọng lượng',
     'total-weight': 'Tổng trọng lượng',
     'gross weight': 'Tổng trọng lượng',
     'net weight': 'Khối lượng',
     'GC-width': 'Bề rộng GC',
-    'tread pattern': 'Hoa lốp',
-    'hump width': 'Bề rộng gù',
+    'tread pattern': 'Hoa văn',
+    'hump width': 'Rộng vai',
     'spray-content': 'Nội dung phun chữ',
     'middle-runner-thickness': 'Độ dày runner giữa',
     'middle-runner-width': 'Bề rộng runner giữa',
@@ -68,7 +317,45 @@ SPEC_KEY_TRANSLATIONS = {
     'high': 'Chiều cao',
 }
 
-# Cấu hình danh mục thông số kỹ thuật linh động từ GitLab CE (không set cứng)
+
+def normalize_spec_key(k: str) -> str:
+    """Chuẩn hóa khóa thông số kỹ thuật (bỏ dấu gạch nối, khoảng trắng, viết thường)."""
+    import re
+    return re.sub(r'[\s_\-\/]+', '', str(k or '').lower().strip())
+
+
+def get_translation_for_key(k: str, product_type: str = None) -> str:
+    """
+    Lấy tên nhãn hiển thị tiếng Việt chuẩn xác theo đúng product_type:
+    - Nếu có product_type (ví dụ TREAD): tra cứu từ điển chuyên biệt của product_type đó
+      (TREAD -> product code = 'Mã sản phẩm', width = 'Tổng rộng', hump width = 'Rộng vai', color-line = 'Đường chỉ').
+    - Nếu không tìm thấy, tra cứu SPEC_KEY_TRANSLATIONS chung.
+    """
+    clean_k = str(k or '').strip()
+    norm_k = normalize_spec_key(clean_k)
+    clean_pt = str(product_type or '').strip().upper()
+
+    # 1. Tra cứu theo cấu hình riêng của product_type
+    if clean_pt and clean_pt in PRODUCT_TYPE_SPEC_TRANSLATIONS:
+        pt_map = PRODUCT_TYPE_SPEC_TRANSLATIONS[clean_pt]
+        if clean_k in pt_map:
+            return pt_map[clean_k]
+        for candidate_k, val in pt_map.items():
+            if normalize_spec_key(candidate_k) == norm_k:
+                return val
+
+    # 2. Tra cứu theo từ điển chung
+    if clean_k in SPEC_KEY_TRANSLATIONS:
+        return SPEC_KEY_TRANSLATIONS[clean_k]
+    for candidate_k, val in SPEC_KEY_TRANSLATIONS.items():
+        if normalize_spec_key(candidate_k) == norm_k:
+            return val
+
+    # 3. Fallback định dạng Title
+    return clean_k.replace('-', ' ').title()
+
+
+# Cấu hình danh mục thông số kỹ thuật linh động từ PostgreSQL & GitLab CE
 def get_gitlab_token() -> str:
     """Lấy token xác thực GitLab CE từ biến môi trường hoặc file cấu hình .env."""
     token = os.environ.get('GITLAB_PRIVATE_TOKEN', '').strip()
@@ -97,23 +384,59 @@ def get_gitlab_token() -> str:
     return os.environ.get('GITLAB_PRIVATE_TOKEN', '')
 
 
-_GITLAB_LABEL_CONFIG_CACHE = {}
-_GITLAB_LABEL_CONFIG_TIMESTAMP = 0
+_LABEL_CONFIG_CACHE = {}
+_LABEL_CONFIG_TIMESTAMP = 0
 _CACHE_TTL_SECONDS = 300  # Cache 5 phút, tự động làm mới khi hết hạn
 
 
-def get_gitlab_label_config(force_refresh: bool = False) -> dict:
+def load_db_label_config() -> dict:
     """
-    Tải danh mục thông số kỹ thuật linh động trực tiếp từ GitLab CE (Project 113, yamls/label-config.yml).
-    Không set cứng cấu hình, đảm bảo tự động cập nhật ngay khi file trên GitLab thay đổi.
-    Tối ưu hiệu năng bằng in-memory cache 5 phút (tránh nghẽn mạng khi in liên tục).
-    Trả về: { 'CARCASS_PLY': [('width', 'Độ rộng'), ...], ... }
+    Truy vấn cấu hình thông số kỹ thuật chuẩn trực tiếp từ bảng kvmes.material_resource_config
+    của cơ sở dữ liệu PostgreSQL Kenda MES. Đây là nguồn dữ liệu chuẩn nhất từ hệ thống MES.
     """
-    global _GITLAB_LABEL_CONFIG_CACHE, _GITLAB_LABEL_CONFIG_TIMESTAMP
-    now = time.time()
-    if not force_refresh and _GITLAB_LABEL_CONFIG_CACHE and (now - _GITLAB_LABEL_CONFIG_TIMESTAMP < _CACHE_TTL_SECONDS):
-        return _GITLAB_LABEL_CONFIG_CACHE
+    try:
+        import json
+        from db_execute import execute_pg_select_query
+        rows, _ = execute_pg_select_query("SELECT product_type, config FROM kvmes.material_resource_config;")
+        if not rows:
+            return {}
+        config_map = {}
+        for pt, raw_cfg in rows:
+            ptype = str(pt or '').strip().upper()
+            if not ptype:
+                continue
+            cfg_dict = raw_cfg
+            if isinstance(cfg_dict, str):
+                try:
+                    cfg_dict = json.loads(cfg_dict)
+                except Exception:
+                    continue
+            if not isinstance(cfg_dict, dict):
+                continue
+            req_labels = cfg_dict.get('required-labels') or cfg_dict.get('required_labels') or []
+            pair_list = []
+            for lbl in req_labels:
+                if isinstance(lbl, dict):
+                    key = str(lbl.get('key') or '').strip()
+                    if not key:
+                        continue
+                    langs = lbl.get('languages', {}) if isinstance(lbl.get('languages'), dict) else {}
+                    l_lower = {str(k).lower(): str(v).strip() for k, v in langs.items() if v}
+                    vi_label = l_lower.get('vi') or l_lower.get('vn') or ''
+                    resource = lbl.get('resource')
+                    pair_list.append((key, vi_label, resource))
+            if pair_list:
+                config_map[ptype] = pair_list
+        return config_map
+    except Exception:
+        return {}
 
+
+def load_gitlab_label_config() -> dict:
+    """
+    Tải danh mục thông số kỹ thuật từ GitLab CE (Project 113, yamls/label-config.yml)
+    khi cần đồng bộ thêm cấu hình mới nhất từ kho git.
+    """
     token = get_gitlab_token()
     headers = {'PRIVATE-TOKEN': token, 'User-Agent': 'KDMESTOOL-Client/1.0'} if token else {'User-Agent': 'KDMESTOOL-Client/1.0'}
     url = 'https://gitlabce.kenda.com.tw/api/v4/projects/113/repository/files/yamls%2Flabel-config.yml/raw'
@@ -146,62 +469,101 @@ def get_gitlab_label_config(force_refresh: bool = False) -> dict:
                             pair_list.append((key, vi_label, resource))
                     if pair_list:
                         config_map[ptype] = pair_list
-            if config_map:
-                _GITLAB_LABEL_CONFIG_CACHE = config_map
-                _GITLAB_LABEL_CONFIG_TIMESTAMP = now
-                return config_map
+            return config_map
     except Exception:
-        if _GITLAB_LABEL_CONFIG_CACHE:
-            return _GITLAB_LABEL_CONFIG_CACHE
+        pass
+    return {}
 
-    return _GITLAB_LABEL_CONFIG_CACHE or {}
+
+def get_label_config(force_refresh: bool = False) -> dict:
+    """
+    Lấy danh mục cấu hình in tem chuẩn xác theo cơ chế đa tầng (Multi-tier Failover):
+    - Tầng 1: In-memory Cache 5 phút (tối ưu hóa hiệu năng in ấn liên tục).
+    - Tầng 2: PostgreSQL kvmes.material_resource_config (nguồn dữ liệu chính thống từ MES Database nội bộ).
+    - Tầng 3: GitLab CE API (đồng bộ từ file YAML cấu hình trên máy chủ mã nguồn).
+    - Tầng 4: BUILTIN_LABEL_CONFIGS (cấu hình nhúng sẵn chuẩn 15 loại bán thành phẩm, bảo đảm 100% không bao giờ rỗng).
+    """
+    global _LABEL_CONFIG_CACHE, _LABEL_CONFIG_TIMESTAMP
+    now = time.time()
+    if not force_refresh and _LABEL_CONFIG_CACHE and (now - _LABEL_CONFIG_TIMESTAMP < _CACHE_TTL_SECONDS):
+        return _LABEL_CONFIG_CACHE
+
+    # Khởi tạo bản đồ cấu hình với BUILTIN_LABEL_CONFIGS làm nền tảng
+    merged_config = dict(BUILTIN_LABEL_CONFIGS)
+
+    # 1. Thử tải cấu hình từ PostgreSQL kvmes.material_resource_config
+    db_cfg = load_db_label_config()
+    if db_cfg:
+        merged_config.update(db_cfg)
+
+    # 2. Nếu thiếu loại nào, thử bổ sung từ GitLab CE
+    if len(merged_config) < len(BUILTIN_LABEL_CONFIGS):
+        gitlab_cfg = load_gitlab_label_config()
+        if gitlab_cfg:
+            for k, v in gitlab_cfg.items():
+                if k not in merged_config:
+                    merged_config[k] = v
+
+    if merged_config:
+        _LABEL_CONFIG_CACHE = merged_config
+        _LABEL_CONFIG_TIMESTAMP = now
+
+    return _LABEL_CONFIG_CACHE or BUILTIN_LABEL_CONFIGS
+
+
+def get_gitlab_label_config(force_refresh: bool = False) -> dict:
+    """Hàm bao bọc tương thích ngược 100% với các module cũ gọi get_gitlab_label_config()."""
+    return get_label_config(force_refresh=force_refresh)
 
 
 class DynamicRequiredLabels(dict):
     """
-    Truy xuất danh mục thông số kỹ thuật linh động từ GitLab CE theo thời gian thực,
+    Truy xuất danh mục thông số kỹ thuật linh động theo thời gian thực,
     thay thế dictionary tĩnh set cứng, tương thích ngược 100% với các hàm gọi cũ.
     """
     def __getitem__(self, key):
-        cfg = get_gitlab_label_config()
+        cfg = get_label_config()
         return cfg.get(str(key or '').strip().upper(), [])
 
     def get(self, key, default=None):
-        cfg = get_gitlab_label_config()
+        cfg = get_label_config()
         val = cfg.get(str(key or '').strip().upper())
         return val if val is not None else default
 
     def __contains__(self, key):
-        cfg = get_gitlab_label_config()
+        cfg = get_label_config()
         return str(key or '').strip().upper() in cfg
 
     def items(self):
-        return get_gitlab_label_config().items()
+        return get_label_config().items()
 
     def keys(self):
-        return get_gitlab_label_config().keys()
+        return get_label_config().keys()
 
     def values(self):
-        return get_gitlab_label_config().values()
+        return get_label_config().values()
 
 
 # Đối tượng Dynamic thay thế dictionary tĩnh set cứng
 PRODUCT_TYPE_REQUIRED_LABELS = DynamicRequiredLabels()
 
 
-def normalize_spec_key(k: str) -> str:
-    import re
-    return re.sub(r'[\s_\-\/]+', '', str(k or '').lower().strip())
-
-
 def parse_recipe_specs(note_list, product_type: str = None, label_config: dict = None):
     """
     Trích xuất danh sách thông số kỹ thuật chuẩn MES:
-    - Tuyệt đối tuân thủ theo danh mục của product_type từ label-config.yml (GitLab CE).
+    - Tuyệt đối tuân thủ theo danh mục và thứ tự của product_type từ kvmes.material_resource_config / label-config.
       Chỉ hiển thị các trường có trong cấu hình của product_type đó.
-      Nếu trong recipe.note có giá trị thì điền vào, nếu không có giá trị thì để trống "" đúng theo tem thực tế.
-      Cho dù recipe note có các key khác (như product code ở CARCASS_PLY) cũng KHÔNG được hiển thị.
-    - Trường hợp dự phòng: chỉ khi product_type không có cấu hình trong label_config mới hiển thị theo recipe note.
+      Ví dụ với TREAD:
+        1. Mã sản phẩm (product code)
+        2. Quy cách (tire size)
+        3. Tổng rộng (width)
+        4. Rộng vai (hump width)
+        5. Đường chỉ (color-line)
+        6. Nội dung phun chữ (spray-content)
+        7. Dầu bảo vệ môi trường (eco-friendly-oil)
+    - Nhãn tiếng Việt được lấy chính xác theo product_type chỉ định (ví dụ TREAD lấy 'Mã sản phẩm', STEEL_BELT lấy 'MSTP').
+    - Nếu trong recipe.note có giá trị thì điền vào, nếu không có giá trị thì để trống "" đúng theo tem thực tế.
+    - Trường hợp dự phòng: chỉ khi product_type hoàn toàn không có trong cấu hình mới fallback theo recipe note.
     """
     parsed_notes = {}
     raw_notes = []
@@ -224,11 +586,12 @@ def parse_recipe_specs(note_list, product_type: str = None, label_config: dict =
     specs = []
     clean_pt = str(product_type or '').strip().upper()
 
-    # 1. Nếu có cấu hình chuẩn cho product_type từ GitLab CE label-config.yml:
-    # Tuyệt đối tuân thủ danh mục của label_config.yaml. Chỉ hiển thị các key được định nghĩa.
-    # Cho dù recipe note có các key khác (như product code ở CARCASS_PLY) cũng KHÔNG được hiển thị.
-    active_config = label_config if label_config is not None else get_gitlab_label_config()
-    req_labels = active_config.get(clean_pt, [])
+    # 1. Truy xuất danh mục thông số kỹ thuật chuẩn theo product_type
+    active_config = label_config if label_config is not None else get_label_config()
+    req_labels = active_config.get(clean_pt)
+    if not req_labels and clean_pt in BUILTIN_LABEL_CONFIGS:
+        req_labels = BUILTIN_LABEL_CONFIGS[clean_pt]
+
     if req_labels:
         for item in req_labels:
             if len(item) >= 3:
@@ -239,7 +602,7 @@ def parse_recipe_specs(note_list, product_type: str = None, label_config: dict =
 
             norm_req = normalize_spec_key(req_key)
 
-            # Quy chuẩn hệ thống MES (Project 113 label-config):
+            # Quy chuẩn hệ thống MES:
             # 0: recipe.note (mặc định)
             # 1: recipe.commonProperty
             # 2: value is blank (luôn để trống giá trị trên tem in ra)
@@ -254,19 +617,33 @@ def parse_recipe_specs(note_list, product_type: str = None, label_config: dict =
             if not is_resource_blank:
                 if norm_req in parsed_notes:
                     val = parsed_notes[norm_req][1]
-                elif norm_req in ['direction1b2b', 'direction']:
-                    for alt in ['direction', 'direction1b2b', 'direction1b']:
-                        if alt in parsed_notes:
-                            val = parsed_notes[alt][1]
-                            break
+                else:
+                    # Xử lý các bí danh phổ biến (Aliases)
+                    alias_map = {
+                        'direction1b2b': ['direction', 'direction1b2b', 'direction1b'],
+                        'direction': ['direction', 'direction1b2b', 'direction1b'],
+                        'colorline': ['colorline', 'color', 'colorline1'],
+                        'spraycontent': ['spraycontent', 'spray', 'ptdata'],
+                        'ecofriendlyoil': ['ecofriendlyoil', 'oil', 'ecooil'],
+                        'productcode': ['productcode', 'product_code', 'item_no', 'mstp'],
+                        'tiresize': ['tiresize', 'tire_size', 'size', 'spec'],
+                        'humpwidth': ['humpwidth', 'hump_width'],
+                        'totalweight': ['totalweight', 'weight']
+                    }
+                    if norm_req in alias_map:
+                        for alt in alias_map[norm_req]:
+                            if alt in parsed_notes:
+                                val = parsed_notes[alt][1]
+                                break
 
-            display_label = label_vi or SPEC_KEY_TRANSLATIONS.get(req_key, req_key.replace('-', ' ').title())
+            # Phân giải nhãn tiếng Việt chuẩn xác theo product_type
+            display_label = label_vi or get_translation_for_key(req_key, product_type=clean_pt)
             specs.append((display_label, val))
         return specs
 
-    # 2. Dự phòng: Chỉ khi product_type hoàn toàn KHÔNG có trong label_config.yaml mới lấy theo recipe.note
+    # 2. Dự phòng: Chỉ khi product_type hoàn toàn KHÔNG có trong cấu hình mới lấy theo recipe.note
     for norm_k, (k_orig, v_orig) in parsed_notes.items():
-        display_label = SPEC_KEY_TRANSLATIONS.get(k_orig, k_orig.replace('-', ' ').title())
+        display_label = get_translation_for_key(k_orig, product_type=clean_pt)
         specs.append((display_label, v_orig))
 
     # 3. Các dòng raw không có dấu hai chấm

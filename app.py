@@ -6302,24 +6302,29 @@ def build_reprint_label_pdf_buffer(raw_barcode: str):
             recipe_id = wo_res[0][0]
 
     recipe_notes = None
+    recipe_ptype = None
     if recipe_id:
         rec_res, _ = execute_pg_select_query(
-            "SELECT note FROM kvmes.recipe WHERE id = %s LIMIT 1;",
+            "SELECT note, product_type FROM kvmes.recipe WHERE id = %s LIMIT 1;",
             (recipe_id,)
         )
         if rec_res and rec_res[0]:
             recipe_notes = rec_res[0][0]
+            recipe_ptype = rec_res[0][1]
 
     if not recipe_notes and product_id:
         rec_res, _ = execute_pg_select_query(
-            "SELECT note FROM kvmes.recipe WHERE product_id = %s ORDER BY released_at DESC LIMIT 1;",
+            "SELECT note, product_type FROM kvmes.recipe WHERE product_id = %s ORDER BY released_at DESC LIMIT 1;",
             (product_id,)
         )
         if rec_res and rec_res[0]:
             recipe_notes = rec_res[0][0]
+            recipe_ptype = rec_res[0][1]
+
+    final_product_type = str(product_type or '').strip().upper() or str(recipe_ptype or '').strip().upper()
 
     from tools.label_printer import parse_recipe_specs, generate_label_pdf
-    specs = parse_recipe_specs(recipe_notes, product_type=product_type)
+    specs = parse_recipe_specs(recipe_notes, product_type=final_product_type)
 
     label_data = {
         "station": final_station,
