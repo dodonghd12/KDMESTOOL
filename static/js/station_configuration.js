@@ -1,5 +1,6 @@
 let stations = [];
 let currentDepartmentOid = null;
+let lastSearchedStation = '';
 let departmentSearchTimeout = null;
 let stationSearchTimeout = null;
 
@@ -42,6 +43,7 @@ function initializeValidateScanBarcodeEventListeners() {
 
         stations = [];
         currentDepartmentOid = null;
+        lastSearchedStation = '';
         clearTable();
         showDepartmentDropdown(departments);
     });
@@ -139,8 +141,19 @@ function initializeValidateScanBarcodeEventListeners() {
         }
     });
     
+    stationInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            hideStationDropdown();
+            checkAndSearchWorkOrders();
+        }
+    });
+
     stationInput.addEventListener('blur', () => {
-        hideStationDropdown();
+        setTimeout(() => {
+            hideStationDropdown();
+            checkAndSearchWorkOrders();
+        }, 200);
     });
     
     // Table row selection
@@ -386,12 +399,16 @@ function checkAndSearchWorkOrders() {
     const department = document.getElementById('department').value.trim();
     const station = document.getElementById('station').value.trim();
 
-
     if (!department || !station) {
+        lastSearchedStation = '';
         clearTable();
         return;
     }
 
+    if (station === lastSearchedStation) {
+        return;
+    }
+    lastSearchedStation = station;
     searchStationConfigurations(station);
 }
 
@@ -412,10 +429,11 @@ async function searchStationConfigurations(station) {
             return;
         }
 
-        setTableData(data.result, data.columns, null, null, `Tìm thấy ${data.result.length} cấu hình máy`);
+        setTableData(data.result, data.columns, null, null, `Tìm thấy ${data.result.length} thiết lập máy`);
 
     } catch (error) {
         console.error('Error searching station configuration:', error);
+        lastSearchedStation = '';
         clearTable();
     }
 }

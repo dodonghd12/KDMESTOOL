@@ -6081,21 +6081,30 @@ def get_mesync_inbox_events():
 @app.route('/api/barcodes/get-station-configuration-list', methods=['POST'])
 @login_required
 def get_station_configuration_list():
-    
     station = request.json.get('station', '').strip()
     
     if not station:
-        return jsonify({'result': [], 'columns': []})
+        return jsonify({
+            'success': True,
+            'result': [],
+            'columns': ['Trạm', 'Loại', 'updated_at', 'updated_by', 'created_at', 'created_by']
+        })
     
     query = """
-        SELECT station_id, production, ui, updated_at, updated_by
-	    FROM kvmes.station_configuration
-        WHERE station_id = %s
-        LIMIT 100;
+        SELECT 
+            name AS "Trạm", 
+            attributes->>'sub_type' AS "Loại", 
+            updated_at, 
+            updated_by, 
+            created_at, 
+            created_by
+        FROM kvmes.site
+        WHERE station = %s
+        ORDER BY name ASC;
     """
     result, column_names = execute_pg_select_query(query, (station, ))
     if result:
-        convert_columns = ["updated_at"]
+        convert_columns = ["updated_at", "created_at"]
         result = convert_timestamp(result, column_names, convert_columns)
         serialized_result = [serialize_row(list(row)) for row in result]
         return jsonify({
@@ -6107,7 +6116,7 @@ def get_station_configuration_list():
         return jsonify({
             'success': True,
             'result': [],
-            'columns': column_names
+            'columns': column_names or ['Trạm', 'Loại', 'updated_at', 'updated_by', 'created_at', 'created_by']
         })
 
 @app.route('/api/barcodes/get-prdeba', methods=['POST'])
