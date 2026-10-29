@@ -249,7 +249,7 @@ async function loadTechnicalSpecifications() {
             } else {
                 Toast.error('Lỗi GitLab', (res && res.message) ? res.message : 'Lỗi gitlab');
             }
-            renderInitialEmptyState('Không thể tải dữ liệu thông số kỹ thuật từ GitLab.');
+            renderInitialEmptyState('Không thể tải dữ liệu thông số kỹ thuật từ CSDL MES.');
             return;
         }
 
@@ -276,13 +276,13 @@ async function loadTechnicalSpecifications() {
             return;
         }
 
-        Toast.success('Thành công', `Đã tải ${productTypes.length} loại sản phẩm từ GitLab`);
+        Toast.success('Thành công', `Đã tải ${productTypes.length} loại sản phẩm từ CSDL MES`);
         renderInitialEmptyState('Vui lòng chọn Loại sản phẩm (Product Type) để xem thông số kỹ thuật.');
 
     } catch (err) {
         console.error('Error loading technical specifications:', err);
-        Toast.error('Lỗi GitLab', err.message || 'Lỗi gitlab');
-        renderInitialEmptyState('Lỗi kết nối khi tải dữ liệu từ GitLab.');
+        Toast.error('Lỗi kết nối', err.message || 'Không thể tải dữ liệu thông số kỹ thuật');
+        renderInitialEmptyState('Lỗi kết nối khi tải dữ liệu thông số kỹ thuật.');
     }
 }
 

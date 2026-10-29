@@ -510,144 +510,146 @@ def get_prdexp_expdays() -> dict:
 
     return expday_map
 
+_TECH_SPEC_CACHE = {}
+_TECH_SPEC_CACHE_TIMESTAMP = 0
+_TECH_SPEC_CACHE_TTL = 60  # Cache 60s để tối ưu hiệu năng và độ mượt mà
+
 def get_technical_specifications_data(force_refresh: bool = False) -> dict:
     """
-    Tải trực tiếp cấu hình kỹ thuật từ GitLab CE API (label-config.yml và limitary-hour.yaml)
-    kết hợp hạn sử dụng từ SQL Server 10.33 (get_prdexp_expdays).
-    Không dùng cache tĩnh/đĩa để đảm bảo dữ liệu luôn cập nhật trực tiếp theo thời gian thực.
+    Tải trực tiếp cấu hình thông số kỹ thuật động từ bảng PostgreSQL kvmes.material_resource_config:
+    SELECT product_type, config, updated_at, updated_by, source FROM kvmes.material_resource_config;
+    Kết hợp thời gian chờ/hạn sử dụng từ limitary-hour (Project 99) và SQL Server ERP 10.33 (get_prdexp_expdays).
     """
-    s = get_gitlab_session()
-    ref = 'master'
-    auth_error = False
+    global _TECH_SPEC_CACHE, _TECH_SPEC_CACHE_TIMESTAMP
+    now = time.time()
+    if not force_refresh and _TECH_SPEC_CACHE and (now - _TECH_SPEC_CACHE_TIMESTAMP < _TECH_SPEC_CACHE_TTL):
+        return _TECH_SPEC_CACHE
 
-    # 1. Tải label-config.yml từ Project 113
-    project_id_lc = 113
-    encoded_path_lc = 'yamls%2Flabel-config.yml'
-    content_raw_lc = ''
-    try:
-        raw_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id_lc}/repository/files/{encoded_path_lc}/raw'
-        r = s.get(raw_url, params={'ref': ref}, timeout=10)
-        if r.status_code == 200:
-            content_raw_lc = r.text
-        elif r.status_code in [401, 403]:
-            auth_error = True
-        else:
-            file_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id_lc}/repository/files/{encoded_path_lc}'
-            r2 = s.get(file_url, params={'ref': ref}, timeout=10)
-            if r2.ok:
-                c_b64 = r2.json().get('content', '')
-                if c_b64:
-                    content_raw_lc = base64.b64decode(c_b64).decode('utf-8')
-            elif r2.status_code in [401, 403]:
-                auth_error = True
-    except Exception as e:
-        app.logger.warning(f"GitLab label-config fetch error: {e}")
-
-    # 2. Tải limitary-hour.yaml từ Project 99
-    project_id_lh = 99
-    encoded_path_lh = 'yamls%2Flimitary-hour.yaml'
-    content_raw_lh = ''
-    try:
-        raw_url_lh = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id_lh}/repository/files/{encoded_path_lh}/raw'
-        r_lh = s.get(raw_url_lh, params={'ref': ref}, timeout=10)
-        if r_lh.status_code == 200:
-            content_raw_lh = r_lh.text
-        elif r_lh.status_code in [401, 403]:
-            auth_error = True
-    except Exception as e:
-        app.logger.warning(f"GitLab limitary-hour fetch error: {e}")
-
-    if auth_error and not content_raw_lc:
-        return {
-            'auth_error': True,
-            'product_types': [],
-            'config_map': {},
-            'keys_by_product_type': {},
-            'limitary_hours': {},
-            'expdays': {},
-            'source': 'gitlab'
-        }
-
+    # 1. Truy vấn trực tiếp từ bảng kvmes.material_resource_config
     product_types = []
     config_map = {}
     keys_by_product_type = {}
     resource_map = {}
 
-    if content_raw_lc:
-        try:
-            parsed_yaml = yaml.safe_load(content_raw_lc)
-            if isinstance(parsed_yaml, list):
-                for item in parsed_yaml:
-                    if not isinstance(item, dict):
-                        continue
-                    ptype = item.get('product-type')
-                    if ptype:
-                        product_types.append(ptype)
-                        configs = item.get('configs', {})
-                        req_labels = configs.get('required-labels', []) if isinstance(configs, dict) else []
-                        rows = []
-                        keys = []
-                        res_dict = {}
-                        for lbl in req_labels:
-                            if isinstance(lbl, dict):
-                                key = lbl.get('key', '')
-                                resource = lbl.get('resource')
-                                if key:
-                                    keys.append(key)
-                                    if resource is not None:
-                                        try:
-                                            res_val = int(resource)
-                                        except (ValueError, TypeError):
-                                            res_val = str(resource).strip()
-                                        res_dict[key] = res_val
-                                langs = lbl.get('languages', {}) if isinstance(lbl.get('languages'), dict) else {}
-                                l_lower = {str(k).lower(): str(v).strip() for k, v in langs.items() if v}
-                                if key or langs:
-                                    rows.append([
-                                        key,
-                                        l_lower.get('vi') or l_lower.get('vn') or '',
-                                        l_lower.get('cn') or '',
-                                        l_lower.get('tw') or '',
-                                        l_lower.get('en') or '',
-                                        l_lower.get('id') or ''
-                                    ])
-                        config_map[ptype] = rows
-                        keys_by_product_type[ptype] = keys
-                        if res_dict:
-                            resource_map[ptype] = res_dict
-        except Exception as e:
-            app.logger.error(f"Error parsing technical-specifications yaml: {e}")
+    PREFERRED_ORDER = [
+        'INNER_LINER', 'CARCASS_PLY', 'SIDEWALL', 'TREAD', 'BEAD',
+        'BEAD_AND_BEAD_FILLER_PREASSEMBLY', 'CHAFER', 'GREEN_TIRE',
+        'STEEL_BELT', 'PLY', 'BELT_AND_EDGE_GUM_PREASSEMBLY', 'SQUEEZE', 'CAP_PLY'
+    ]
 
+    try:
+        query_mrc = "SELECT product_type, config, updated_at, updated_by, source FROM kvmes.material_resource_config;"
+        rows, _ = execute_pg_select_query(query_mrc)
+        if not rows:
+            rows, _ = execute_pg_dev_select_query(query_mrc)
+
+        if rows:
+            for row in rows:
+                ptype = str(row[0] or '').strip().upper()
+                if not ptype:
+                    continue
+                product_types.append(ptype)
+                raw_cfg = row[1]
+                if isinstance(raw_cfg, str):
+                    try:
+                        raw_cfg = json.loads(raw_cfg)
+                    except Exception:
+                        continue
+                if not isinstance(raw_cfg, dict):
+                    continue
+
+                req_labels = raw_cfg.get('required-labels') or raw_cfg.get('required_labels') or []
+                table_rows = []
+                keys = []
+                res_dict = {}
+                for lbl in req_labels:
+                    if isinstance(lbl, dict):
+                        key = str(lbl.get('key') or '').strip()
+                        resource = lbl.get('resource')
+                        if key:
+                            keys.append(key)
+                            if resource is not None:
+                                try:
+                                    res_val = int(resource)
+                                except (ValueError, TypeError):
+                                    res_val = str(resource).strip()
+                                res_dict[key] = res_val
+                        langs = lbl.get('languages', {}) if isinstance(lbl.get('languages'), dict) else {}
+                        l_lower = {str(k).lower(): str(v).strip() for k, v in langs.items() if v}
+                        if key or langs:
+                            table_rows.append([
+                                key,
+                                l_lower.get('vi') or l_lower.get('vn') or '',
+                                l_lower.get('cn') or '',
+                                l_lower.get('tw') or '',
+                                l_lower.get('en') or '',
+                                l_lower.get('id') or ''
+                            ])
+                config_map[ptype] = table_rows
+                keys_by_product_type[ptype] = keys
+                if res_dict:
+                    resource_map[ptype] = res_dict
+
+            # Sắp xếp product_types ưu tiên các loại chuẩn hiển thị trước
+            product_types.sort(key=lambda x: (PREFERRED_ORDER.index(x) if x in PREFERRED_ORDER else 999, x))
+    except Exception as pg_err:
+        app.logger.error(f"Error querying kvmes.material_resource_config: {pg_err}")
+
+    # 2. Giữ nguyên: Tải limitary-hour.yaml từ Project 99 (cho standing_time & limitary_hour / expday-kd)
     limitary_hours = {}
-    if content_raw_lh:
-        try:
+    try:
+        s = get_gitlab_session()
+        ref = 'master'
+        project_id_lh = 99
+        encoded_path_lh = 'yamls%2Flimitary-hour.yaml'
+        content_raw_lh = ''
+        raw_url_lh = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id_lh}/repository/files/{encoded_path_lh}/raw'
+        r_lh = s.get(raw_url_lh, params={'ref': ref}, timeout=6)
+        if r_lh.status_code == 200:
+            content_raw_lh = r_lh.text
+        elif r_lh.status_code not in [401, 403]:
+            file_url = f'https://gitlabce.kenda.com.tw/api/v4/projects/{project_id_lh}/repository/files/{encoded_path_lh}'
+            r2 = s.get(file_url, params={'ref': ref}, timeout=6)
+            if r2.ok:
+                c_b64 = r2.json().get('content', '')
+                if c_b64:
+                    content_raw_lh = base64.b64decode(c_b64).decode('utf-8')
+
+        if content_raw_lh:
             parsed_lh = yaml.safe_load(content_raw_lh)
             if isinstance(parsed_lh, list):
                 for item in parsed_lh:
                     if isinstance(item, dict) and item.get('product-type'):
-                        pt = str(item.get('product-type')).strip()
+                        pt = str(item.get('product-type')).strip().upper()
                         lh_obj = item.get('limitary-hour', {})
                         if isinstance(lh_obj, dict):
                             min_v = lh_obj.get('min')
                             max_v = lh_obj.get('max')
-                            limitary_hours[pt.upper()] = {
+                            limitary_hours[pt] = {
                                 'standing_time': min_v,
                                 'limitary_hour': max_v
                             }
-        except Exception as lh_err:
-            app.logger.warning(f"Error parsing limitary-hour yaml: {lh_err}")
+    except Exception as lh_err:
+        app.logger.warning(f"Error loading limitary-hour yaml: {lh_err}")
 
+    # 3. Giữ nguyên: Tải hạn sử dụng expday-kv từ SQL Server ERP 10.33
     expdays = get_prdexp_expdays()
 
-    return {
+    result = {
         'product_types': product_types,
         'config_map': config_map,
         'keys_by_product_type': keys_by_product_type,
         'resource_map': resource_map,
         'limitary_hours': limitary_hours,
         'expdays': expdays,
-        'source': 'gitlab'
+        'source': 'material_resource_config'
     }
+
+    if product_types:
+        _TECH_SPEC_CACHE = result
+        _TECH_SPEC_CACHE_TIMESTAMP = now
+
+    return result
 
 def get_recipe_id_variants(recipe_id: str) -> list:
     """
