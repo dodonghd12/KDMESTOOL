@@ -962,6 +962,7 @@ function enhanceContextMenu() {
         'reprintLabelPdf': 'print',
         'outputBarcodeByFeedRecords': 'output',
         'fetchOutputBarcodeByWorkOrder': 'qr_code_2',
+        'fetchInputBarcodeByWorkOrder': 'input',
         'searchWorkOrderByRecipe': 'assignment',
         'searchCommitGitlabByRecipe': 'source',
         'searchActionsCommitByRecipe': 'alt_route',
@@ -2980,7 +2981,8 @@ function updateContextMenu() {
             'fetchYamlDetails'
         ],
         'work_order': [
-            'fetchOutputBarcodeByWorkOrder'
+            'fetchOutputBarcodeByWorkOrder',
+            'fetchInputBarcodeByWorkOrder'
         ]
     };
 
@@ -3167,6 +3169,9 @@ function handleContextMenuAction(e) {
         // currentTableType === 'work_order'
         case 'fetchOutputBarcodeByWorkOrder':
             if (typeof openOutputTable === 'function') openOutputTable('outputBarcodeByWorkOrder', rowData);
+            break;
+        case 'fetchInputBarcodeByWorkOrder':
+            if (typeof openOutputTable === 'function') openOutputTable('inputBarcodeByWorkOrder', rowData);
             break;
             
         // currentOutputTableType 
@@ -4903,6 +4908,96 @@ async function fetchOutputBarcodeByMainWorkOrder(workOrderId = null, workOrderSt
         renderOutputBarcodeTable([], []);
         if (!err.toastShown) {
             Toast.error('Lỗi', err.message || 'Lỗi kết nối khi tải tem đầu ra');
+        }
+    }
+}
+
+async function fetchInputBarcodeByMainWorkOrder(workOrderId = null, workOrderStatus = null, rowData = null) {
+    const targetId = workOrderId || (selectedRowData ? (selectedRowData['id'] || selectedRowData['work_order']) : null);
+    currentMainWorkOrderId = targetId;
+    const targetStatus = (workOrderStatus !== undefined && workOrderStatus !== null) ? workOrderStatus : (selectedRowData ? selectedRowData['status'] : null);
+
+    if (!targetId) {
+        Toast.warning('Cảnh báo', 'Chưa chọn đơn điều động.');
+        return;
+    }
+
+    const dataObj = rowData || selectedRowData || {};
+    let infoObj = dataObj['information'] || dataObj['info'];
+    if (typeof infoObj === 'string') {
+        try {
+            infoObj = JSON.parse(infoObj);
+        } catch (e) {
+            infoObj = null;
+        }
+    }
+    const product_type = (infoObj && (infoObj.product_type || infoObj.productType)) || dataObj['product_type'] || '';
+
+    try {
+        // 1. Lấy danh sách tem đầu ra của đơn điều động
+        const outData = await apiFetch('/api/workorders/fetch-output-barcodes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ work_order_id: targetId, work_order_status: targetStatus }),
+            showErrorToast: false
+        });
+
+        if (!outData || !outData.success || !Array.isArray(outData.result) || outData.result.length === 0) {
+            renderOutputBarcodeTable([], []);
+            Toast.warning('Không có dữ liệu', outData?.message || 'Đơn điều động không có tem đầu ra để tra cứu tem đầu vào');
+            return;
+        }
+
+        const bcIdx = (outData.columns && Array.isArray(outData.columns)) 
+            ? (outData.columns.indexOf('barcode') >= 0 ? outData.columns.indexOf('barcode') : 0) 
+            : 0;
+
+        const outputBarcodes = [];
+        outData.result.forEach(row => {
+            const bc = row[bcIdx];
+            if (bc && String(bc).trim() && !outputBarcodes.includes(String(bc).trim())) {
+                outputBarcodes.push(String(bc).trim());
+            }
+        });
+
+        if (outputBarcodes.length === 0) {
+            renderOutputBarcodeTable([], []);
+            Toast.warning('Không có dữ liệu', 'Không trích xuất được danh sách tem đầu ra');
+            return;
+        }
+
+        // 2. Tra cứu tem đầu vào
+        const inData = await apiFetch('/api/workorders/fetch-input-barcodes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                barcode_ids: outputBarcodes,
+                product_type: product_type,
+                work_order_id: targetId
+            }),
+            showErrorToast: false
+        });
+
+        if (inData && inData.success) {
+            if (inData.result && inData.result.length > 0) {
+                outputBarcodeRawData = inData.result;
+                outputBarcodeColumns = inData.columns;
+
+                currentOutputTableType = null;
+                renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
+                Toast.success('Thành công', `Tải thành công ${inData.result.length} tem đầu vào`);
+            } else {
+                renderOutputBarcodeTable([], inData.columns || []);
+                Toast.warning('Không có dữ liệu', inData.message || 'Không tìm thấy tem đầu vào nào');
+            }
+        } else {
+            renderOutputBarcodeTable([], []);
+            Toast.error('Lỗi', inData?.message || 'Lỗi khi tải tem đầu vào');
+        }
+    } catch (err) {
+        renderOutputBarcodeTable([], []);
+        if (!err.toastShown) {
+            Toast.error('Lỗi', err.message || 'Lỗi kết nối khi tải tem đầu vào');
         }
     }
 }
@@ -7177,6 +7272,11 @@ function openOutputTable(type, rowData = null) {
         const workOrderId = dataObj.id || dataObj.work_order;
         const workOrderStatus = dataObj.status;
         fetchOutputBarcodeByMainWorkOrder(workOrderId, workOrderStatus);
+    } else if (type === 'inputBarcodeByWorkOrder') {
+        if (outputHeaderContentEl) outputHeaderContentEl.textContent = 'Tem đầu vào của mã MES';
+        const workOrderId = dataObj.id || dataObj.work_order;
+        const workOrderStatus = dataObj.status;
+        fetchInputBarcodeByMainWorkOrder(workOrderId, workOrderStatus, dataObj);
     }
 }
 
@@ -7494,6 +7594,9 @@ function renderSubOutputBarcodeTable(rows, columns) {
             if (colName === 'feed_records_id') {
                 fullValue = formatPgArrayString(val);
                 cellValue = fullValue;
+            } else if (colName === 'target_material_id' && Array.isArray(val)) {
+                fullValue = JSON.stringify(val, null, 2);
+                cellValue = val.join(', ');
             } else if (val !== null && val !== undefined) {
                 if (typeof val === 'object') {
                     try {
