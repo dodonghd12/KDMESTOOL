@@ -3351,12 +3351,12 @@ def fetch_input_barcodes_by_work_order():
     try:
         query = """
             SELECT
-                mr.id                              AS target_material_id,
-                fr_elem->>'resource_id'            AS barcode,
-                fr_elem->>'product_id'             AS product_id,
-                m_elem->'site'->>'name'            AS site_name,
-                fr_elem->>'quantity'               AS quantity,
-                m_elem->>'station'                 AS station
+                fr_elem->>'resource_id'                    AS barcode,
+                fr_elem->>'product_id'                     AS product_id,
+                m_elem->'site'->>'name'                    AS site_name,
+                m_elem->>'station'                         AS station,
+                SUM((fr_elem->>'quantity')::numeric)       AS quantity,
+                jsonb_agg(DISTINCT mr.id)                  AS target_material_id
             FROM kvmes.material_resource mr
             JOIN kvmes.feed_record fr
                 ON fr.id = ANY (mr.feed_records_id)
@@ -3364,7 +3364,13 @@ def fetch_input_barcodes_by_work_order():
             CROSS JOIN LATERAL jsonb_array_elements(m_elem->'feed_resources') AS fr_elem
             WHERE mr.id = ANY(%s)
             AND mr.product_type = %s
-            ORDER BY mr.id;
+            GROUP BY
+                fr_elem->>'resource_id',
+                fr_elem->>'product_id',
+                m_elem->'site'->>'name',
+                m_elem->>'station'
+            ORDER BY
+                barcode;
         """
         result, column_names = execute_pg_select_query(query, (clean_barcode_ids, product_type))
         if result:
@@ -3378,7 +3384,7 @@ def fetch_input_barcodes_by_work_order():
             return jsonify({
                 'success': True,
                 'result': [],
-                'columns': column_names or ['target_material_id', 'barcode', 'product_id', 'site_name', 'quantity', 'station'],
+                'columns': column_names or ['barcode', 'product_id', 'site_name', 'station', 'quantity', 'target_material_id'],
                 'message': 'Không tìm thấy tem đầu vào nào'
             })
     except Exception as e:

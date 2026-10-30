@@ -7296,6 +7296,9 @@ function renderOutputBarcodeTable(rows, columns) {
             if (colName === 'feed_records_id') {
                 fullValue = formatPgArrayString(val);
                 cellValue = fullValue;
+            } else if (colName === 'target_material_id' && Array.isArray(val)) {
+                fullValue = JSON.stringify(val, null, 2);
+                cellValue = val.join(', ');
             } else if (val !== null && val !== undefined) {
                 if (typeof val === 'object') {
                     try {
