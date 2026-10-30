@@ -3352,10 +3352,10 @@ def fetch_input_barcodes_by_work_order():
         query = """
             SELECT
                 fr_elem->>'resource_id'                    AS barcode,
+                SUM((fr_elem->>'quantity')::numeric)       AS quantity,
                 fr_elem->>'product_id'                     AS product_id,
                 m_elem->'site'->>'name'                    AS site_name,
                 m_elem->>'station'                         AS station,
-                SUM((fr_elem->>'quantity')::numeric)       AS quantity,
                 jsonb_agg(DISTINCT mr.id)                  AS target_material_id
             FROM kvmes.material_resource mr
             JOIN kvmes.feed_record fr
@@ -3384,7 +3384,7 @@ def fetch_input_barcodes_by_work_order():
             return jsonify({
                 'success': True,
                 'result': [],
-                'columns': column_names or ['barcode', 'product_id', 'site_name', 'station', 'quantity', 'target_material_id'],
+                'columns': column_names or ['barcode', 'quantity', 'product_id', 'site_name', 'station', 'target_material_id'],
                 'message': 'Không tìm thấy tem đầu vào nào'
             })
     except Exception as e:
