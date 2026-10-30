@@ -1502,6 +1502,19 @@ body.theme-light .input-switcher-container[data-active-mode="work_order"] .input
     display: none;
 }
 
+/* Subtle Focus Ring for Target Table Container during Client Search */
+.table-container.search-target-focused {
+    border-color: rgba(61, 213, 192, 0.55) !important;
+    box-shadow: 0 0 0 2.5px rgba(61, 213, 192, 0.22), 0 8px 32px rgba(61, 213, 192, 0.08), var(--color-shadow-glass) !important;
+    transition: border-color 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+:root[data-theme="light"] .table-container.search-target-focused,
+body.theme-light .table-container.search-target-focused {
+    border-color: rgba(13, 148, 136, 0.55) !important;
+    box-shadow: 0 0 0 2.5px rgba(13, 148, 136, 0.2), 0 8px 24px rgba(13, 148, 136, 0.08), var(--color-shadow-glass) !important;
+}
+
 /* Single row mode for top table when output barcodes/tasks are shown */
 .table-container.single-row-mode,
 .has-output-barcode .table-container:not(.output-barcode) {

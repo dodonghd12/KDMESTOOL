@@ -3362,6 +3362,7 @@ async function showFeedRecords(rowData = null) {
 
     const container = document.getElementById('outputContainer');
     if (container) container.style.display = 'flex';
+    if (typeof updateClientSearchFocusRing === 'function') updateClientSearchFocusRing();
 
     clearOutputBarcodeTable();
 
@@ -3537,6 +3538,7 @@ function fetchOutputBarcode(workOrder = null) {
     // 2. Open subOutputContainer
     const subContainer = document.getElementById('subOutputContainer');
     if (subContainer) subContainer.style.display = 'flex';
+    if (typeof updateClientSearchFocusRing === 'function') updateClientSearchFocusRing();
 
     clearSubOutputBarcodeTable();
 
@@ -3726,6 +3728,7 @@ async function fetchPrde(type, rowData = null) {
 
     const container = document.getElementById('outputContainer');
     if (container) container.style.display = 'flex';
+    if (typeof updateClientSearchFocusRing === 'function') updateClientSearchFocusRing();
 
     enterSingleRowMode();
     clearOutputBarcodeTable();
@@ -4711,6 +4714,7 @@ async function fetchOutputBarcodeByWorkOrder(type, rowData = null) {
     // 2. Open subOutputContainer
     const subContainer = document.getElementById('subOutputContainer');
     if (subContainer) subContainer.style.display = 'flex';
+    if (typeof updateClientSearchFocusRing === 'function') updateClientSearchFocusRing();
 
     clearSubOutputBarcodeTable();
 
@@ -4778,6 +4782,7 @@ async function fetchInputBarcodeByWorkOrder(type, rowData = null) {
     // 2. Open subOutputContainer
     const subContainer = document.getElementById('subOutputContainer');
     if (subContainer) subContainer.style.display = 'flex';
+    if (typeof updateClientSearchFocusRing === 'function') updateClientSearchFocusRing();
 
     clearSubOutputBarcodeTable();
 
@@ -7240,6 +7245,9 @@ function openOutputTable(type, rowData = null) {
 
     const container = document.getElementById('outputContainer');
     if (container) container.style.display = 'flex';
+    if (typeof updateClientSearchFocusRing === 'function') {
+        updateClientSearchFocusRing();
+    }
 
     activeSearchContext = type;
 
@@ -7292,6 +7300,9 @@ function closeShowBarcodeWindow() {
     activeSearchContext = 'main';
 
     exitSingleRowMode();
+    if (typeof updateClientSearchFocusRing === 'function') {
+        updateClientSearchFocusRing();
+    }
 }
 
 function clearOutputBarcodeTable() {
@@ -7475,6 +7486,9 @@ function closeSubOutputWindow() {
     container.style.display = 'none';
 
     exitOutputSingleRowMode();
+    if (typeof updateClientSearchFocusRing === 'function') {
+        updateClientSearchFocusRing();
+    }
 }
 window.closeSubOutputWindow = closeSubOutputWindow;
 
@@ -7766,6 +7780,47 @@ document.addEventListener('touchstart', (e) => {
 document.addEventListener('touchend', clearBadgeHold);
 document.addEventListener('touchcancel', clearBadgeHold);
 
+/**
+ * Xác định container mà clientSearch đang nhắm tới dựa trên độ ưu tiên:
+ * 1. subOutputContainer (nếu đang hiển thị 'flex')
+ * 2. outputContainer (nếu đang hiển thị 'flex')
+ * 3. Main table container (.table-container:not(.output-barcode) hoặc .table-container)
+ */
+function getClientSearchTargetContainer() {
+    const subOutputContainer = document.getElementById('subOutputContainer');
+    if (subOutputContainer && subOutputContainer.style.display === 'flex') {
+        return subOutputContainer;
+    }
+    const outputContainer = document.getElementById('outputContainer');
+    if (outputContainer && outputContainer.style.display === 'flex') {
+        return outputContainer;
+    }
+    return document.querySelector('.table-container:not(.output-barcode)') || document.querySelector('.table-container');
+}
+window.getClientSearchTargetContainer = getClientSearchTargetContainer;
+
+/**
+ * Cập nhật focus ring nhẹ lên container mà clientSearch đang nhắm tới
+ * @param {boolean|null} isFocused - Trạng thái focus (nếu null, tự đọc từ document.activeElement)
+ */
+function updateClientSearchFocusRing(isFocused = null) {
+    const searchInput = document.getElementById('clientSearch');
+    const focused = isFocused !== null ? isFocused : (document.activeElement === searchInput);
+
+    // Xóa focus ring khỏi toàn bộ table containers
+    document.querySelectorAll('.table-container').forEach(c => {
+        c.classList.remove('search-target-focused');
+    });
+
+    if (!focused || (searchInput && searchInput.disabled)) return;
+
+    const target = getClientSearchTargetContainer();
+    if (target) {
+        target.classList.add('search-target-focused');
+    }
+}
+window.updateClientSearchFocusRing = updateClientSearchFocusRing;
+
 function initClientSearch() {
     const searchInput = document.getElementById('clientSearch');
     if (!searchInput) return;
@@ -7773,8 +7828,18 @@ function initClientSearch() {
     // Disable clientSearch khi vừa load page
     searchInput.disabled = true;
 
+    // Focus & blur events to show/hide focus ring on target container
+    searchInput.addEventListener('focus', function () {
+        updateClientSearchFocusRing(true);
+    });
+
+    searchInput.addEventListener('blur', function () {
+        updateClientSearchFocusRing(false);
+    });
+
     // Filter khi người dùng nhập
     searchInput.addEventListener('input', function () {
+        updateClientSearchFocusRing(true);
         const keyword = this.value.trim().toLowerCase();
         filterClientResult(keyword);
     });
@@ -7795,6 +7860,9 @@ function updateClientSearchState(hasData = false) {
         // Disable clientSearch khi không có dữ liệu
         searchInput.disabled = true;
         clearInputBox(searchInput);
+        if (typeof updateClientSearchFocusRing === 'function') {
+            updateClientSearchFocusRing(false);
+        }
     }
 }
 
