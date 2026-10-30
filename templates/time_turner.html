@@ -13,6 +13,7 @@
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
 
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome/css/all.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/flatpickr/flatpickr.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/material-symbols/material-symbols.css') }}">
 </head>
 <body class="time-turner {% if is_frame %}is-spa-frame{% endif %} app-loading-state">
@@ -20,15 +21,22 @@
 
     <div class="container" autocomplete="off">
         <div class="search-section">
-            <div class="search-row" style="display: flex; align-items: center; gap: 12px; width: 100%;">
+            <div class="search-row" style="display: flex; align-items: center; gap: 12px; width: 100%; flex-wrap: wrap;">
                 <!-- 1. btnRefresh -->
                 <button type="button" id="btnRefresh" class="winx-btn winx-btn-primary btn-refresh" style="height: 42px; padding: 0 20px; font-size: 14px; font-weight: 700; letter-spacing: 0.5px; flex-shrink: 0;" aria-label="Refresh dữ liệu file log">
                     <span class="material-symbols-outlined" id="btnRefreshIcon" style="font-size: 20px !important;">refresh</span>
                     <span>Refresh</span>
                 </button>
 
-                <!-- 2. clientSearch (Đồng bộ kích thước với các page khác & không bao giờ bị disable) -->
-                <div class="input-wrapper" style="min-width: 200px; max-width: 350px; flex: 1;">
+                <!-- 2. dateRange (Sử dụng flatpickr) -->
+                <div class="input-box" style="width: 220px; min-width: 180px; max-width: 240px; flex-shrink: 0;">
+                    <input required type="text" id="dateRange" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="input" placeholder="Chọn ngày">
+                    <input type="hidden" id="fromDate">
+                    <input type="hidden" id="toDate">
+                </div>
+
+                <!-- 3. clientSearch (Đồng bộ kích thước với các page khác & không bao giờ bị disable) -->
+                <div class="input-wrapper" style="width: 220px; min-width: 180px; max-width: 240px; flex-shrink: 0;">
                     <input placeholder="Tìm kiếm..." class="input" id="clientSearch" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text" aria-label="Tìm kiếm trong bảng">
                 </div>
             </div>
@@ -65,6 +73,7 @@
 
     {% include "components/shared_modals.html" %}
 
+    <script src="{{ url_for('static', filename='vendor/flatpickr/flatpickr.min.js') }}"></script>
     <script src="{{ url_for('static', filename='vendor/xlsx/xlsx.full.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/smooth_input.js') }}?v={{ version }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}?v={{ version }}"></script>

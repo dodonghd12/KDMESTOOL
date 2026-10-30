@@ -13,6 +13,7 @@
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
 
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome/css/all.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/flatpickr/flatpickr.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/material-symbols/material-symbols.css') }}">
 </head>
 <body class="gitlab-deleted-files {% if is_frame %}is-spa-frame{% endif %} app-loading-state">
@@ -32,13 +33,14 @@
                     <div id="project-filter-dropdown" class="dropdown-list"></div>
                 </div>
 
-                <div class="input-wrapper" style="min-width: 220px; max-width: 380px; flex: 1;">
-                    <input placeholder="Tìm kiếm..." class="input" id="clientSearch" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text" aria-label="Tìm kiếm trong bảng">
+                <div class="input-box" style="min-width: 220px; max-width: 260px; flex-shrink: 0;">
+                    <input required type="text" id="dateRange" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="input" placeholder="Chọn ngày">
+                    <input type="hidden" id="fromDate">
+                    <input type="hidden" id="toDate">
                 </div>
 
-                <div style="color: var(--color-text-muted, #94a3b8); font-size: 13px; display: flex; align-items: center; gap: 6px; white-space: nowrap;">
-                    <span class="material-symbols-outlined" style="font-size: 16px; color: var(--color-text-accent, #38bdf8);">info</span>
-                    <span>Truy vấn danh sách file YAML bị xóa ở GitLab</span>
+                <div class="input-wrapper" style="min-width: 220px; max-width: 380px; flex: 1;">
+                    <input placeholder="Tìm kiếm..." class="input" id="clientSearch" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text" aria-label="Tìm kiếm trong bảng">
                 </div>
             </div>
         </div>
@@ -74,6 +76,7 @@
 
     {% include "components/shared_modals.html" %}
 
+    <script src="{{ url_for('static', filename='vendor/flatpickr/flatpickr.min.js') }}"></script>
     <script src="{{ url_for('static', filename='vendor/xlsx/xlsx.full.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/smooth_input.js') }}?v={{ version }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}?v={{ version }}"></script>

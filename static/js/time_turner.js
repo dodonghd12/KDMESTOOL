@@ -17,6 +17,9 @@
     let currentPage = 1;
     let totalPages = 1;
     let clientSearchDebounceTimer = null;
+    let selectedFromDate = '';
+    let selectedToDate = '';
+    let flatpickrInstance = null;
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initTimeTurner);
@@ -27,8 +30,84 @@
     function initTimeTurner() {
         ensureClientSearchAlwaysEnabled();
         initControls();
+        initFlatpickr();
         setupExportHook();
         fetchLogRecords();
+    }
+
+    function initFlatpickr() {
+        const dateInput = document.getElementById('dateRange');
+        const fromDateEl = document.getElementById('fromDate');
+        const toDateEl = document.getElementById('toDate');
+
+        if (!dateInput || typeof flatpickr === 'undefined') return;
+
+        if (fromDateEl) fromDateEl.value = '';
+        if (toDateEl) toDateEl.value = '';
+        dateInput.value = '';
+
+        flatpickrInstance = flatpickr(dateInput, {
+            mode: 'range',
+            dateFormat: 'Y-m-d',
+            maxDate: 'today',
+            allowInput: false,
+            clickOpens: true,
+            locale: {
+                rangeSeparator: '     ',
+                firstDayOfWeek: 1,
+                weekdays: {
+                    shorthand: ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'],
+                    longhand: ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy']
+                },
+                months: {
+                    shorthand: ['Th1', 'Th2', 'Th3', 'Th4', 'Th5', 'Th6', 'Th7', 'Th8', 'Th9', 'Th10', 'Th11', 'Th12'],
+                    longhand: ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12']
+                }
+            },
+            onClose(selectedDates) {
+                if (selectedDates.length === 1) {
+                    const dateStr = formatDateToStr(selectedDates[0]);
+                    selectedFromDate = dateStr;
+                    selectedToDate = dateStr;
+                    if (fromDateEl) fromDateEl.value = dateStr;
+                    if (toDateEl) toDateEl.value = dateStr;
+                    dateInput.value = dateStr;
+                } else if (selectedDates.length === 2) {
+                    selectedFromDate = formatDateToStr(selectedDates[0]);
+                    selectedToDate = formatDateToStr(selectedDates[1]);
+                    if (fromDateEl) fromDateEl.value = selectedFromDate;
+                    if (toDateEl) toDateEl.value = selectedToDate;
+                } else {
+                    selectedFromDate = '';
+                    selectedToDate = '';
+                    if (fromDateEl) fromDateEl.value = '';
+                    if (toDateEl) toDateEl.value = '';
+                    dateInput.value = '';
+                }
+
+                applyFilters(true);
+            }
+        });
+
+        dateInput.addEventListener('click', function () {
+            if (dateInput.value && flatpickrInstance) {
+                flatpickrInstance.clear();
+                selectedFromDate = '';
+                selectedToDate = '';
+                if (fromDateEl) fromDateEl.value = '';
+                if (toDateEl) toDateEl.value = '';
+                dateInput.value = '';
+                applyFilters(true);
+            }
+        });
+    }
+
+    function formatDateToStr(date) {
+        if (!date) return '';
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
     }
 
     /**
@@ -159,6 +238,19 @@
         const searchVal = (clientSearchInput ? clientSearchInput.value : '').trim().toLowerCase();
 
         currentFilteredRecords = allLogRecords.filter(item => {
+            // Lọc theo khoảng ngày từ flatpickr
+            if (selectedFromDate && selectedToDate) {
+                const itemDate = (item.timestamp || '').slice(0, 10);
+                if (!itemDate || itemDate < selectedFromDate || itemDate > selectedToDate) {
+                    return false;
+                }
+            } else if (selectedFromDate) {
+                const itemDate = (item.timestamp || '').slice(0, 10);
+                if (!itemDate || itemDate !== selectedFromDate) {
+                    return false;
+                }
+            }
+
             if (!searchVal) return true;
 
             const itemId = String(item.id || item.line_no || '');

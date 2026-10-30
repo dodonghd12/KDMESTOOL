@@ -19,6 +19,9 @@ let tableColumns = [
     'Commit Message'
 ];
 let selectedProjectFilter = '';
+let selectedFromDate = '';
+let selectedToDate = '';
+let flatpickrInstance = null;
 
 // Pagination State (1-based for user display, clamped, 0-based for slicing)
 const PAGE_SIZE = 30;
@@ -60,6 +63,7 @@ if (document.readyState === 'loading') {
 function initializeGitlabDeletedFiles() {
     initControls();
     initProjectDropdown();
+    initFlatpickr();
 
     // Hook custom search handler cho main.js clientSearch
     window.customClientSearchHandler = function () {
@@ -83,6 +87,8 @@ function initializeGitlabDeletedFiles() {
 function resetAllFiltersAndTable() {
     // 1. Reset biến lưu trạng thái lọc và phân trang
     selectedProjectFilter = '';
+    selectedFromDate = '';
+    selectedToDate = '';
     currentPage = 1;
     totalPages = 1;
 
@@ -93,6 +99,14 @@ function resetAllFiltersAndTable() {
         const box = projectInput.closest('.input-box');
         if (box) box.classList.remove('has-value');
     }
+
+    const dateInput = document.getElementById('dateRange');
+    const fromDateEl = document.getElementById('fromDate');
+    const toDateEl = document.getElementById('toDate');
+    if (flatpickrInstance) flatpickrInstance.clear();
+    if (dateInput) dateInput.value = '';
+    if (fromDateEl) fromDateEl.value = '';
+    if (toDateEl) toDateEl.value = '';
 
     const searchInput = document.getElementById('clientSearch');
     if (searchInput) {
@@ -193,6 +207,81 @@ function initProjectDropdown() {
     });
 }
 
+function initFlatpickr() {
+    const dateInput = document.getElementById('dateRange');
+    const fromDateEl = document.getElementById('fromDate');
+    const toDateEl = document.getElementById('toDate');
+
+    if (!dateInput || typeof flatpickr === 'undefined') return;
+
+    if (fromDateEl) fromDateEl.value = '';
+    if (toDateEl) toDateEl.value = '';
+    dateInput.value = '';
+
+    flatpickrInstance = flatpickr(dateInput, {
+        mode: 'range',
+        dateFormat: 'Y-m-d',
+        maxDate: 'today',
+        allowInput: false,
+        clickOpens: true,
+        locale: {
+            rangeSeparator: '     ',
+            firstDayOfWeek: 1,
+            weekdays: {
+                shorthand: ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'],
+                longhand: ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy']
+            },
+            months: {
+                shorthand: ['Th1', 'Th2', 'Th3', 'Th4', 'Th5', 'Th6', 'Th7', 'Th8', 'Th9', 'Th10', 'Th11', 'Th12'],
+                longhand: ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12']
+            }
+        },
+        onClose(selectedDates) {
+            if (selectedDates.length === 1) {
+                const dateStr = formatDateToStr(selectedDates[0]);
+                selectedFromDate = dateStr;
+                selectedToDate = dateStr;
+                if (fromDateEl) fromDateEl.value = dateStr;
+                if (toDateEl) toDateEl.value = dateStr;
+                dateInput.value = dateStr;
+            } else if (selectedDates.length === 2) {
+                selectedFromDate = formatDateToStr(selectedDates[0]);
+                selectedToDate = formatDateToStr(selectedDates[1]);
+                if (fromDateEl) fromDateEl.value = selectedFromDate;
+                if (toDateEl) toDateEl.value = selectedToDate;
+            } else {
+                selectedFromDate = '';
+                selectedToDate = '';
+                if (fromDateEl) fromDateEl.value = '';
+                if (toDateEl) toDateEl.value = '';
+                dateInput.value = '';
+            }
+
+            applyAllFilters(true);
+        }
+    });
+
+    dateInput.addEventListener('click', function () {
+        if (dateInput.value && flatpickrInstance) {
+            flatpickrInstance.clear();
+            selectedFromDate = '';
+            selectedToDate = '';
+            if (fromDateEl) fromDateEl.value = '';
+            if (toDateEl) toDateEl.value = '';
+            dateInput.value = '';
+            applyAllFilters(true);
+        }
+    });
+}
+
+function formatDateToStr(date) {
+    if (!date) return '';
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}
+
 function toggleProjectDropdown() {
     const dropdown = document.getElementById('project-filter-dropdown');
     if (!dropdown) return;
@@ -251,8 +340,9 @@ function applyAllFilters(resetPageToOne = false) {
     const searchTerm = searchInput ? searchInput.value.trim().toLowerCase() : '';
 
     currentFilteredRecords = allFetchedRecords.filter(row => {
-        // row[0]: Project, row[1]: File Name, ...
+        // row[0]: Project, row[1]: File Name, row[2]: deleted_by, row[3]: Email, row[4]: Thời gian...
         const rowProject = String(row[0] || '').trim();
+        const rowTime = String(row[4] || '').trim();
 
         // 1. Lọc theo Project
         if (selectedProjectFilter && selectedProjectFilter !== 'Tất cả project') {
@@ -261,7 +351,22 @@ function applyAllFilters(resetPageToOne = false) {
             }
         }
 
-        // 2. Lọc theo Client Search (toàn bộ các cột trên toàn bộ dữ liệu)
+        // 2. Lọc theo Khoảng ngày (Date Range flatpickr)
+        if (selectedFromDate && selectedToDate) {
+            const startBound = selectedFromDate + ' 00:00:00';
+            const endBound = selectedToDate + ' 23:59:59';
+            if (rowTime < startBound || rowTime > endBound) {
+                return false;
+            }
+        } else if (selectedFromDate) {
+            const startBound = selectedFromDate + ' 00:00:00';
+            const endBound = selectedFromDate + ' 23:59:59';
+            if (rowTime < startBound || rowTime > endBound) {
+                return false;
+            }
+        }
+
+        // 3. Lọc theo Client Search (toàn bộ các cột trên toàn bộ dữ liệu)
         if (searchTerm) {
             const matches = row.some(cell => String(cell || '').toLowerCase().includes(searchTerm));
             if (!matches) {

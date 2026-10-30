@@ -12827,6 +12827,14 @@ body.theme-light .material-transfer-retry-btn.is-success {
 @keyframes ttSpin {
     100% { transform: rotate(360deg); }
 }
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+.account-loading-spin {
+    animation: spin 1s linear infinite !important;
+    display: inline-block !important;
+}
 
 @media (max-width: 768px) {
     body.time-turner .container {
@@ -12834,7 +12842,7 @@ body.theme-light .material-transfer-retry-btn.is-success {
         gap: 8px !important;
     }
     .time-turner .search-section {
-        margin-bottom: 6px !important;
+        margin-bottom: 8px !important;
         width: 100% !important;
     }
     .time-turner .search-row {
@@ -12843,7 +12851,7 @@ body.theme-light .material-transfer-retry-btn.is-success {
         align-items: center !important;
         gap: 8px !important;
         width: 100% !important;
-        flex-wrap: nowrap !important;
+        flex-wrap: wrap !important;
     }
     .time-turner #btnRefresh {
         height: 38px !important;
@@ -12852,8 +12860,21 @@ body.theme-light .material-transfer-retry-btn.is-success {
         flex: 0 0 auto !important;
         border-radius: 8px !important;
     }
+    .time-turner .search-row > .input-box {
+        flex: 1 1 140px !important;
+        min-width: 140px !important;
+        max-width: 100% !important;
+        height: 38px !important;
+        margin: 0 !important;
+    }
+    .time-turner .search-row > .input-box .input {
+        height: 38px !important;
+        font-size: 13px !important;
+        padding: 0 10px !important;
+        border-radius: 8px !important;
+    }
     .time-turner .search-row > .input-wrapper {
-        flex: 1 1 auto !important;
+        flex: 1 1 100% !important;
         min-width: 0 !important;
         max-width: 100% !important;
         width: 100% !important;
@@ -12862,9 +12883,10 @@ body.theme-light .material-transfer-retry-btn.is-success {
     }
     .time-turner .search-row > .input-wrapper .input {
         height: 38px !important;
-        font-size: 16px !important;
+        font-size: 14px !important;
         padding: 0 12px !important;
         border-radius: 8px !important;
+        width: 100% !important;
     }
     .time-turner .table-container {
         border-radius: 10px !important;
@@ -12874,6 +12896,7 @@ body.theme-light .material-transfer-retry-btn.is-success {
     .time-turner .table-scroll table td {
         padding: 8px 10px !important;
         font-size: 12.5px !important;
+        white-space: nowrap !important;
     }
     .time-turner .table-footer:not(.hidden) {
         padding: 6px 8px !important;
