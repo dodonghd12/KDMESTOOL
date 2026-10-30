@@ -2214,14 +2214,6 @@ function displayTable(result, columns) {
                 link.target = '_blank';
                 link.rel = 'noopener noreferrer';
                 link.className = 'table-cell-url-link';
-                link.style.color = '#38bdf8';
-                link.style.textDecoration = 'underline';
-                link.style.fontWeight = '500';
-                link.style.display = 'inline-flex';
-                link.style.alignItems = 'center';
-                link.style.gap = '4px';
-                link.style.cursor = 'pointer';
-                link.style.pointerEvents = 'auto';
 
                 const textSpan = document.createElement('span');
                 if (cellValue.length > truncateThreshold) {
@@ -2234,11 +2226,7 @@ function displayTable(result, columns) {
                 link.appendChild(textSpan);
 
                 const icon = document.createElement('span');
-                icon.className = 'material-symbols-outlined';
-                icon.style.fontSize = '14px';
-                icon.style.lineHeight = '1';
-                icon.style.verticalAlign = 'middle';
-                icon.style.textDecoration = 'none';
+                icon.className = 'material-symbols-outlined url-link-icon';
                 icon.textContent = 'open_in_new';
                 link.appendChild(icon);
 
@@ -2305,13 +2293,8 @@ function clearTable() {
     updateVisibleRowCount();
     updateTableStickyOffsets();
 
-    // If on check-qc-data or check-mesync, hide table container and table footer
+    // If on check-qc-data or check-mesync, hide table footer when table is cleared
     if (document.body.classList.contains('check-qc-data') || document.body.classList.contains('check-mesync')) {
-        const tableContainer = document.querySelector('.table-container');
-        if (tableContainer) {
-            tableContainer.classList.add('hidden');
-            tableContainer.style.display = 'none';
-        }
         const tableFooter = document.querySelector('.table-footer');
         if (tableFooter) {
             tableFooter.classList.add('hidden');

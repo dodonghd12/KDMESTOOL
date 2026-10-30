@@ -52,16 +52,21 @@
                 </div>
             </div>
 
-            <!-- 3b. Nút Open yaml File (Canh lề trái, nằm bên phải folderSelect) -->
-            <button type="button" id="btnOpenPrintersYaml" class="winx-btn btn-open-yaml-file" title="Xem nội dung printers-manager.yaml" aria-label="Open yaml File">
-                <span class="material-symbols-outlined">description</span>
-                <span>Open yaml File</span>
-            </button>
-
             <!-- 4. Container Status Badge (Live Step) -->
             <div class="avada-kedavra-step-badge" id="containerStatusBadge" style="display: none;">
                 <span class="material-symbols-outlined step-badge-icon" id="stepBadgeIcon">sync</span>
                 <span id="containerStatusText">Kết nối root@198.1.10.85</span>
+            </div>
+
+            <!-- 5. Hero Right (Nút Open yaml File bên trái và clientSearch bên phải, toàn bộ căn lề phải) -->
+            <div class="avada-kedavra-hero-right switching-spell-hero-right">
+                <button type="button" id="btnOpenPrintersYaml" class="winx-btn btn-open-yaml-file" title="Xem nội dung printers-manager.yaml" aria-label="Open yaml File">
+                    <span class="material-symbols-outlined">description</span>
+                    <span>Open yaml File</span>
+                </button>
+                <div class="input-wrapper avada-kedavra-search-wrapper switching-spell-search-wrapper">
+                    <input placeholder="Tìm kiếm..." class="input" id="clientSearch" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text" aria-label="Tìm kiếm trạm hoặc máy in" disabled>
+                </div>
             </div>
         </div>
 
