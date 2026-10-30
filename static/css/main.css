@@ -1557,6 +1557,18 @@ body.theme-light .table-container.search-target-focused {
     display: none !important;
 }
 
+@media (min-width: 769px) {
+    .input-box:has(#dateRange) {
+        min-width: 240px !important;
+        max-width: 280px !important;
+        width: 270px !important;
+        flex-shrink: 0 !important;
+    }
+    .input-box:has(#dateRange) .input {
+        font-size: 13.5px !important;
+    }
+}
+
 .table-scroll {
     flex: 0 1 auto;
     min-height: 0;
@@ -10842,6 +10854,14 @@ body.theme-light .material-transfer-retry-btn.is-success {
         min-width: 90px !important;
         max-width: none !important;
         width: auto !important;
+        height: 38px !important;
+    }
+    .gitlab-deleted-files .search-row > .input-box:has(#dateRange) {
+        order: 3 !important;
+        flex: 1 1 calc(50% - 3px) !important;
+        min-width: 0 !important;
+        max-width: calc(50% - 3px) !important;
+        width: calc(50% - 3px) !important;
         height: 38px !important;
     }
 

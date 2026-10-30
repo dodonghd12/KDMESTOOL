@@ -71,9 +71,17 @@
         </div>
 
         <!-- ── Table Container ── -->
-        <div class="table-container hidden" id="switchingSpellTableContainer" style="display: none;">
+        <div class="table-container" id="switchingSpellTableContainer">
             <div class="table-scroll switching-spell-table-scroll">
-                <table>
+                <!-- Standby guide / empty state before selection -->
+                <div class="table-standby-placeholder" id="tableStandbyPlaceholder">
+                    <div class="standby-icon-ring">
+                        <span class="material-symbols-outlined standby-icon">print_connect</span>
+                    </div>
+                    <div class="standby-title">Sẵn sàng cấu hình máy in</div>
+                    <div class="standby-subtitle">Vui lòng chọn thư mục cấu hình máy in (KV2) để bắt đầu</div>
+                </div>
+                <table id="switchingSpellTable" style="display: none;">
                     <thead id="tableHead">
                         <tr>
                             <th style="width: 50px; text-align: center;">#</th>
@@ -81,17 +89,7 @@
                             <th style="width: 280px; min-width: 240px; white-space: nowrap;">Printer Name</th>
                         </tr>
                     </thead>
-                    <tbody id="tableBody">
-                        <tr>
-                            <td colspan="3" class="switching-spell-empty-state">
-                                <div class="empty-placeholder-box">
-                                    <span class="material-symbols-outlined empty-icon">print_connect</span>
-                                    <span class="empty-title">Vui lòng chọn thư mục cấu hình máy in</span>
-                                    <span class="empty-subtitle">Chọn một trong các mục (p5300_ic, p8300, p8400, p9100) để hiển thị chi tiết</span>
-                                </div>
-                            </td>
-                        </tr>
-                    </tbody>
+                    <tbody id="tableBody"></tbody>
                 </table>
             </div>
 

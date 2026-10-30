@@ -115,7 +115,6 @@
         const btn = document.getElementById('btnFetchAllAccounts');
         const icon = document.getElementById('btnFetchAllAccountsIcon');
         if (btn) btn.disabled = true;
-        if (icon) icon.classList.add('time-turner-spin');
 
         const container = document.getElementById('checkAccountTableContainer');
         const tbody = document.getElementById('checkAccountTableBody');
@@ -228,7 +227,6 @@
         } finally {
             isFetchingAccounts = false;
             if (btn) btn.disabled = false;
-            if (icon) icon.classList.remove('time-turner-spin');
         }
     }
 

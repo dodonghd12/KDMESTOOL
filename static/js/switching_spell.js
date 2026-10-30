@@ -25,6 +25,43 @@
     let activeGroupIndexForPrinter = null;
     let activePrinterAnchorBtn = null;
 
+    function hideStandbyPlaceholder() {
+        const ph = document.getElementById('tableStandbyPlaceholder');
+        const tbl = document.getElementById('switchingSpellTable');
+        const tableContainer = document.getElementById('switchingSpellTableContainer') || document.querySelector('.table-container');
+        if (ph) {
+            ph.classList.add('has-data');
+            ph.style.display = 'none';
+        }
+        if (tbl) {
+            tbl.style.display = '';
+        }
+        if (tableContainer) {
+            tableContainer.classList.remove('hidden');
+            tableContainer.style.display = '';
+        }
+    }
+
+    function showStandbyPlaceholder() {
+        const ph = document.getElementById('tableStandbyPlaceholder');
+        const tbl = document.getElementById('switchingSpellTable');
+        const footer = document.getElementById('tableFooter');
+        const tableContainer = document.getElementById('switchingSpellTableContainer') || document.querySelector('.table-container');
+        if (ph) {
+            ph.classList.remove('has-data');
+            ph.style.display = '';
+        }
+        if (tbl) {
+            tbl.style.display = 'none';
+        }
+        if (footer) {
+            footer.classList.add('hidden');
+        }
+        if (tableContainer) {
+            tableContainer.classList.remove('hidden');
+            tableContainer.style.display = '';
+        }
+    }
     document.addEventListener('DOMContentLoaded', initializeSwitchingSpell);
 
     function initializeSwitchingSpell() {
@@ -34,6 +71,9 @@
 
         // 1. Khởi tạo nhãn máy chủ ban đầu (198.1.10.85)
         updateServerBadgeUI();
+        if (!selectedFolder) {
+            showStandbyPlaceholder();
+        }
 
         // 2. Quản lý trạng thái ô tìm kiếm clientSearch (chỉ enable khi đã chọn thư mục và có dữ liệu)
         updateClientSearchState();
@@ -51,16 +91,10 @@
                 folderSelect.blur();
                 const tableContainer = document.getElementById('switchingSpellTableContainer') || document.querySelector('.table-container');
                 if (selectedFolder) {
-                    if (tableContainer) {
-                        tableContainer.classList.remove('hidden');
-                        tableContainer.style.display = '';
-                    }
+                    hideStandbyPlaceholder();
                     fetchPrintersConfig(selectedFolder);
                 } else {
-                    if (tableContainer) {
-                        tableContainer.classList.add('hidden');
-                        tableContainer.style.display = 'none';
-                    }
+                    showStandbyPlaceholder();
                     currentGroups = [];
                     originalGroups = [];
                     updateClientSearchState();
@@ -212,12 +246,7 @@
         if (!folder) return;
         isLoading = true;
 
-        const tableContainer = document.getElementById('switchingSpellTableContainer') || document.querySelector('.table-container');
-        if (tableContainer) {
-            tableContainer.classList.remove('hidden');
-            tableContainer.style.display = '';
-        }
-
+        hideStandbyPlaceholder();
         showStepBadge(`Đang đọc cấu hình (${folder})...`, 'sync', 'progress');
         showTableLoading(folder);
         closeStationFloatingDropdown();
@@ -297,6 +326,7 @@
         const stationBadgeEl = document.getElementById('stationCountBadge');
         if (!tbody) return;
 
+        hideStandbyPlaceholder();
         filteredGroups = groups;
 
         if (!groups || groups.length === 0) {
