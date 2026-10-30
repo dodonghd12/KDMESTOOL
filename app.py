@@ -3320,6 +3320,72 @@ def fetch_output_barcode_by_work_order():
         })
 
 
+@app.route('/api/workorders/fetch-input-barcodes', methods=['POST'])
+@login_required
+def fetch_input_barcodes_by_work_order():
+    data = request.get_json() or {}
+    barcode_ids = data.get('barcode_ids') or []
+    product_type = str(data.get('product_type') or '').strip()
+    work_order_id = str(data.get('work_order_id') or '').strip()
+
+    if not barcode_ids:
+        return jsonify({'success': False, 'message': 'Thiếu danh sách mã tem đầu ra', 'result': [], 'columns': []})
+
+    # Nếu product_type rỗng nhưng có work_order_id, tra cứu trực tiếp từ kvmes.work_order
+    if not product_type and work_order_id:
+        try:
+            q_pt = "SELECT information->>'product_type' FROM kvmes.work_order WHERE id = %s OR btrim(id) = btrim(%s) LIMIT 1;"
+            res_pt, _ = execute_pg_select_query(q_pt, (work_order_id, work_order_id))
+            if res_pt and res_pt[0][0]:
+                product_type = str(res_pt[0][0]).strip()
+        except Exception as e_pt:
+            logger.warning(f"[FETCH_INPUT_BARCODES] Không lấy được product_type từ work_order: {e_pt}")
+
+    if not product_type:
+        return jsonify({'success': False, 'message': 'Thiếu loại sản phẩm (product_type)', 'result': [], 'columns': []})
+
+    clean_barcode_ids = list(dict.fromkeys([str(b).strip() for b in barcode_ids if str(b).strip()]))
+    if not clean_barcode_ids:
+        return jsonify({'success': False, 'message': 'Danh sách mã tem không hợp lệ', 'result': [], 'columns': []})
+
+    try:
+        query = """
+            SELECT
+                mr.id                              AS target_material_id,
+                fr_elem->>'resource_id'            AS barcode,
+                fr_elem->>'product_id'             AS product_id,
+                m_elem->'site'->>'name'            AS site_name,
+                fr_elem->>'quantity'               AS quantity,
+                m_elem->>'station'                 AS station
+            FROM kvmes.material_resource mr
+            JOIN kvmes.feed_record fr
+                ON fr.id = ANY (mr.feed_records_id)
+            CROSS JOIN LATERAL jsonb_array_elements(fr.materials) AS m_elem
+            CROSS JOIN LATERAL jsonb_array_elements(m_elem->'feed_resources') AS fr_elem
+            WHERE mr.id = ANY(%s)
+            AND mr.product_type = %s
+            ORDER BY mr.id;
+        """
+        result, column_names = execute_pg_select_query(query, (clean_barcode_ids, product_type))
+        if result:
+            serialized_result = [serialize_row(list(row)) for row in result]
+            return jsonify({
+                'success': True,
+                'result': serialized_result,
+                'columns': column_names
+            })
+        else:
+            return jsonify({
+                'success': True,
+                'result': [],
+                'columns': column_names or ['target_material_id', 'barcode', 'product_id', 'site_name', 'quantity', 'station'],
+                'message': 'Không tìm thấy tem đầu vào nào'
+            })
+    except Exception as e:
+        logger.error(f"[FETCH_INPUT_BARCODES_ERROR] Lỗi tra cứu tem đầu vào: {e}", exc_info=True)
+        return jsonify({'success': False, 'message': f'Lỗi tra cứu: {str(e)}', 'result': [], 'columns': []})
+
+
 @app.route('/api/workorders/fix-missing-collect-records', methods=['POST'])
 @login_required
 def api_fix_missing_collect_records():

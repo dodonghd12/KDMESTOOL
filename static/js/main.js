@@ -967,7 +967,9 @@ function enhanceContextMenu() {
         'searchActionsCommitByRecipe': 'alt_route',
         'fetchYamlDetails': 'code',
         'outputByBarcode': 'qr_code_2',
-        'outputByRecipe': 'qr_code_2'
+        'outputByRecipe': 'qr_code_2',
+        'inputByBarcode': 'input',
+        'inputByRecipe': 'input'
     };
 
     document.querySelectorAll('.context-menu-item').forEach(item => {
@@ -2999,8 +3001,8 @@ function updateOutputContextMenu() {
     }
 
     const menuConfig = {
-        'workOrderOutputByBarcode': ['outputByBarcode'],
-        'workOrderOutputByRecipe': ['outputByRecipe'],
+        'workOrderOutputByBarcode': ['outputByBarcode', 'inputByBarcode'],
+        'workOrderOutputByRecipe': ['outputByRecipe', 'inputByRecipe'],
         'outputBarcodeByFeedRecords': ['outputBarcodeByFeedRecords']
     };
 
@@ -3076,7 +3078,7 @@ function handleContextMenuAction(e) {
       
     // Determine data source table:
     // If context menu was triggered from output table or is an output action, use selectedOutputRowData
-    const isOutputTable = currentContextMenuTableType === 'output' || ['outputByBarcode', 'outputByRecipe', 'outputBarcodeByFeedRecords'].includes(action);
+    const isOutputTable = currentContextMenuTableType === 'output' || ['outputByBarcode', 'outputByRecipe', 'outputBarcodeByFeedRecords', 'inputByBarcode', 'inputByRecipe'].includes(action);
     let rowData = isOutputTable ? (selectedOutputRowData || selectedRowData) : (selectedRowData || selectedOutputRowData);
     if (!rowData && (selectedRow || selectedOutputRow) && typeof handleRowClick === 'function') {
         const fallbackTarget = isOutputTable ? selectedOutputRow : (selectedRow || selectedOutputRow);
@@ -3173,6 +3175,12 @@ function handleContextMenuAction(e) {
             break;
         case 'outputByRecipe':
             if (typeof fetchOutputBarcodeByWorkOrder === 'function') fetchOutputBarcodeByWorkOrder('outputByRecipe', rowData);
+            break;
+        case 'inputByBarcode':
+            if (typeof fetchInputBarcodeByWorkOrder === 'function') fetchInputBarcodeByWorkOrder('inputByBarcode', rowData);
+            break;
+        case 'inputByRecipe':
+            if (typeof fetchInputBarcodeByWorkOrder === 'function') fetchInputBarcodeByWorkOrder('inputByRecipe', rowData);
             break;
     }
 }
@@ -4741,6 +4749,115 @@ async function fetchOutputBarcodeByWorkOrder(type, rowData = null) {
         renderSubOutputBarcodeTable([], []);
         if (!err.toastShown) {
             Toast.error('Lỗi', err.message || 'Lỗi kết nối khi tải tem đầu ra');
+        }
+    }
+}
+
+async function fetchInputBarcodeByWorkOrder(type, rowData = null) {
+    const dataObj = rowData || selectedOutputRowData || selectedRowData;
+    const work_order_id = dataObj ? (dataObj['work_order'] || dataObj['id']) : null;
+    if (!work_order_id) {
+        Toast.warning('Cảnh báo', 'Chưa chọn hàng dữ liệu.');
+        return;
+    }
+
+    const work_order_status = dataObj ? dataObj['status'] : null;
+    if (!work_order_status) {
+        Toast.warning('Cảnh báo', 'Chưa chọn hàng dữ liệu.');
+        return;
+    }
+
+    // 1. Enter Single Row Mode on outputContainer
+    enterOutputSingleRowMode();
+
+    // 2. Open subOutputContainer
+    const subContainer = document.getElementById('subOutputContainer');
+    if (subContainer) subContainer.style.display = 'flex';
+
+    clearSubOutputBarcodeTable();
+
+    activeSearchContext = type;
+    const subOutputHeaderContentEl = document.getElementById('subOutputHeaderContent');
+    if (subOutputHeaderContentEl) {
+        subOutputHeaderContentEl.textContent = `Tem đầu vào của mã MES (${work_order_id})`;
+    }
+
+    // Trích xuất product_type từ information của work_order
+    let infoObj = dataObj ? (dataObj['information'] || dataObj['info']) : null;
+    if (typeof infoObj === 'string') {
+        try {
+            infoObj = JSON.parse(infoObj);
+        } catch (e) {
+            infoObj = null;
+        }
+    }
+    const product_type = (infoObj && (infoObj.product_type || infoObj.productType)) || dataObj['product_type'] || '';
+
+    try {
+        // Bước 1: Call api/workorders/fetch-output-barcodes
+        const outData = await apiFetch('/api/workorders/fetch-output-barcodes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ work_order_id, work_order_status }),
+            showErrorToast: false
+        });
+
+        if (!outData || !outData.success || !Array.isArray(outData.result) || outData.result.length === 0) {
+            renderSubOutputBarcodeTable([], []);
+            Toast.warning('Không có dữ liệu', outData?.message || 'Đơn điều động không có tem đầu ra để tra cứu tem đầu vào');
+            return;
+        }
+
+        // Lưu vào 1 biến danh sách các barcode mà api/workorders/fetch-output-barcodes trả về
+        const bcIdx = (outData.columns && Array.isArray(outData.columns)) 
+            ? (outData.columns.indexOf('barcode') >= 0 ? outData.columns.indexOf('barcode') : 0) 
+            : 0;
+
+        const outputBarcodes = [];
+        outData.result.forEach(row => {
+            const bc = row[bcIdx];
+            if (bc && String(bc).trim() && !outputBarcodes.includes(String(bc).trim())) {
+                outputBarcodes.push(String(bc).trim());
+            }
+        });
+
+        if (outputBarcodes.length === 0) {
+            renderSubOutputBarcodeTable([], []);
+            Toast.warning('Không có dữ liệu', 'Không trích xuất được danh sách tem đầu ra');
+            return;
+        }
+
+        // Bước 2: Gọi tới API mới để lấy toàn bộ tem đầu vào của mã MES
+        const inData = await apiFetch('/api/workorders/fetch-input-barcodes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                barcode_ids: outputBarcodes,
+                product_type: product_type,
+                work_order_id: work_order_id
+            }),
+            showErrorToast: false
+        });
+
+        if (inData && inData.success) {
+            if (inData.result && inData.result.length > 0) {
+                subOutputRawData = inData.result;
+                subOutputColumns = inData.columns;
+
+                renderSubOutputBarcodeTable(subOutputRawData, subOutputColumns);
+                Toast.success('Thành công', `Tải thành công ${inData.result.length} tem đầu vào`);
+            } else {
+                renderSubOutputBarcodeTable([], inData.columns || []);
+                Toast.warning('Không có dữ liệu', inData.message || 'Không tìm thấy tem đầu vào nào');
+            }
+        } else {
+            renderSubOutputBarcodeTable([], []);
+            Toast.error('Lỗi', inData?.message || 'Lỗi khi tải tem đầu vào');
+        }
+    } catch (err) {
+        renderSubOutputBarcodeTable([], []);
+        if (!err.toastShown) {
+            Toast.error('Lỗi', err.message || 'Lỗi kết nối khi tải tem đầu vào');
         }
     }
 }
