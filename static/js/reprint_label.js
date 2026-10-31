@@ -422,6 +422,17 @@
                     selectedBarcode = bc;
                     document.querySelectorAll('#tableBody tr').forEach(r => r.classList.remove('row-selected'));
                     tr.classList.add('row-selected');
+
+                    const pType = String(item.product_type || '').trim().toUpperCase();
+                    if (pType === 'GREEN_TIRE') {
+                        showToast('Không thể in lại', 'Tem vỏ sống không được in lại', 'error');
+                        return;
+                    }
+                    if (pType === 'TIRE') {
+                        showToast('Không thể in lại', 'Tem ép vỏ không được in lại', 'error');
+                        return;
+                    }
+
                     executePrint(bc, rowBtn);
                 });
             }
@@ -520,6 +531,20 @@
        ══════════════════════════════════════════════════════════════════════ */
     async function executePrint(barcode, triggerBtn = null) {
         if (isPrinting) return;
+
+        // Pre-check product_type before sending print job
+        const rec = (currentTableRecords || []).find(r => String(r.barcode || r.id || '').trim() === String(barcode || '').trim());
+        if (rec) {
+            const pType = String(rec.product_type || '').trim().toUpperCase();
+            if (pType === 'GREEN_TIRE') {
+                showToast('Không thể in lại', 'Tem vỏ sống không được in lại', 'error');
+                return;
+            }
+            if (pType === 'TIRE') {
+                showToast('Không thể in lại', 'Tem ép vỏ không được in lại', 'error');
+                return;
+            }
+        }
 
         // Force user to pick a printer
         const selectedPrinter = validatePrinterSelected();

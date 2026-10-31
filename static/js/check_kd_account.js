@@ -47,6 +47,52 @@
     let holdAnimFrame = null;
     const HOLD_DURATION_MS = 3000;
 
+    // ── STANDBY PLACEHOLDER HELPERS ─────────────────────────────────────────
+    function showStandbyPlaceholder() {
+        const ph = document.getElementById('tableStandbyPlaceholder');
+        const tbl = document.getElementById('checkAccountTable');
+        const footer = document.getElementById('checkAccountTableFooter') || document.querySelector('.table-footer');
+        const container = document.getElementById('checkAccountTableContainer');
+        if (ph) {
+            ph.classList.remove('has-data');
+            ph.style.display = '';
+        }
+        if (tbl) {
+            tbl.style.display = 'none';
+        }
+        if (footer) {
+            footer.classList.add('hidden');
+            footer.style.setProperty('display', 'none', 'important');
+        }
+        if (container) {
+            container.classList.remove('hidden');
+            container.style.display = 'flex';
+        }
+    }
+
+    function hideStandbyPlaceholder() {
+        const ph = document.getElementById('tableStandbyPlaceholder');
+        const tbl = document.getElementById('checkAccountTable');
+        const footer = document.getElementById('checkAccountTableFooter') || document.querySelector('.table-footer');
+        const container = document.getElementById('checkAccountTableContainer');
+        if (ph) {
+            ph.classList.add('has-data');
+            ph.style.display = 'none';
+        }
+        if (tbl) {
+            tbl.style.display = '';
+        }
+        if (footer) {
+            footer.classList.remove('hidden');
+            footer.style.removeProperty('display');
+            footer.style.display = '';
+        }
+        if (container) {
+            container.classList.remove('hidden');
+            container.style.display = 'flex';
+        }
+    }
+
     // ── 3. INITIALIZATION ───────────────────────────────────────────────────────
     document.addEventListener('DOMContentLoaded', () => {
         if (typeof showAbout === 'function') {
@@ -101,6 +147,7 @@
             });
         }
 
+        showStandbyPlaceholder();
         initCheckAccountClientSearch();
         initSaveHoldButton();
         initUndoButton();
@@ -121,6 +168,7 @@
         const rowCount = document.getElementById('rowCount');
 
         closeRoleDropdown();
+        hideStandbyPlaceholder();
 
         if (container) {
             container.classList.remove('hidden');
@@ -245,10 +293,7 @@
             allAccountRecords = [];
             currentFilteredRecords = [];
             checkAndUpdateDirtyState();
-            if (container) {
-                container.style.display = 'none';
-                container.classList.add('hidden');
-            }
+            showStandbyPlaceholder();
             const clientSearchInp = document.getElementById('clientSearch');
             if (clientSearchInp) {
                 clientSearchInp.value = '';
@@ -257,20 +302,24 @@
                 clientSearchInp.closest('.input-wrapper')?.classList.remove('has-value');
             }
             if (tbody) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="4" style="text-align: center; padding: 48px 16px; color: var(--color-text-muted);">
-                            <span class="material-symbols-outlined" style="font-size: 36px; opacity: 0.4; display: block; margin-bottom: 8px;">search</span>
-                            <span>Nhập tên tài khoản để bắt đầu tra cứu</span>
-                        </td>
-                    </tr>
-                `;
+                tbody.innerHTML = '';
             }
             if (rowCount) rowCount.textContent = '0';
             return;
         }
 
+        hideStandbyPlaceholder();
         isFetchingAccounts = true;
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="4" style="text-align: center; padding: 48px 16px; color: var(--color-text-muted);">
+                        <span class="material-symbols-outlined account-loading-spin" style="font-size: 36px; width: 36px; height: 36px; line-height: 36px; display: inline-block; margin: 0 auto 12px; color: #3b82f6; animation: spin 1s linear infinite;">progress_activity</span>
+                        <div style="font-size: 14px; font-weight: 500;">Đang tra cứu tài khoản "${escapeHtml(query)}"...</div>
+                    </td>
+                </tr>
+            `;
+        }
         if (typeof showLoading === 'function') showLoading();
 
         try {

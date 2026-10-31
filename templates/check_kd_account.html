@@ -40,9 +40,17 @@
         </div>
 
         <!-- ── TABLE CONTAINER ── -->
-        <div class="table-container hidden" id="checkAccountTableContainer" style="display: none;">
+        <div class="table-container" id="checkAccountTableContainer">
             <div class="table-scroll">
-                <table>
+                <!-- Standby guide / empty state before search -->
+                <div class="table-standby-placeholder" id="tableStandbyPlaceholder">
+                    <div class="standby-icon-ring">
+                        <span class="material-symbols-outlined standby-icon">manage_accounts</span>
+                    </div>
+                    <div class="standby-title">Sẵn sàng kiểm tra tài khoản</div>
+                    <div class="standby-subtitle">Nhập tên tài khoản hoặc bấm "Tất cả" để kiểm tra tài khoản</div>
+                </div>
+                <table id="checkAccountTable" style="display: none;">
                     <thead>
                         <tr>
                             <th style="width: 180px;">Tài Khoản</th>
@@ -55,7 +63,7 @@
                 </table>
             </div>
 
-            <div class="table-footer">
+            <div class="table-footer hidden" id="checkAccountTableFooter" style="display: none;">
                 <div class="table-footer-left">
                     <div class="row-count">Số dòng: <span id="rowCount">0</span></div>
                 </div>
