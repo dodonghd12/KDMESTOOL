@@ -63,7 +63,7 @@
 
         if (refreshBtn) {
             refreshBtn.addEventListener('click', () => {
-                fetchStatusAndLogs(true, false);
+                fetchStatusAndLogs(true, false, true);
             });
         }
 
@@ -174,7 +174,7 @@
     /**
      * Tải trạng thái máy chủ và danh sách log
      */
-    async function fetchStatusAndLogs(showToast = false, isSwitchingServer = false) {
+    async function fetchStatusAndLogs(showToast = false, isSwitchingServer = false, forceRefresh = false) {
         if (showToast) {
             showStepBadge(`Đang làm mới dữ liệu (${currentServer})...`, 'sync', 'progress');
         } else if (isSwitchingServer) {
@@ -182,8 +182,15 @@
         }
 
         try {
-            const res = await fetch(`/api/avada-kedavra/status?server=${encodeURIComponent(currentServer)}`);
-            const data = await res.json();
+            const fetchFn = (window.top && window.top.getAvadaKedavraServerStatus)
+                || window.getAvadaKedavraServerStatus
+                || (async (server, force) => {
+                    const res = await fetch(`/api/avada-kedavra/status?server=${encodeURIComponent(server)}`);
+                    return await res.json();
+                });
+
+            const shouldForce = forceRefresh || showToast || isSwitchingServer;
+            const data = await fetchFn(currentServer, shouldForce);
 
             if (data.success) {
                 const status = data.status || {};
@@ -416,6 +423,14 @@
 
             if (data.success) {
                 isAvadaKedavraActive = !!data.is_active;
+
+                // Xóa cache trạng thái trên window.top để lần kiểm tra sau lấy dữ liệu mới
+                try {
+                    const topWin = window.top || window;
+                    if (topWin.__kd_ak_server_status_cache) {
+                        delete topWin.__kd_ak_server_status_cache[currentServer];
+                    }
+                } catch (e) {}
 
                 // Cập nhật giao diện Trạng thái & Button
                 updateStatusUI(isAvadaKedavraActive);

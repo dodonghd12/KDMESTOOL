@@ -200,32 +200,19 @@
      * Kiểm tra trạng thái máy chủ
      */
     async function checkServerStatus(forceRefresh = false) {
-        // Kiểm tra cache từ top window nếu Avada Kedavra vừa tải
-        try {
-            const topWin = (window.parent && window.parent !== window) ? window.parent : window;
-            if (!forceRefresh && topWin.__ak_server_status_cache && topWin.__ak_server_status_cache[currentServer]) {
-                const cached = topWin.__ak_server_status_cache[currentServer];
-                if (Date.now() - cached.timestamp < 60000) {
-                    showStepBadge(`Đã kết nối root@${currentServer}`, 'check_circle', 'success');
-                    hideStepBadgeAfterDelay(3500);
-                    return;
-                }
-            }
-        } catch (e) {}
-
         showStepBadge(`Đang kiểm tra root@${currentServer}...`, 'dns', 'progress');
 
         try {
-            const res = await fetch(`/api/avada-kedavra/status?server=${encodeURIComponent(currentServer)}`);
-            const data = await res.json();
+            const fetchFn = (window.top && window.top.getAvadaKedavraServerStatus)
+                || window.getAvadaKedavraServerStatus
+                || (async (server, force) => {
+                    const res = await fetch(`/api/avada-kedavra/status?server=${encodeURIComponent(server)}`);
+                    return await res.json();
+                });
 
-            if (data.success) {
-                try {
-                    const topWin = (window.parent && window.parent !== window) ? window.parent : window;
-                    topWin.__ak_server_status_cache = topWin.__ak_server_status_cache || {};
-                    topWin.__ak_server_status_cache[currentServer] = { data: data, timestamp: Date.now() };
-                } catch (e) {}
+            const data = await fetchFn(currentServer, forceRefresh);
 
+            if (data && data.success) {
                 showStepBadge(`Đã kết nối root@${currentServer}`, 'check_circle', 'success');
                 hideStepBadgeAfterDelay(4000);
             } else {

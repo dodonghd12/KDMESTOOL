@@ -233,15 +233,19 @@ function hideProductTypeDropdown() {
     }
 }
 
-async function loadTechnicalSpecifications() {
+async function loadTechnicalSpecifications(forceRefresh = false) {
     try {
-        const res = await apiFetch('/api/technical-specifications/fetch', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({})
-        });
+        const fetchFn = (window.top && window.top.getTechnicalSpecifications)
+            || window.getTechnicalSpecifications
+            || (async () => {
+                return await apiFetch('/api/technical-specifications/fetch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+            });
+
+        const res = await fetchFn(forceRefresh);
 
         if (!res || !res.success) {
             if (res && res.error_type === 'auth') {

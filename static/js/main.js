@@ -1469,6 +1469,151 @@ async function getDepartments(forceRefresh = false) {
 }
 
 window.getDepartments = getDepartments;
+try {
+    if (window.top) window.top.getDepartments = getDepartments;
+} catch (e) {}
+
+/**
+ * Shared Global Technical Specifications Cache & Single-Flight Request Deduplicator
+ */
+async function getTechnicalSpecifications(forceRefresh = false) {
+    let topWin = window;
+    try {
+        topWin = window.top || window;
+    } catch (e) {
+        topWin = window;
+    }
+
+    if (topWin.__kd_auth_modal_shown) {
+        return null;
+    }
+
+    if (!forceRefresh) {
+        // 1. Trả về ngay lập tức từ bộ nhớ RAM của window.top nếu đã nạp
+        if (topWin.__kd_tech_spec_cache && topWin.__kd_tech_spec_cache.success) {
+            return topWin.__kd_tech_spec_cache;
+        }
+
+        // 2. Chặn duplicate: Nếu đang có request in-flight, dùng chung Promise đó
+        if (topWin.__kd_tech_spec_promise) {
+            return await topWin.__kd_tech_spec_promise;
+        }
+    }
+
+    // 3. Khởi tạo request duy nhất cho toàn bộ hệ thống
+    topWin.__kd_tech_spec_promise = (async () => {
+        try {
+            const response = await fetch('/api/technical-specifications/fetch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            });
+
+            let result = null;
+            try {
+                result = await response.json();
+            } catch (e) {
+                result = { success: false, error: true, message: `HTTP ${response.status}` };
+            }
+
+            if (typeof isUnauthorizedResponse === 'function' && isUnauthorizedResponse(response.status, result)) {
+                if (typeof showAuthExpiredModal === 'function') {
+                    showAuthExpiredModal(result?.message);
+                }
+                return null;
+            }
+
+            if (result && result.success) {
+                topWin.__kd_tech_spec_cache = result;
+            }
+            return result;
+        } catch (error) {
+            console.error('[TECH_SPEC] Error fetching technical specifications:', error);
+            return null;
+        } finally {
+            topWin.__kd_tech_spec_promise = null;
+        }
+    })();
+
+    return await topWin.__kd_tech_spec_promise;
+}
+
+window.getTechnicalSpecifications = getTechnicalSpecifications;
+try {
+    if (window.top) window.top.getTechnicalSpecifications = getTechnicalSpecifications;
+} catch (e) {}
+
+/**
+ * Shared Global Avada Kedavra Server Status Cache & Single-Flight Request Deduplicator
+ * @param {string} serverIp - '198.1.10.8' hoặc '198.1.10.85'
+ * @param {boolean} forceRefresh - Bỏ qua cache và gửi request mới
+ * @param {number} ttlMs - Thời gian sống của cache (mặc định 60,000ms = 60s)
+ */
+async function getAvadaKedavraServerStatus(serverIp, forceRefresh = false, ttlMs = 60000) {
+    const sIp = String(serverIp || '198.1.10.85').trim();
+    let topWin = window;
+    try {
+        topWin = window.top || window;
+    } catch (e) {
+        topWin = window;
+    }
+
+    topWin.__kd_ak_server_status_cache = topWin.__kd_ak_server_status_cache || {};
+    topWin.__kd_ak_server_status_promises = topWin.__kd_ak_server_status_promises || {};
+
+    if (!forceRefresh) {
+        // 1. Kiểm tra cache trong bộ nhớ của top window còn hiệu lực trong ttlMs không
+        const cached = topWin.__kd_ak_server_status_cache[sIp];
+        if (cached && (Date.now() - cached.timestamp < ttlMs) && cached.data) {
+            return cached.data;
+        }
+
+        // 2. Chặn duplicate: Nếu đang có request in-flight tới cùng serverIp, dùng chung Promise
+        if (topWin.__kd_ak_server_status_promises[sIp]) {
+            return await topWin.__kd_ak_server_status_promises[sIp];
+        }
+    }
+
+    // 3. Khởi tạo request duy nhất cho serverIp chỉ định
+    topWin.__kd_ak_server_status_promises[sIp] = (async () => {
+        try {
+            const res = await fetch(`/api/avada-kedavra/status?server=${encodeURIComponent(sIp)}`);
+            let data = null;
+            try {
+                data = await res.json();
+            } catch (e) {
+                data = { success: false, message: `HTTP ${res.status}` };
+            }
+
+            if (typeof isUnauthorizedResponse === 'function' && isUnauthorizedResponse(res.status, data)) {
+                if (typeof showAuthExpiredModal === 'function') {
+                    showAuthExpiredModal(data?.message);
+                }
+                return data;
+            }
+
+            if (data) {
+                topWin.__kd_ak_server_status_cache[sIp] = {
+                    data: data,
+                    timestamp: Date.now()
+                };
+            }
+            return data;
+        } catch (err) {
+            console.error(`[AK_STATUS] Lỗi khi lấy trạng thái máy chủ ${sIp}:`, err);
+            return { success: false, message: err.message || String(err) };
+        } finally {
+            delete topWin.__kd_ak_server_status_promises[sIp];
+        }
+    })();
+
+    return await topWin.__kd_ak_server_status_promises[sIp];
+}
+
+window.getAvadaKedavraServerStatus = getAvadaKedavraServerStatus;
+try {
+    if (window.top) window.top.getAvadaKedavraServerStatus = getAvadaKedavraServerStatus;
+} catch (e) {}
 
 async function checkAuth() {
     await getDepartments();
