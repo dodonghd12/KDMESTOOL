@@ -277,7 +277,7 @@ async function loadTechnicalSpecifications() {
         }
 
         Toast.success('Thành công', `Đã tải ${productTypes.length} loại sản phẩm từ CSDL MES`);
-        renderInitialEmptyState('Vui lòng chọn Loại sản phẩm (Product Type) để xem thông số kỹ thuật.');
+        renderInitialEmptyState('Vui lòng chọn Loại sản phẩm để tra cứu thông số kỹ thuật');
 
     } catch (err) {
         console.error('Error loading technical specifications:', err);
@@ -371,31 +371,27 @@ function applyResource2Styling() {
     });
 }
 
-function renderInitialEmptyState(message = 'Vui lòng chọn loại sản phẩm') {
+function renderInitialEmptyState(message = 'Vui lòng chọn Loại sản phẩm để tra cứu thông số kỹ thuật') {
     const thead = document.getElementById('tableHead');
     const tbody = document.getElementById('tableBody');
     const rowCount = document.getElementById('rowCount');
     const tableFooter = document.querySelector('.table-footer');
+    const placeholder = document.getElementById('tableStandbyPlaceholder');
 
     // Reset limitary hour stats display
     updateLimitaryHoursDisplay(null);
 
-    if (thead) thead.innerHTML = '';
-    if (tbody) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="6" style="text-align: center; padding: 56px 20px;">
-                    <div class="table-empty-state">
-                        <div class="empty-state-icon-wrapper">
-                            <span class="material-symbols-outlined empty-state-icon">tune</span>
-                        </div>
-                        <div class="empty-state-title">Thông số kỹ thuật (Technical Specifications)</div>
-                        <div class="empty-state-desc">${message}</div>
-                    </div>
-                </td>
-            </tr>
-        `;
+    if (placeholder) {
+        placeholder.classList.remove('has-data');
+        placeholder.style.display = '';
+        if (message) {
+            const sub = placeholder.querySelector('.standby-subtitle');
+            if (sub) sub.textContent = message;
+        }
     }
+
+    if (thead) thead.innerHTML = '';
+    if (tbody) tbody.innerHTML = '';
     if (rowCount) rowCount.textContent = '0';
     if (tableFooter) tableFooter.classList.add('hidden');
     if (typeof updateClientSearchState === 'function') {
@@ -406,5 +402,5 @@ function renderInitialEmptyState(message = 'Vui lòng chọn loại sản phẩm
 function clearTable() {
     clearTimeout(productTypeSearchTimeout);
     currentProductType = '';
-    renderInitialEmptyState('Vui lòng chọn Loại sản phẩm (Product Type) để xem thông số kỹ thuật.');
+    renderInitialEmptyState('Vui lòng chọn Loại sản phẩm để tra cứu thông số kỹ thuật');
 }

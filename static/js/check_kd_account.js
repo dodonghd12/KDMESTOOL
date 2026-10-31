@@ -65,6 +65,8 @@
             footer.style.setProperty('display', 'none', 'important');
         }
         if (container) {
+            container.classList.add('standby-mode');
+            container.classList.remove('has-data');
             container.classList.remove('hidden');
             container.style.display = 'flex';
         }
@@ -88,6 +90,8 @@
             footer.style.display = '';
         }
         if (container) {
+            container.classList.remove('standby-mode');
+            container.classList.add('has-data');
             container.classList.remove('hidden');
             container.style.display = 'flex';
         }
