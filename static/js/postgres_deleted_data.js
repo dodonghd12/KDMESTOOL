@@ -683,16 +683,18 @@ async function fetchAuditSlotStatus() {
         const data = await res.json();
         if (data.status === 'ok') {
             const isActive = data.active;
+            const container = document.getElementById('slotStatusContainer');
+            statusText.textContent = 'Native Stream Status';
             if (isActive) {
                 dot.style.background = '#22c55e';
                 dot.style.boxShadow = '0 0 8px #22c55e';
-                statusText.textContent = 'Native Stream: Online';
                 statusText.style.color = '#4ade80';
+                if (container) container.title = 'Native Stream: Online';
             } else {
                 dot.style.background = '#ef4444';
                 dot.style.boxShadow = '0 0 8px #ef4444';
-                statusText.textContent = 'Native Stream: Offline';
                 statusText.style.color = '#f87171';
+                if (container) container.title = 'Native Stream: Offline';
             }
         }
     } catch (e) {
