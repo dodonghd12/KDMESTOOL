@@ -57,6 +57,40 @@ if (document.readyState === 'loading') {
     initializePostgresDeletedData();
 }
 
+let hasFetchedData = false;
+
+function showStandbyPlaceholder() {
+    const ph = document.getElementById('tableStandbyPlaceholder');
+    const tbl = document.getElementById('postgresTable') || document.querySelector('.table-container table');
+    const footer = document.querySelector('.table-footer');
+    const paginationNav = document.getElementById('paginationNav');
+    if (ph) {
+        ph.classList.remove('has-data');
+        ph.style.display = '';
+    }
+    if (tbl) {
+        tbl.style.display = 'none';
+    }
+    if (footer) {
+        footer.classList.add('hidden');
+    }
+    if (paginationNav) {
+        paginationNav.classList.add('hidden');
+    }
+}
+
+function hideStandbyPlaceholder() {
+    const ph = document.getElementById('tableStandbyPlaceholder');
+    const tbl = document.getElementById('postgresTable') || document.querySelector('.table-container table');
+    if (ph) {
+        ph.classList.add('has-data');
+        ph.style.display = 'none';
+    }
+    if (tbl) {
+        tbl.style.display = '';
+    }
+}
+
 function initializePostgresDeletedData() {
     initControls();
     initDatePicker();
@@ -77,8 +111,8 @@ function initializePostgresDeletedData() {
         };
     };
 
-    // Khởi tạo bảng ban đầu ở trạng thái sẵn sàng, chỉ tải dữ liệu khi bấm nút Làm mới (btnRefresh)
-    renderCurrentPage();
+    // Khởi tạo bảng ban đầu ở trạng thái chờ (Standby Placeholder)
+    showStandbyPlaceholder();
 }
 
 function resetAllFiltersAndTable() {
@@ -410,6 +444,12 @@ function applyAllFilters(resetPageToOne = false) {
  * Hiển thị dữ liệu của trang hiện tại và cập nhật khu vực phân trang
  */
 function renderCurrentPage() {
+    if (!hasFetchedData && allFetchedRecords.length === 0) {
+        showStandbyPlaceholder();
+        return;
+    }
+    hideStandbyPlaceholder();
+
     // Chuyển 1-based currentPage sang 0-based page index tại một nơi duy nhất
     const page0 = toZeroBasedPageIndex(currentPage);
     const startIdx = page0 * PAGE_SIZE;
@@ -453,6 +493,8 @@ function renderCurrentPage() {
 }
 
 async function fetchDeletedRecordsLog() {
+    hasFetchedData = true;
+    hideStandbyPlaceholder();
     const refreshBtn = document.getElementById('btnRefresh') || document.getElementById('btnCheckDeletedData');
     if (refreshBtn) {
         refreshBtn.disabled = true;

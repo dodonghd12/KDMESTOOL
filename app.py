@@ -9401,17 +9401,31 @@ def run_avada_kedavra_ssh_cmd(cmd_str: str, server_ip: str = None, timeout: int 
     target_pass = cfg["pass"]
     target_hostkey = cfg["hostkey"]
 
+    if target_host == "198.1.10.8" or server_ip == "198.1.10.8":
+        timeout = min(timeout, 3)
+
     try:
         import paramiko
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        client.connect(target_host, port=target_port, username=target_user, password=target_pass, timeout=timeout)
+        client.connect(
+            target_host,
+            port=target_port,
+            username=target_user,
+            password=target_pass,
+            timeout=timeout,
+            banner_timeout=timeout,
+            auth_timeout=timeout
+        )
         stdin, stdout, stderr = client.exec_command(cmd_str, timeout=timeout)
         out = stdout.read().decode('utf-8', errors='ignore')
         err = stderr.read().decode('utf-8', errors='ignore')
         client.close()
         return out, err
     except Exception as paramiko_err:
+        err_msg = str(paramiko_err).lower()
+        if "timed out" in err_msg or "timeout" in err_msg:
+            raise paramiko_err
         plink_bin = get_plink_binary_path()
         if os.path.exists(plink_bin) or shutil.which("plink.exe"):
             args = [
@@ -9441,11 +9455,22 @@ def run_avada_kedavra_ssh_write(content_str: str, remote_path: str, server_ip: s
     target_pass = cfg["pass"]
     target_hostkey = cfg["hostkey"]
 
+    if target_host == "198.1.10.8" or server_ip == "198.1.10.8":
+        timeout = min(timeout, 3)
+
     try:
         import paramiko
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        client.connect(target_host, port=target_port, username=target_user, password=target_pass, timeout=timeout)
+        client.connect(
+            target_host,
+            port=target_port,
+            username=target_user,
+            password=target_pass,
+            timeout=timeout,
+            banner_timeout=timeout,
+            auth_timeout=timeout
+        )
         sftp = client.open_sftp()
         with sftp.file(remote_path, 'w') as f:
             f.write(content_str.encode('utf-8'))
@@ -9453,6 +9478,9 @@ def run_avada_kedavra_ssh_write(content_str: str, remote_path: str, server_ip: s
         client.close()
         return "", ""
     except Exception as paramiko_err:
+        err_msg = str(paramiko_err).lower()
+        if "timed out" in err_msg or "timeout" in err_msg:
+            raise paramiko_err
         plink_bin = get_plink_binary_path()
         if os.path.exists(plink_bin) or shutil.which("plink.exe"):
             args = [
@@ -9549,10 +9577,11 @@ def check_remote_avada_kedavra_status(server_ip: str = None):
     cfg = get_avada_kedavra_server_config(server_ip)
     target_host = cfg["host"]
     compose_file = cfg["compose_file"]
+    cmd_timeout = 3 if (target_host == "198.1.10.8" or server_ip == "198.1.10.8") else 8
 
     try:
         # 1. Đọc file docker-compose.yml
-        out, _ = run_avada_kedavra_ssh_cmd(f"cat {compose_file}", server_ip=target_host, timeout=8)
+        out, _ = run_avada_kedavra_ssh_cmd(f"cat {compose_file}", server_ip=target_host, timeout=cmd_timeout)
         is_active = False
         strict_mode_line = ""
         for line in out.splitlines():
@@ -9568,7 +9597,7 @@ def check_remote_avada_kedavra_status(server_ip: str = None):
         ps_out, _ = run_avada_kedavra_ssh_cmd(
             'docker ps --filter "name=mes" --format "{{.ID}}\t{{.Image}}\t{{.Status}}\t{{.Names}}"',
             server_ip=target_host,
-            timeout=8
+            timeout=cmd_timeout
         )
         docker_ps_lines = ps_out.strip().splitlines()
         

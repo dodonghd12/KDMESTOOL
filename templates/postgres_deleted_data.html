@@ -52,7 +52,15 @@
         
         <div class="table-container">
             <div class="table-scroll">
-                <table>
+                <!-- Standby guide / empty state before search -->
+                <div class="table-standby-placeholder" id="tableStandbyPlaceholder">
+                    <div class="standby-icon-ring">
+                        <span class="material-symbols-outlined standby-icon">database</span>
+                    </div>
+                    <div class="standby-title">Sẵn sàng tra cứu</div>
+                    <div class="standby-subtitle">Bấm nút "Refresh" để tải danh sách bản ghi đã xóa</div>
+                </div>
+                <table id="postgresTable" style="display: none;">
                     <thead id="tableHead"></thead>
                     <tbody id="tableBody"></tbody>
                 </table>
