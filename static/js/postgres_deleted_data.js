@@ -77,9 +77,8 @@ function initializePostgresDeletedData() {
         };
     };
 
-    // Tự động tải dữ liệu khi vào trang
-    fetchDeletedRecordsLog();
-    fetchAuditSlotStatus();
+    // Khởi tạo bảng ban đầu ở trạng thái sẵn sàng, chỉ tải dữ liệu khi bấm nút Làm mới (btnRefresh)
+    renderCurrentPage();
 }
 
 function resetAllFiltersAndTable() {

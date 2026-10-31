@@ -32,7 +32,7 @@
         initControls();
         initFlatpickr();
         setupExportHook();
-        fetchLogRecords();
+        renderCurrentPage();
     }
 
     function initFlatpickr() {
