@@ -4243,7 +4243,8 @@ def check_work_orders_errors():
             COALESCE(wo.information->>'product_type', '') AS product_type,
             COALESCE((wo.information->>'abnormality')::int, 0) AS abnormality,
             rpd.oid::text AS rpd_oid,
-            rpd.configs::text AS rpd_configs
+            rpd.configs::text AS rpd_configs,
+            COALESCE(wo.department_id, '') AS department_id
         FROM kvmes.work_order wo
         LEFT JOIN kvmes.recipe_process_definition rpd ON rpd.recipe_id = wo.recipe_id
         WHERE (wo.station = ANY(%s) OR wo.station ILIKE %s)
@@ -4280,6 +4281,7 @@ def check_work_orders_errors():
             abnormality = r[5]
             rpd_oid = r[6]
             rpd_configs_str = r[7]
+            wo_dept = str(r[8] or '').strip() if len(r) > 8 else ''
 
             errs = []
             if abnormality != 0:
@@ -4295,7 +4297,9 @@ def check_work_orders_errors():
                     else:
                         cfg0 = configs[0]
                         cfg_stations = cfg0.get('stations', [])
-                        if cfg_stations and not any(cand in cfg_stations for cand in station_candidates):
+                        # Riêng các station thuộc department P9100 không cần check lỗi trạm hợp lệ
+                        is_p9100 = (department == 'P9100' or wo_dept == 'P9100' or 'P9100' in station.upper() or station.upper().startswith('KV-P9100-'))
+                        if not is_p9100 and cfg_stations and not any(cand in cfg_stations for cand in station_candidates):
                             if not any(station in s or s in station for s in cfg_stations):
                                 errs.append(f"Máy {station} không thuộc trạm hợp lệ của Recipe ({', '.join(cfg_stations)})")
 
