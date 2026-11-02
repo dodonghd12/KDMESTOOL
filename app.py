@@ -7074,7 +7074,7 @@ def get_mes_material_history():
     if not resource_id or not product_id:
         return jsonify({'success': False, 'message': 'Thiếu Resource ID hoặc Product ID', 'data': []}), 400
 
-    url = f'https://198.1.10.85:8810/api/material/history/resource-id/{resource_id}/productID/{product_id}'
+    url = f'https://198.1.10.85:8810/api/material/history/resource-id/{resource_id}/productId/{product_id}'
     params = {'type': query_type}
 
     try:
@@ -7082,6 +7082,16 @@ def get_mes_material_history():
         response.raise_for_status()
         data = response.json()
         items = data.get('data', [])
+        for item in items:
+            if isinstance(item, dict):
+                if 'resourceId' in item and 'resourceID' not in item:
+                    item['resourceID'] = item['resourceId']
+                if 'productId' in item and 'productID' not in item:
+                    item['productID'] = item['productId']
+                if 'stationId' in item and 'stationID' not in item:
+                    item['stationID'] = item['stationId']
+                if 'boundResourceUserIds' in item and 'boundResourceUserIDs' not in item:
+                    item['boundResourceUserIDs'] = item['boundResourceUserIds']
         return jsonify({
             'success': True,
             'data': items

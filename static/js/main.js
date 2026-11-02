@@ -4458,8 +4458,8 @@ function createMesTableRow(item, level = 0, parentNodeId = null, ancestorIds = [
     tr.className = `mes-data-row mes-tree-row mes-level-${clampedLevel}`;
     tr.dataset.nodeId = nodeId;
     tr.dataset.level = String(level);
-    tr.dataset.resourceId = item.resourceID || '';
-    tr.dataset.productId = item.productID || '';
+    tr.dataset.resourceId = item.resourceID || item.resourceId || '';
+    tr.dataset.productId = item.productID || item.productId || '';
     tr.dataset.loaded = 'false';
     tr.dataset.expanded = 'false';
     tr.dataset.parentNodeId = parentNodeId || '';
@@ -4541,7 +4541,7 @@ function createMesTableRow(item, level = 0, parentNodeId = null, ancestorIds = [
 
     // 10. NV Sản Xuất
     const tdStaff = document.createElement('td');
-    const staffVal = item.productionStaff || (Array.isArray(item.boundResourceUserIDs) && item.boundResourceUserIDs.length > 0 ? item.boundResourceUserIDs.join(', ') : '-');
+    const staffVal = item.productionStaff || (Array.isArray(item.boundResourceUserIDs) && item.boundResourceUserIDs.length > 0 ? item.boundResourceUserIDs.join(', ') : (Array.isArray(item.boundResourceUserIds) && item.boundResourceUserIds.length > 0 ? item.boundResourceUserIds.join(', ') : '-'));
     tdStaff.textContent = staffVal;
     tdStaff.dataset.fullValue = staffVal;
     tr.appendChild(tdStaff);
