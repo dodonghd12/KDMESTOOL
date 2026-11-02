@@ -4091,31 +4091,258 @@ def get_station_list_by_department():
 @app.route('/api/work-orders/get-active-list', methods=['POST'])
 @login_required
 def get_active_work_order_list():
+    data = request.get_json(silent=True) or {}
+    station = data.get('station', '').strip()
+    department = data.get('department', '').strip()
     
-    station = request.json.get('station', '').strip()
+    if not station and not department:
+        return jsonify({'columns': [], 'result': [], 'success': True})
     
-    if not station:
-        return jsonify({'result': [], 'columns': []})
-    
+    # Build station candidate variations (e.g. KV-P8300-TREAD-2, P8300-TREAD-2, TREAD-2)
+    station_candidates = [station]
+    if not station.startswith('KV-'):
+        station_candidates.append(f"KV-{station}")
+    if department:
+        if not station.startswith(f"KV-{department}-"):
+            station_candidates.append(f"KV-{department}-{station}")
+        if not station.startswith(f"{department}-"):
+            station_candidates.append(f"{department}-{station}")
+
     query = """
-        SELECT id, recipe_id, department_id, station, status, reserved_date::text AS reserved_date,
-                created_at, updated_at, updated_by
-        FROM kvmes.work_order
-        WHERE station = %s
-        AND status = 1
-        AND reserved_date >= (CURRENT_DATE - INTERVAL '60 days')
-        AND reserved_date <= CURRENT_DATE
-        ORDER BY reserved_sequence
+        SELECT 
+            TRIM(wo.id) AS id,
+            wo.recipe_id,
+            COALESCE(wo.information->>'product_id', '') AS product_id,
+            COALESCE(wo.information->>'product_type', '') AS product_type,
+            COALESCE(wo.information->'plan_quantity'->>'plan_quantity', '0') AS plan_quantity,
+            wo.status,
+            wo.reserved_date::text AS reserved_date
+        FROM kvmes.work_order wo
+        WHERE (wo.station = ANY(%s) OR wo.station ILIKE %s)
+          AND (%s = '' OR wo.department_id = %s OR wo.department_id ILIKE %s)
+          AND wo.reserved_date >= (CURRENT_DATE - INTERVAL '14 days')
+          AND wo.status IN (0, 1, 5)
+          AND COALESCE((wo.information->>'abnormality')::int, 0) = 0
+        ORDER BY 
+            CASE wo.status
+                WHEN 1 THEN 1
+                WHEN 0 THEN 2
+                WHEN 5 THEN 3
+                ELSE 4
+            END,
+            wo.recipe_id ASC,
+            wo.reserved_date,
+            wo.reserved_sequence;
     """
     
     try:
-        result, column_names = execute_pg_select_query(query, (station, ))
-        convert_columns = ["created_at", "updated_at"]
-        result = convert_timestamp(result, column_names, convert_columns)
-        serialized_result = [serialize_row(list(row)) for row in result]
-        return jsonify({'result': serialized_result, 'columns': column_names})
+        result, _ = execute_pg_select_query(
+            query, (station_candidates, f"%{station}%", department, department, department)
+        )
+        
+        wo_ids = [str(r[0]).strip() for r in result if r[0]]
+        collected_map = {}
+        if wo_ids:
+            try:
+                cr_query = """
+                    SELECT btrim(work_order), COALESCE(sum(COALESCE((detail->>'quantity')::numeric, 1)), 0)
+                    FROM kvmes.collect_record
+                    WHERE btrim(work_order) = ANY(%s)
+                    GROUP BY btrim(work_order);
+                """
+                cr_rows, _ = execute_pg_select_query(cr_query, (wo_ids,))
+                for cr in cr_rows:
+                    wo_key = str(cr[0]).strip()
+                    qty_val = cr[1]
+                    collected_map[wo_key] = str(int(qty_val)) if float(qty_val).is_integer() else f"{qty_val:.2f}".rstrip('0').rstrip('.')
+            except Exception as cr_err:
+                logger.warning(f"Error fetching collect quantities: {cr_err}")
+
+        columns = [
+            'id', 'recipe_id', 'product_id', 'product_type',
+            'plan_quantity', 'collected_quantity', 'status',
+            'reserved_date'
+        ]
+        result_rows = []
+        for r in result:
+            wo_id = str(r[0]).strip()
+            recipe_id = str(r[1] or '').strip()
+            product_id = str(r[2] or '').strip()
+            product_type = str(r[3] or '').strip()
+            plan_qty = str(r[4] or '0').strip()
+            collected_qty = str(collected_map.get(wo_id, '0'))
+            status_val = r[5]
+            res_date = str(r[6] or '').strip()
+
+            result_rows.append([
+                wo_id, recipe_id, product_id, product_type,
+                plan_qty, collected_qty, status_val, res_date
+            ])
+
+        # Guaranteed Python sort: status 1 first, then 0, then 5, then others; sub-sort by recipe_id ASC
+        def sort_key(row):
+            status = row[6]
+            if status == 1:
+                prio = 1
+            elif status == 0:
+                prio = 2
+            elif status == 5:
+                prio = 3
+            else:
+                prio = 4
+            recipe_id = str(row[1] or '').strip().upper()
+            reserved_date = str(row[7] or '').strip()
+            return (prio, recipe_id, reserved_date)
+
+        result_rows.sort(key=sort_key)
+
+        return jsonify({
+            'columns': columns,
+            'result': result_rows,
+            'success': True
+        })
     except Exception as e:
-        return jsonify({'result': [], 'columns': [], 'error': str(e)})
+        logger.error(f"Error getting active work orders: {e}")
+        return jsonify({'columns': [], 'result': [], 'success': False, 'error': str(e)})
+
+
+@app.route('/api/work-orders/check-errors', methods=['POST'])
+@login_required
+def check_work_orders_errors():
+    data = request.get_json(silent=True) or {}
+    station = data.get('station', '').strip()
+    department = data.get('department', '').strip()
+
+    if not station and not department:
+        return jsonify({
+            'success': True,
+            'station': station,
+            'has_error': False,
+            'error_count': 0,
+            'error_work_order_ids': [],
+            'errors_by_work_order': {},
+            'details': []
+        })
+
+    # Build station candidate variations (e.g. KV-P8300-TREAD-2, P8300-TREAD-2, TREAD-2)
+    station_candidates = [station]
+    if not station.startswith('KV-'):
+        station_candidates.append(f"KV-{station}")
+    if department:
+        if not station.startswith(f"KV-{department}-"):
+            station_candidates.append(f"KV-{department}-{station}")
+        if not station.startswith(f"{department}-"):
+            station_candidates.append(f"{department}-{station}")
+
+    query = """
+        SELECT 
+            TRIM(wo.id) AS id,
+            wo.recipe_id,
+            wo.status,
+            COALESCE(wo.information->>'product_id', '') AS product_id,
+            COALESCE(wo.information->>'product_type', '') AS product_type,
+            COALESCE((wo.information->>'abnormality')::int, 0) AS abnormality,
+            rpd.oid::text AS rpd_oid,
+            rpd.configs::text AS rpd_configs
+        FROM kvmes.work_order wo
+        LEFT JOIN kvmes.recipe_process_definition rpd ON rpd.recipe_id = wo.recipe_id
+        WHERE (wo.station = ANY(%s) OR wo.station ILIKE %s)
+          AND (%s = '' OR wo.department_id = %s OR wo.department_id ILIKE %s)
+          AND wo.reserved_date >= (CURRENT_DATE - INTERVAL '14 days')
+          AND wo.status IN (0, 1, 5)
+        ORDER BY 
+            CASE wo.status
+                WHEN 1 THEN 1
+                WHEN 0 THEN 2
+                WHEN 5 THEN 3
+                ELSE 4
+            END,
+            wo.recipe_id ASC,
+            wo.reserved_date,
+            wo.reserved_sequence;
+    """
+
+    try:
+        rows, _ = execute_pg_select_query(
+            query, (station_candidates, f"%{station}%", department, department, department)
+        )
+
+        errors_by_wo = {}
+        error_wo_ids = []
+        details = []
+
+        for r in rows:
+            wo_id = str(r[0]).strip()
+            recipe_id = str(r[1] or '').strip()
+            status_val = r[2]
+            product_id = str(r[3] or '').strip()
+            product_type = str(r[4] or '').strip()
+            abnormality = r[5]
+            rpd_oid = r[6]
+            rpd_configs_str = r[7]
+
+            errs = []
+            if abnormality != 0:
+                errs.append(f"Đơn điều động bị đánh dấu bất thường (abnormality={abnormality})")
+
+            if not rpd_oid or not rpd_configs_str:
+                errs.append(f"Không tìm thấy cấu hình Recipe '{recipe_id}' trong recipe_process_definition")
+            else:
+                try:
+                    configs = json.loads(rpd_configs_str)
+                    if not isinstance(configs, list) or len(configs) == 0:
+                        errs.append("Cấu hình configs của Recipe bị rỗng")
+                    else:
+                        cfg0 = configs[0]
+                        cfg_stations = cfg0.get('stations', [])
+                        if cfg_stations and not any(cand in cfg_stations for cand in station_candidates):
+                            if not any(station in s or s in station for s in cfg_stations):
+                                errs.append(f"Máy {station} không thuộc trạm hợp lệ của Recipe ({', '.join(cfg_stations)})")
+
+                        for step in cfg0.get('steps', []):
+                            for mat in step.get('materials', []):
+                                val = mat.get('value')
+                                mat_name = mat.get('name', 'N/A')
+                                mat_site = mat.get('site', '')
+                                if isinstance(val, dict):
+                                    mid = val.get('mid')
+                                    if mid == "":
+                                        errs.append(f"Vật liệu {mat_name} ({mat_site}): Định lượng 'mid' bị rỗng (\"\") gây lỗi crash MES decimal")
+                except Exception as parse_err:
+                    errs.append(f"Lỗi cú pháp JSON configs: {str(parse_err)}")
+
+            if errs:
+                errors_by_wo[wo_id] = errs
+                if wo_id not in error_wo_ids:
+                    error_wo_ids.append(wo_id)
+                details.append({
+                    'work_order_id': wo_id,
+                    'recipe_id': recipe_id,
+                    'status': status_val,
+                    'errors': errs
+                })
+
+        return jsonify({
+            'success': True,
+            'station': station,
+            'has_error': len(error_wo_ids) > 0,
+            'error_count': len(error_wo_ids),
+            'error_work_order_ids': error_wo_ids,
+            'errors_by_work_order': errors_by_wo,
+            'details': details
+        })
+    except Exception as e:
+        logger.error(f"Error checking work order errors: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'has_error': False,
+            'error_count': 0,
+            'error_work_order_ids': [],
+            'errors_by_work_order': {},
+            'details': []
+        })
+
 
 @app.route('/api/stations/validate-scan-barcode', methods=['POST'])
 @login_required

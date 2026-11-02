@@ -9,18 +9,28 @@ document.addEventListener('DOMContentLoaded', async function() {
         departments = await getDepartments();
     }
     initializeValidateScanBarcodeEventListeners();
-    
+
     // Initialize: disable station on load
     document.getElementById('station').disabled = true;
-    
+
     // Context menu outside click handled by main.js
-    
+
     // Close comparison modal on outside click
     document.getElementById('comparisonModal').addEventListener('click', function(e) {
         if (e.target === this) {
             closeComparisonModal();
         }
     });
+
+    // Close work order error modal on outside click
+    const woErrorModalEl = document.getElementById('woErrorModal');
+    if (woErrorModalEl) {
+        woErrorModalEl.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeWoErrorModal();
+            }
+        });
+    }
 });
 
 function initializeValidateScanBarcodeEventListeners() {
@@ -29,7 +39,7 @@ function initializeValidateScanBarcodeEventListeners() {
     });
 
     // Department search
-    const departmentInput = document.getElementById('department'); 
+    const departmentInput = document.getElementById('department');
     departmentInput.addEventListener('click', () => {
         departmentInput.value = '';
         departmentInput.closest('.input-box')?.classList.remove('has-value');
@@ -71,30 +81,30 @@ function initializeValidateScanBarcodeEventListeners() {
             const id = (dept.id || dept.departmentId || dept.departmentID || '').toUpperCase();
             return id.includes(keyword);
         });
-        
+
         if (filtered.length > 0) {
             showDepartmentDropdown(filtered);
         } else {
             hideDepartmentDropdown();
         }
-        
+
         // Check if value matches a complete department ID (with delay)
         departmentSearchTimeout = setTimeout(() => {
             checkAndLoadStations();
         }, 500);
     });
-    
+
     departmentInput.addEventListener('focus', () => {
         showDepartmentDropdown(departments);
     });
-    
+
     departmentInput.addEventListener('blur', () => {
         setTimeout(() => {
             hideDepartmentDropdown();
             checkAndLoadStations();
         }, 200);
     });
-    
+
     // Station search
     const stationInput = document.getElementById('station');
     stationInput.addEventListener('click', () => {
@@ -103,14 +113,14 @@ function initializeValidateScanBarcodeEventListeners() {
             showStationDropdown(stations);
         }
     });
-    
+
     stationInput.addEventListener('input', (e) => {
         // Prevent input if disabled
         if (stationInput.disabled) {
             e.preventDefault();
             return;
         }
-        
+
         const value = e.target.value.trim();
         clearTimeout(stationSearchTimeout);
 
@@ -120,7 +130,7 @@ function initializeValidateScanBarcodeEventListeners() {
             showStationDropdown(stations);
             return;
         }
-        
+
         // Filter and show dropdown immediately
         const keyword = value.toUpperCase();
         const filtered = stations.filter(station => {
@@ -128,26 +138,34 @@ function initializeValidateScanBarcodeEventListeners() {
             const name = (station.name || '').toUpperCase();
             return id.includes(keyword) || name.includes(keyword);
         });
-            
+
         filtered.length
         ? showStationDropdown(filtered)
         : hideStationDropdown();
     });
-    
+
+    stationInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            hideStationDropdown();
+            checkAndSearchWorkOrders();
+        }
+    });
+
     stationInput.addEventListener('focus', () => {
         if (!stationInput.disabled) {
             showStationDropdown(stations);
         }
     });
-    
+
     stationInput.addEventListener('blur', () => {
         hideStationDropdown();
     });
-    
+
     // Table row selection
     document.getElementById('tableBody').addEventListener('click', handleRowClick);
     document.getElementById('tableBody').addEventListener('contextmenu', handleContextMenu);
-    
+
     // Context menu item for validate_scan_barcode
     const validateMenuItem = document.querySelector('.context-menu-item[data-action="validate_scan_barcode"]');
     if (validateMenuItem) {
@@ -161,12 +179,12 @@ function initializeValidateScanBarcodeEventListeners() {
 function showDepartmentDropdown(items) {
     const dropdown = document.getElementById('department-dropdown');
     dropdown.innerHTML = '';
-    
+
     if (items.length === 0) {
         dropdown.classList.remove('show');
         return;
     }
-    
+
     items.forEach(dept => {
         const item = document.createElement('div');
         item.className = 'dropdown-item';
@@ -195,7 +213,7 @@ function showDepartmentDropdown(items) {
         });
         dropdown.appendChild(item);
     });
-    
+
     dropdown.classList.add('show');
 }
 
@@ -205,19 +223,19 @@ function hideDepartmentDropdown() {
 
 function handleDepartmentSearch() {
     const keyword = document.getElementById('department').value.trim().toUpperCase();
-    
+
     if (!keyword) {
         // If no keyword, show all departments
         showDepartmentDropdown(departments);
         return;
     }
-    
+
     // Filter departments
     const filtered = departments.filter(dept => {
         const id = (dept.id || dept.departmentId || dept.departmentID || '').toUpperCase();
         return id.includes(keyword);
     });
-    
+
     // Always show dropdown if we have results, even if filtered
     if (filtered.length > 0) {
         showDepartmentDropdown(filtered);
@@ -240,10 +258,10 @@ async function handleDepartmentChange() {
         clearTable();
         return;
     }
-    
+
     // Find department OID - try exact match first
     let dept = departments.find(d => (d.id || d.departmentId || d.departmentID) === departmentValue);
-    
+
     // If not found, try case-insensitive match
     if (!dept) {
         dept = departments.find(d => {
@@ -251,7 +269,7 @@ async function handleDepartmentChange() {
             return id === departmentValue.toUpperCase();
         });
     }
-    
+
     if (!dept) {
         stationInput.disabled = true;
         stationInput.value = '';
@@ -262,7 +280,7 @@ async function handleDepartmentChange() {
         clearTable();
         return;
     }
-    
+
     currentDepartmentOid = dept.id;
     stationInput.value = '';
     stationInput.disabled = true;
@@ -287,13 +305,13 @@ async function checkAndLoadStations() {
         clearTable();
         return;
     }
-    
+
     // Check if the value matches exactly with a department
     const dept = departments.find(d => {
         const id = (d.id || d.departmentId || d.departmentID || '').toUpperCase();
         return id === departmentValue.toUpperCase();
     });
-    
+
     if (dept) {
         // Found exact match, load stations
         const deptOid = dept.id || dept.departmentId || dept.departmentID;
@@ -347,12 +365,12 @@ async function loadStations(departmentOid) {
 function showStationDropdown(items) {
     const dropdown = document.getElementById('station-dropdown');
     dropdown.innerHTML = '';
-    
+
     if (items.length === 0) {
         dropdown.classList.remove('show');
         return;
     }
-    
+
     items.forEach(station => {
         const item = document.createElement('div');
         item.className = 'dropdown-item';
@@ -371,7 +389,7 @@ function showStationDropdown(items) {
         });
         dropdown.appendChild(item);
     });
-    
+
     dropdown.classList.add('show');
 }
 
@@ -389,45 +407,198 @@ function checkAndSearchWorkOrders() {
         return;
     }
 
-    searchWorkOrders(station);
+    searchWorkOrders(station, department);
 }
 
-async function searchWorkOrders(station) {
+let currentWorkOrderErrors = null;
+
+function updateWorkOrderErrorBanner(errorData) {
+    const banner = document.getElementById('woErrorAlertBanner');
+    if (!banner) return;
+
+    if (errorData && errorData.has_error && errorData.error_count > 0) {
+        const count = errorData.error_count;
+        const pluralText = count > 1 ? `${count} đơn điều động` : `1 đơn điều động (${errorData.error_work_order_ids[0]})`;
+        banner.innerHTML = `
+            <span class="material-symbols-outlined banner-icon">warning</span>
+            <div class="banner-text">
+                <strong>Cảnh báo cấu hình MES:</strong> Phát hiện <strong>${pluralText}</strong> có cấu hình bị lỗi (thiếu định lượng / sai định dạng thập phân có thể gây sập app MES khi máy này thao tác). Vui lòng kiểm tra dòng được đánh dấu cảnh báo bên dưới.
+            </div>
+        `;
+        banner.classList.remove('hidden');
+    } else {
+        banner.classList.add('hidden');
+        banner.innerHTML = '';
+    }
+}
+
+function highlightDefectiveWorkOrders(errorData) {
+    if (errorData !== undefined) {
+        currentWorkOrderErrors = errorData;
+    }
+    const errData = currentWorkOrderErrors;
+    if (!errData || !errData.has_error || !errData.error_work_order_ids || errData.error_work_order_ids.length === 0) {
+        return;
+    }
+
+    const errorWoIds = new Set(errData.error_work_order_ids.map(id => String(id).trim()));
+    const errorsByWo = errData.errors_by_work_order || {};
+
+    const thead = document.getElementById('tableHead');
+    const tbody = document.getElementById('tableBody');
+    if (!thead || !tbody) return;
+
+    const ths = Array.from(thead.querySelectorAll('th'));
+    let idIdx = ths.findIndex(th => th.textContent.trim().toLowerCase() === 'id');
+    if (idIdx === -1) idIdx = 0;
+    const recipeIdx = ths.findIndex(th => th.textContent.trim().toLowerCase() === 'recipe_id');
+
+    const rows = tbody.querySelectorAll('tr');
+    rows.forEach(tr => {
+        if (tr.querySelector('.table-empty-state') || tr.classList.contains('skeleton-row')) return;
+        const tds = tr.querySelectorAll('td');
+        if (tds.length <= idIdx) return;
+
+        const idTd = tds[idIdx];
+        if (!idTd.dataset.rawId) {
+            idTd.dataset.rawId = idTd.textContent.trim().split(/\s+/)[0];
+        }
+        const woId = idTd.dataset.rawId;
+
+        if (errorWoIds.has(woId)) {
+            tr.classList.add('row-wo-defective');
+
+            if (!idTd.querySelector('.badge-wo-error')) {
+                const errList = errorsByWo[woId] || ['Lỗi cấu hình MES'];
+                const recipeId = (recipeIdx >= 0 && recipeIdx < tds.length) ? tds[recipeIdx].textContent.trim() : '';
+
+                const badge = document.createElement('span');
+                badge.className = 'badge-wo-error';
+                badge.title = 'Nhấn để xem chi tiết lỗi:\n' + errList.join('\n');
+                badge.innerHTML = `
+                    <span class="material-symbols-outlined">warning</span>
+                    <span>Lỗi cấu hình MES</span>
+                `;
+                badge.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    showWoErrorModal(woId, recipeId, errList);
+                });
+                idTd.appendChild(badge);
+            }
+        }
+    });
+}
+
+function showWoErrorModal(woId, recipeId, errList) {
+    const modal = document.getElementById('woErrorModal');
+    const body = document.getElementById('woErrorModalBody');
+    if (!modal || !body) return;
+
+    const errors = Array.isArray(errList) ? errList : [String(errList)];
+
+    body.innerHTML = `
+        <div class="wo-error-meta-box">
+            <div>
+                <strong>Mã đơn điều động:</strong>
+                <code>${escapeHtml(woId || '--')}</code>
+            </div>
+            <div>
+                <strong>Mã Quy Cách (Recipe):</strong>
+                <code>${escapeHtml(recipeId || '--')}</code>
+            </div>
+        </div>
+        <div class="wo-error-list-title">
+            <span class="material-symbols-outlined" style="font-size: 16px;">crisis_alert</span>
+            <span>Danh sách lỗi phát hiện trong hệ thống:</span>
+        </div>
+        <ul class="wo-error-list">
+            ${errors.map(err => `<li>${escapeHtml(err)}</li>`).join('')}
+        </ul>
+        <div class="wo-error-hint-box">
+            <span class="material-symbols-outlined">lightbulb</span>
+            <div>
+                <strong>Hướng khắc phục:</strong> Vui lòng liên hệ bộ phận kỹ thuật / MES để cập nhật lại thông số định lượng trong file YAML quy cách hoặc bảng <code>kvmes.recipe_process_definition</code>. Trường định lượng <code>mid</code> không được để rỗng chuỗi <code>""</code>.
+            </div>
+        </div>
+    `;
+
+    modal.classList.remove('hidden');
+}
+
+function closeWoErrorModal() {
+    const modal = document.getElementById('woErrorModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
+// Hook displayTable to re-apply error highlights when table re-renders (e.g. clientSearch)
+if (typeof window.displayTable === 'function') {
+    const origDisplayTable = window.displayTable;
+    window.displayTable = function(...args) {
+        const res = origDisplayTable.apply(this, args);
+        if (currentWorkOrderErrors && currentWorkOrderErrors.has_error) {
+            setTimeout(() => highlightDefectiveWorkOrders(currentWorkOrderErrors), 0);
+        }
+        return res;
+    };
+}
+
+async function searchWorkOrders(station, department = null) {
     try {
         if (typeof showTableSkeleton === 'function') {
             showTableSkeleton(6, 5);
         }
 
-        const data = await apiFetch('/api/work-orders/get-active-list', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({station})
-        });
-        
+        const deptVal = department || document.getElementById('department')?.value?.trim() || '';
+
+        // Concurrently run active list and error check
+        const [data, errorData] = await Promise.all([
+            apiFetch('/api/work-orders/get-active-list', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({station, department: deptVal})
+            }),
+            apiFetch('/api/work-orders/check-errors', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({station, department: deptVal})
+            }).catch(err => {
+                console.warn('Error checking work order errors:', err);
+                return { success: false, has_error: false, error_work_order_ids: [], errors_by_work_order: {} };
+            })
+        ]);
+
+        currentWorkOrderErrors = errorData;
+        updateWorkOrderErrorBanner(errorData);
+
         if (!data || !data.result || data.result.length === 0) {
             setTableData([], data ? data.columns : [], null, `Máy ${station} đang không có đơn điều động nào đang hoạt động`);
             return;
         }
 
         setTableData(data.result, data.columns, null, null, `Tìm thấy ${data.result.length} đơn điều động`);
+        highlightDefectiveWorkOrders(errorData);
 
     } catch (error) {
         console.error('Error searching work orders:', error);
         clearTable();
+        currentWorkOrderErrors = null;
+        updateWorkOrderErrorBanner(null);
     }
 }
 
 function handleRowClick(e) {
     const row = (e && e.target) ? e.target.closest('tr') : (e && e.closest ? e.closest('tr') : (selectedRow || null));
     if (!row || row.querySelector('.table-empty-state') || row.classList.contains('skeleton-row')) return;
-    
+
     // Remove previous selection
     document.querySelectorAll('#tableBody tr, .table-container tbody tr').forEach(r => r.classList.remove('selected'));
-    
+
     // Add selection to current row
     row.classList.add('selected');
     selectedRow = row;
-    
+
     // Get row data
     const cells = row.querySelectorAll('td');
     const columns = Array.from(document.querySelectorAll('#tableHead th')).map(th => th.textContent.trim());
@@ -448,9 +619,9 @@ function handleContextMenu(e) {
     if (e && typeof e.preventDefault === 'function') e.preventDefault();
     const row = (e && e.target) ? e.target.closest('tr') : (selectedRow || null);
     if (!row) return;
-    
+
     handleRowClick(e);
-    
+
     if (typeof handleContextMenuUnified === 'function') {
         handleContextMenuUnified(e, 'main');
     } else {
@@ -471,7 +642,7 @@ function handleContextMenuAction(e) {
     }
     const item = (e && e.target) ? e.target.closest('.context-menu-item') : null;
     const action = item ? item.dataset.action : null;
-    
+
     const contextMenu = document.getElementById('contextMenu');
     if (contextMenu) contextMenu.style.display = 'none';
 
@@ -491,20 +662,20 @@ async function validateScanBarcode() {
     }
 
     const recipeId = rowData ? (rowData['recipe_id'] || rowData['recipeId'] || rowData['recipe'] || '') : '';
-    const station = rowData ? (rowData['station'] || '') : (document.getElementById('station')?.value || '');
-    
+    const station = (rowData && rowData['station']) ? rowData['station'] : (document.getElementById('station')?.value?.trim() || '');
+
     if (!recipeId || !station) {
         showAlert('Thiếu thông tin recipe_id hoặc station', 'warning');
         return;
     }
-    
+
     try {
         const response = await fetch('/api/stations/validate-scan-barcode', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({recipe_id: recipeId, station: station})
         });
-        
+
         let data = null;
         try {
             data = await response.json();
@@ -516,7 +687,7 @@ async function validateScanBarcode() {
             }
             return;
         }
-        
+
         if (data && data.success) {
             const workOrderId = rowData ? (rowData['id'] || rowData['ID'] || '') : '';
             displayComparison(data.result, recipeId, station, workOrderId);
@@ -576,7 +747,7 @@ async function copyValidationRowText(event, btnElement) {
         const originalHTML = btnElement.innerHTML;
         btnElement.classList.add('copied');
         btnElement.innerHTML = '<span class="material-symbols-outlined" aria-hidden="true">check</span><span>Đã copy!</span>';
-        
+
         setTimeout(() => {
             btnElement.classList.remove('copied');
             btnElement.innerHTML = originalHTML;
@@ -593,7 +764,7 @@ function displayComparison(result, recipeId, station, workOrderId) {
     const modalWorkOrderIdEl = document.getElementById('modalWorkOrderId');
     const modalStationEl = document.getElementById('modalStation');
     const modalRecipeIdEl = document.getElementById('modalRecipeId');
-    
+
     if (!result || !Array.isArray(result)) {
         result = [];
     }
@@ -618,7 +789,7 @@ function displayComparison(result, recipeId, station, workOrderId) {
     const utc7Offset = 7 * 60; // minutes
     const localOffset = now.getTimezoneOffset(); // minutes
     const currentTimeUTC7 = new Date(now.getTime() + (utc7Offset + localOffset) * 60 * 1000);
-    
+
     // Evaluate validity for each item
     // An item is valid ONLY if:
     // 1. Has barcode
@@ -669,7 +840,7 @@ function displayComparison(result, recipeId, station, workOrderId) {
     html += '<th style="width: 14%; text-align: center;">Trạng thái</th>';
     html += '</tr></thead>';
     html += '<tbody>';
-    
+
     // Group evaluatedItems by site (to support rowspan when a site has multiple barcodes in CONTAINER mode)
     const siteGroups = [];
     const siteGroupMap = new Map();
@@ -837,7 +1008,7 @@ function displayComparison(result, recipeId, station, workOrderId) {
             html += '</tr>';
         });
     });
-    
+
     html += '</tbody></table>';
     content.innerHTML = html;
     modal.classList.remove('hidden');
