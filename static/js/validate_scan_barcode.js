@@ -22,15 +22,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     });
 
-    // Close work order error modal on outside click
-    const woErrorModalEl = document.getElementById('woErrorModal');
-    if (woErrorModalEl) {
-        woErrorModalEl.addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeWoErrorModal();
-            }
-        });
-    }
+
 });
 
 function initializeValidateScanBarcodeEventListeners() {
@@ -412,26 +404,6 @@ function checkAndSearchWorkOrders() {
 
 let currentWorkOrderErrors = null;
 
-function updateWorkOrderErrorBanner(errorData) {
-    const banner = document.getElementById('woErrorAlertBanner');
-    if (!banner) return;
-
-    if (errorData && errorData.has_error && errorData.error_count > 0) {
-        const count = errorData.error_count;
-        const pluralText = count > 1 ? `${count} đơn điều động` : `1 đơn điều động (${errorData.error_work_order_ids[0]})`;
-        banner.innerHTML = `
-            <span class="material-symbols-outlined banner-icon">warning</span>
-            <div class="banner-text">
-                <strong>Cảnh báo cấu hình MES:</strong> Phát hiện <strong>${pluralText}</strong> có cấu hình bị lỗi (thiếu định lượng / sai định dạng thập phân có thể gây sập app MES khi máy này thao tác). Vui lòng kiểm tra dòng được đánh dấu cảnh báo bên dưới.
-            </div>
-        `;
-        banner.classList.remove('hidden');
-    } else {
-        banner.classList.add('hidden');
-        banner.innerHTML = '';
-    }
-}
-
 function highlightDefectiveWorkOrders(errorData) {
     if (errorData !== undefined) {
         currentWorkOrderErrors = errorData;
@@ -452,6 +424,7 @@ function highlightDefectiveWorkOrders(errorData) {
     let idIdx = ths.findIndex(th => th.textContent.trim().toLowerCase() === 'id');
     if (idIdx === -1) idIdx = 0;
     const recipeIdx = ths.findIndex(th => th.textContent.trim().toLowerCase() === 'recipe_id');
+    const colHeaders = ths.map(th => th.textContent.trim());
 
     const rows = tbody.querySelectorAll('tr');
     rows.forEach(tr => {
@@ -474,62 +447,40 @@ function highlightDefectiveWorkOrders(errorData) {
 
                 const badge = document.createElement('span');
                 badge.className = 'badge-wo-error';
-                badge.title = 'Nhấn để xem chi tiết lỗi:\n' + errList.join('\n');
-                badge.innerHTML = `
-                    <span class="material-symbols-outlined">warning</span>
-                    <span>Lỗi cấu hình MES</span>
-                `;
+                badge.title = 'Chi tiết lỗi cấu hình MES:\n' + errList.join('\n');
+                badge.innerHTML = `<span class="material-symbols-outlined">warning</span>`;
                 badge.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    showWoErrorModal(woId, recipeId, errList);
+
+                    // Extract row fields
+                    const rowData = {};
+                    tds.forEach((td, idx) => {
+                        const col = colHeaders[idx] || `col_${idx}`;
+                        rowData[col] = (td.dataset.fullValue !== undefined) ? td.dataset.fullValue : td.textContent.trim();
+                    });
+
+                    // Build error payload to display in shared Details Modal
+                    const detailPayload = {
+                        "CẢNH BÁO": "PHÁT HIỆN LỖI CẤU HÌNH MES (GÂY CRASH KHI MÁY THAO TÁC)",
+                        "Mã đơn điều động": woId,
+                        "Mã quy cách": recipeId,
+                        "Danh sách lỗi": errList,
+                        "Hướng khắc phục": "Kiểm tra file YAML quy cách trên GitLab hoặc bảng kvmes.recipe_process_definition. Trường định lượng 'mid' của nguyên liệu không được để chuỗi rỗng \"\", phải nhập số thập phân chuẩn.",
+                        ...rowData
+                    };
+
+                    if (typeof showDetailsModal === 'function') {
+                        showDetailsModal(detailPayload);
+                        const titleEl = document.getElementById('detailsModalTitle');
+                        if (titleEl) {
+                            titleEl.textContent = `Chi tiết lỗi cấu hình MES — ${woId}`;
+                        }
+                    }
                 });
                 idTd.appendChild(badge);
             }
         }
     });
-}
-
-function showWoErrorModal(woId, recipeId, errList) {
-    const modal = document.getElementById('woErrorModal');
-    const body = document.getElementById('woErrorModalBody');
-    if (!modal || !body) return;
-
-    const errors = Array.isArray(errList) ? errList : [String(errList)];
-
-    body.innerHTML = `
-        <div class="wo-error-meta-box">
-            <div>
-                <strong>Mã đơn điều động:</strong>
-                <code>${escapeHtml(woId || '--')}</code>
-            </div>
-            <div>
-                <strong>Mã Quy Cách (Recipe):</strong>
-                <code>${escapeHtml(recipeId || '--')}</code>
-            </div>
-        </div>
-        <div class="wo-error-list-title">
-            <span class="material-symbols-outlined" style="font-size: 16px;">crisis_alert</span>
-            <span>Danh sách lỗi phát hiện trong hệ thống:</span>
-        </div>
-        <ul class="wo-error-list">
-            ${errors.map(err => `<li>${escapeHtml(err)}</li>`).join('')}
-        </ul>
-        <div class="wo-error-hint-box">
-            <span class="material-symbols-outlined">lightbulb</span>
-            <div>
-                <strong>Hướng khắc phục:</strong> Vui lòng liên hệ bộ phận kỹ thuật / MES để cập nhật lại thông số định lượng trong file YAML quy cách hoặc bảng <code>kvmes.recipe_process_definition</code>. Trường định lượng <code>mid</code> không được để rỗng chuỗi <code>""</code>.
-            </div>
-        </div>
-    `;
-
-    modal.classList.remove('hidden');
-}
-
-function closeWoErrorModal() {
-    const modal = document.getElementById('woErrorModal');
-    if (modal) {
-        modal.classList.add('hidden');
-    }
 }
 
 // Hook displayTable to re-apply error highlights when table re-renders (e.g. clientSearch)
@@ -570,7 +521,6 @@ async function searchWorkOrders(station, department = null) {
         ]);
 
         currentWorkOrderErrors = errorData;
-        updateWorkOrderErrorBanner(errorData);
 
         if (!data || !data.result || data.result.length === 0) {
             setTableData([], data ? data.columns : [], null, `Máy ${station} đang không có đơn điều động nào đang hoạt động`);
@@ -584,7 +534,6 @@ async function searchWorkOrders(station, department = null) {
         console.error('Error searching work orders:', error);
         clearTable();
         currentWorkOrderErrors = null;
-        updateWorkOrderErrorBanner(null);
     }
 }
 
