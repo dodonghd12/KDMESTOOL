@@ -102,6 +102,14 @@ function initializeValidateScanBarcodeEventListeners() {
     stationInput.addEventListener('click', () => {
         // Only show dropdown if station is enabled
         if (!stationInput.disabled) {
+            stationInput.value = '';
+            stationInput.closest('.input-box')?.classList.remove('has-value');
+            stationInput.focus();
+            setTimeout(() => {
+                stationInput.focus();
+            }, 0);
+            clearTable();
+            currentWorkOrderErrors = null;
             showStationDropdown(stations);
         }
     });
