@@ -9977,13 +9977,42 @@ body.theme-light .ocr-dropzone {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 6px 16px;
+    padding: 8px 18px;
     border-bottom: 1px solid var(--color-border-glass);
     background: var(--color-bg-surface-elevated);
     border-radius: 14px 14px 0 0;
     flex-shrink: 0;
-    gap: 12px;
-    flex-wrap: wrap;
+    gap: 14px;
+    flex-wrap: nowrap;
+}
+
+.mes-tracking-modal-header .comparison-title-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+    min-width: 0;
+    flex-shrink: 0;
+}
+
+.mes-tracking-modal-header .comparison-title-main {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+}
+
+.mes-tracking-modal-header .comparison-title {
+    white-space: nowrap;
+    font-size: 13.5px;
+    font-weight: 700;
+}
+
+.mes-tracking-modal-header .comparison-meta-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: nowrap;
 }
 
 .mes-tracking-header-actions {
@@ -10059,6 +10088,187 @@ body.theme-light .ocr-dropzone {
 .mes-segmented-tab.active .tab-badge {
     background: var(--color-border-interactive);
     color: var(--color-text-primary);
+}
+
+.mes-segmented-tab .tab-badge.badge-green {
+    background: rgba(16, 185, 129, 0.2);
+    color: #34d399;
+}
+
+.mes-segmented-tab.active .tab-badge.badge-green {
+    background: #10b981;
+    color: #ffffff;
+}
+
+.mes-segmented-tab .tab-badge.badge-blue {
+    background: rgba(56, 189, 248, 0.2);
+    color: #38bdf8;
+}
+
+.mes-segmented-tab.active .tab-badge.badge-blue {
+    background: #0284c7;
+    color: #ffffff;
+}
+
+/* Dual-Section Layout for MES Tracking Modal */
+.mes-tracking-section {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 22px;
+    transition: opacity 0.2s ease;
+}
+
+.mes-tracking-section:last-child {
+    margin-bottom: 8px;
+}
+
+/* View Mode Switching */
+.mes-tracking-modal-body.view-mode-all .mes-tracking-section {
+    display: flex;
+}
+
+.mes-tracking-modal-body.view-mode-where-used .mes-section-bom {
+    display: none !important;
+}
+
+.mes-tracking-modal-body.view-mode-where-used .mes-section-where-used {
+    display: flex !important;
+}
+
+.mes-tracking-modal-body.view-mode-bom .mes-section-where-used {
+    display: none !important;
+}
+
+.mes-tracking-modal-body.view-mode-bom .mes-section-bom {
+    display: flex !important;
+}
+
+/* Section Banners */
+.mes-section-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    border-radius: 10px 10px 0 0;
+    border: 1px solid var(--color-border-glass);
+    border-bottom: none;
+    user-select: none;
+}
+
+.mes-banner-where-used {
+    background: linear-gradient(90deg, rgba(16, 185, 129, 0.12) 0%, rgba(15, 23, 42, 0.7) 100%);
+    border-color: rgba(16, 185, 129, 0.25);
+}
+
+.mes-banner-bom {
+    background: linear-gradient(90deg, rgba(56, 189, 248, 0.12) 0%, rgba(15, 23, 42, 0.7) 100%);
+    border-color: rgba(56, 189, 248, 0.25);
+}
+
+.mes-section-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.mes-section-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    width: 32px;
+    height: 32px;
+    border-radius: 7px;
+    flex-shrink: 0;
+}
+
+.icon-where-used {
+    color: #34d399;
+    background: rgba(16, 185, 129, 0.18);
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+}
+
+.icon-bom {
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.18);
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
+}
+
+.mes-section-headings {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.mes-section-title {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.025em;
+    color: var(--color-text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.mes-section-desc {
+    font-size: 11.5px;
+    color: var(--color-text-muted);
+}
+
+.mes-section-stats {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.mes-section-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 600;
+    font-family: var(--font-mono);
+}
+
+.pill-where-used {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.pill-bom {
+    background: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.pill-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 6px currentColor;
+}
+
+.mes-section-table-card {
+    border: 1px solid var(--color-border-glass);
+    border-radius: 0 0 10px 10px;
+    overflow: hidden;
+    background: rgba(10, 15, 29, 0.6);
+}
+
+.mes-section-where-used .mes-section-table-card {
+    border-color: rgba(16, 185, 129, 0.2);
+}
+
+.mes-section-bom .mes-section-table-card {
+    border-color: rgba(56, 189, 248, 0.2);
+}
+
+.mes-section-table-card .mes-master-table {
+    margin-bottom: 0;
 }
 
 .mes-modal-search-box {

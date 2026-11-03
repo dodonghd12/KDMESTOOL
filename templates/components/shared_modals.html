@@ -56,15 +56,19 @@
             <div class="comparison-header-actions mes-tracking-header-actions">
                 <div class="mes-tracking-tabs-container">
                     <div class="mes-segmented-tabs" role="tablist">
-                        <button type="button" class="mes-segmented-tab active" id="mesTabBom" onclick="switchMesTrackingTab('bom')" role="tab" aria-selected="true" title="Cấu trúc vật liệu cấp dưới (BOM)">
-                            <span class="material-symbols-outlined tab-icon">account_tree</span>
-                            <span class="tab-label">Cấu trúc con (BOM)</span>
-                            <span class="tab-badge" id="mesBomBadge">0</span>
+                        <button type="button" class="mes-segmented-tab active" id="mesTabAll" onclick="switchMesTrackingView('all')" role="tab" aria-selected="true" title="Hiển thị đồng thời cả Thành phẩm đầu ra và Cấu trúc nguyên liệu">
+                            <span class="material-symbols-outlined tab-icon">view_agenda</span>
+                            <span class="tab-label">Tất Cả</span>
                         </button>
-                        <button type="button" class="mes-segmented-tab" id="mesTabWhereUsed" onclick="switchMesTrackingTab('where-used')" role="tab" aria-selected="false" title="Thành phẩm/Bán thành phẩm cấp trên đã sử dụng (Where-Used)">
+                        <button type="button" class="mes-segmented-tab" id="mesTabWhereUsed" onclick="switchMesTrackingView('where-used')" role="tab" aria-selected="false" title="Chỉ xem Thành phẩm/Bán thành phẩm cấp trên đã sử dụng (Where-Used)">
                             <span class="material-symbols-outlined tab-icon">output</span>
-                            <span class="tab-label">Nơi sử dụng (Where-Used)</span>
-                            <span class="tab-badge" id="mesWhereUsedBadge">0</span>
+                            <span class="tab-label">Nơi sử dụng</span>
+                            <span class="tab-badge badge-green" id="mesWhereUsedBadge">0</span>
+                        </button>
+                        <button type="button" class="mes-segmented-tab" id="mesTabBom" onclick="switchMesTrackingView('bom')" role="tab" aria-selected="false" title="Chỉ xem Cấu trúc vật liệu cấp dưới (BOM)">
+                            <span class="material-symbols-outlined tab-icon">account_tree</span>
+                            <span class="tab-label">Cấu trúc con</span>
+                            <span class="tab-badge badge-blue" id="mesBomBadge">0</span>
                         </button>
                     </div>
                 </div>
@@ -80,46 +84,84 @@
                 </button>
             </div>
         </div>
-        <div class="comparison-modal-body mes-tracking-modal-body">
-            <!-- Table 1: BOM (Cấu trúc cấp dưới) -->
-            <table class="mes-master-table" id="mesMasterTable">
-                <thead>
-                    <tr>
-                        <th class="mes-toggle-th"></th>
-                        <th>Product_type</th>
-                        <th>Barcode</th>
-                        <th>Product_id</th>
-                        <th class="text-right">Số Lượng</th>
-                        <th>Số Lô</th>
-                        <th>Trạm / Máy</th>
-                        <th>Ngày SX</th>
-                        <th>Thời Gian SX</th>
-                        <th>NV Sản Xuất</th>
-                        <th>Hạn Dùng</th>
-                    </tr>
-                </thead>
-                <tbody id="mesMasterTableBody"></tbody>
-            </table>
+        <div class="comparison-modal-body mes-tracking-modal-body view-mode-all">
+            <!-- SECTION 1: NƠI SỬ DỤNG (WHERE-USED / THÀNH PHẨM ĐẦU RA) -->
+            <section class="mes-tracking-section mes-section-where-used" id="mesSectionWhereUsed">
+                <div class="mes-section-banner mes-banner-where-used">
+                    <div class="mes-section-title-wrap">
+                        <span class="material-symbols-outlined mes-section-icon icon-where-used">output</span>
+                        <div class="mes-section-headings">
+                            <span class="mes-section-title">THÀNH PHẨM ĐẦU RA (Nơi Sử Dụng / Where-Used)</span>
+                            <span class="mes-section-desc">Thành phẩm hoặc công đoạn tiếp theo đã tiêu thụ Barcode này</span>
+                        </div>
+                    </div>
+                    <div class="mes-section-stats">
+                        <span class="mes-section-pill pill-where-used" id="mesWhereUsedPill">
+                            <span class="pill-dot"></span>
+                            <span id="mesWhereUsedPillText">Đang tải...</span>
+                        </span>
+                    </div>
+                </div>
+                <div class="mes-section-table-card">
+                    <table class="mes-master-table" id="mesWhereUsedTable">
+                        <thead>
+                            <tr>
+                                <th class="mes-toggle-th"></th>
+                                <th>Product_type</th>
+                                <th>Barcode</th>
+                                <th>Product_id</th>
+                                <th class="text-right">Số Lượng</th>
+                                <th>Số Lô</th>
+                                <th>Trạm / Máy</th>
+                                <th>Ngày SX</th>
+                                <th>Thời Gian SX</th>
+                                <th>NV Sản Xuất</th>
+                                <th>Hạn Dùng</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mesWhereUsedTableBody"></tbody>
+                    </table>
+                </div>
+            </section>
 
-            <!-- Table 2: Where-Used (Nơi sử dụng / Thành phẩm cấp trên) -->
-            <table class="mes-master-table" id="mesWhereUsedTable" style="display: none;">
-                <thead>
-                    <tr>
-                        <th class="mes-toggle-th"></th>
-                        <th>Product_type</th>
-                        <th>Barcode</th>
-                        <th>Product_id</th>
-                        <th class="text-right">Số Lượng</th>
-                        <th>Số Lô</th>
-                        <th>Trạm / Máy</th>
-                        <th>Ngày SX</th>
-                        <th>Thời Gian SX</th>
-                        <th>NV Sản Xuất</th>
-                        <th>Hạn Dùng</th>
-                    </tr>
-                </thead>
-                <tbody id="mesWhereUsedTableBody"></tbody>
-            </table>
+            <!-- SECTION 2: CẤU TRÚC NGUYÊN LIỆU CON (BOM / NGUYÊN VẬT LIỆU CẤP DƯỚI) -->
+            <section class="mes-tracking-section mes-section-bom" id="mesSectionBom">
+                <div class="mes-section-banner mes-banner-bom">
+                    <div class="mes-section-title-wrap">
+                        <span class="material-symbols-outlined mes-section-icon icon-bom">account_tree</span>
+                        <div class="mes-section-headings">
+                            <span class="mes-section-title">CẤU TRÚC NGUYÊN LIỆU CON (BOM Tree)</span>
+                            <span class="mes-section-desc">Toàn bộ cây cấu trúc nguyên vật liệu đã cấp vào Barcode này</span>
+                        </div>
+                    </div>
+                    <div class="mes-section-stats">
+                        <span class="mes-section-pill pill-bom" id="mesBomPill">
+                            <span class="pill-dot"></span>
+                            <span id="mesBomPillText">Đang tải...</span>
+                        </span>
+                    </div>
+                </div>
+                <div class="mes-section-table-card">
+                    <table class="mes-master-table" id="mesMasterTable">
+                        <thead>
+                            <tr>
+                                <th class="mes-toggle-th"></th>
+                                <th>Product_type</th>
+                                <th>Barcode</th>
+                                <th>Product_id</th>
+                                <th class="text-right">Số Lượng</th>
+                                <th>Số Lô</th>
+                                <th>Trạm / Máy</th>
+                                <th>Ngày SX</th>
+                                <th>Thời Gian SX</th>
+                                <th>NV Sản Xuất</th>
+                                <th>Hạn Dùng</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mesMasterTableBody"></tbody>
+                    </table>
+                </div>
+            </section>
         </div>
     </div>
 </div>

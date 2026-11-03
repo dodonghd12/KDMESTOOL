@@ -4324,43 +4324,45 @@ window.printLabelCups = printLabelCups;
 
 // ===== MES TRACKING MASTER-DETAIL UNIFIED TREE TABLE IMPLEMENTATION =====
 let mesModalNodeCounter = 0;
-let currentMesTrackingTab = 'bom';
+let currentMesTrackingView = 'all';
 
-function switchMesTrackingTab(tabName) {
-    currentMesTrackingTab = tabName;
-    const tabBomBtn = document.getElementById('mesTabBom');
+function switchMesTrackingView(viewMode) {
+    currentMesTrackingView = viewMode;
+    const tabAllBtn = document.getElementById('mesTabAll');
     const tabWhereUsedBtn = document.getElementById('mesTabWhereUsed');
-    const bomTable = document.getElementById('mesMasterTable');
-    const whereUsedTable = document.getElementById('mesWhereUsedTable');
+    const tabBomBtn = document.getElementById('mesTabBom');
 
-    if (tabName === 'where-used') {
-        if (tabBomBtn) {
-            tabBomBtn.classList.remove('active');
-            tabBomBtn.setAttribute('aria-selected', 'false');
+    [tabAllBtn, tabWhereUsedBtn, tabBomBtn].forEach(btn => {
+        if (btn) {
+            btn.classList.remove('active');
+            btn.setAttribute('aria-selected', 'false');
         }
+    });
+
+    if (viewMode === 'where-used') {
         if (tabWhereUsedBtn) {
             tabWhereUsedBtn.classList.add('active');
             tabWhereUsedBtn.setAttribute('aria-selected', 'true');
         }
-        if (bomTable) bomTable.style.display = 'none';
-        if (whereUsedTable) whereUsedTable.style.display = '';
-    } else {
+    } else if (viewMode === 'bom') {
         if (tabBomBtn) {
             tabBomBtn.classList.add('active');
             tabBomBtn.setAttribute('aria-selected', 'true');
         }
-        if (tabWhereUsedBtn) {
-            tabWhereUsedBtn.classList.remove('active');
-            tabWhereUsedBtn.setAttribute('aria-selected', 'false');
+    } else {
+        viewMode = 'all';
+        if (tabAllBtn) {
+            tabAllBtn.classList.add('active');
+            tabAllBtn.setAttribute('aria-selected', 'true');
         }
-        if (bomTable) bomTable.style.display = '';
-        if (whereUsedTable) whereUsedTable.style.display = 'none';
     }
 
     const modal = document.getElementById('mesTrackingModal');
     if (modal) {
         const modalBody = modal.querySelector('.mes-tracking-modal-body');
         if (modalBody) {
+            modalBody.classList.remove('view-mode-all', 'view-mode-where-used', 'view-mode-bom');
+            modalBody.classList.add(`view-mode-${viewMode}`);
             modalBody.scrollTop = 0;
             modalBody.scrollLeft = 0;
         }
@@ -4371,7 +4373,8 @@ function switchMesTrackingTab(tabName) {
         highlightMesModalBarcode(searchInput.value.trim());
     }
 }
-window.switchMesTrackingTab = switchMesTrackingTab;
+window.switchMesTrackingView = switchMesTrackingView;
+window.switchMesTrackingTab = switchMesTrackingView;
 
 async function openMesTrackingModal(rowData = null) {
     const dataObj = rowData || selectedRowData || {};
@@ -4396,11 +4399,15 @@ async function openMesTrackingModal(rowData = null) {
     const searchInput = document.getElementById('mesModalSearch');
     if (searchInput) searchInput.value = '';
 
-    // Reset badges
+    // Reset badges & pills
     const bomBadge = document.getElementById('mesBomBadge');
     const whereUsedBadge = document.getElementById('mesWhereUsedBadge');
+    const whereUsedPill = document.getElementById('mesWhereUsedPillText');
+    const bomPill = document.getElementById('mesBomPillText');
     if (bomBadge) bomBadge.textContent = '...';
     if (whereUsedBadge) whereUsedBadge.textContent = '...';
+    if (whereUsedPill) whereUsedPill.textContent = 'Đang tải...';
+    if (bomPill) bomPill.textContent = 'Đang tải...';
 
     // Reset scroll position of modal body
     const modalBody = modal.querySelector('.mes-tracking-modal-body');
@@ -4409,23 +4416,18 @@ async function openMesTrackingModal(rowData = null) {
         modalBody.scrollLeft = 0;
     }
 
-    // Default to BOM tab
-    switchMesTrackingTab('bom');
+    // Default to 'all' view: both Where-Used and BOM are visible together in the same modal!
+    switchMesTrackingView('all');
 
     // Show modal
     modal.classList.remove('hidden');
     modal.classList.add('show');
 
     // Load both BOM and Where-Used data in parallel
-    const [bomResult, whereUsedResult] = await Promise.all([
-        fetchMesTrackingModalData(resource_id, product_id),
-        fetchMesWhereUsedModalData(resource_id, product_id)
+    await Promise.all([
+        fetchMesWhereUsedModalData(resource_id, product_id),
+        fetchMesTrackingModalData(resource_id, product_id)
     ]);
-
-    // If BOM has no items but Where-Used has items, auto-switch to Where-Used tab
-    if (bomResult === 0 && whereUsedResult > 0) {
-        switchMesTrackingTab('where-used');
-    }
 }
 window.openMesTrackingModal = openMesTrackingModal;
 
@@ -4441,6 +4443,7 @@ window.closeMesTrackingModal = closeMesTrackingModal;
 async function fetchMesTrackingModalData(resourceId, productId) {
     const tbody = document.getElementById('mesMasterTableBody');
     const badge = document.getElementById('mesBomBadge');
+    const pillText = document.getElementById('mesBomPillText');
     if (!tbody) return 0;
 
     mesModalNodeCounter = 0;
@@ -4449,7 +4452,7 @@ async function fetchMesTrackingModalData(resourceId, productId) {
             <td colspan="11" style="text-align: center; padding: 40px 20px;">
                 <div style="display: flex; flex-direction: column; align-items: center; gap: 10px; color: var(--color-text-accent);">
                     <span class="mes-tree-spinner" style="width: 24px; height: 24px; border-width: 3px;"></span>
-                    <span style="font-size: 13px;">Đang truy xuất lịch sử vật liệu MES...</span>
+                    <span style="font-size: 13px;">Đang truy xuất cấu trúc BOM nguyên liệu con...</span>
                 </div>
             </td>
         </tr>
@@ -4469,29 +4472,33 @@ async function fetchMesTrackingModalData(resourceId, productId) {
         if (!data || !data.success) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="11" style="text-align: center; padding: 40px 20px; color: var(--rose-400);">
+                    <td colspan="11" style="text-align: center; padding: 30px 20px; color: var(--rose-400);">
                         ${escapeHtml((data && data.message) ? data.message : 'Lỗi khi gọi API MES')}
                     </td>
                 </tr>
             `;
             if (badge) badge.textContent = '0';
+            if (pillText) pillText.textContent = 'Lỗi truy xuất';
             Toast.error('Lỗi', (data && data.message) ? data.message : 'Lỗi khi tải dữ liệu MES Tracking');
             return 0;
         }
 
         const items = data.data || [];
         if (badge) badge.textContent = String(items.length);
+        if (pillText) {
+            pillText.textContent = items.length > 0 ? `${items.length} nguyên liệu con` : '0 nguyên liệu con';
+        }
 
         if (items.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="11" style="text-align: center; padding: 40px 20px;">
-                        <div class="table-empty-state">
-                            <div class="empty-state-icon-wrapper">
-                                <span class="material-symbols-outlined empty-state-icon">account_tree</span>
+                    <td colspan="11" style="text-align: center; padding: 32px 20px;">
+                        <div class="table-empty-state" style="padding: 12px 0;">
+                            <div class="empty-state-icon-wrapper" style="width: 38px; height: 38px; margin-bottom: 6px;">
+                                <span class="material-symbols-outlined empty-state-icon" style="font-size: 20px;">account_tree</span>
                             </div>
-                            <div class="empty-state-title">Không tìm thấy dữ liệu cấu trúc con</div>
-                            <div class="empty-state-desc">Barcode ${escapeHtml(resourceId)} là nguyên liệu gốc hoặc chưa có dữ liệu BOM cấp con</div>
+                            <div class="empty-state-title" style="font-size: 13px;">Không có dữ liệu cấu trúc con</div>
+                            <div class="empty-state-desc" style="font-size: 12px;">Barcode ${escapeHtml(resourceId)} là nguyên liệu gốc hoặc chưa ghi nhận BOM cấp con</div>
                         </div>
                     </td>
                 </tr>
@@ -4504,12 +4511,13 @@ async function fetchMesTrackingModalData(resourceId, productId) {
     } catch (err) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="11" style="text-align: center; padding: 40px 20px; color: var(--rose-400);">
+                <td colspan="11" style="text-align: center; padding: 30px 20px; color: var(--rose-400);">
                     ${escapeHtml(err.message || 'Lỗi kết nối')}
                 </td>
             </tr>
         `;
         if (badge) badge.textContent = '0';
+        if (pillText) pillText.textContent = 'Lỗi kết nối';
         Toast.error('Lỗi kết nối', err.message || 'Lỗi khi gọi API MES Tracking');
         return 0;
     }
@@ -4518,14 +4526,15 @@ async function fetchMesTrackingModalData(resourceId, productId) {
 async function fetchMesWhereUsedModalData(resourceId, productId) {
     const tbody = document.getElementById('mesWhereUsedTableBody');
     const badge = document.getElementById('mesWhereUsedBadge');
+    const pillText = document.getElementById('mesWhereUsedPillText');
     if (!tbody) return 0;
 
     tbody.innerHTML = `
         <tr>
-            <td colspan="11" style="text-align: center; padding: 40px 20px;">
-                <div style="display: flex; flex-direction: column; align-items: center; gap: 10px; color: var(--color-text-accent);">
-                    <span class="mes-tree-spinner" style="width: 24px; height: 24px; border-width: 3px;"></span>
-                    <span style="font-size: 13px;">Đang truy xuất nơi sử dụng (Where-Used)...</span>
+            <td colspan="11" style="text-align: center; padding: 35px 20px;">
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 10px; color: #34d399;">
+                    <span class="mes-tree-spinner" style="width: 24px; height: 24px; border-width: 3px; border-top-color: #34d399;"></span>
+                    <span style="font-size: 13px;">Đang truy xuất thành phẩm đầu ra (Where-Used)...</span>
                 </div>
             </td>
         </tr>
@@ -4544,28 +4553,32 @@ async function fetchMesWhereUsedModalData(resourceId, productId) {
         if (!data || !data.success) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="11" style="text-align: center; padding: 40px 20px; color: var(--rose-400);">
+                    <td colspan="11" style="text-align: center; padding: 30px 20px; color: var(--rose-400);">
                         ${escapeHtml((data && data.message) ? data.message : 'Lỗi khi gọi API Where-Used')}
                     </td>
                 </tr>
             `;
             if (badge) badge.textContent = '0';
+            if (pillText) pillText.textContent = 'Lỗi truy xuất';
             return 0;
         }
 
         const items = data.data || [];
         if (badge) badge.textContent = String(items.length);
+        if (pillText) {
+            pillText.textContent = items.length > 0 ? `${items.length} thành phẩm đầu ra` : '0 thành phẩm đầu ra';
+        }
 
         if (items.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="11" style="text-align: center; padding: 40px 20px;">
-                        <div class="table-empty-state">
-                            <div class="empty-state-icon-wrapper">
-                                <span class="material-symbols-outlined empty-state-icon">output</span>
+                    <td colspan="11" style="text-align: center; padding: 32px 20px;">
+                        <div class="table-empty-state" style="padding: 12px 0;">
+                            <div class="empty-state-icon-wrapper" style="width: 38px; height: 38px; margin-bottom: 6px; background: rgba(16, 185, 129, 0.1);">
+                                <span class="material-symbols-outlined empty-state-icon" style="font-size: 20px; color: #34d399;">output</span>
                             </div>
-                            <div class="empty-state-title">Chưa có dữ liệu thành phẩm đầu ra</div>
-                            <div class="empty-state-desc">Chưa ghi nhận bán thành phẩm hoặc thành phẩm nào sử dụng Barcode ${escapeHtml(resourceId)}</div>
+                            <div class="empty-state-title" style="font-size: 13px;">Chưa có dữ liệu thành phẩm đầu ra</div>
+                            <div class="empty-state-desc" style="font-size: 12px;">Chưa ghi nhận bán thành phẩm hoặc thành phẩm nào sử dụng Barcode ${escapeHtml(resourceId)}</div>
                         </div>
                     </td>
                 </tr>
@@ -4578,12 +4591,13 @@ async function fetchMesWhereUsedModalData(resourceId, productId) {
     } catch (err) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="11" style="text-align: center; padding: 40px 20px; color: var(--rose-400);">
+                <td colspan="11" style="text-align: center; padding: 30px 20px; color: var(--rose-400);">
                     ${escapeHtml(err.message || 'Lỗi kết nối Where-Used')}
                 </td>
             </tr>
         `;
         if (badge) badge.textContent = '0';
+        if (pillText) pillText.textContent = 'Lỗi kết nối';
         return 0;
     }
 }
@@ -4833,43 +4847,49 @@ function showDescendantRows(tbody, parentNodeId) {
  * @param {string} keyword
  */
 function highlightMesModalBarcode(keyword) {
-    const tbody = (typeof currentMesTrackingTab !== 'undefined' && currentMesTrackingTab === 'where-used') ? document.getElementById('mesWhereUsedTableBody') : document.getElementById('mesMasterTableBody');
-    if (!tbody) return;
+    const tbodies = [
+        document.getElementById('mesWhereUsedTableBody'),
+        document.getElementById('mesMasterTableBody')
+    ].filter(Boolean);
 
-    const rows = Array.from(tbody.querySelectorAll('tr.mes-tree-row'));
+    if (tbodies.length === 0) return;
+
     const query = (keyword || '').trim();
-
     let firstMatchRow = null;
 
-    rows.forEach(row => {
-        const barcodeCell = row.querySelector('td:nth-child(3)');
-        if (!barcodeCell) return;
+    tbodies.forEach(tbody => {
+        const rows = Array.from(tbody.querySelectorAll('tr.mes-tree-row'));
 
-        const rawBarcode = barcodeCell.dataset.fullValue || row.dataset.resourceId || '';
+        rows.forEach(row => {
+            const barcodeCell = row.querySelector('td:nth-child(3)');
+            if (!barcodeCell) return;
 
-        if (!query) {
-            row.classList.remove('has-search-match');
-            barcodeCell.innerHTML = escapeHtml(rawBarcode);
-        } else {
-            const escapedQuery = escapeRegex(query);
-            const regex = new RegExp(`(${escapedQuery})`, 'i');
+            const rawBarcode = barcodeCell.dataset.fullValue || row.dataset.resourceId || '';
 
-            if (regex.test(rawBarcode)) {
-                row.classList.add('has-search-match');
-                const highlighted = escapeHtml(rawBarcode).replace(
-                    new RegExp(`(${escapeRegex(escapeHtml(query))})`, 'gi'),
-                    '<mark class="barcode-search-match">$1</mark>'
-                );
-                barcodeCell.innerHTML = highlighted;
-
-                if (!firstMatchRow && row.style.display !== 'none') {
-                    firstMatchRow = row;
-                }
-            } else {
+            if (!query) {
                 row.classList.remove('has-search-match');
                 barcodeCell.innerHTML = escapeHtml(rawBarcode);
+            } else {
+                const escapedQuery = escapeRegex(query);
+                const regex = new RegExp(`(${escapedQuery})`, 'i');
+
+                if (regex.test(rawBarcode)) {
+                    row.classList.add('has-search-match');
+                    const highlighted = escapeHtml(rawBarcode).replace(
+                        new RegExp(`(${escapeRegex(escapeHtml(query))})`, 'gi'),
+                        '<mark class="barcode-search-match">$1</mark>'
+                    );
+                    barcodeCell.innerHTML = highlighted;
+
+                    if (!firstMatchRow && row.style.display !== 'none' && row.offsetParent !== null) {
+                        firstMatchRow = row;
+                    }
+                } else {
+                    row.classList.remove('has-search-match');
+                    barcodeCell.innerHTML = escapeHtml(rawBarcode);
+                }
             }
-        }
+        });
     });
 
     if (firstMatchRow) {
