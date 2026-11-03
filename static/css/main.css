@@ -10038,41 +10038,31 @@ body.theme-light .ocr-dropzone {
 
 .mes-tracking-modal-body {
     flex: 1 1 auto;
-    overflow: hidden;
+    min-height: 0;
+    overflow-x: auto;
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
-    padding: 8px 12px 10px 12px;
+    padding: 0;
     background: var(--color-bg-canvas);
     border-radius: 0 0 14px 14px;
 }
 
-.mes-tracking-table-scroll {
-    flex: 1 1 auto;
-    overflow-x: auto;
-    overflow-y: auto;
-    border: 1px solid var(--color-border-glass);
-    border-radius: 12px;
-    background: var(--color-bg-surface-card);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    box-shadow: var(--color-shadow-glass), 0 0 20px var(--color-border-subtle);
-}
-
-.mes-tracking-table-scroll::-webkit-scrollbar {
+.mes-tracking-modal-body::-webkit-scrollbar {
     width: 8px;
     height: 8px;
 }
 
-.mes-tracking-table-scroll::-webkit-scrollbar-track {
+.mes-tracking-modal-body::-webkit-scrollbar-track {
     background: var(--color-bg-canvas);
 }
 
-.mes-tracking-table-scroll::-webkit-scrollbar-thumb {
+.mes-tracking-modal-body::-webkit-scrollbar-thumb {
     background: var(--color-border-interactive);
     border-radius: 8px;
 }
 
-.mes-tracking-table-scroll::-webkit-scrollbar-thumb:hover {
+.mes-tracking-modal-body::-webkit-scrollbar-thumb:hover {
     background: var(--color-text-accent);
 }
 

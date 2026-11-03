@@ -4348,6 +4348,13 @@ async function openMesTrackingModal(rowData = null) {
     const searchInput = document.getElementById('mesModalSearch');
     if (searchInput) searchInput.value = '';
 
+    // Reset scroll position of modal body
+    const modalBody = modal.querySelector('.mes-tracking-modal-body');
+    if (modalBody) {
+        modalBody.scrollTop = 0;
+        modalBody.scrollLeft = 0;
+    }
+
     // Show modal
     modal.classList.remove('hidden');
     modal.classList.add('show');
