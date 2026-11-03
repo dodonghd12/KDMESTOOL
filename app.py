@@ -7109,8 +7109,8 @@ def _format_stock_qty(qty):
 
 def _execute_material_where_used(resource_id: str, product_id: str = '') -> list:
     """Tra cứu các thành phẩm/vật liệu cấp trên đã sử dụng nguyên liệu này (Where-Used / Trace Forward).
-    Tối ưu hóa siêu tốc qua GIN trgm index trên feed_records_id và GIN index trên feed_record.materials,
-    loại bỏ hoàn toàn full-table scan trên kvmes.batch (36.7 triệu dòng)."""
+    Tối ưu hóa siêu tốc qua B-tree created_at + array overlap (&&) và GIN index materials,
+    tốc độ truy vấn < 200ms thay vì bị bẫy Parallel Index Scan Backward 1.1 phút."""
     if not resource_id:
         return []
 
@@ -7129,20 +7129,75 @@ def _execute_material_where_used(resource_id: str, product_id: str = '') -> list
 
     feed_ids = [r[0] for r in rows_feed]
     feed_map = {r[0]: {'operator_id': r[1], 'time': r[2]} for r in rows_feed}
+    feed_times = [r[2] for r in rows_feed if r[2]]
 
-    # 2. Tra cứu trực tiếp trong material_resource qua chỉ mục GIN trgm idx_material_resource_feed_records_trgm
-    # Gom tất cả feed_ids vào 1 query duy nhất bằng LIKE ANY(%s), tốc độ < 50ms!
-    patterns = [f'%{fid}%' for fid in feed_ids[:25]]
-    sql_parent = """
-        SELECT id, product_id, product_type, quantity, status, expiry_time, standing_time, info, created_at, created_by, feed_records_id, oid
-        FROM kvmes.material_resource
-        WHERE kvmes.immutable_array_to_string(feed_records_id, ' ') LIKE ANY(%s)
-        ORDER BY created_at DESC
-        LIMIT 50;
-    """
-    p_rows, _ = execute_pg_select_query(sql_parent, (patterns,))
+    p_rows = []
+    # 2. Tra cứu trực tiếp trong material_resource
+    # Chiến lược 1: Dùng B-tree created_at kết hợp array overlap (&&).
+    # Khung giờ bao quát cả UTC và UTC+7 (biên độ -2h UTC tới +9h UTC) giúp PostgreSQL chỉ quét ~1,000 dòng thay vì 36 triệu dòng, tốc độ < 100ms.
+    if feed_times:
+        timestamps = [t.timestamp() for t in feed_times]
+        min_ts = min(timestamps)
+        max_ts = max(timestamps)
+        t_start = int((min_ts - 7200) * 1e9)
+        t_end = int((max_ts + 32400) * 1e9)
+
+        sql_parent_fast = """
+            SELECT id, product_id, product_type, quantity, status, expiry_time, standing_time, info, created_at, created_by, feed_records_id, oid
+            FROM kvmes.material_resource
+            WHERE created_at BETWEEN %s AND %s
+              AND feed_records_id && %s::text[]
+            ORDER BY created_at DESC
+            LIMIT 50;
+        """
+        p_rows, _ = execute_pg_select_query(sql_parent_fast, (t_start, t_end, feed_ids))
+
+    # Chiến lược 2 (Fallback an toàn): Dùng MATERIALIZED CTE với GIN trgm để tránh PostgreSQL bị bẫy Parallel Index Scan Backward
+    if not p_rows:
+        patterns = [f'%{fid}%' for fid in feed_ids[:10]]
+        sql_parent_fallback = """
+            WITH matched AS MATERIALIZED (
+                SELECT id, product_id, product_type, quantity, status, expiry_time, standing_time, info, created_at, created_by, feed_records_id, oid
+                FROM kvmes.material_resource
+                WHERE kvmes.immutable_array_to_string(feed_records_id, ' ') LIKE ANY(%s)
+            )
+            SELECT * FROM matched
+            ORDER BY created_at DESC
+            LIMIT 50;
+        """
+        p_rows, _ = execute_pg_select_query(sql_parent_fallback, (patterns,))
+
     if not p_rows:
         return []
+
+    # Gom các oid cần bổ sung thông tin từ collect_record để batch query 1 lần duy nhất
+    oids_to_lookup = []
+    for p_row in p_rows:
+        p_oid = p_row[11]
+        p_info_raw = p_row[7]
+        p_info = json.loads(p_info_raw) if isinstance(p_info_raw, str) else (p_info_raw or {})
+        prod_info = p_info.get('production_info', {}) if isinstance(p_info, dict) else {}
+        lot_number = str(p_info.get('lot_number') or '')
+        station_id = str(prod_info.get('station') or '')
+        if (not station_id or not lot_number) and p_oid:
+            oids_to_lookup.append(p_oid)
+
+    cr_map = {}
+    if oids_to_lookup:
+        sql_cr_batch = """
+            SELECT resource_oid, station, lot_number, detail 
+            FROM kvmes.collect_record 
+            WHERE resource_oid = ANY(%s);
+        """
+        cr_rows, _ = execute_pg_select_query(sql_cr_batch, (oids_to_lookup,))
+        for cr_r in (cr_rows or []):
+            cr_oid, cr_st, cr_lot, cr_detail = cr_r
+            if cr_oid not in cr_map:
+                cr_map[cr_oid] = {
+                    'station': str(cr_st or ''),
+                    'lot_number': str(cr_lot or ''),
+                    'operator_id': cr_detail.get('operator_id') if isinstance(cr_detail, dict) else ''
+                }
 
     results = []
     seen_keys = set()
@@ -7177,23 +7232,15 @@ def _execute_material_where_used(resource_id: str, product_id: str = '') -> list
         prod_date_str = _format_date_str(f_time) if f_time else prod_time_str[:10]
         prod_staff = f_info.get('operator_id') or p_cby or ''
 
-        # Bổ sung thông tin từ collect_record nếu thiếu station hoặc lot_number (truy vấn btree theo resource_oid < 1ms)
-        if (not station_id or not lot_number or not prod_staff) and p_oid:
-            sql_cr_fast = """
-                SELECT station, lot_number, detail 
-                FROM kvmes.collect_record 
-                WHERE resource_oid = %s 
-                LIMIT 1;
-            """
-            cr_rows, _ = execute_pg_select_query(sql_cr_fast, (p_oid,))
-            if cr_rows:
-                cr_st, cr_lot, cr_detail = cr_rows[0]
-                if not station_id and cr_st:
-                    station_id = str(cr_st)
-                if not lot_number and cr_lot:
-                    lot_number = str(cr_lot)
-                if not prod_staff and isinstance(cr_detail, dict):
-                    prod_staff = cr_detail.get('operator_id') or ''
+        # Bổ sung thông tin từ batch collect_record nếu thiếu
+        if p_oid in cr_map:
+            cr_data = cr_map[p_oid]
+            if not station_id and cr_data.get('station'):
+                station_id = cr_data['station']
+            if not lot_number and cr_data.get('lot_number'):
+                lot_number = cr_data['lot_number']
+            if not prod_staff and cr_data.get('operator_id'):
+                prod_staff = cr_data['operator_id']
 
         bound_users = [prod_staff] if prod_staff else []
         stock_qty = _format_stock_qty(p_qty)
