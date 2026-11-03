@@ -197,7 +197,6 @@
             <div class="kd-tablist" role="tablist" aria-label="Danh mục FYI">
                 <button type="button" class="kd-tab active" role="tab" id="fyiTabProductType" aria-selected="true" aria-controls="fyiPanelProductType" tabindex="0">
                     <span class="tab-label">Product Type</span>
-                    <span class="kd-tab-badge">15</span>
                 </button>
                 <div class="kd-tab-indicator" aria-hidden="true"></div>
             </div>
@@ -207,15 +206,6 @@
         <div class="kd-tabpanels-wrapper">
             <!-- Panel 1: Product Type (Dropdown items from Thông số kỹ thuật) -->
             <div class="kd-tabpanel active" role="tabpanel" id="fyiPanelProductType" aria-labelledby="fyiTabProductType" tabindex="0">
-                <div class="kd-panel-toolbar">
-                    <div class="kd-filter-search-box">
-                        <span class="material-symbols-outlined search-icon" aria-hidden="true">search</span>
-                        <input type="text" id="fyiProductTypeSearch" placeholder="Lọc nhanh theo mã, ký hiệu hoặc tên loại sản phẩm (I, P, S, T, W, G...)..." autocomplete="off" aria-label="Lọc loại sản phẩm">
-                    </div>
-                    <div class="kd-toolbar-hint">
-                        <span class="material-symbols-outlined">touch_app</span> Click để sao chép mã hiển thị
-                    </div>
-                </div>
                 <div class="kd-product-type-grid" id="fyiProductTypeList">
                     <!-- Populated dynamically by fab_speed_dial.js -->
                 </div>
@@ -270,20 +260,23 @@
                                 Nanosecond / Epoch ➔ Date time
                             </span>
                         </div>
-                        <div class="kd-convert-input-row">
-                            <div class="kd-input-box-wrap" id="epochInputWrap">
-                                <input type="text" id="epochInput" class="kd-convert-input font-mono" placeholder="Nhập Nanosecond (19 số), Millisecond (13 số), Second..." autocomplete="off" spellcheck="false">
-                                <button type="button" class="clear-btn" id="epochInputClearBtn" title="Xóa nội dung" aria-label="Xóa nội dung" tabindex="-1">
-                                    <svg class="clear-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                                    </svg>
-                                </button>
-                            </div>
-                            <div class="kd-btn-group">
-                                <button type="button" class="kd-action-btn btn-now" id="epochBtnNow" title="Điền thời điểm hiện tại">
-                                    <span class="material-symbols-outlined">update</span> Now
-                                </button>
+                        <div class="kd-field-col">
+                            <label for="epochInput" class="kd-convert-label">Timestamp / Epoch (Nanosecond):</label>
+                            <div class="kd-convert-input-row">
+                                <div class="kd-input-box-wrap" id="epochInputWrap">
+                                    <input type="text" id="epochInput" class="kd-convert-input font-mono" placeholder="Nhập Nanosecond (19 số), Millisecond (13 số), Second..." autocomplete="off" spellcheck="false">
+                                    <button type="button" class="clear-btn" id="epochInputClearBtn" title="Xóa nội dung" aria-label="Xóa nội dung" tabindex="-1">
+                                        <svg class="clear-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                                        </svg>
+                                    </button>
+                                </div>
+                                <div class="kd-btn-group">
+                                    <button type="button" class="kd-action-btn btn-now" id="epochBtnNow" title="Điền thời điểm hiện tại">
+                                        <span class="material-symbols-outlined">update</span> Now
+                                    </button>
+                                </div>
                             </div>
                         </div>
 

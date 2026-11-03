@@ -469,27 +469,13 @@
         container.innerHTML = filtered.map(item => `
 
             <div class="kd-product-type-card" role="button" tabindex="0" data-code="${escapeHtml(item.id)}" data-label="${escapeHtml(item.label)}" title="Click để sao chép ${escapeHtml(item.label)}">
-
                 <div class="kd-card-badge-wrap">
-
-                    <span class="kd-code-pill" style="--pill-color: ${item.color}">${escapeHtml(item.code)}</span>
-
+                    <span class="kd-code-pill">${escapeHtml(item.code)}</span>
                 </div>
-
                 <div class="kd-card-body">
-
                     <div class="kd-card-label">${escapeHtml(item.label)}</div>
-
                     <div class="kd-card-sub">${escapeHtml(item.name)}</div>
-
                 </div>
-
-                <button type="button" class="kd-card-copy-btn" aria-label="Sao chép ${escapeHtml(item.label)}">
-
-                    <span class="material-symbols-outlined" aria-hidden="true">content_copy</span>
-
-                </button>
-
             </div>
 
         `).join('');

@@ -13674,65 +13674,6 @@ body.is-spa-frame .kd-fab-container {
     display: none !important;
 }
 
-/* Toolbar inside panels */
-.kd-panel-toolbar {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    gap: 16px !important;
-    margin-bottom: 18px !important;
-    width: 100% !important;
-    box-sizing: border-box !important;
-}
-
-.kd-filter-search-box {
-    position: relative !important;
-    flex: 1 !important;
-    max-width: 540px !important;
-}
-
-.kd-filter-search-box .search-icon {
-    position: absolute !important;
-    left: 12px !important;
-    top: 50% !important;
-    transform: translateY(-50%) !important;
-    font-size: 19px !important;
-    color: #64748b !important;
-    pointer-events: none !important;
-}
-
-.kd-filter-search-box input {
-    width: 100% !important;
-    box-sizing: border-box !important;
-    padding: 10px 14px 10px 38px !important;
-    background: rgba(30, 41, 59, 0.7) !important;
-    border: 1px solid rgba(255, 255, 255, 0.12) !important;
-    border-radius: 9px !important;
-    color: #f8fafc !important;
-    font-size: 13px !important;
-    outline: none !important;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease !important;
-}
-
-.kd-filter-search-box input:focus {
-    background: rgba(30, 41, 59, 0.95) !important;
-    border-color: var(--color-text-accent, #3dd5c0) !important;
-    box-shadow: 0 0 0 3px rgba(61, 213, 192, 0.18) !important;
-}
-
-.kd-toolbar-hint {
-    display: inline-flex !important;
-    align-items: center !important;
-    gap: 5px !important;
-    font-size: 12.5px !important;
-    color: #64748b !important;
-    white-space: nowrap !important;
-}
-
-.kd-toolbar-hint .material-symbols-outlined {
-    font-size: 16px !important;
-}
-
 /* Product Types Cards Grid (Responsive Multi-Column Balanced Layout) */
 .kd-product-type-grid {
     display: grid !important;
@@ -13757,15 +13698,10 @@ body.is-spa-frame .kd-fab-container {
 }
 
 .kd-product-type-card:hover {
-    background: rgba(30, 41, 59, 0.9) !important;
-    border-color: var(--color-border-interactive, rgba(61, 213, 192, 0.4)) !important;
+    background: rgba(30, 41, 59, 0.92) !important;
+    border-color: var(--color-border-interactive, rgba(61, 213, 192, 0.45)) !important;
     transform: translateY(-2px) !important;
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3) !important;
-}
-
-.kd-product-type-card:hover .kd-card-copy-btn {
-    opacity: 1 !important;
-    color: var(--color-text-accent, #3dd5c0) !important;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35) !important;
 }
 
 .kd-code-pill {
@@ -13774,16 +13710,23 @@ body.is-spa-frame .kd-fab-container {
     justify-content: center !important;
     min-width: 38px !important;
     height: 38px !important;
-    padding: 0 6px !important;
+    padding: 0 8px !important;
     border-radius: 9px !important;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
     font-size: 13.5px !important;
     font-weight: 700 !important;
-    letter-spacing: -0.3px !important;
-    color: var(--pill-color, #38bdf8) !important;
-    background: color-mix(in srgb, var(--pill-color, #38bdf8) 15%, transparent) !important;
-    border: 1px solid color-mix(in srgb, var(--pill-color, #38bdf8) 35%, transparent) !important;
+    letter-spacing: 0.3px !important;
+    color: var(--color-text-accent, #3dd5c0) !important;
+    background: rgba(61, 213, 192, 0.1) !important;
+    border: 1px solid rgba(61, 213, 192, 0.28) !important;
     flex-shrink: 0 !important;
+    transition: all 0.18s ease !important;
+}
+
+.kd-product-type-card:hover .kd-code-pill {
+    background: rgba(61, 213, 192, 0.2) !important;
+    border-color: var(--color-text-accent, #3dd5c0) !important;
+    color: #ffffff !important;
 }
 
 .kd-card-body {
@@ -13807,22 +13750,6 @@ body.is-spa-frame .kd-fab-container {
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
-}
-
-.kd-card-copy-btn {
-    background: transparent !important;
-    border: none !important;
-    color: #64748b !important;
-    padding: 6px !important;
-    border-radius: 6px !important;
-    cursor: pointer !important;
-    opacity: 0.6 !important;
-    flex-shrink: 0 !important;
-    transition: all 0.18s ease !important;
-}
-
-.kd-card-copy-btn .material-symbols-outlined {
-    font-size: 18px !important;
 }
 
 /* ══════════════════════════════════════════════════════════════════════
