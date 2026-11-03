@@ -59,7 +59,9 @@ function getProductTypeLabel(pt) {
 
 function findProductType(val) {
     if (!val) return null;
-    const clean = val.trim().toUpperCase();
+    let clean = val.trim().toUpperCase();
+    if (clean === 'WO') clean = 'W0';
+    if (clean.startsWith('WO - ')) clean = 'W0 - ' + clean.slice(5);
 
     // 1. Exact match against display label (e.g. "I - INNER_LINER")
     for (const pt of productTypes) {

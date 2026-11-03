@@ -7133,39 +7133,78 @@ def _execute_material_where_used(resource_id: str, product_id: str = '') -> list
 
     p_rows = []
     # 2. Tra cứu trực tiếp trong material_resource
-    # Chiến lược 1: Dùng B-tree created_at kết hợp array overlap (&&).
-    # Khung giờ bao quát cả UTC và UTC+7 (biên độ -2h UTC tới +9h UTC) giúp PostgreSQL chỉ quét ~1,000 dòng thay vì 36 triệu dòng, tốc độ < 100ms.
+    # Nhận diện dòng chảy sản phẩm MES:
+    # - Các bán thành phẩm (I: Inner Liner, P: Carcass Ply, S: Sidewall, T: Tread, W/W0/WO: Bead, B: Belt, N: Cap Ply, R: Squeeze, D: Ply)
+    #   đều được cấp vào công đoạn thành hình lốp mộc -> Parent product_type = 'GREEN_TIRE'
+    # - Lốp mộc (75... GREEN_TIRE) được đưa vào công đoạn lưu hóa -> Parent product_type = 'TIRE'
+    expected_parent_type = None
+    res_upper = resource_id.upper()
+    if res_upper.startswith(('I', 'P', 'S', 'T', 'W', 'B', 'N', 'R', 'D')):
+        expected_parent_type = 'GREEN_TIRE'
+    elif res_upper.startswith('75'):
+        expected_parent_type = 'TIRE'
+
+    # Chiến lược 1: Dùng B-tree created_at kết hợp array overlap (&&) và lọc theo product_type.
+    # Khung giờ mở rộng (-4h tới +48h) giúp quét chính xác khoảng thời gian lốp được sản xuất, tốc độ < 50ms.
     if feed_times:
         timestamps = [t.timestamp() for t in feed_times]
         min_ts = min(timestamps)
         max_ts = max(timestamps)
-        t_start = int((min_ts - 7200) * 1e9)
-        t_end = int((max_ts + 32400) * 1e9)
+        t_start = int((min_ts - 14400) * 1e9)
+        t_end = int((max_ts + 172800) * 1e9)
 
-        sql_parent_fast = """
-            SELECT id, product_id, product_type, quantity, status, expiry_time, standing_time, info, created_at, created_by, feed_records_id, oid
-            FROM kvmes.material_resource
-            WHERE created_at BETWEEN %s AND %s
-              AND feed_records_id && %s::text[]
-            ORDER BY created_at DESC
-            LIMIT 50;
-        """
-        p_rows, _ = execute_pg_select_query(sql_parent_fast, (t_start, t_end, feed_ids))
-
-    # Chiến lược 2 (Fallback an toàn): Dùng MATERIALIZED CTE với GIN trgm để tránh PostgreSQL bị bẫy Parallel Index Scan Backward
-    if not p_rows:
-        patterns = [f'%{fid}%' for fid in feed_ids[:10]]
-        sql_parent_fallback = """
-            WITH matched AS MATERIALIZED (
+        if expected_parent_type:
+            sql_parent_fast = """
                 SELECT id, product_id, product_type, quantity, status, expiry_time, standing_time, info, created_at, created_by, feed_records_id, oid
                 FROM kvmes.material_resource
-                WHERE kvmes.immutable_array_to_string(feed_records_id, ' ') LIKE ANY(%s)
-            )
-            SELECT * FROM matched
-            ORDER BY created_at DESC
-            LIMIT 50;
-        """
-        p_rows, _ = execute_pg_select_query(sql_parent_fallback, (patterns,))
+                WHERE created_at BETWEEN %s AND %s
+                  AND product_type = %s
+                  AND feed_records_id && %s::text[]
+                ORDER BY created_at DESC
+                LIMIT 50;
+            """
+            p_rows, _ = execute_pg_select_query(sql_parent_fast, (t_start, t_end, expected_parent_type, feed_ids))
+
+        if not p_rows:
+            sql_parent_fast_fallback = """
+                SELECT id, product_id, product_type, quantity, status, expiry_time, standing_time, info, created_at, created_by, feed_records_id, oid
+                FROM kvmes.material_resource
+                WHERE created_at BETWEEN %s AND %s
+                  AND feed_records_id && %s::text[]
+                ORDER BY created_at DESC
+                LIMIT 50;
+            """
+            p_rows, _ = execute_pg_select_query(sql_parent_fast_fallback, (t_start, t_end, feed_ids))
+
+    # Chiến lược 2 (Fallback an toàn): Dùng MATERIALIZED CTE với GIN trgm để tránh PostgreSQL bị bẫy Parallel Index Scan Backward 1.1 phút
+    if not p_rows and feed_ids:
+        patterns = [f'%{fid}%' for fid in feed_ids[:3]]
+        if expected_parent_type:
+            sql_parent_fallback = """
+                WITH matched AS MATERIALIZED (
+                    SELECT id, product_id, product_type, quantity, status, expiry_time, standing_time, info, created_at, created_by, feed_records_id, oid
+                    FROM kvmes.material_resource
+                    WHERE product_type = %s
+                      AND kvmes.immutable_array_to_string(feed_records_id, ' ') LIKE ANY(%s)
+                )
+                SELECT * FROM matched
+                ORDER BY created_at DESC
+                LIMIT 50;
+            """
+            p_rows, _ = execute_pg_select_query(sql_parent_fallback, (expected_parent_type, patterns))
+
+        if not p_rows:
+            sql_parent_fallback_any = """
+                WITH matched AS MATERIALIZED (
+                    SELECT id, product_id, product_type, quantity, status, expiry_time, standing_time, info, created_at, created_by, feed_records_id, oid
+                    FROM kvmes.material_resource
+                    WHERE kvmes.immutable_array_to_string(feed_records_id, ' ') LIKE ANY(%s)
+                )
+                SELECT * FROM matched
+                ORDER BY created_at DESC
+                LIMIT 50;
+            """
+            p_rows, _ = execute_pg_select_query(sql_parent_fallback_any, (patterns,))
 
     if not p_rows:
         return []

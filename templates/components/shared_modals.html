@@ -170,7 +170,7 @@
      ============================================================================== -->
 
 <!-- ==============================================================================
-     MODAL 1: FYI (ACCESSIBLE TABS: Product Type, etc.)
+     MODAL 1: FYI (ACCESSIBLE TABS: Product Type)
      ============================================================================== -->
 <div id="fyiModal" class="custom-modal kd-utility-modal hidden" role="dialog" aria-modal="true" aria-labelledby="fyiModalTitle">
     <div class="custom-modal-content kd-utility-modal-content">
@@ -179,8 +179,7 @@
             <div class="kd-utility-title-wrap">
                 <span class="material-symbols-outlined kd-utility-header-icon" aria-hidden="true">info</span>
                 <div>
-                    <h3 class="kd-utility-modal-title" id="fyiModalTitle">FYI — Tra Cứu Thông Tin</h3>
-                    <div class="kd-utility-modal-sub">Danh mục quy chuẩn loại sản phẩm và tiền tố mã vạch KDMES</div>
+                    <h3 class="kd-utility-modal-title" id="fyiModalTitle">FYI</h3>
                 </div>
             </div>
             <div class="kd-utility-header-actions">
@@ -193,18 +192,12 @@
             </div>
         </div>
 
-        <!-- Accessible Tabs Navigation -->
+        <!-- Accessible Tabs Navigation (Left-aligned, label only) -->
         <div class="kd-tabs-container" id="fyiTabsContainer">
             <div class="kd-tablist" role="tablist" aria-label="Danh mục FYI">
                 <button type="button" class="kd-tab active" role="tab" id="fyiTabProductType" aria-selected="true" aria-controls="fyiPanelProductType" tabindex="0">
-                    <span class="material-symbols-outlined tab-icon" aria-hidden="true">category</span>
                     <span class="tab-label">Product Type</span>
                     <span class="kd-tab-badge">15</span>
-                </button>
-                <button type="button" class="kd-tab" role="tab" id="fyiTabBarcodePrefix" aria-selected="false" aria-controls="fyiPanelBarcodePrefix" tabindex="-1">
-                    <span class="material-symbols-outlined tab-icon" aria-hidden="true">qr_code_2</span>
-                    <span class="tab-label">Tiền tố mã tem</span>
-                    <span class="kd-tab-badge">10</span>
                 </button>
                 <div class="kd-tab-indicator" aria-hidden="true"></div>
             </div>
@@ -227,32 +220,21 @@
                     <!-- Populated dynamically by fab_speed_dial.js -->
                 </div>
             </div>
-
-            <!-- Panel 2: Barcode Prefixes -->
-            <div class="kd-tabpanel hidden" role="tabpanel" id="fyiPanelBarcodePrefix" aria-labelledby="fyiTabBarcodePrefix" tabindex="0">
-                <div class="kd-panel-toolbar">
-                    <div class="kd-toolbar-hint">Quy ước ký hiệu tiền tố mã vạch các bán thành phẩm và thành phẩm</div>
-                </div>
-                <div class="kd-prefix-grid" id="fyiBarcodePrefixList">
-                    <!-- Populated dynamically by fab_speed_dial.js -->
-                </div>
-            </div>
         </div>
     </div>
 </div>
 
 <!-- ==============================================================================
-     MODAL 2: CONVERT (ACCESSIBLE TABS: Epoch, Date to Nanosecond)
+     MODAL 2: CONVERT (UNIFIED 2-WAY PANEL: Epoch & Datetime)
      ============================================================================== -->
 <div id="convertModal" class="custom-modal kd-utility-modal hidden" role="dialog" aria-modal="true" aria-labelledby="convertModalTitle">
     <div class="custom-modal-content kd-utility-modal-content">
         <!-- Header -->
         <div class="kd-utility-modal-header">
             <div class="kd-utility-title-wrap">
-                <span class="material-symbols-outlined kd-utility-header-icon" aria-hidden="true">schedule</span>
+                <span class="material-symbols-outlined kd-utility-header-icon" aria-hidden="true">sync_alt</span>
                 <div>
-                    <h3 class="kd-utility-modal-title" id="convertModalTitle">Convert — Bộ Chuyển Đổi Thời Gian</h3>
-                    <div class="kd-utility-modal-sub">Chuyển đổi đa chiều Epoch Nanoseconds, Milliseconds, Seconds & Datetime</div>
+                    <h3 class="kd-utility-modal-title" id="convertModalTitle">Convert</h3>
                 </div>
             </div>
             <div class="kd-utility-header-actions">
@@ -265,16 +247,11 @@
             </div>
         </div>
 
-        <!-- Accessible Tabs Navigation -->
+        <!-- Accessible Tabs Navigation (Left-aligned, label only) -->
         <div class="kd-tabs-container" id="convertTabsContainer">
             <div class="kd-tablist" role="tablist" aria-label="Công cụ chuyển đổi">
-                <button type="button" class="kd-tab active" role="tab" id="convertTabEpoch" aria-selected="true" aria-controls="convertPanelEpoch" tabindex="0">
-                    <span class="material-symbols-outlined tab-icon" aria-hidden="true">timer</span>
-                    <span class="tab-label">Epoch</span>
-                </button>
-                <button type="button" class="kd-tab" role="tab" id="convertTabDateToEpoch" aria-selected="false" aria-controls="convertPanelDateToEpoch" tabindex="-1">
-                    <span class="material-symbols-outlined tab-icon" aria-hidden="true">event</span>
-                    <span class="tab-label">Date to Nanosecond</span>
+                <button type="button" class="kd-tab active" role="tab" id="convertTabUnified" aria-selected="true" aria-controls="convertPanelUnified" tabindex="0">
+                    <span class="tab-label">Epoch & Datetime</span>
                 </button>
                 <div class="kd-tab-indicator" aria-hidden="true"></div>
             </div>
@@ -282,70 +259,81 @@
 
         <!-- Accessible Tab Panels -->
         <div class="kd-tabpanels-wrapper">
-            <!-- Panel 1: Epoch -> UTC, Local, Relative -->
-            <div class="kd-tabpanel active" role="tabpanel" id="convertPanelEpoch" aria-labelledby="convertTabEpoch" tabindex="0">
-                <div class="kd-convert-section">
-                    <div class="kd-input-label-row">
-                        <label for="epochInput" class="kd-convert-label">Nhập Timestamp (Tự động nhận diện Nanosecond 19 số, Millisecond 13 số, Second 10 số):</label>
-                        <span class="kd-unit-badge" id="epochUnitBadge">Chờ nhập timestamp...</span>
-                    </div>
-                    <div class="kd-convert-input-row">
-                        <div class="kd-input-box-wrap">
-                            <input type="text" id="epochInput" class="kd-convert-input font-mono" placeholder="Ví dụ: 1793685065000000000 hoặc 1793685065" autocomplete="off" spellcheck="false">
+            <!-- Unified Panel: 2-way conversion (Nanosecond ➔ Datetime & Datetime ➔ Nanosecond) -->
+            <div class="kd-tabpanel active" role="tabpanel" id="convertPanelUnified" aria-labelledby="convertTabUnified" tabindex="0">
+                <div class="kd-convert-dual-grid">
+                    <!-- Column 1: Nanosecond / Epoch ➔ Datetime -->
+                    <div class="kd-convert-column">
+                        <div class="kd-column-header">
+                            <span class="kd-column-title">
+                                <span class="material-symbols-outlined column-icon">timer</span>
+                                Nanosecond / Epoch ➔ Ngày Giờ
+                            </span>
+                            <span class="kd-unit-badge" id="epochUnitBadge">Chờ nhập timestamp...</span>
                         </div>
-                        <div class="kd-btn-group">
-                            <button type="button" class="kd-action-btn btn-now" id="epochBtnNow" title="Điền thời điểm hiện tại">
-                                <span class="material-symbols-outlined">update</span> Hiện tại
-                            </button>
-                            <button type="button" class="kd-action-btn btn-sample" id="epochBtnSample" title="Điền mẫu timestamp MES">
-                                <span class="material-symbols-outlined">data_object</span> Mẫu MES
-                            </button>
-                            <button type="button" class="kd-action-btn btn-clear" id="epochBtnClear" title="Xóa nội dung nhập">
-                                <span class="material-symbols-outlined">backspace</span>
-                            </button>
+                        <div class="kd-convert-input-row">
+                            <div class="kd-input-box-wrap">
+                                <input type="text" id="epochInput" class="kd-convert-input font-mono" placeholder="Nhập Nanosecond (19 số), Millisecond (13 số), Second..." autocomplete="off" spellcheck="false">
+                            </div>
+                            <div class="kd-btn-group">
+                                <button type="button" class="kd-action-btn btn-now" id="epochBtnNow" title="Điền thời điểm hiện tại">
+                                    <span class="material-symbols-outlined">update</span> Hiện tại
+                                </button>
+                                <button type="button" class="kd-action-btn btn-sample" id="epochBtnSample" title="Điền mẫu timestamp MES">
+                                    Mẫu MES
+                                </button>
+                                <button type="button" class="kd-action-btn btn-clear" id="epochBtnClear" title="Xóa nội dung nhập">
+                                    <span class="material-symbols-outlined">backspace</span>
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                </div>
 
-                <!-- Results Output Card -->
-                <div class="kd-results-card" id="epochResultsContainer">
-                    <!-- Populated dynamically by fab_speed_dial.js -->
-                </div>
-            </div>
-
-            <!-- Panel 2: Date & Time to Nanoseconds -->
-            <div class="kd-tabpanel hidden" role="tabpanel" id="convertPanelDateToEpoch" aria-labelledby="convertTabDateToEpoch" tabindex="0">
-                <div class="kd-convert-section">
-                    <div class="kd-d2e-input-grid">
-                        <div class="kd-field-col">
-                            <label for="d2eDateInput" class="kd-convert-label">Chọn Ngày:</label>
-                            <input type="date" id="d2eDateInput" class="kd-convert-input">
-                        </div>
-                        <div class="kd-field-col">
-                            <label for="d2eTimeInput" class="kd-convert-label">Chọn Giờ (HH:mm:ss):</label>
-                            <input type="time" step="1" id="d2eTimeInput" class="kd-convert-input font-mono">
-                        </div>
-                        <div class="kd-field-col">
-                            <label for="d2eTzSelect" class="kd-convert-label">Múi Giờ:</label>
-                            <select id="d2eTzSelect" class="kd-convert-select">
-                                <option value="LOCAL" selected>Giờ Máy / Cục Bộ [UTC+07:00]</option>
-                                <option value="UTC">Giờ Quốc Tế [UTC]</option>
-                            </select>
+                        <!-- Results Output Card -->
+                        <div class="kd-results-card" id="epochResultsContainer">
+                            <!-- Populated dynamically by fab_speed_dial.js -->
                         </div>
                     </div>
 
-                    <div class="kd-preset-buttons-row">
-                        <span class="kd-preset-label">Phím tắt nhanh:</span>
-                        <button type="button" class="kd-preset-btn" id="d2eBtnNow">Bây giờ</button>
-                        <button type="button" class="kd-preset-btn" id="d2eBtnShift1">06:00 (Đầu ca 1)</button>
-                        <button type="button" class="kd-preset-btn" id="d2eBtnShift2">14:00 (Đầu ca 2)</button>
-                        <button type="button" class="kd-preset-btn" id="d2eBtnShift3">22:00 (Đầu ca 3)</button>
-                    </div>
-                </div>
+                    <!-- Column 2: Date & Time ➔ Nanoseconds -->
+                    <div class="kd-convert-column">
+                        <div class="kd-column-header">
+                            <span class="kd-column-title">
+                                <span class="material-symbols-outlined column-icon">calendar_today</span>
+                                Ngày Giờ ➔ Nanosecond / Epoch
+                            </span>
+                            <span class="kd-unit-badge">Reverse</span>
+                        </div>
+                        <div class="kd-d2e-input-grid">
+                            <div class="kd-field-col">
+                                <label for="d2eDateInput" class="kd-convert-label">Chọn Ngày:</label>
+                                <input type="date" id="d2eDateInput" class="kd-convert-input">
+                            </div>
+                            <div class="kd-field-col">
+                                <label for="d2eTimeInput" class="kd-convert-label">Chọn Giờ (HH:mm:ss):</label>
+                                <input type="time" step="1" id="d2eTimeInput" class="kd-convert-input font-mono">
+                            </div>
+                            <div class="kd-field-col">
+                                <label for="d2eTzSelect" class="kd-convert-label">Múi Giờ:</label>
+                                <select id="d2eTzSelect" class="kd-convert-select">
+                                    <option value="LOCAL" selected>Máy Cục Bộ [GMT+07:00]</option>
+                                    <option value="UTC">Quốc Tế [UTC]</option>
+                                </select>
+                            </div>
+                        </div>
 
-                <!-- Reverse Results Output Card -->
-                <div class="kd-results-card" id="d2eResultsContainer">
-                    <!-- Populated dynamically by fab_speed_dial.js -->
+                        <div class="kd-preset-buttons-row">
+                            <span class="kd-preset-label">Phím tắt ca:</span>
+                            <button type="button" class="kd-preset-btn" id="d2eBtnNow">Bây giờ</button>
+                            <button type="button" class="kd-preset-btn" id="d2eBtnShift1">06:00 (Ca 1)</button>
+                            <button type="button" class="kd-preset-btn" id="d2eBtnShift2">14:00 (Ca 2)</button>
+                            <button type="button" class="kd-preset-btn" id="d2eBtnShift3">22:00 (Ca 3)</button>
+                        </div>
+
+                        <!-- Reverse Results Output Card -->
+                        <div class="kd-results-card" id="d2eResultsContainer">
+                            <!-- Populated dynamically by fab_speed_dial.js -->
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

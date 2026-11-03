@@ -208,13 +208,17 @@
         const container = document.getElementById('fyiProductTypeList');
         if (!container) return;
 
-        const q = (query || '').trim().toLowerCase();
+        const qRaw = (query || '').trim().toLowerCase();
+        const q = qRaw.replace(/^wo\b/, 'w0');
         const filtered = PRODUCT_TYPES_DATA.filter(item => {
-            if (!q) return true;
-            return item.code.toLowerCase().includes(q) ||
+            if (!qRaw) return true;
+            const codeLower = item.code.toLowerCase();
+            const labelLower = item.label.toLowerCase();
+            return codeLower.includes(q) || codeLower.includes(qRaw) ||
+                codeLower.replace('w0', 'wo').includes(qRaw) ||
                 item.id.toLowerCase().includes(q) ||
                 item.name.toLowerCase().includes(q) ||
-                item.label.toLowerCase().includes(q);
+                labelLower.includes(q) || labelLower.includes(qRaw);
         });
 
         if (filtered.length === 0) {
@@ -877,7 +881,7 @@
         document.querySelectorAll('.kd-tablist[role="tablist"]').forEach(initAccessibleTabs);
 
         // Pre-render static lists
-        renderBarcodePrefixList();
+        // Barcode prefix tab removed as requested
 
         // If this window is top-level (not embedded in an iframe), ensure FAB container is displayed
         if (window.self === window.top) {

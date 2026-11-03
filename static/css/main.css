@@ -13167,56 +13167,69 @@ body.is-spa-frame .kd-fab-container {
 
 /* Short Label Chip to the left of each action */
 .kd-speed-dial-chip {
-    background: rgba(15, 23, 42, 0.94);
-    color: #f8fafc;
-    font-size: 13px;
+    background: var(--color-bg-surface-elevated, #0f172a);
+    border: 1px solid var(--color-border-glass, rgba(61, 213, 192, 0.25));
+    color: var(--color-text-primary, #f1f5f9);
+    font-size: 11px;
     font-weight: 600;
-    letter-spacing: 0.3px;
-    padding: 5px 12px;
-    border-radius: 8px;
-    margin-right: 12px;
+    letter-spacing: 0.2px;
+    height: 22px;
+    line-height: 16px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    margin-right: 6px;
     white-space: nowrap;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.12);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     cursor: pointer;
     user-select: none;
-    transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.16s ease;
 }
 
 .kd-speed-dial-chip:hover {
-    background: #1e293b;
-    color: #38bdf8;
+    background: var(--color-interactive-bg-hover, rgba(61, 213, 192, 0.18));
+    color: var(--color-text-accent, #3dd5c0);
+    border-color: var(--color-border-interactive, rgba(61, 213, 192, 0.45));
     transform: translateX(-2px);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(56, 189, 248, 0.3);
 }
 
 /* Small white round actions */
 .kd-speed-dial-action {
-    width: 44px;
-    height: 44px;
+    width: 30px;
+    height: 30px;
+    min-width: 30px;
+    min-height: 30px;
     border-radius: 50%;
-    background: #ffffff;
-    color: #1e293b;
-    border: none;
+    background: var(--color-bg-surface-elevated, #0f172a);
+    border: 1px solid var(--color-border-interactive, rgba(61, 213, 192, 0.35));
+    color: var(--color-text-accent, #3dd5c0);
     outline: none;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 3px 6px -1px rgba(0, 0, 0, 0.22), 0 2px 4px -1px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3), 0 0 6px var(--color-border-glow, rgba(61, 213, 192, 0.2));
     cursor: pointer;
-    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
+    padding: 0;
+    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .kd-speed-dial-action:hover {
-    background: #f8fafc;
-    color: #0284c7;
+    background: var(--color-interactive-bg-hover, rgba(61, 213, 192, 0.22));
+    border-color: var(--color-text-accent, #3dd5c0);
+    color: #ffffff;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35), 0 0 10px var(--color-border-glow, rgba(61, 213, 192, 0.45));
     transform: scale(1.1);
-    box-shadow: 0 6px 12px -2px rgba(0, 0, 0, 0.28), 0 3px 6px -2px rgba(0, 0, 0, 0.2);
+}
+
+.kd-speed-dial-action:active {
+    transform: scale(0.92);
 }
 
 .kd-speed-dial-action .material-symbols-outlined {
-    font-size: 22px;
+    font-size: 16px !important;
+    line-height: 1;
+    color: inherit;
 }
 
 /* Main Floating Action Button (FAB) */
@@ -13288,17 +13301,18 @@ body.is-spa-frame .kd-fab-container {
 }
 
 .kd-utility-modal-content {
-    background: #0f172a;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 16px;
-    width: 100%;
-    max-width: 840px;
-    max-height: 88vh;
+    background: var(--color-bg-surface-elevated, #0f172a);
+    border: 1px solid var(--color-border-interactive, rgba(61, 213, 192, 0.25));
+    border-radius: 14px;
+    width: 95vw;
+    max-width: min(1080px, 95vw);
+    max-height: 90vh;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.08);
+    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.65), 0 0 20px var(--color-border-glow, rgba(61, 213, 192, 0.15));
     overflow: hidden;
-    animation: kdModalPop 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+    animation: kdModalPop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    text-align: left;
 }
 
 @keyframes kdModalPop {
@@ -13317,37 +13331,35 @@ body.is-spa-frame .kd-fab-container {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 18px 24px 14px 24px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(15, 23, 42, 0.95);
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--color-border-glass, rgba(255, 255, 255, 0.08));
+    background: var(--color-bg-surface-elevated, rgba(15, 23, 42, 0.95));
 }
 
 .kd-utility-title-wrap {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
+    text-align: left;
 }
 
 .kd-utility-header-icon {
-    font-size: 28px;
-    color: #38bdf8;
-    background: rgba(56, 189, 248, 0.12);
-    padding: 8px;
-    border-radius: 10px;
+    font-size: 20px;
+    color: var(--color-text-accent, #3dd5c0);
+    background: var(--color-interactive-bg-hover, rgba(61, 213, 192, 0.12));
+    padding: 6px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .kd-utility-modal-title {
     margin: 0;
-    font-size: 17px;
+    font-size: 16px;
     font-weight: 700;
-    color: #f8fafc;
+    color: var(--color-text-primary, #f8fafc);
     letter-spacing: -0.2px;
-}
-
-.kd-utility-modal-sub {
-    font-size: 12.5px;
-    color: #94a3b8;
-    margin-top: 2px;
 }
 
 .kd-utility-header-actions {
@@ -13356,53 +13368,51 @@ body.is-spa-frame .kd-fab-container {
     gap: 8px;
 }
 
-/* Accessible Tabs Container & Tablist */
+/* Accessible Tabs Container & Tablist (Left-aligned, No icons) */
 .kd-tabs-container {
-    padding: 0 24px;
-    background: rgba(15, 23, 42, 0.8);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 0 20px;
+    background: var(--color-bg-surface, rgba(15, 23, 42, 0.85));
+    border-bottom: 1px solid var(--color-border-glass, rgba(255, 255, 255, 0.08));
+    text-align: left;
 }
 
 .kd-tablist {
     position: relative;
     display: flex;
     align-items: center;
-    gap: 8px;
+    justify-content: flex-start;
+    gap: 6px;
+    text-align: left;
 }
 
 .kd-tab {
     position: relative;
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    padding: 14px 18px;
+    gap: 6px;
+    padding: 10px 14px;
     background: transparent;
     border: none;
     outline: none;
-    color: #94a3b8;
-    font-size: 13.5px;
+    color: var(--color-text-secondary, #94a3b8);
+    font-size: 13px;
     font-weight: 600;
     cursor: pointer;
     user-select: none;
-    transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: color 0.18s ease;
 }
 
 .kd-tab:hover {
-    color: #f1f5f9;
+    color: var(--color-text-primary, #f1f5f9);
 }
 
 .kd-tab.active {
-    color: #38bdf8;
+    color: var(--color-text-accent, #3dd5c0);
 }
 
 .kd-tab:focus-visible {
     border-radius: 6px;
-    box-shadow: 0 0 0 2px #38bdf8;
-}
-
-.kd-tab .tab-icon {
-    font-size: 18px;
-    color: inherit;
+    box-shadow: 0 0 0 2px var(--color-text-accent, #3dd5c0);
 }
 
 .kd-tab-badge {
@@ -13416,20 +13426,21 @@ body.is-spa-frame .kd-fab-container {
 }
 
 .kd-tab.active .kd-tab-badge {
-    background: rgba(56, 189, 248, 0.2);
-    color: #38bdf8;
+    background: rgba(61, 213, 192, 0.2);
+    color: var(--color-text-accent, #3dd5c0);
 }
 
-/* Sliding active-tab indicator under role="tab" with aria-selected="true" */
+/* Sliding active-tab indicator under role="tab" */
 .kd-tab-indicator {
     position: absolute;
     bottom: 0;
     left: 0;
-    height: 3px;
-    background: linear-gradient(90deg, #38bdf8, #818cf8);
+    height: 2.5px;
+    background: var(--color-text-accent, #3dd5c0);
     border-radius: 3px 3px 0 0;
     pointer-events: none;
-    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 0 8px var(--color-border-glow, rgba(61, 213, 192, 0.6));
+    transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1), width 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Tab Panels */
@@ -14041,13 +14052,24 @@ body.is-spa-frame .kd-fab-container {
     min-height: 30px;
     border-radius: 50%;
     padding: 0;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25), 0 0 6px rgba(14, 165, 233, 0.35);
-    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+    border: 1px solid var(--color-border-interactive, rgba(61, 213, 192, 0.35));
+    background: var(--color-interactive-bg-hover, rgba(61, 213, 192, 0.12));
+    color: var(--color-text-accent, #3dd5c0);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25), 0 0 6px var(--color-border-glow, rgba(61, 213, 192, 0.2));
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    outline: none;
+    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .kd-fab-container.in-sidebar .kd-fab-main:hover {
+    background: var(--color-interactive-bg-active, rgba(61, 213, 192, 0.22));
+    border-color: var(--color-text-accent, #3dd5c0);
+    color: #ffffff;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35), 0 0 10px var(--color-border-glow, rgba(61, 213, 192, 0.45));
     transform: scale(1.1);
-    box-shadow: 0 3px 8px rgba(14, 165, 233, 0.5), 0 0 10px rgba(14, 165, 233, 0.4);
 }
 
 .kd-fab-container.in-sidebar .kd-fab-main:active {
@@ -14057,12 +14079,107 @@ body.is-spa-frame .kd-fab-container {
 .kd-fab-container.in-sidebar .kd-fab-icon {
     width: 16px;
     height: 16px;
-    stroke-width: 2.8;
+    stroke: currentColor;
+    stroke-width: 2.6;
+    transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .kd-fab-container.in-sidebar .kd-speed-dial-menu {
     position: absolute;
-    bottom: 38px;
-    right: -4px;
+    bottom: 36px;
+    right: 0;
+    display: flex;
+    flex-direction: column-reverse;
+    align-items: flex-end;
+    gap: 6px;
+    pointer-events: none;
     z-index: 99995;
+}
+
+
+/* ======================================================================
+   DUAL-COLUMN INTEGRATED CONVERT GRID (2-WAY INSTANT CONVERSION)
+   ====================================================================== */
+.kd-convert-dual-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    align-items: stretch;
+    width: 100%;
+}
+
+@media (max-width: 860px) {
+    .kd-convert-dual-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.kd-convert-column {
+    background: rgba(30, 41, 59, 0.4);
+    border: 1px solid var(--color-border-glass, rgba(255, 255, 255, 0.08));
+    border-radius: 12px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    text-align: left;
+}
+
+.kd-column-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.kd-column-title {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--color-text-primary, #f1f5f9);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.kd-column-title .column-icon {
+    font-size: 17px;
+    color: var(--color-text-accent, #3dd5c0);
+}
+
+.kd-preset-btn {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--color-border-glass, rgba(255, 255, 255, 0.1));
+    color: #cbd5e1;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.16s ease;
+}
+
+.kd-preset-btn:hover {
+    background: var(--color-interactive-bg-hover, rgba(61, 213, 192, 0.15));
+    color: var(--color-text-accent, #3dd5c0);
+    border-color: var(--color-border-interactive, rgba(61, 213, 192, 0.35));
+}
+
+
+/* ==============================================================================
+ * TECHNICAL SPECIFICATIONS - PRODUCT TYPE DROPDOWN SAFEGUARD (NO TRUNCATION)
+ * ============================================================================== */
+#product-type-dropdown.dropdown-list {
+    min-width: 380px !important;
+    width: max-content !important;
+    max-width: min(96vw, 540px) !important;
+    z-index: 300 !important;
+}
+
+#product-type-dropdown .dropdown-item {
+    white-space: nowrap !important;
+    text-overflow: clip !important;
+    overflow: visible !important;
+    font-size: 14px !important;
+    padding: 9px 16px !important;
 }
