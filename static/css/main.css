@@ -227,71 +227,6 @@
     --table-scroll-single-max-h: 115px;
 }
 
-/* 1. COMPACT MODE (~40px) */
-body.density-compact,
-.density-compact {
-    --table-row-height: 40px;
-    --table-cell-py: 8px;
-    --table-cell-px: 10px;
-    --table-th-py: 3px;
-    --table-th-px: 10px;
-    --table-font-size: 12.5px;
-    --table-header-font-size: 12.5px;
-    --table-line-height: 1.35;
-    --table-footer-py: 2px;
-    --table-footer-px: 10px;
-    --output-header-py: 3px;
-    --btn-export-w: 86px;
-    --btn-export-h: 20px;
-    --table-container-single-min-h: auto;
-    --table-container-single-max-h: 140px;
-    --table-scroll-single-min-h: auto;
-    --table-scroll-single-max-h: 90px;
-}
-
-/* 2. DEFAULT MODE (~48px) */
-body.density-default,
-.density-default {
-    --table-row-height: 48px;
-    --table-cell-py: 12px;
-    --table-cell-px: 14px;
-    --table-th-py: 5px;
-    --table-th-px: 14px;
-    --table-font-size: 13.5px;
-    --table-header-font-size: 13.5px;
-    --table-line-height: 1.45;
-    --table-footer-py: 4px;
-    --table-footer-px: 14px;
-    --output-header-py: 5px;
-    --btn-export-w: 94px;
-    --btn-export-h: 22px;
-    --table-container-single-min-h: auto;
-    --table-container-single-max-h: 175px;
-    --table-scroll-single-min-h: auto;
-    --table-scroll-single-max-h: 115px;
-}
-
-/* 3. COMFORTABLE MODE (~56px) */
-body.density-comfortable,
-.density-comfortable {
-    --table-row-height: 56px;
-    --table-cell-py: 16px;
-    --table-cell-px: 18px;
-    --table-th-py: 7px;
-    --table-th-px: 18px;
-    --table-font-size: 14px;
-    --table-header-font-size: 14px;
-    --table-line-height: 1.5;
-    --table-footer-py: 6px;
-    --table-footer-px: 16px;
-    --output-header-py: 7px;
-    --btn-export-w: 102px;
-    --btn-export-h: 24px;
-    --table-container-single-min-h: auto;
-    --table-container-single-max-h: 210px;
-    --table-scroll-single-min-h: auto;
-    --table-scroll-single-max-h: 140px;
-}
 
 /* ══════════════════════════════════════════════════════════════════════
    5. LIGHT THEME PARALLEL SEMANTIC TOKENS (MỤC 6)
@@ -393,7 +328,7 @@ body.theme-light {
     }
 }
 
-/* ===== TOP-RIGHT QUICK ACTIONS TOOLBAR (THEME & DENSITY ICON BUTTONS) ===== */
+/* ===== TOP-RIGHT QUICK ACTIONS TOOLBAR (THEME & UTILITY BUTTONS) ===== */
 .top-quick-actions {
     position: fixed;
     top: 12px;
@@ -611,8 +546,9 @@ body {
     position: absolute;
     top: calc(100% + 6px);
     left: 0;
-    right: 0;
     min-width: 100%;
+    width: max-content;
+    max-width: min(92vw, 440px);
     background: var(--color-bg-surface-elevated);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
@@ -2219,59 +2155,6 @@ td {
     pointer-events: none;
 }
 
-/* Compact Density Overrides */
-body.density-compact .row-count,
-.density-compact .row-count,
-body.density-compact .spec-stat-badge,
-.density-compact .spec-stat-badge {
-    padding: 1px 6px;
-    font-size: 11px;
-}
-
-body.density-compact .btn-export-excel,
-.density-compact .btn-export-excel {
-    width: var(--btn-export-w, 86px);
-    height: var(--btn-export-h, 20px);
-    border-radius: 4px;
-}
-
-body.density-compact .btn-export-excel .text,
-.density-compact .btn-export-excel .text {
-    font-size: 11px;
-}
-
-body.density-compact .btn-export-excel .icon svg,
-.density-compact .btn-export-excel .icon svg {
-    width: 12px;
-    height: 12px;
-}
-
-/* Comfortable Density Overrides */
-body.density-comfortable .row-count,
-.density-comfortable .row-count,
-body.density-comfortable .spec-stat-badge,
-.density-comfortable .spec-stat-badge {
-    padding: 2px 10px;
-    font-size: 12px;
-}
-
-body.density-comfortable .btn-export-excel,
-.density-comfortable .btn-export-excel {
-    width: var(--btn-export-w, 102px);
-    height: var(--btn-export-h, 24px);
-    border-radius: 6px;
-}
-
-body.density-comfortable .btn-export-excel .text,
-.density-comfortable .btn-export-excel .text {
-    font-size: 12px;
-}
-
-body.density-comfortable .btn-export-excel .icon svg,
-.density-comfortable .btn-export-excel .icon svg {
-    width: 15px;
-    height: 15px;
-}
 
 /* ===== SKELETON LOADING SYSTEM (INPUTS, BUTTONS, COMPONENTS) ===== */
 @keyframes skeletonShimmer {
@@ -8149,7 +8032,6 @@ button.winx-btn:disabled {
 .details-modal-close:focus-visible,
 .details-modal-copy:focus-visible,
 .comparison-close-btn:focus-visible,
-.density-toggle-btn:focus-visible,
 .dropdown-item:focus-visible,
 .context-menu-item:focus-visible {
     outline: 2px solid var(--color-border-focus) !important;
@@ -12872,10 +12754,10 @@ body.theme-light .material-transfer-retry-btn.is-success {
         color: var(--color-text-accent, #3dd5c0) !important;
     }
 
-    /* 16. Hide topQuickActions from sidebar drawer on mobile viewports only */
-    #sidebar #topQuickActions,
-    #sidebar .top-quick-actions {
-        display: none !important;
+    /* 16. Keep Quick Actions Toolbar (Theme & FAB) visible in user badge on mobile */
+    #sidebar #topQuickActions.in-user-badge,
+    #sidebar .top-quick-actions.in-user-badge {
+        display: flex !important;
     }
 }
 
@@ -13624,7 +13506,7 @@ body.is-spa-frame .kd-fab-container {
 /* Product Types Cards Grid */
 .kd-product-type-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 12px;
 }
 
@@ -14137,3 +14019,50 @@ body.is-spa-frame .kd-fab-container {
     transform: translateX(-50%) translateY(0);
 }
 
+
+
+/* Scaled-down Floating Action Button (FAB) inside Sidebar Quick Actions Toolbar */
+.kd-fab-container.in-sidebar {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    z-index: 20;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto;
+    flex-shrink: 0;
+}
+
+.kd-fab-container.in-sidebar .kd-fab-main {
+    width: 30px;
+    height: 30px;
+    min-width: 30px;
+    min-height: 30px;
+    border-radius: 50%;
+    padding: 0;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25), 0 0 6px rgba(14, 165, 233, 0.35);
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+}
+
+.kd-fab-container.in-sidebar .kd-fab-main:hover {
+    transform: scale(1.1);
+    box-shadow: 0 3px 8px rgba(14, 165, 233, 0.5), 0 0 10px rgba(14, 165, 233, 0.4);
+}
+
+.kd-fab-container.in-sidebar .kd-fab-main:active {
+    transform: scale(0.92);
+}
+
+.kd-fab-container.in-sidebar .kd-fab-icon {
+    width: 16px;
+    height: 16px;
+    stroke-width: 2.8;
+}
+
+.kd-fab-container.in-sidebar .kd-speed-dial-menu {
+    position: absolute;
+    bottom: 38px;
+    right: -4px;
+    z-index: 99995;
+}

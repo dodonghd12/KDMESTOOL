@@ -883,7 +883,7 @@
         if (window.self === window.top) {
             const fabContainer = document.getElementById('kdFabContainer');
             if (fabContainer) {
-                fabContainer.style.setProperty('display', 'block', 'important');
+                fabContainer.style.setProperty('display', 'inline-flex', 'important');
             }
         }
     }

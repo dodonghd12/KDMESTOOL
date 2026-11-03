@@ -264,122 +264,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const savedTheme = localStorage.getItem(THEME_STORAGE_KEY) || 'dark';
     applyTheme(savedTheme);
 
-    // ══════════════════════════════════════════════════════════════════════
-    // 2. TABLE DENSITY MODE MANAGEMENT (COMPACT: 40px / DEFAULT: 48px / COMFORTABLE: 56px)
-    // ══════════════════════════════════════════════════════════════════════
-    const DENSITY_STORAGE_KEY = 'kd_table_density';
-
-    const DENSITY_CONFIG = {
-        compact: {
-            icon: 'density_small',
-            label: 'Thu gọn',
-            badgeClass: 'compact',
-            nextMode: 'default',
-            nextLabel: 'Tiêu chuẩn (48px)',
-            title: 'Chế độ: Thu gọn (40px). Bấm để chuyển sang Tiêu chuẩn (48px)',
-            ariaLabel: 'Mật độ bảng: Thu gọn (40px). Bấm chuyển sang Tiêu chuẩn'
-        },
-        default: {
-            icon: 'density_medium',
-            label: 'Tiêu chuẩn',
-            badgeClass: 'default',
-            nextMode: 'comfortable',
-            nextLabel: 'Thoáng (56px)',
-            title: 'Chế độ: Tiêu chuẩn (48px). Bấm để chuyển sang Thoáng (56px)',
-            ariaLabel: 'Mật độ bảng: Tiêu chuẩn (48px). Bấm chuyển sang Thoáng'
-        },
-        comfortable: {
-            icon: 'density_large',
-            label: 'Thoáng',
-            badgeClass: 'comfortable',
-            nextMode: 'compact',
-            nextLabel: 'Thu gọn (40px)',
-            title: 'Chế độ: Thoáng (56px). Bấm để chuyển sang Thu gọn (40px)',
-            ariaLabel: 'Mật độ bảng: Thoáng (56px). Bấm chuyển sang Thu gọn'
-        }
-    };
-
-    function applyDensity(density, notifyIframes = true) {
-        if (!DENSITY_CONFIG[density]) {
-            density = 'default';
-        }
-        const config = DENSITY_CONFIG[density];
-
-        // Gán class mật độ trên document.body
-        document.body.classList.remove('density-compact', 'density-default', 'density-comfortable');
-        document.body.classList.add(`density-${density}`);
-
-        const densityQuickBtn = document.getElementById('densityQuickBtn');
-        const densityQuickIcon = document.getElementById('densityQuickIcon');
-        const densityIcon = document.getElementById('densityIcon');
-        const densityBadge = document.getElementById('densityBadge');
-        const densityToggleBtn = document.getElementById('densityToggleMenuItem');
-
-        if (densityQuickIcon) {
-            densityQuickIcon.textContent = config.icon;
-        }
-        if (densityQuickBtn) {
-            densityQuickBtn.setAttribute('title', config.title);
-            densityQuickBtn.setAttribute('aria-label', config.ariaLabel);
-        }
-
-        if (densityIcon) {
-            densityIcon.textContent = config.icon;
-        }
-        if (densityBadge) {
-            densityBadge.textContent = config.label;
-            densityBadge.className = `density-badge ${config.badgeClass}`;
-        }
-        if (densityToggleBtn) {
-            densityToggleBtn.setAttribute('title', config.title);
-            densityToggleBtn.setAttribute('aria-label', config.ariaLabel);
-        }
-
-        // Đồng bộ tới tất cả iframes (trong SPA Shell)
-        if (notifyIframes) {
-            document.querySelectorAll('iframe').forEach(frame => {
-                try {
-                    if (frame.contentDocument && frame.contentDocument.body) {
-                        frame.contentDocument.body.classList.remove('density-compact', 'density-default', 'density-comfortable');
-                        frame.contentDocument.body.classList.add(`density-${density}`);
-                    }
-                } catch (e) {}
-            });
-        }
-
-        // Thông báo cho trang hiện tại cập nhật sticky layout
-        document.dispatchEvent(new CustomEvent('density:changed', { detail: density }));
-    }
-
-    function toggleDensity() {
-        let current = localStorage.getItem(DENSITY_STORAGE_KEY) || 'default';
-        if (!DENSITY_CONFIG[current]) current = 'default';
-        const next = DENSITY_CONFIG[current].nextMode;
-        localStorage.setItem(DENSITY_STORAGE_KEY, next);
-
-        // Micro-interaction icon spin animation
-        const densityQuickIcon = document.getElementById('densityQuickIcon');
-        const densityIcon = document.getElementById('densityIcon');
-        [densityQuickIcon, densityIcon].forEach(icon => {
-            if (icon) {
-                icon.classList.remove('spin-toggle');
-                void icon.offsetWidth;
-                icon.classList.add('spin-toggle');
-            }
-        });
-
-        applyDensity(next);
-    }
-
-    // Khởi tạo trạng thái Density từ localStorage (mặc định: default - 48px)
-    const savedDensity = localStorage.getItem(DENSITY_STORAGE_KEY) || 'default';
-    applyDensity(savedDensity);
-
-    // Lắng nghe sự kiện đồng bộ giữa các Tab/Cửa sổ
+    // Lắng nghe sự kiện đồng bộ Theme giữa các Tab/Cửa sổ
     window.addEventListener('storage', (e) => {
-        if (e.key === DENSITY_STORAGE_KEY && e.newValue) {
-            applyDensity(e.newValue);
-        }
         if (e.key === THEME_STORAGE_KEY && e.newValue) {
             applyTheme(e.newValue);
         }
@@ -469,11 +355,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Density Mode Toggle Button
-        if (e.target.closest('#densityQuickBtn') || e.target.closest('#densityToggleMenuItem')) {
-            toggleDensity();
-            return;
-        }
 
         // Tools actions
         const actionEl = e.target.closest('[data-action]');

@@ -1,5 +1,5 @@
-// ===== INSTANT THEME & TABLE DENSITY SYNC =====
-(function syncInitialThemeAndDensity() {
+// ===== INSTANT THEME SYNC =====
+(function syncInitialTheme() {
     try {
         // Theme Sync (default: dark)
         const savedTheme = localStorage.getItem('kd_theme') || 'dark';
@@ -9,17 +9,8 @@
             document.body.classList.toggle('theme-light', isLight);
         }
 
-        // Density Sync (default: default [48px], supported: compact, default, comfortable)
-        const savedDensity = localStorage.getItem('kd_table_density') || 'default';
-        if (document.body) {
-            document.body.classList.remove('density-compact', 'density-default', 'density-comfortable');
-            document.body.classList.add(`density-${savedDensity}`);
-        }
     } catch (e) {
         document.documentElement.setAttribute('data-theme', 'dark');
-        if (document.body) {
-            document.body.classList.add('density-default');
-        }
     }
 })();
 
@@ -1174,7 +1165,6 @@ function initTableStickySync() {
         _stickySyncDebounceTimer = setTimeout(updateTableStickyOffsets, 80);
     }, { passive: true });
 
-    document.addEventListener('density:changed', updateTableStickyOffsets);
 }
 
 initSkeletonState();

@@ -340,7 +340,7 @@ body {
     }
 }
 
-/* ===== TOP-RIGHT QUICK ACTIONS TOOLBAR (THEME & DENSITY ICON BUTTONS) ===== */
+/* ===== TOP-RIGHT QUICK ACTIONS TOOLBAR (THEME & UTILITY BUTTONS) ===== */
 .top-quick-actions {
     position: fixed;
     top: 12px;
@@ -648,7 +648,6 @@ main p {
 .sidebar.close a > span:not(.material-symbols-outlined),
 .sidebar.close .dropdown-btn > span:not(.material-symbols-outlined),
 .sidebar.close .sidebar-btn > span:not(.material-symbols-outlined),
-.sidebar.close .density-menu-item > span:not(.material-symbols-outlined),
 .sidebar.close .logo-animated,
 .sidebar.close .user-info-text,
 .sidebar.close .top-quick-actions {
@@ -658,7 +657,6 @@ main p {
 .sidebar.close a,
 .sidebar.close .dropdown-btn,
 .sidebar.close .sidebar-btn,
-.sidebar.close .density-menu-item,
 .sidebar.close .user-profile-badge {
     height: 42px;
     width: 42px;
@@ -1393,10 +1391,10 @@ body.theme-light .quick-action-btn:hover {
         height: 100% !important;
     }
 
-    /* 6. Hide topQuickActions from sidebar drawer on mobile viewports only */
-    #sidebar #topQuickActions,
-    #sidebar .top-quick-actions {
-        display: none !important;
+    /* 6. Keep Quick Actions Toolbar (Theme & FAB) visible in user badge on mobile */
+    #sidebar #topQuickActions.in-user-badge,
+    #sidebar .top-quick-actions.in-user-badge {
+        display: flex !important;
     }
 }
 

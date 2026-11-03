@@ -221,17 +221,14 @@
             loadedSet.add(frameId);
             loadedCount = loadedSet.size;
 
-            // Apply active theme and density to newly loaded frame
+            // Apply active theme to newly loaded frame
             try {
                 const frameEl = document.getElementById(frameId);
                 const isLight = (localStorage.getItem('kd_theme') || 'dark') === 'light';
-                const savedDensity = localStorage.getItem('kd_table_density') || 'default';
                 if (frameEl && frameEl.contentDocument) {
                     frameEl.contentDocument.documentElement?.setAttribute('data-theme', isLight ? 'light' : 'dark');
                     if (frameEl.contentDocument.body) {
                         frameEl.contentDocument.body.classList.toggle('theme-light', isLight);
-                        frameEl.contentDocument.body.classList.remove('density-compact', 'density-default', 'density-comfortable');
-                        frameEl.contentDocument.body.classList.add(`density-${savedDensity}`);
                     }
                 }
             } catch (e) {}

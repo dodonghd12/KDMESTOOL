@@ -239,11 +239,8 @@
                 <span class="material-symbols-outlined user-avatar-icon">account_circle</span>
                 <span class="user-info-text">{{ user_ip }} <span class="user-status-dot" title="Online"></span></span>
             </div>
-            <!-- Quick Actions Toolbar (Density & Theme Icon Buttons) inside User Profile Badge -->
+            <!-- Quick Actions Toolbar (Theme & Utility FAB Buttons) inside User Profile Badge -->
             <div id="topQuickActions" class="top-quick-actions in-user-badge" role="toolbar" aria-label="Tùy chọn hiển thị">
-                <button id="densityQuickBtn" class="quick-action-btn" type="button" aria-label="Chuyển đổi mật độ bảng" title="Chế độ: Tiêu chuẩn (48px). Bấm để chuyển sang Thoáng (56px)">
-                    <span class="material-symbols-outlined quick-btn-icon" id="densityQuickIcon">density_medium</span>
-                </button>
                 <button id="themeQuickBtn" class="quick-action-btn theme-toggle-btn-4" type="button" aria-label="Chuyển đổi giao diện Sáng / Tối" title="Chuyển đổi giao diện Sáng / Tối">
                     <svg
                         class="bulb-svg"
@@ -278,6 +275,39 @@
                         </g>
                     </svg>
                 </button>
+
+                <!-- Floating Action Button & Speed Dial inside Sidebar (Right side of themeQuickBtn) -->
+                <div class="kd-fab-container in-sidebar" id="kdFabContainer">
+                    <!-- Semi-transparent backdrop when speed dial is open -->
+                    <div class="kd-speed-dial-backdrop" id="kdSpeedDialBackdrop" aria-hidden="true"></div>
+
+                    <!-- Speed Dial Actions Menu (fanning up out of the FAB) -->
+                    <div class="kd-speed-dial-menu" id="kdSpeedDialMenu" role="menu" aria-label="Quick Actions">
+                        <!-- Action 2: FYI -->
+                        <div class="kd-speed-dial-item" id="kdSpeedDialFyiItem">
+                            <span class="kd-speed-dial-chip" id="kdSpeedDialFyiChip" role="button" tabindex="0" aria-label="Mở bảng tra cứu FYI">FYI</span>
+                            <button type="button" class="kd-speed-dial-action" id="kdSpeedDialFyiBtn" role="menuitem" aria-label="Mở bảng tra cứu FYI">
+                                <span class="material-symbols-outlined" aria-hidden="true">help_outline</span>
+                            </button>
+                        </div>
+
+                        <!-- Action 1: Convert -->
+                        <div class="kd-speed-dial-item" id="kdSpeedDialConvertItem">
+                            <span class="kd-speed-dial-chip" id="kdSpeedDialConvertChip" role="button" tabindex="0" aria-label="Mở công cụ chuyển đổi Convert">Convert</span>
+                            <button type="button" class="kd-speed-dial-action" id="kdSpeedDialConvertBtn" role="menuitem" aria-label="Mở công cụ chuyển đổi Convert">
+                                <span class="material-symbols-outlined" aria-hidden="true">sync_alt</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Main Floating Action Button (FAB) scaled down for sidebar -->
+                    <button type="button" class="kd-fab-main" id="kdFabMain" aria-haspopup="true" aria-expanded="false" aria-controls="kdSpeedDialMenu" aria-label="Mở menu tiện ích nhanh" title="Tiện ích mở rộng (FYI & Convert)">
+                        <svg class="kd-fab-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
