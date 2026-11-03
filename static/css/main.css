@@ -9992,6 +9992,75 @@ body.theme-light .ocr-dropzone {
     gap: 10px;
 }
 
+/* Segmented Tabs for MES Tracking */
+.mes-tracking-tabs-container {
+    display: flex;
+    align-items: center;
+}
+
+.mes-segmented-tabs {
+    display: flex;
+    align-items: center;
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid var(--color-border-glass);
+    border-radius: 9px;
+    padding: 3px;
+    gap: 4px;
+}
+
+.mes-segmented-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 4px 11px;
+    background: transparent;
+    border: none;
+    border-radius: 7px;
+    color: var(--color-text-muted);
+    font-size: 12.5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    user-select: none;
+}
+
+.mes-segmented-tab .tab-icon {
+    font-size: 16px;
+    color: inherit;
+}
+
+.mes-segmented-tab:hover {
+    color: var(--color-text-primary);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.mes-segmented-tab.active {
+    background: var(--color-bg-surface-elevated-solid, #1e293b);
+    color: var(--color-text-accent);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), inset 0 0 0 1px var(--color-border-interactive);
+    font-weight: 600;
+}
+
+.mes-segmented-tab .tab-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--color-text-secondary);
+}
+
+.mes-segmented-tab.active .tab-badge {
+    background: var(--color-border-interactive);
+    color: var(--color-text-primary);
+}
+
 .mes-modal-search-box {
     display: flex;
     align-items: center;

@@ -7107,6 +7107,193 @@ def _format_stock_qty(qty):
     except Exception:
         return str(qty)
 
+def _execute_material_where_used(resource_id: str, product_id: str = '') -> list:
+    """Tra cứu các thành phẩm/vật liệu cấp trên đã sử dụng nguyên liệu này (Where-Used).
+    Tối ưu hóa query PostgreSQL trực tiếp qua GIN index và giải quyết triệt để lỗi khoảng trắng trailing spaces."""
+    if not resource_id:
+        return []
+
+    # 1. Tìm các feed_record đã tiêu hao nguyên liệu này
+    json_pattern = json.dumps([{"feed_resources": [{"resource_id": resource_id}]}])
+    sql_feed_search = """
+        SELECT id, operator_id, time 
+        FROM kvmes.feed_record 
+        WHERE materials @> %s::jsonb
+        ORDER BY time DESC
+        LIMIT 50;
+    """
+    rows_feed, _ = execute_pg_select_query(sql_feed_search, (json_pattern,))
+    if not rows_feed:
+        return []
+
+    feed_ids = [r[0] for r in rows_feed]
+    feed_map = {r[0]: {'operator_id': r[1], 'time': r[2]} for r in rows_feed}
+
+    results = []
+    seen_keys = set()
+
+    # 2. Nhánh A: Tra cứu trực tiếp trong material_resource qua chỉ mục feed_records_id
+    for fid in feed_ids[:15]:
+        sql_parent = """
+            SELECT id, product_id, product_type, quantity, status, expiry_time, standing_time, info, created_at, created_by, feed_records_id
+            FROM kvmes.material_resource
+            WHERE kvmes.immutable_array_to_string(feed_records_id, ' ') LIKE %s
+            ORDER BY created_at DESC
+            LIMIT 5;
+        """
+        p_rows, _ = execute_pg_select_query(sql_parent, (f'%{fid}%',))
+        for p_row in p_rows:
+            p_id, p_pid, p_ptype, p_qty, p_st, p_exp, p_std, p_info_raw, p_cat, p_cby, p_fids = p_row
+            key = (p_id, p_pid)
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
+
+            p_info = json.loads(p_info_raw) if isinstance(p_info_raw, str) else (p_info_raw or {})
+            prod_info = p_info.get('production_info', {}) if isinstance(p_info, dict) else {}
+            lot_number = str(p_info.get('lot_number') or '')
+            station_id = str(prod_info.get('station') or '')
+
+            f_info = feed_map.get(fid, {})
+            f_time = f_info.get('time')
+            prod_time_str = _format_dt_to_iso(f_time) if f_time else _format_epoch_nanos_to_iso(p_cat)
+            prod_date_str = _format_date_str(f_time) if f_time else prod_time_str[:10]
+            prod_staff = f_info.get('operator_id') or p_cby or ''
+            bound_users = [prod_staff] if prod_staff else []
+            stock_qty = _format_stock_qty(p_qty)
+            exp_time_val = _format_epoch_nanos_to_iso(p_exp)
+
+            res_obj = {
+                "abnormality": 0,
+                "boundResourceUserIds": bound_users,
+                "boundResourceUserIDs": bound_users,
+                "carrierId": "",
+                "causesOfAbnormalities": 0,
+                "expiryTime": exp_time_val or '',
+                "lotNumber": lot_number,
+                "productId": p_pid or '',
+                "productID": p_pid or '',
+                "productType": p_ptype or '',
+                "productionDate": prod_date_str,
+                "productionId": lot_number,
+                "productionQuantity": stock_qty or '1',
+                "productionStaff": prod_staff,
+                "productionTime": prod_time_str,
+                "quantity": stock_qty or '1',
+                "resourceId": p_id,
+                "resourceID": p_id,
+                "stationId": station_id,
+                "stationID": station_id,
+                "status": p_st,
+                "stockQuantity": stock_qty or '1'
+            }
+            results.append(res_obj)
+
+    # 3. Nhánh B: Tra cứu qua batch -> collect_record (đã trim khoảng trắng sửa lỗi MES 8810)
+    for fid in feed_ids[:10]:
+        sql_batch = "SELECT work_order, number FROM kvmes.batch WHERE %s = ANY(records_id);"
+        b_rows, _ = execute_pg_select_query(sql_batch, (fid,))
+        for b_row in b_rows:
+            wo, bnum = b_row
+            if not wo:
+                continue
+            sql_cr = """
+                SELECT sequence, lot_number, station, resource_oid, detail, created_at
+                FROM kvmes.collect_record
+                WHERE trim(work_order) = trim(%s) AND sequence = %s;
+            """
+            cr_rows, _ = execute_pg_select_query(sql_cr, (wo, bnum))
+            for cr_row in cr_rows:
+                res_oid = cr_row[3]
+                if not res_oid:
+                    continue
+                sql_mr_oid = """
+                    SELECT id, product_id, product_type, quantity, status, expiry_time, standing_time, info, created_at, created_by
+                    FROM kvmes.material_resource
+                    WHERE oid = %s;
+                """
+                mr_rows, _ = execute_pg_select_query(sql_mr_oid, (res_oid,))
+                for m_row in mr_rows:
+                    m_id, m_pid, m_ptype, m_qty, m_st, m_exp, m_std, m_info_raw, m_cat, m_cby = m_row
+                    key = (m_id, m_pid)
+                    if key in seen_keys:
+                        continue
+                    seen_keys.add(key)
+
+                    m_info = json.loads(m_info_raw) if isinstance(m_info_raw, str) else (m_info_raw or {})
+                    prod_info = m_info.get('production_info', {}) if isinstance(m_info, dict) else {}
+                    lot_number = str(m_info.get('lot_number') or cr_row[1] or '')
+                    station_id = str(prod_info.get('station') or cr_row[2] or '')
+
+                    f_info = feed_map.get(fid, {})
+                    f_time = f_info.get('time')
+                    prod_time_str = _format_dt_to_iso(f_time) if f_time else _format_epoch_nanos_to_iso(m_cat)
+                    prod_date_str = _format_date_str(f_time) if f_time else prod_time_str[:10]
+                    cr_detail = cr_row[4] if isinstance(cr_row[4], dict) else {}
+                    prod_staff = cr_detail.get('operator_id') or f_info.get('operator_id') or m_cby or ''
+                    bound_users = [prod_staff] if prod_staff else []
+                    stock_qty = _format_stock_qty(m_qty)
+                    exp_time_val = _format_epoch_nanos_to_iso(m_exp)
+
+                    res_obj = {
+                        "abnormality": 0,
+                        "boundResourceUserIds": bound_users,
+                        "boundResourceUserIDs": bound_users,
+                        "carrierId": "",
+                        "causesOfAbnormalities": 0,
+                        "expiryTime": exp_time_val or '',
+                        "lotNumber": lot_number,
+                        "productId": m_pid or '',
+                        "productID": m_pid or '',
+                        "productType": m_ptype or '',
+                        "productionDate": prod_date_str,
+                        "productionId": lot_number,
+                        "productionQuantity": stock_qty or '1',
+                        "productionStaff": prod_staff,
+                        "productionTime": prod_time_str,
+                        "quantity": stock_qty or '1',
+                        "resourceId": m_id,
+                        "resourceID": m_id,
+                        "stationId": station_id,
+                        "stationID": station_id,
+                        "status": m_st,
+                        "stockQuantity": stock_qty or '1'
+                    }
+                    results.append(res_obj)
+
+    return results
+
+@app.route('/api/mes/material-where-used', methods=['GET', 'POST'])
+@app.route('/api/mes/material-usage-history', methods=['GET', 'POST'])
+@login_required
+def get_mes_material_where_used():
+    """API tra cứu nơi sử dụng nguyên liệu (Where-Used / Trace Forward),
+    tìm các bán thành phẩm hoặc thành phẩm đầu ra đã tiêu hao nguyên liệu này."""
+    if request.method == 'POST':
+        payload = request.get_json(silent=True) or {}
+        resource_id = str(payload.get('resource_id') or payload.get('resourceID') or '').strip()
+        product_id = str(payload.get('product_id') or payload.get('productID') or '').strip()
+    else:
+        resource_id = str(request.args.get('resource_id') or request.args.get('resourceID') or '').strip()
+        product_id = str(request.args.get('product_id') or request.args.get('productID') or '').strip()
+
+    if not resource_id:
+        return jsonify({'success': False, 'message': 'Thiếu Resource ID', 'data': []}), 400
+
+    try:
+        results = _execute_material_where_used(resource_id, product_id)
+        return jsonify({
+            'success': True,
+            'data': results
+        })
+    except Exception as e:
+        logger.error(f"get_mes_material_where_used error ({resource_id}): {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'message': f"Lỗi tra cứu Where-Used: {str(e)}",
+            'data': []
+        }), 500
+
 @app.route('/api/mes/material-history', methods=['POST'])
 @login_required
 def get_mes_material_history():
@@ -7294,84 +7481,7 @@ def get_mes_material_history():
 
         else:
             # TYPE 1: Tra cứu nguồn gốc ngược (Where this barcode was used)
-            json_pattern = json.dumps([{"feed_resources": [{"resource_id": resource_id}]}])
-            sql_feed_search = """
-                SELECT id, operator_id, time 
-                FROM kvmes.feed_record 
-                WHERE materials @> %s::jsonb
-                ORDER BY time DESC
-                LIMIT 50;
-            """
-            rows_feed, _ = execute_pg_select_query(sql_feed_search, (json_pattern,))
-            if not rows_feed:
-                return jsonify({'success': True, 'data': []})
-
-            feed_ids = [r[0] for r in rows_feed]
-            feed_map = {r[0]: {'operator_id': r[1], 'time': r[2]} for r in rows_feed}
-
-            parent_mr_rows = []
-            for fid in feed_ids[:10]:
-                sql_parent = """
-                    SELECT id, product_id, product_type, quantity, status, expiry_time, standing_time, info, created_at, created_by, feed_records_id
-                    FROM kvmes.material_resource
-                    WHERE kvmes.immutable_array_to_string(feed_records_id, ' ') LIKE %s
-                    ORDER BY created_at DESC
-                    LIMIT 5;
-                """
-                p_rows, _ = execute_pg_select_query(sql_parent, (f'%{fid}%',))
-                for p_row in p_rows:
-                    parent_mr_rows.append((p_row, fid))
-
-            results = []
-            seen_keys = set()
-            for p_row, matched_fid in parent_mr_rows:
-                p_id, p_pid, p_ptype, p_qty, p_st, p_exp, p_std, p_info_raw, p_cat, p_cby, p_fids = p_row
-                key = (p_id, p_pid)
-                if key in seen_keys:
-                    continue
-                seen_keys.add(key)
-
-                p_info = json.loads(p_info_raw) if isinstance(p_info_raw, str) else (p_info_raw or {})
-                prod_info = p_info.get('production_info', {}) if isinstance(p_info, dict) else {}
-                lot_number = str(p_info.get('lot_number') or '')
-                station_id = str(prod_info.get('station') or '')
-
-                f_info = feed_map.get(matched_fid, {})
-                f_time = f_info.get('time')
-                prod_time_str = _format_dt_to_iso(f_time) if f_time else _format_epoch_nanos_to_iso(p_cat)
-                prod_date_str = _format_date_str(f_time) if f_time else prod_time_str[:10]
-                prod_staff = f_info.get('operator_id') or p_cby or ''
-                bound_users = [prod_staff] if prod_staff else []
-                stock_qty = _format_stock_qty(p_qty)
-
-                exp_time_val = _format_epoch_nanos_to_iso(p_exp)
-
-                res_obj = {
-                    "abnormality": 0,
-                    "boundResourceUserIds": bound_users,
-                    "boundResourceUserIDs": bound_users,
-                    "carrierId": "",
-                    "causesOfAbnormalities": 0,
-                    "expiryTime": exp_time_val or '',
-                    "lotNumber": lot_number,
-                    "productId": p_pid or '',
-                    "productID": p_pid or '',
-                    "productType": p_ptype or '',
-                    "productionDate": prod_date_str,
-                    "productionId": lot_number,
-                    "productionQuantity": stock_qty,
-                    "productionStaff": prod_staff,
-                    "productionTime": prod_time_str,
-                    "quantity": stock_qty,
-                    "resourceId": p_id,
-                    "resourceID": p_id,
-                    "stationId": station_id,
-                    "stationID": station_id,
-                    "status": p_st,
-                    "stockQuantity": stock_qty
-                }
-                results.append(res_obj)
-
+            results = _execute_material_where_used(resource_id, product_id)
             return jsonify({
                 'success': True,
                 'data': results
