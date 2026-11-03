@@ -13170,21 +13170,21 @@ body.is-spa-frame .kd-fab-container {
     background: var(--color-bg-surface-elevated, #0f172a);
     border: 1px solid var(--color-border-glass, rgba(61, 213, 192, 0.25));
     color: var(--color-text-primary, #f1f5f9);
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 600;
-    letter-spacing: 0.2px;
-    height: 22px;
-    line-height: 16px;
-    padding: 2px 8px;
-    border-radius: 6px;
-    margin-right: 6px;
+    letter-spacing: 0.3px;
+    height: auto;
+    line-height: normal;
+    padding: 5px 12px;
+    border-radius: 8px;
+    margin-right: 12px;
     white-space: nowrap;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.08);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     cursor: pointer;
     user-select: none;
-    transition: all 0.16s ease;
+    transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .kd-speed-dial-chip:hover {
@@ -13196,10 +13196,10 @@ body.is-spa-frame .kd-fab-container {
 
 /* Small white round actions */
 .kd-speed-dial-action {
-    width: 30px;
-    height: 30px;
-    min-width: 30px;
-    min-height: 30px;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
     border-radius: 50%;
     background: var(--color-bg-surface-elevated, #0f172a);
     border: 1px solid var(--color-border-interactive, rgba(61, 213, 192, 0.35));
@@ -13208,18 +13208,18 @@ body.is-spa-frame .kd-fab-container {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3), 0 0 6px var(--color-border-glow, rgba(61, 213, 192, 0.2));
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 0 0 8px var(--color-border-glow, rgba(61, 213, 192, 0.2));
     cursor: pointer;
     padding: 0;
-    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .kd-speed-dial-action:hover {
     background: var(--color-interactive-bg-hover, rgba(61, 213, 192, 0.22));
     border-color: var(--color-text-accent, #3dd5c0);
     color: #ffffff;
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35), 0 0 10px var(--color-border-glow, rgba(61, 213, 192, 0.45));
-    transform: scale(1.1);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4), 0 0 14px var(--color-border-glow, rgba(61, 213, 192, 0.45));
+    transform: scale(1.12);
 }
 
 .kd-speed-dial-action:active {
@@ -13227,7 +13227,7 @@ body.is-spa-frame .kd-fab-container {
 }
 
 .kd-speed-dial-action .material-symbols-outlined {
-    font-size: 16px !important;
+    font-size: 22px !important;
     line-height: 1;
     color: inherit;
 }
@@ -14032,69 +14032,7 @@ body.is-spa-frame .kd-fab-container {
 
 
 
-/* Scaled-down Floating Action Button (FAB) inside Sidebar Quick Actions Toolbar */
-.kd-fab-container.in-sidebar {
-    position: relative;
-    right: auto;
-    bottom: auto;
-    z-index: 20;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    pointer-events: auto;
-    flex-shrink: 0;
-}
 
-.kd-fab-container.in-sidebar .kd-fab-main {
-    width: 30px;
-    height: 30px;
-    min-width: 30px;
-    min-height: 30px;
-    border-radius: 50%;
-    padding: 0;
-    border: 1px solid var(--color-border-interactive, rgba(61, 213, 192, 0.35));
-    background: var(--color-interactive-bg-hover, rgba(61, 213, 192, 0.12));
-    color: var(--color-text-accent, #3dd5c0);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25), 0 0 6px var(--color-border-glow, rgba(61, 213, 192, 0.2));
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    outline: none;
-    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.kd-fab-container.in-sidebar .kd-fab-main:hover {
-    background: var(--color-interactive-bg-active, rgba(61, 213, 192, 0.22));
-    border-color: var(--color-text-accent, #3dd5c0);
-    color: #ffffff;
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35), 0 0 10px var(--color-border-glow, rgba(61, 213, 192, 0.45));
-    transform: scale(1.1);
-}
-
-.kd-fab-container.in-sidebar .kd-fab-main:active {
-    transform: scale(0.92);
-}
-
-.kd-fab-container.in-sidebar .kd-fab-icon {
-    width: 16px;
-    height: 16px;
-    stroke: currentColor;
-    stroke-width: 2.6;
-    transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.kd-fab-container.in-sidebar .kd-speed-dial-menu {
-    position: absolute;
-    bottom: 36px;
-    right: 0;
-    display: flex;
-    flex-direction: column-reverse;
-    align-items: flex-end;
-    gap: 6px;
-    pointer-events: none;
-    z-index: 99995;
-}
 
 
 /* ======================================================================

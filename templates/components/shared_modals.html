@@ -165,9 +165,43 @@
 </div>
 
 <!-- ==============================================================================
-     ACCESSIBLE TABS MODALS: FYI (Product Type) & Convert (Epoch & Datetime)
-     Triggered by FAB Speed Dial in Sidebar
+     FLOATING ACTION BUTTON (FAB) & SPEED DIAL (Material UI / Jetpack Compose)
+     Accessible Tabs Modal: FYI (Product Type) & Convert (Epoch & Datetime)
      ============================================================================== -->
+
+<!-- Floating Action Button & Speed Dial -->
+<div class="kd-fab-container" id="kdFabContainer">
+    <!-- Semi-transparent backdrop when speed dial is open -->
+    <div class="kd-speed-dial-backdrop" id="kdSpeedDialBackdrop" aria-hidden="true"></div>
+
+    <!-- Speed Dial Actions Menu (fanning up out of the FAB) -->
+    <div class="kd-speed-dial-menu" id="kdSpeedDialMenu" role="menu" aria-label="Quick Actions">
+        <!-- Action 2: FYI -->
+        <div class="kd-speed-dial-item" id="kdSpeedDialFyiItem">
+            <span class="kd-speed-dial-chip" id="kdSpeedDialFyiChip" role="button" tabindex="0" aria-label="Mở bảng tra cứu FYI">FYI</span>
+            <button type="button" class="kd-speed-dial-action" id="kdSpeedDialFyiBtn" role="menuitem" aria-label="Mở bảng tra cứu FYI">
+                <span class="material-symbols-outlined" aria-hidden="true">help_outline</span>
+            </button>
+        </div>
+
+        <!-- Action 1: Convert -->
+        <div class="kd-speed-dial-item" id="kdSpeedDialConvertItem">
+            <span class="kd-speed-dial-chip" id="kdSpeedDialConvertChip" role="button" tabindex="0" aria-label="Mở công cụ chuyển đổi Convert">Convert</span>
+            <button type="button" class="kd-speed-dial-action" id="kdSpeedDialConvertBtn" role="menuitem" aria-label="Mở công cụ chuyển đổi Convert">
+                <span class="material-symbols-outlined" aria-hidden="true">sync_alt</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Floating Action Button (FAB) -->
+    <button type="button" class="kd-fab-main" id="kdFabMain" aria-haspopup="true" aria-expanded="false" aria-controls="kdSpeedDialMenu" aria-label="Mở menu thao tác nhanh" title="Tiện ích mở rộng (FYI & Convert)">
+        <svg class="kd-fab-icon" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+    </button>
+</div>
+
 
 <!-- ==============================================================================
      MODAL 1: FYI (ACCESSIBLE TABS: Product Type)
