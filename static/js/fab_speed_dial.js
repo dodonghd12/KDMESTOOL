@@ -31,37 +31,21 @@
 
 
     const PRODUCT_TYPES_DATA = [
-
-        { code: 'I', id: 'INNER_LINER', name: 'Lót trong', label: 'I - INNER_LINER', color: '#38bdf8' },
-
-        { code: 'P', id: 'CARCASS_PLY', name: 'Thân lốp', label: 'P - CARCASS_PLY', color: '#818cf8' },
-
-        { code: 'S', id: 'SIDEWALL', name: 'Hông lốp', label: 'S - SIDEWALL', color: '#c084fc' },
-
-        { code: 'T', id: 'TREAD', name: 'Gai lốp / Mặt lốp', label: 'T - TREAD', color: '#f472b6' },
-
-        { code: 'W', id: 'BEAD', name: 'Tanh lốp', label: 'W - BEAD', color: '#fb923c' },
-
-        { code: 'W0', id: 'BEAD_AND_BEAD_FILLER_PREASSEMBLY', name: 'Cụm tanh & chèn tanh', label: 'W0 - BEAD_AND_BEAD_FILLER_PREASSEMBLY', color: '#facc15' },
-
-        { code: 'W2', id: 'CHAFER', name: 'Bố gia cường tanh', label: 'W2 - CHAFER', color: '#a3e635' },
-
-        { code: 'G', id: 'GREEN_TIRE', name: 'Lốp mộc', label: 'G - GREEN_TIRE', color: '#34d399' },
-
-        { code: 'D', id: 'STEEL_BELT', name: 'Đai thép', label: 'D - STEEL_BELT', color: '#2dd4bf' },
-
-        { code: 'D', id: 'PLY', name: 'Lớp bố', label: 'D - PLY', color: '#22d3ee' },
-
-        { code: 'B', id: 'BELT_AND_EDGE_GUM_PREASSEMBLY', name: 'Cụm đai & mép đai', label: 'B - BELT_AND_EDGE_GUM_PREASSEMBLY', color: '#60a5fa' },
-
-        { code: 'R', id: 'SQUEEZE', name: 'Cao su ép', label: 'R - SQUEEZE', color: '#a78bfa' },
-
-        { code: 'N', id: 'CAP_PLY', name: 'Lớp bao đỉnh', label: 'N - CAP_PLY', color: '#e879f9' },
-
-        { code: 'WF', id: 'BEAD_FILLER', name: 'Chèn tanh', label: 'WF - BEAD_FILLER', color: '#fb7185' },
-
-        { code: 'M', id: 'RUBBER', name: 'Cao su phối liệu', label: 'M - RUBBER', color: '#fdba74' }
-
+        { code: 'I', id: 'INNER_LINER', name: 'Keo mặt trong', label: 'I - INNER_LINER', color: '#38bdf8' },
+        { code: 'P', id: 'CARCASS_PLY', name: 'Cắt bố vải', label: 'P - CARCASS_PLY', color: '#818cf8' },
+        { code: 'S', id: 'SIDEWALL', name: 'Keo hông', label: 'S - SIDEWALL', color: '#c084fc' },
+        { code: 'T', id: 'TREAD', name: 'Keo mặt ngoài', label: 'T - TREAD', color: '#f472b6' },
+        { code: 'W', id: 'BEAD', name: 'Vòng tanh', label: 'W - BEAD', color: '#fb923c' },
+        { code: 'W0', id: 'BEAD_AND_BEAD_FILLER_PREASSEMBLY', name: 'Tanh 3 cạnh', label: 'W0 - BEAD_AND_BEAD_FILLER_PREASSEMBLY', color: '#facc15' },
+        { code: 'W2', id: 'CHAFER', name: 'Tanh chống cọ', label: 'W2 - CHAFER', color: '#a3e635' },
+        { code: 'G', id: 'GREEN_TIRE', name: 'Vỏ sống', label: 'G - GREEN_TIRE', color: '#34d399' },
+        { code: 'D', id: 'STEEL_BELT', name: 'Tráng bố', label: 'D - STEEL_BELT', color: '#2dd4bf' },
+        { code: 'D', id: 'PLY', name: 'Tráng bố', label: 'D - PLY', color: '#22d3ee' },
+        { code: 'B', id: 'BELT_AND_EDGE_GUM_PREASSEMBLY', name: 'Cắt bố kẽm', label: 'B - BELT_AND_EDGE_GUM_PREASSEMBLY', color: '#60a5fa' },
+        { code: 'R', id: 'SQUEEZE', name: 'Keo biên', label: 'R - SQUEEZE', color: '#a78bfa' },
+        { code: 'N', id: 'CAP_PLY', name: 'Phân sợi', label: 'N - CAP_PLY', color: '#e879f9' },
+        { code: 'WF', id: 'BEAD_FILLER', name: 'Tanh chống cọ', label: 'WF - BEAD_FILLER', color: '#fb7185' },
+        { code: 'BB', id: 'RUBBER', name: 'Keo', label: 'RUBBER', color: '#fdba74' }
     ];
 
 
