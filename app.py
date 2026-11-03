@@ -3643,7 +3643,8 @@ def fetch_output_barcodes_data(resource_id, work_order):
                 mr.status,
                 mr.created_at,
                 COALESCE(mc.cr_lot_number, mr.info->>'lot_number') AS lot_number,
-                mr.product_type
+                mr.product_type,
+                mr.created_by AS userno
             FROM kvmes.material_resource mr
             JOIN matched_collects mc ON mr.oid = mc.resource_oid
             ORDER BY mr.id;
@@ -3665,7 +3666,7 @@ def fetch_output_barcodes_data(resource_id, work_order):
         return {
             'success': True,
             'result': serialized_result,
-            'columns': column_names if result else ['id', 'product_id', 'quantity', 'status', 'created_at', 'lot_number', 'product_type'],
+            'columns': column_names if result else ['id', 'product_id', 'quantity', 'status', 'created_at', 'lot_number', 'product_type', 'userno'],
             'count': len(serialized_result),
             'duration': duration,
             'message': 'Thành công' if serialized_result else 'Không tìm thấy tem đầu ra nào'
@@ -3698,41 +3699,6 @@ def get_output_barcode_by_barcode():
 
     data = fetch_output_barcodes_data(resource_id, work_order)
     return jsonify(data)
-
-@app.route('/api/barcodes/fetch-output-barcodes/stream', methods=['GET'])
-@login_required
-def stream_output_barcodes():
-    raw_work_order = str(request.args.get('work_order') or '').strip()
-    clean_resource_id = str(request.args.get('resource_id') or '').strip()
-
-    data = fetch_output_barcodes_data(clean_resource_id, raw_work_order)
-
-    def event_stream():
-        status = 'completed' if data.get('success') else 'failed'
-        payload = {
-            'status': status,
-            'result': data.get('result', []),
-            'columns': data.get('columns', []),
-            'duration': data.get('duration', 0),
-            'count': data.get('count', 0),
-            'message': data.get('message', '')
-        }
-        yield f"data: {json.dumps(payload, ensure_ascii=False, default=json_serial_fallback)}\n\n"
-
-    response = Response(event_stream(), mimetype='text/event-stream')
-    response.headers['Cache-Control'] = 'no-cache'
-    response.headers['X-Accel-Buffering'] = 'no'
-    return response
-
-@app.route('/api/barcodes/fetch-output-barcodes/status/<task_id>', methods=['GET'])
-@login_required
-def get_output_barcode_task_status(task_id):
-    return jsonify({'success': True, 'status': 'completed', 'message': 'Hoàn thành'})
-
-@app.route('/api/barcodes/fetch-output-barcodes/cancel/<task_id>', methods=['POST'])
-@login_required
-def cancel_output_barcode_task(task_id):
-    return jsonify({'success': True, 'message': 'Đã hủy truy vấn'})
 
 @app.route('/api/barcodes/check-transfer', methods=['POST'])
 @login_required
