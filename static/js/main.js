@@ -3632,10 +3632,7 @@ async function fetchInputBarcode(id = null, product_type = null) {
     }
 }
 
-// ── STREAMING TASK PROGRESS CONTROLLER ──────────────────────────────────────
-let currentBarcodeEventSource = null;
-
-function fetchOutputBarcode(workOrder = null) {
+async function fetchOutputBarcode(workOrder = null) {
     const resource_id = feed_records_material_id || (selectedOutputRowData ? selectedOutputRowData['id'] : (selectedRowData ? selectedRowData['id'] : null));
     if (!resource_id) {
         Toast.warning('Cảnh báo', 'Thiếu Resource ID');
@@ -3666,59 +3663,35 @@ function fetchOutputBarcode(workOrder = null) {
         subOutputHeaderContentEl.textContent = `Tem đầu ra của đơn điều động (${work_order})`;
     }
 
-    showLoading();
+    try {
+        const data = await apiFetch('/api/barcodes/fetch-output-barcodes', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                resource_id: resource_id,
+                work_order: work_order
+            })
+        });
 
-    if (currentBarcodeEventSource) {
-        currentBarcodeEventSource.close();
-        currentBarcodeEventSource = null;
+        if (data && data.success) {
+            if (data.result && data.result.length > 0) {
+                subOutputRawData = data.result;
+                subOutputColumns = data.columns;
+                renderSubOutputBarcodeTable(subOutputRawData, subOutputColumns);
+                Toast.success('Thành công', `Tìm thấy ${data.result.length} tem đầu ra`);
+            } else {
+                renderSubOutputBarcodeTable([], data.columns || []);
+                Toast.warning('Không có dữ liệu', data.message || 'Không tìm thấy tem đầu ra nào');
+            }
+        } else {
+            Toast.error('Lỗi', data ? (data.message || 'Lỗi khi tìm kiếm tem đầu ra') : 'Lỗi kết nối máy chủ');
+        }
+    } catch (err) {
+        console.error('Lỗi tải tem đầu ra:', err);
+        Toast.error('Lỗi', err.message || 'Lỗi khi tải dữ liệu tem đầu ra');
     }
-
-    const streamUrl = `/api/barcodes/fetch-output-barcodes/stream?resource_id=${encodeURIComponent(resource_id)}&work_order=${encodeURIComponent(work_order)}`;
-    currentBarcodeEventSource = new EventSource(streamUrl);
-
-    currentBarcodeEventSource.onmessage = function (event) {
-        try {
-            const data = JSON.parse(event.data);
-
-            if (data.status === 'processing') {
-                return;
-            }
-
-            // Stream completed or failed
-            if (currentBarcodeEventSource) {
-                currentBarcodeEventSource.close();
-                currentBarcodeEventSource = null;
-            }
-            hideLoading();
-
-            if (data.status === 'completed') {
-                if (data.result && data.result.length > 0) {
-                    subOutputRawData = data.result;
-                    subOutputColumns = data.columns;
-                    renderSubOutputBarcodeTable(subOutputRawData, subOutputColumns);
-                    Toast.success('Thành công', `Tìm thấy ${data.result.length} tem đầu ra`);
-                } else {
-                    renderSubOutputBarcodeTable([], data.columns || []);
-                    Toast.warning('Không có dữ liệu', data.message || 'Không tìm thấy tem đầu ra nào');
-                }
-            } else if (data.status === 'failed') {
-                Toast.error('Lỗi', data.message || 'Lỗi khi tìm kiếm tem đầu ra');
-            }
-        } catch (err) {
-            console.error('Lỗi phân tích dữ liệu SSE:', err);
-            hideLoading();
-        }
-    };
-
-    currentBarcodeEventSource.onerror = function (err) {
-        console.warn('SSE stream error or connection closed:', err);
-        if (currentBarcodeEventSource) {
-            currentBarcodeEventSource.close();
-            currentBarcodeEventSource = null;
-        }
-        hideLoading();
-        Toast.error('Lỗi', 'Lỗi kết nối khi truyền dữ liệu tem đầu ra');
-    };
 }
 
 async function checkBarcodeTransfer(rowData = null) {
