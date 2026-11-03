@@ -13194,3 +13194,946 @@ body.theme-light .table-cell-url-link:hover {
     color: #0369a1;
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+   FLOATING ACTION BUTTON (FAB) & SPEED DIAL
+   Jetpack Compose FloatingActionButton / Material UI <Fab> & <SpeedDial>
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Suppress duplicate floating action button inside SPA iframe frames */
+body.is-spa-frame .kd-fab-container {
+    display: none !important;
+}
+
+.kd-fab-container {
+    position: fixed;
+    right: 28px;
+    bottom: 28px;
+    z-index: 99990;
+    pointer-events: none;
+    font-family: inherit;
+}
+
+/* Semi-transparent backdrop when speed dial menu is active */
+.kd-speed-dial-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(3, 7, 18, 0.45);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+    z-index: 99991;
+}
+
+.kd-speed-dial-backdrop.is-open {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+/* Speed Dial Actions Menu */
+.kd-speed-dial-menu {
+    position: absolute;
+    bottom: 70px;
+    right: 6px;
+    display: flex;
+    flex-direction: column-reverse;
+    align-items: flex-end;
+    gap: 16px;
+    pointer-events: none;
+    z-index: 99995;
+}
+
+.kd-speed-dial-menu.is-open {
+    pointer-events: auto;
+}
+
+/* Speed Dial Action Item: Chip + Round Action Button */
+.kd-speed-dial-item {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    opacity: 0;
+    transform: translateY(16px) scale(0.6);
+    transform-origin: bottom center;
+    transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Staggered animation when opening (scale 0.6 -> 1 and fade, 35ms apart) */
+.kd-speed-dial-menu.is-open #kdSpeedDialConvertItem {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    transition-delay: 0ms;
+}
+
+.kd-speed-dial-menu.is-open #kdSpeedDialFyiItem {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    transition-delay: 35ms;
+}
+
+/* Reverse folding back when closing */
+.kd-speed-dial-menu:not(.is-open) #kdSpeedDialFyiItem {
+    transition-delay: 0ms;
+}
+
+.kd-speed-dial-menu:not(.is-open) #kdSpeedDialConvertItem {
+    transition-delay: 35ms;
+}
+
+/* Short Label Chip to the left of each action */
+.kd-speed-dial-chip {
+    background: rgba(15, 23, 42, 0.94);
+    color: #f8fafc;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    padding: 5px 12px;
+    border-radius: 8px;
+    margin-right: 12px;
+    white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.kd-speed-dial-chip:hover {
+    background: #1e293b;
+    color: #38bdf8;
+    transform: translateX(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(56, 189, 248, 0.3);
+}
+
+/* Small white round actions */
+.kd-speed-dial-action {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: #ffffff;
+    color: #1e293b;
+    border: none;
+    outline: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 3px 6px -1px rgba(0, 0, 0, 0.22), 0 2px 4px -1px rgba(0, 0, 0, 0.15);
+    cursor: pointer;
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
+}
+
+.kd-speed-dial-action:hover {
+    background: #f8fafc;
+    color: #0284c7;
+    transform: scale(1.1);
+    box-shadow: 0 6px 12px -2px rgba(0, 0, 0, 0.28), 0 3px 6px -2px rgba(0, 0, 0, 0.2);
+}
+
+.kd-speed-dial-action .material-symbols-outlined {
+    font-size: 22px;
+}
+
+/* Main Floating Action Button (FAB) */
+.kd-fab-main {
+    position: relative;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+    color: #ffffff;
+    border: none;
+    outline: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    pointer-events: auto;
+    z-index: 99998;
+    /* Soft two-layer shadow */
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.25), 0 10px 15px -3px rgba(0, 0, 0, 0.35);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1), background 0.25s ease;
+}
+
+.kd-fab-main:hover {
+    transform: scale(1.06);
+    box-shadow: 0 8px 16px -2px rgba(2, 132, 199, 0.45), 0 12px 24px -4px rgba(0, 0, 0, 0.38);
+}
+
+.kd-fab-main:active {
+    transform: scale(0.96);
+}
+
+/* White plus icon turning 45 degrees into a close mark while menu is open */
+.kd-fab-icon {
+    width: 26px;
+    height: 26px;
+    stroke: #ffffff;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.kd-fab-main.is-open .kd-fab-icon {
+    transform: rotate(45deg);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   ACCESSIBLE TABS & UTILITY MODALS (FYI & CONVERT)
+   ══════════════════════════════════════════════════════════════════════ */
+
+.kd-utility-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 100000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(3, 7, 18, 0.72);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    padding: 20px;
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.22s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.kd-utility-modal.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.kd-utility-modal-content {
+    background: #0f172a;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 840px;
+    max-height: 88vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+    animation: kdModalPop 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes kdModalPop {
+    from {
+        opacity: 0;
+        transform: scale(0.96) translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* Header */
+.kd-utility-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 24px 14px 24px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(15, 23, 42, 0.95);
+}
+
+.kd-utility-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.kd-utility-header-icon {
+    font-size: 28px;
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.12);
+    padding: 8px;
+    border-radius: 10px;
+}
+
+.kd-utility-modal-title {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 700;
+    color: #f8fafc;
+    letter-spacing: -0.2px;
+}
+
+.kd-utility-modal-sub {
+    font-size: 12.5px;
+    color: #94a3b8;
+    margin-top: 2px;
+}
+
+.kd-utility-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Accessible Tabs Container & Tablist */
+.kd-tabs-container {
+    padding: 0 24px;
+    background: rgba(15, 23, 42, 0.8);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.kd-tablist {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.kd-tab {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 18px;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #94a3b8;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.kd-tab:hover {
+    color: #f1f5f9;
+}
+
+.kd-tab.active {
+    color: #38bdf8;
+}
+
+.kd-tab:focus-visible {
+    border-radius: 6px;
+    box-shadow: 0 0 0 2px #38bdf8;
+}
+
+.kd-tab .tab-icon {
+    font-size: 18px;
+    color: inherit;
+}
+
+.kd-tab-badge {
+    background: rgba(255, 255, 255, 0.08);
+    color: #cbd5e1;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 10px;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.kd-tab.active .kd-tab-badge {
+    background: rgba(56, 189, 248, 0.2);
+    color: #38bdf8;
+}
+
+/* Sliding active-tab indicator under role="tab" with aria-selected="true" */
+.kd-tab-indicator {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #38bdf8, #818cf8);
+    border-radius: 3px 3px 0 0;
+    pointer-events: none;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Tab Panels */
+.kd-tabpanels-wrapper {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 24px;
+}
+
+.kd-tabpanel {
+    outline: none;
+}
+
+.kd-tabpanel.hidden {
+    display: none !important;
+}
+
+/* Toolbar inside panels */
+.kd-panel-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.kd-filter-search-box {
+    position: relative;
+    flex: 1;
+    max-width: 480px;
+}
+
+.kd-filter-search-box .search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 19px;
+    color: #64748b;
+    pointer-events: none;
+}
+
+.kd-filter-search-box input {
+    width: 100%;
+    padding: 9px 14px 9px 38px;
+    background: rgba(30, 41, 59, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 9px;
+    color: #f8fafc;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.kd-filter-search-box input:focus {
+    background: rgba(30, 41, 59, 0.95);
+    border-color: #38bdf8;
+    box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+}
+
+.kd-toolbar-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12.5px;
+    color: #64748b;
+    white-space: nowrap;
+}
+
+.kd-toolbar-hint .material-symbols-outlined {
+    font-size: 16px;
+}
+
+/* Product Types Cards Grid */
+.kd-product-type-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 12px;
+}
+
+.kd-product-type-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(30, 41, 59, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 12px 14px;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.kd-product-type-card:hover {
+    background: rgba(30, 41, 59, 0.9);
+    border-color: rgba(56, 189, 248, 0.35);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28);
+}
+
+.kd-product-type-card:hover .kd-card-copy-btn {
+    opacity: 1;
+    color: #38bdf8;
+}
+
+.kd-code-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 38px;
+    height: 38px;
+    padding: 0 6px;
+    border-radius: 9px;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--pill-color, #38bdf8);
+    background: color-mix(in srgb, var(--pill-color, #38bdf8) 15%, transparent);
+    border: 1px solid color-mix(in srgb, var(--pill-color, #38bdf8) 35%, transparent);
+}
+
+.kd-card-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.kd-card-label {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #f1f5f9;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.kd-card-sub {
+    font-size: 12px;
+    color: #94a3b8;
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.kd-card-copy-btn {
+    background: transparent;
+    border: none;
+    color: #64748b;
+    padding: 4px;
+    border-radius: 6px;
+    cursor: pointer;
+    opacity: 0.6;
+    transition: all 0.18s ease;
+}
+
+.kd-card-copy-btn .material-symbols-outlined {
+    font-size: 18px;
+}
+
+/* Barcode Prefixes Grid */
+.kd-prefix-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 12px;
+}
+
+.kd-prefix-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    background: rgba(30, 41, 59, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 12px 14px;
+}
+
+.kd-prefix-badge {
+    background: rgba(14, 165, 233, 0.15);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    font-family: monospace;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 6px;
+}
+
+.kd-prefix-info {
+    flex: 1;
+}
+
+.kd-prefix-desc {
+    font-size: 13px;
+    font-weight: 500;
+    color: #e2e8f0;
+}
+
+.kd-prefix-example {
+    font-size: 11.5px;
+    color: #94a3b8;
+    margin-top: 4px;
+}
+
+.kd-prefix-example code {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #38bdf8;
+    font-family: monospace;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   EPOCH & DATETIME CONVERT STYLING
+   ══════════════════════════════════════════════════════════════════════ */
+
+.kd-convert-section {
+    background: rgba(30, 41, 59, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin-bottom: 18px;
+}
+
+.kd-input-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.kd-convert-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #cbd5e1;
+}
+
+.kd-unit-badge {
+    font-size: 11.5px;
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.12);
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-weight: 600;
+}
+
+.kd-convert-input-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.kd-input-box-wrap {
+    flex: 1;
+    min-width: 280px;
+}
+
+.kd-convert-input {
+    width: 100%;
+    padding: 10px 14px;
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 8px;
+    color: #f8fafc;
+    font-size: 14px;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.kd-convert-input:focus {
+    border-color: #38bdf8;
+    box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.18);
+    background: rgba(15, 23, 42, 1);
+}
+
+.kd-btn-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.kd-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 9px 13px;
+    border-radius: 8px;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.18s ease;
+}
+
+.kd-action-btn .material-symbols-outlined {
+    font-size: 17px;
+}
+
+.kd-action-btn.btn-now {
+    background: rgba(14, 165, 233, 0.18);
+    color: #38bdf8;
+    border-color: rgba(56, 189, 248, 0.3);
+}
+
+.kd-action-btn.btn-now:hover {
+    background: #0284c7;
+    color: #ffffff;
+}
+
+.kd-action-btn.btn-sample {
+    background: rgba(168, 85, 247, 0.18);
+    color: #c084fc;
+    border-color: rgba(192, 132, 252, 0.3);
+}
+
+.kd-action-btn.btn-sample:hover {
+    background: #9333ea;
+    color: #ffffff;
+}
+
+.kd-action-btn.btn-clear {
+    background: rgba(239, 68, 68, 0.12);
+    color: #f87171;
+    border-color: rgba(248, 113, 113, 0.25);
+    padding: 9px 10px;
+}
+
+.kd-action-btn.btn-clear:hover {
+    background: #dc2626;
+    color: #ffffff;
+}
+
+/* Conversion Result Rows */
+.kd-results-card {
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.kd-result-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(30, 41, 59, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+    padding: 10px 14px;
+}
+
+.kd-result-label {
+    min-width: 90px;
+}
+
+.kd-label-tag {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 5px;
+    letter-spacing: 0.3px;
+}
+
+.kd-label-tag.tag-utc {
+    background: rgba(56, 189, 248, 0.18);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.kd-label-tag.tag-local {
+    background: rgba(52, 211, 153, 0.18);
+    color: #34d399;
+    border: 1px solid rgba(52, 211, 153, 0.3);
+}
+
+.kd-label-tag.tag-relative {
+    background: rgba(244, 114, 182, 0.18);
+    color: #f472b6;
+    border: 1px solid rgba(244, 114, 182, 0.3);
+}
+
+.kd-result-value {
+    flex: 1;
+    font-size: 14.5px;
+    color: #f8fafc;
+    word-break: break-all;
+}
+
+.kd-copy-btn {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #94a3b8;
+    padding: 6px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.kd-copy-btn:hover {
+    background: #0284c7;
+    color: #ffffff;
+    border-color: #0284c7;
+}
+
+.kd-copy-btn .material-symbols-outlined {
+    font-size: 17px;
+}
+
+/* Detailed breakdown table */
+.kd-breakdown-table-wrap {
+    margin-top: 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding-top: 12px;
+}
+
+.kd-breakdown-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.kd-breakdown-table td {
+    padding: 8px 10px;
+    font-size: 13px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.kd-breakdown-table tr:last-child td {
+    border-bottom: none;
+}
+
+.kd-copy-mini {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #94a3b8;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.16s ease;
+}
+
+.kd-copy-mini:hover {
+    background: #0284c7;
+    color: #ffffff;
+}
+
+/* Date to Epoch Panel */
+.kd-d2e-input-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+.kd-field-col {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.kd-convert-select {
+    width: 100%;
+    padding: 10px 12px;
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 8px;
+    color: #f8fafc;
+    font-size: 13.5px;
+    outline: none;
+    cursor: pointer;
+}
+
+.kd-preset-buttons-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.kd-preset-label {
+    font-size: 12px;
+    color: #94a3b8;
+    font-weight: 500;
+}
+
+.kd-preset-btn {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #cbd5e1;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.18s ease;
+}
+
+.kd-preset-btn:hover {
+    background: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+    border-color: rgba(56, 189, 248, 0.3);
+}
+
+.kd-d2e-hero-card {
+    background: rgba(14, 165, 233, 0.08);
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 12px;
+}
+
+.kd-hero-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.kd-hero-badge {
+    font-size: 12px;
+    font-weight: 700;
+    color: #38bdf8;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.btn-copy-hero {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #0284c7;
+    color: #ffffff;
+    border: none;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.18s ease;
+}
+
+.btn-copy-hero:hover {
+    background: #0369a1;
+}
+
+.btn-copy-hero .material-symbols-outlined {
+    font-size: 16px;
+}
+
+.kd-hero-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: #f8fafc;
+    letter-spacing: 0.5px;
+    word-break: break-all;
+}
+
+/* Toast notification */
+.kd-toast-notification {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(15, 23, 42, 0.95);
+    color: #f8fafc;
+    border: 1px solid rgba(56, 189, 248, 0.4);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 0 15px rgba(56, 189, 248, 0.2);
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 13.5px;
+    font-weight: 600;
+    z-index: 100005;
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease;
+    backdrop-filter: blur(8px);
+}
+
+.kd-toast-notification.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
