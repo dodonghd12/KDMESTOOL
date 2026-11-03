@@ -13281,7 +13281,7 @@ body.is-spa-frame .kd-fab-container {
     position: relative;
     right: auto;
     bottom: auto;
-    z-index: 20;
+    z-index: 99995;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -13290,16 +13290,16 @@ body.is-spa-frame .kd-fab-container {
 }
 
 .kd-fab-container.in-sidebar .kd-fab-main {
-    width: 30px;
-    height: 30px;
-    min-width: 30px;
-    min-height: 30px;
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 32px;
     border-radius: 50%;
     padding: 0;
-    border: 1px solid var(--color-border-interactive, rgba(61, 213, 192, 0.4));
-    background: var(--color-interactive-bg-hover, rgba(61, 213, 192, 0.14));
+    border: 1px solid var(--color-border-interactive, rgba(61, 213, 192, 0.45));
+    background: var(--color-interactive-bg-hover, rgba(61, 213, 192, 0.16));
     color: var(--color-text-accent, #3dd5c0);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25), 0 0 8px var(--color-border-glow, rgba(61, 213, 192, 0.25));
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25), 0 0 8px var(--color-border-glow, rgba(61, 213, 192, 0.3));
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -13309,11 +13309,11 @@ body.is-spa-frame .kd-fab-container {
 }
 
 .kd-fab-container.in-sidebar .kd-fab-main:hover {
-    background: var(--color-interactive-bg-active, rgba(61, 213, 192, 0.28));
+    background: var(--color-interactive-bg-active, rgba(61, 213, 192, 0.3));
     border-color: var(--color-text-accent, #3dd5c0);
     color: #ffffff;
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35), 0 0 12px var(--color-border-glow, rgba(61, 213, 192, 0.5));
-    transform: scale(1.1);
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.35), 0 0 14px var(--color-border-glow, rgba(61, 213, 192, 0.55));
+    transform: scale(1.08);
 }
 
 .kd-fab-container.in-sidebar .kd-fab-main:active {
@@ -13321,8 +13321,8 @@ body.is-spa-frame .kd-fab-container {
 }
 
 .kd-fab-container.in-sidebar .kd-fab-icon {
-    width: 16px;
-    height: 16px;
+    width: 17px;
+    height: 17px;
     stroke: currentColor;
     stroke-width: 2.6;
     transition: transform 0.24s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -13335,67 +13335,88 @@ body.is-spa-frame .kd-fab-container {
 /* Speed Dial Actions Menu fanning up out of the FAB in sidebar */
 .kd-fab-container.in-sidebar .kd-speed-dial-menu {
     position: absolute;
-    bottom: 42px;
+    bottom: 46px;
     right: 0;
     display: flex;
     flex-direction: column-reverse;
     align-items: flex-end;
-    gap: 10px;
+    gap: 12px;
     pointer-events: none;
     z-index: 99995;
 }
 
-.kd-fab-container.in-sidebar .kd-speed-dial-action {
-    width: 36px;
-    height: 36px;
-    min-width: 36px;
-    min-height: 36px;
-    border-radius: 50%;
-    background: var(--color-bg-surface-elevated, #0f172a);
-    border: 1px solid var(--color-border-interactive, rgba(61, 213, 192, 0.4));
-    color: var(--color-text-accent, #3dd5c0);
-    outline: none;
-    display: inline-flex;
+.kd-fab-container.in-sidebar .kd-speed-dial-menu.is-open {
+    pointer-events: auto !important;
+}
+
+.kd-fab-container.in-sidebar .kd-speed-dial-item {
+    display: flex;
     align-items: center;
-    justify-content: center;
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35), 0 0 8px var(--color-border-glow, rgba(61, 213, 192, 0.25));
-    cursor: pointer;
-    padding: 0;
-    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    justify-content: flex-end;
+    pointer-events: auto !important;
+}
+
+.kd-fab-container.in-sidebar .kd-speed-dial-action {
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    border-radius: 50% !important;
+    background: var(--color-bg-surface-elevated, #0f172a) !important;
+    border: 1.5px solid var(--color-border-interactive, rgba(61, 213, 192, 0.45)) !important;
+    color: var(--color-text-accent, #3dd5c0) !important;
+    outline: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45), 0 0 10px var(--color-border-glow, rgba(61, 213, 192, 0.3)) !important;
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    padding: 0 !important;
+    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
 }
 
 .kd-fab-container.in-sidebar .kd-speed-dial-action:hover {
-    background: var(--color-interactive-bg-hover, rgba(61, 213, 192, 0.25));
-    border-color: var(--color-text-accent, #3dd5c0);
-    color: #ffffff;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 12px var(--color-border-glow, rgba(61, 213, 192, 0.5));
-    transform: scale(1.1);
+    background: var(--color-interactive-bg-hover, rgba(61, 213, 192, 0.25)) !important;
+    border-color: var(--color-text-accent, #3dd5c0) !important;
+    color: #ffffff !important;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55), 0 0 16px var(--color-border-glow, rgba(61, 213, 192, 0.6)) !important;
+    transform: scale(1.1) !important;
+}
+
+.kd-fab-container.in-sidebar .kd-speed-dial-action:active {
+    transform: scale(0.94) !important;
 }
 
 .kd-fab-container.in-sidebar .kd-speed-dial-action .material-symbols-outlined {
-    font-size: 19px !important;
+    font-size: 22px !important;
 }
 
 .kd-fab-container.in-sidebar .kd-speed-dial-chip {
-    background: var(--color-bg-surface-elevated, #0f172a);
-    border: 1px solid var(--color-border-glass, rgba(61, 213, 192, 0.3));
-    color: var(--color-text-primary, #f1f5f9);
-    font-size: 12px;
-    font-weight: 600;
-    padding: 3px 9px;
-    border-radius: 6px;
-    margin-right: 8px;
-    white-space: nowrap;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    cursor: pointer;
+    background: var(--color-bg-surface-elevated, #0f172a) !important;
+    border: 1px solid var(--color-border-interactive, rgba(61, 213, 192, 0.35)) !important;
+    color: var(--color-text-primary, #f1f5f9) !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.3px !important;
+    padding: 6px 14px !important;
+    border-radius: 8px !important;
+    margin-right: 12px !important;
+    white-space: nowrap !important;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.4) !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    user-select: none !important;
+    transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 .kd-fab-container.in-sidebar .kd-speed-dial-chip:hover {
-    background: var(--color-interactive-bg-hover, rgba(61, 213, 192, 0.2));
-    color: var(--color-text-accent, #3dd5c0);
-    border-color: var(--color-border-interactive, rgba(61, 213, 192, 0.5));
+    background: var(--color-interactive-bg-hover, rgba(61, 213, 192, 0.22)) !important;
+    color: var(--color-text-accent, #3dd5c0) !important;
+    border-color: var(--color-text-accent, #3dd5c0) !important;
+    transform: translateX(-2px) !important;
 }
 
 
@@ -13455,13 +13476,13 @@ body.is-spa-frame .kd-fab-container {
 
 /* Modal Specific Dimensions */
 #convertModal .kd-utility-modal-content {
-    width: min(1200px, 95vw) !important;
+    width: min(1200px, 96vw) !important;
     max-width: 1200px !important;
 }
 
 #fyiModal .kd-utility-modal-content {
-    width: min(920px, 94vw) !important;
-    max-width: 920px !important;
+    width: min(1120px, 95vw) !important;
+    max-width: 1120px !important;
 }
 
 @keyframes kdModalPop {
@@ -13712,10 +13733,10 @@ body.is-spa-frame .kd-fab-container {
     font-size: 16px !important;
 }
 
-/* Product Types Cards Grid (Responsive 2-Column Layout) */
+/* Product Types Cards Grid (Responsive Multi-Column Balanced Layout) */
 .kd-product-type-grid {
     display: grid !important;
-    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)) !important;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
     gap: 12px !important;
     width: 100% !important;
     box-sizing: border-box !important;
@@ -13755,8 +13776,10 @@ body.is-spa-frame .kd-fab-container {
     height: 38px !important;
     padding: 0 6px !important;
     border-radius: 9px !important;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
     font-size: 13.5px !important;
     font-weight: 700 !important;
+    letter-spacing: -0.3px !important;
     color: var(--pill-color, #38bdf8) !important;
     background: color-mix(in srgb, var(--pill-color, #38bdf8) 15%, transparent) !important;
     border: 1px solid color-mix(in srgb, var(--pill-color, #38bdf8) 35%, transparent) !important;
