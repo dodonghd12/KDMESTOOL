@@ -13503,7 +13503,7 @@ body.is-spa-frame .kd-fab-container {
     justify-content: space-between !important;
     width: 100% !important;
     box-sizing: border-box !important;
-    padding: 16px 24px !important;
+    padding: 8px 18px !important;
     border-bottom: 1px solid var(--color-border-glass, rgba(255, 255, 255, 0.08)) !important;
     background: var(--color-bg-surface-elevated, #0f172a) !important;
     flex-shrink: 0 !important;
@@ -13512,17 +13512,17 @@ body.is-spa-frame .kd-fab-container {
 .kd-utility-title-wrap {
     display: flex !important;
     align-items: center !important;
-    gap: 12px !important;
+    gap: 8px !important;
     text-align: left !important;
 }
 
 .kd-utility-header-icon {
-    font-size: 22px !important;
+    font-size: 18px !important;
     color: var(--color-text-accent, #3dd5c0) !important;
     background: var(--color-interactive-bg-hover, rgba(61, 213, 192, 0.12)) !important;
     border: 1px solid var(--color-border-interactive, rgba(61, 213, 192, 0.25)) !important;
-    padding: 7px !important;
-    border-radius: 10px !important;
+    padding: 4px !important;
+    border-radius: 6px !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -13530,7 +13530,7 @@ body.is-spa-frame .kd-fab-container {
 
 .kd-utility-modal-title {
     margin: 0 !important;
-    font-size: 17px !important;
+    font-size: 15px !important;
     font-weight: 700 !important;
     color: var(--color-text-primary, #f8fafc) !important;
     letter-spacing: -0.2px !important;
@@ -13539,13 +13539,13 @@ body.is-spa-frame .kd-fab-container {
 .kd-utility-header-actions {
     display: flex !important;
     align-items: center !important;
-    gap: 10px !important;
+    gap: 8px !important;
 }
 
 .kd-utility-header-actions .details-modal-close {
-    width: 32px !important;
-    height: 32px !important;
-    border-radius: 8px !important;
+    width: 26px !important;
+    height: 26px !important;
+    border-radius: 6px !important;
     background: rgba(255, 255, 255, 0.06) !important;
     border: 1px solid var(--color-border-glass, rgba(255, 255, 255, 0.1)) !important;
     color: #94a3b8 !important;
@@ -13566,7 +13566,7 @@ body.is-spa-frame .kd-fab-container {
 .kd-tabs-container {
     width: 100% !important;
     box-sizing: border-box !important;
-    padding: 0 24px !important;
+    padding: 0 18px !important;
     background: rgba(15, 23, 42, 0.55) !important;
     border-bottom: 1px solid var(--color-border-glass, rgba(255, 255, 255, 0.08)) !important;
     text-align: left !important;
@@ -13588,12 +13588,12 @@ body.is-spa-frame .kd-fab-container {
     display: inline-flex !important;
     align-items: center !important;
     gap: 8px !important;
-    padding: 12px 16px !important;
+    padding: 8px 14px !important;
     background: transparent !important;
     border: none !important;
     outline: none !important;
     color: var(--color-text-secondary, #94a3b8) !important;
-    font-size: 13.5px !important;
+    font-size: 13px !important;
     font-weight: 600 !important;
     cursor: pointer !important;
     user-select: none !important;
@@ -13831,10 +13831,10 @@ body.is-spa-frame .kd-fab-container {
 .kd-convert-dual-grid {
     display: grid !important;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
-    gap: 20px !important;
+    gap: 18px !important;
     width: 100% !important;
     box-sizing: border-box !important;
-    align-items: start !important;
+    align-items: stretch !important;
 }
 
 @media (max-width: 920px) {
@@ -13849,18 +13849,19 @@ body.is-spa-frame .kd-fab-container {
     background: rgba(30, 41, 59, 0.45) !important;
     border: 1px solid var(--color-border-glass, rgba(255, 255, 255, 0.08)) !important;
     border-radius: 12px !important;
-    padding: 18px 20px !important;
+    padding: 16px 18px !important;
     display: flex !important;
     flex-direction: column !important;
-    gap: 14px !important;
+    gap: 12px !important;
     text-align: left !important;
+    height: 100% !important;
 }
 
 .kd-column-header {
     display: flex !important;
     align-items: center !important;
     justify-content: space-between !important;
-    padding-bottom: 10px !important;
+    padding-bottom: 8px !important;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
 }
 
@@ -13878,16 +13879,6 @@ body.is-spa-frame .kd-fab-container {
     color: var(--color-text-accent, #3dd5c0) !important;
 }
 
-.kd-unit-badge {
-    font-size: 11px !important;
-    font-weight: 600 !important;
-    padding: 3px 8px !important;
-    background: rgba(61, 213, 192, 0.14) !important;
-    border: 1px solid rgba(61, 213, 192, 0.3) !important;
-    color: var(--color-text-accent, #3dd5c0) !important;
-    border-radius: 6px !important;
-}
-
 .kd-convert-input-row {
     display: flex !important;
     align-items: center !important;
@@ -13896,14 +13887,57 @@ body.is-spa-frame .kd-fab-container {
 }
 
 .kd-input-box-wrap {
+    position: relative !important;
     flex: 1 !important;
     min-width: 0 !important;
+}
+
+.kd-input-box-wrap input {
+    padding-right: 36px !important;
+}
+
+.kd-input-box-wrap .clear-btn {
+    position: absolute !important;
+    right: 8px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    width: 22px !important;
+    height: 22px !important;
+    border-radius: 50% !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: #94a3b8 !important;
+    border: none !important;
+    display: none !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    line-height: 0 !important;
+    transition: all 0.16s ease !important;
+    z-index: 5 !important;
+}
+
+.kd-input-box-wrap .clear-btn svg {
+    width: 12px !important;
+    height: 12px !important;
+    stroke-width: 2.5 !important;
+}
+
+.kd-input-box-wrap .clear-btn:hover {
+    background: var(--rose-600, #e11d48) !important;
+    color: #ffffff !important;
+    transform: translateY(-50%) scale(1.1) !important;
+}
+
+.kd-input-box-wrap.has-value .clear-btn {
+    display: inline-flex !important;
 }
 
 .kd-convert-input {
     width: 100% !important;
     box-sizing: border-box !important;
-    padding: 10px 14px !important;
+    padding: 9px 12px !important;
     background: rgba(15, 23, 42, 0.85) !important;
     border: 1px solid rgba(255, 255, 255, 0.14) !important;
     border-radius: 8px !important;
@@ -13929,7 +13963,7 @@ body.is-spa-frame .kd-fab-container {
     display: inline-flex !important;
     align-items: center !important;
     gap: 5px !important;
-    padding: 9px 12px !important;
+    padding: 8px 12px !important;
     border-radius: 7px !important;
     font-size: 12px !important;
     font-weight: 600 !important;
@@ -13950,29 +13984,6 @@ body.is-spa-frame .kd-fab-container {
     color: #ffffff !important;
 }
 
-.kd-action-btn.btn-sample {
-    background: rgba(192, 132, 252, 0.15) !important;
-    border-color: rgba(192, 132, 252, 0.35) !important;
-    color: #c084fc !important;
-}
-
-.kd-action-btn.btn-sample:hover {
-    background: #9333ea !important;
-    color: #ffffff !important;
-}
-
-.kd-action-btn.btn-clear {
-    background: rgba(239, 68, 68, 0.12) !important;
-    border-color: rgba(239, 68, 68, 0.3) !important;
-    color: #f87171 !important;
-    padding: 9px 10px !important;
-}
-
-.kd-action-btn.btn-clear:hover {
-    background: #dc2626 !important;
-    color: #ffffff !important;
-}
-
 .kd-action-btn .material-symbols-outlined {
     font-size: 16px !important;
 }
@@ -13981,25 +13992,26 @@ body.is-spa-frame .kd-fab-container {
 .kd-results-card {
     display: flex !important;
     flex-direction: column !important;
-    gap: 10px !important;
+    gap: 8px !important;
     width: 100% !important;
     box-sizing: border-box !important;
+    flex: 1 1 auto !important;
 }
 
 .kd-result-row {
     display: flex !important;
     align-items: center !important;
-    gap: 12px !important;
+    gap: 10px !important;
     background: rgba(15, 23, 42, 0.65) !important;
     border: 1px solid rgba(255, 255, 255, 0.08) !important;
     border-radius: 8px !important;
-    padding: 10px 14px !important;
+    padding: 8px 12px !important;
     width: 100% !important;
     box-sizing: border-box !important;
 }
 
 .kd-result-label {
-    min-width: 95px !important;
+    min-width: 85px !important;
     flex-shrink: 0 !important;
 }
 
@@ -14007,7 +14019,7 @@ body.is-spa-frame .kd-fab-container {
     font-size: 11px !important;
     font-weight: 700 !important;
     text-transform: uppercase !important;
-    padding: 3px 8px !important;
+    padding: 2px 7px !important;
     border-radius: 5px !important;
     letter-spacing: 0.3px !important;
     white-space: nowrap !important;
@@ -14023,12 +14035,6 @@ body.is-spa-frame .kd-fab-container {
     background: rgba(52, 211, 153, 0.18) !important;
     color: #34d399 !important;
     border: 1px solid rgba(52, 211, 153, 0.3) !important;
-}
-
-.kd-label-tag.tag-relative {
-    background: rgba(244, 114, 182, 0.18) !important;
-    color: #f472b6 !important;
-    border: 1px solid rgba(244, 114, 182, 0.3) !important;
 }
 
 /* Fixed: Normal word-break so "AM" / "PM" is NEVER broken onto a new line! */
@@ -14052,7 +14058,7 @@ body.is-spa-frame .kd-fab-container {
     background: rgba(255, 255, 255, 0.06) !important;
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
     color: #94a3b8 !important;
-    padding: 6px 8px !important;
+    padding: 5px 7px !important;
     border-radius: 6px !important;
     cursor: pointer !important;
     transition: all 0.18s ease !important;
@@ -14069,14 +14075,14 @@ body.is-spa-frame .kd-fab-container {
 }
 
 .kd-copy-btn .material-symbols-outlined {
-    font-size: 16px !important;
+    font-size: 15px !important;
 }
 
-/* Detailed Breakdown Table (Fixed Layout - No Overflow) */
+/* Detailed Breakdown Table (Fixed Layout - No Overflow, No Trailing Dot) */
 .kd-breakdown-table-wrap {
-    margin-top: 6px !important;
+    margin-top: auto !important;
     border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
-    padding-top: 12px !important;
+    padding-top: 10px !important;
     width: 100% !important;
     box-sizing: border-box !important;
     overflow-x: hidden !important;
@@ -14089,10 +14095,11 @@ body.is-spa-frame .kd-fab-container {
 }
 
 .kd-breakdown-table td {
-    padding: 8px 10px !important;
-    font-size: 13px !important;
+    padding: 7px 8px !important;
+    font-size: 12.5px !important;
     border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
     vertical-align: middle !important;
+    box-sizing: border-box !important;
 }
 
 .kd-breakdown-table td:nth-child(1) {
@@ -14104,17 +14111,22 @@ body.is-spa-frame .kd-fab-container {
 }
 
 .kd-breakdown-table td:nth-child(2) {
-    width: 44% !important;
+    width: auto !important;
     color: #f1f5f9 !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
     white-space: nowrap !important;
 }
 
+/* Explicit width & overflow: visible so global td ellipsis NEVER adds trailing dot */
 .kd-breakdown-table td:nth-child(3) {
-    width: 12% !important;
+    width: 64px !important;
+    min-width: 64px !important;
     text-align: right !important;
     padding-right: 4px !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: nowrap !important;
 }
 
 .kd-breakdown-table tr:last-child td {
@@ -14127,13 +14139,16 @@ body.is-spa-frame .kd-fab-container {
     color: #94a3b8 !important;
     font-size: 11px !important;
     font-weight: 600 !important;
-    padding: 4px 9px !important;
+    padding: 3px 9px !important;
     border-radius: 5px !important;
     cursor: pointer !important;
     transition: all 0.16s ease !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    flex-shrink: 0 !important;
 }
 
 .kd-copy-mini:hover {
@@ -14184,38 +14199,6 @@ body.is-spa-frame .kd-fab-container {
 
 .kd-convert-select:focus {
     border-color: var(--color-text-accent, #3dd5c0) !important;
-}
-
-.kd-preset-buttons-row {
-    display: flex !important;
-    align-items: center !important;
-    flex-wrap: wrap !important;
-    gap: 6px !important;
-    width: 100% !important;
-}
-
-.kd-preset-label {
-    font-size: 12px !important;
-    color: #64748b !important;
-    margin-right: 4px !important;
-}
-
-.kd-preset-btn {
-    background: rgba(255, 255, 255, 0.06) !important;
-    border: 1px solid var(--color-border-glass, rgba(255, 255, 255, 0.1)) !important;
-    color: #cbd5e1 !important;
-    padding: 5px 9px !important;
-    border-radius: 6px !important;
-    font-size: 11.5px !important;
-    font-weight: 500 !important;
-    cursor: pointer !important;
-    transition: all 0.16s ease !important;
-}
-
-.kd-preset-btn:hover {
-    background: var(--color-interactive-bg-hover, rgba(61, 213, 192, 0.15)) !important;
-    color: var(--color-text-accent, #3dd5c0) !important;
-    border-color: var(--color-border-interactive, rgba(61, 213, 192, 0.35)) !important;
 }
 
 /* Reverse Hero Output Card */

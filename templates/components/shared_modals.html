@@ -262,28 +262,27 @@
             <!-- Unified Panel: 2-way conversion (Nanosecond ➔ Datetime & Datetime ➔ Nanosecond) -->
             <div class="kd-tabpanel active" role="tabpanel" id="convertPanelUnified" aria-labelledby="convertTabUnified" tabindex="0">
                 <div class="kd-convert-dual-grid">
-                    <!-- Column 1: Nanosecond / Epoch ➔ Datetime -->
+                    <!-- Column 1: Nanosecond / Epoch ➔ Date time -->
                     <div class="kd-convert-column">
                         <div class="kd-column-header">
                             <span class="kd-column-title">
                                 <span class="material-symbols-outlined column-icon">timer</span>
-                                Nanosecond / Epoch ➔ Ngày Giờ
+                                Nanosecond / Epoch ➔ Date time
                             </span>
-                            <span class="kd-unit-badge" id="epochUnitBadge">Chờ nhập timestamp...</span>
                         </div>
                         <div class="kd-convert-input-row">
-                            <div class="kd-input-box-wrap">
+                            <div class="kd-input-box-wrap" id="epochInputWrap">
                                 <input type="text" id="epochInput" class="kd-convert-input font-mono" placeholder="Nhập Nanosecond (19 số), Millisecond (13 số), Second..." autocomplete="off" spellcheck="false">
+                                <button type="button" class="clear-btn" id="epochInputClearBtn" title="Xóa nội dung" aria-label="Xóa nội dung" tabindex="-1">
+                                    <svg class="clear-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                                    </svg>
+                                </button>
                             </div>
                             <div class="kd-btn-group">
                                 <button type="button" class="kd-action-btn btn-now" id="epochBtnNow" title="Điền thời điểm hiện tại">
-                                    <span class="material-symbols-outlined">update</span> Hiện tại
-                                </button>
-                                <button type="button" class="kd-action-btn btn-sample" id="epochBtnSample" title="Điền mẫu timestamp MES">
-                                    Mẫu MES
-                                </button>
-                                <button type="button" class="kd-action-btn btn-clear" id="epochBtnClear" title="Xóa nội dung nhập">
-                                    <span class="material-symbols-outlined">backspace</span>
+                                    <span class="material-symbols-outlined">update</span> Now
                                 </button>
                             </div>
                         </div>
@@ -294,14 +293,13 @@
                         </div>
                     </div>
 
-                    <!-- Column 2: Date & Time ➔ Nanoseconds -->
+                    <!-- Column 2: Date time ➔ Nanosecond / Epoch -->
                     <div class="kd-convert-column">
                         <div class="kd-column-header">
                             <span class="kd-column-title">
                                 <span class="material-symbols-outlined column-icon">calendar_today</span>
-                                Ngày Giờ ➔ Nanosecond / Epoch
+                                Date time ➔ Nanosecond / Epoch
                             </span>
-                            <span class="kd-unit-badge">Reverse</span>
                         </div>
                         <div class="kd-d2e-input-grid">
                             <div class="kd-field-col">
@@ -313,20 +311,12 @@
                                 <input type="time" step="1" id="d2eTimeInput" class="kd-convert-input font-mono">
                             </div>
                             <div class="kd-field-col">
-                                <label for="d2eTzSelect" class="kd-convert-label">Múi Giờ:</label>
+                                <label for="d2eTzSelect" class="kd-convert-label">Timezone:</label>
                                 <select id="d2eTzSelect" class="kd-convert-select">
-                                    <option value="LOCAL" selected>Máy Cục Bộ [GMT+07:00]</option>
-                                    <option value="UTC">Quốc Tế [UTC]</option>
+                                    <option value="LOCAL" selected>UTC+7</option>
+                                    <option value="UTC">UTC</option>
                                 </select>
                             </div>
-                        </div>
-
-                        <div class="kd-preset-buttons-row">
-                            <span class="kd-preset-label">Phím tắt ca:</span>
-                            <button type="button" class="kd-preset-btn" id="d2eBtnNow">Bây giờ</button>
-                            <button type="button" class="kd-preset-btn" id="d2eBtnShift1">06:00 (Ca 1)</button>
-                            <button type="button" class="kd-preset-btn" id="d2eBtnShift2">14:00 (Ca 2)</button>
-                            <button type="button" class="kd-preset-btn" id="d2eBtnShift3">22:00 (Ca 3)</button>
                         </div>
 
                         <!-- Reverse Results Output Card -->
