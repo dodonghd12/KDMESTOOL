@@ -7063,44 +7063,325 @@ def api_get_p8300_printers():
         return jsonify({'success': False, 'message': str(e), 'printers': []}), 500
 
 
+def _format_epoch_nanos_to_iso(nanos):
+    if not nanos:
+        return ''
+    try:
+        dt = datetime.fromtimestamp(nanos / 1_000_000_000, tz=timezone.utc)
+        return dt.strftime('%Y-%m-%dT%H:%M:%S.000Z')
+    except Exception:
+        return str(nanos)
+
+def _format_dt_to_iso(dt_val):
+    if not dt_val:
+        return ''
+    if isinstance(dt_val, str):
+        return dt_val
+    try:
+        if dt_val.tzinfo:
+            dt_utc = dt_val.astimezone(timezone.utc)
+        else:
+            dt_utc = dt_val.replace(tzinfo=timezone.utc)
+        return dt_utc.strftime('%Y-%m-%dT%H:%M:%S.000Z')
+    except Exception:
+        return str(dt_val)
+
+def _format_date_str(dt_val):
+    if not dt_val:
+        return ''
+    if isinstance(dt_val, str):
+        return dt_val[:10]
+    try:
+        return dt_val.strftime('%Y-%m-%d')
+    except Exception:
+        return str(dt_val)[:10]
+
+def _format_stock_qty(qty):
+    if qty is None or qty == '':
+        return ''
+    try:
+        f_qty = float(qty)
+        if f_qty.is_integer():
+            return str(int(f_qty))
+        return f"{f_qty:g}"
+    except Exception:
+        return str(qty)
+
 @app.route('/api/mes/material-history', methods=['POST'])
 @login_required
 def get_mes_material_history():
     payload = request.get_json(silent=True) or {}
     resource_id = str(payload.get('resource_id') or payload.get('resourceID') or '').strip()
     product_id = str(payload.get('product_id') or payload.get('productID') or '').strip()
-    query_type = payload.get('type', 0)
+    try:
+        query_type = int(payload.get('type', 0))
+    except (ValueError, TypeError):
+        query_type = 0
 
-    if not resource_id or not product_id:
-        return jsonify({'success': False, 'message': 'Thiếu Resource ID hoặc Product ID', 'data': []}), 400
-
-    url = f'https://198.1.10.85:8810/api/material/history/resource-id/{resource_id}/productId/{product_id}'
-    params = {'type': query_type}
+    if not resource_id:
+        return jsonify({'success': False, 'message': 'Thiếu Resource ID', 'data': []}), 400
 
     try:
-        response = fetch_mes_api_with_retry('GET', url, params=params)
-        response.raise_for_status()
-        data = response.json()
-        items = data.get('data', [])
-        for item in items:
-            if isinstance(item, dict):
-                if 'resourceId' in item and 'resourceID' not in item:
-                    item['resourceID'] = item['resourceId']
-                if 'productId' in item and 'productID' not in item:
-                    item['productID'] = item['productId']
-                if 'stationId' in item and 'stationID' not in item:
-                    item['stationID'] = item['stationId']
-                if 'boundResourceUserIds' in item and 'boundResourceUserIDs' not in item:
-                    item['boundResourceUserIDs'] = item['boundResourceUserIds']
-        return jsonify({
-            'success': True,
-            'data': items
-        })
+        if query_type == 0:
+            # 1. Tra cứu feed_records_id của barcode trong kvmes.material_resource
+            if product_id:
+                sql_mr = """
+                    SELECT feed_records_id
+                    FROM kvmes.material_resource
+                    WHERE id = %s AND product_id = %s
+                    ORDER BY updated_at DESC
+                    LIMIT 1;
+                """
+                rows_mr, _ = execute_pg_select_query(sql_mr, (resource_id, product_id))
+            else:
+                rows_mr = []
+
+            if not rows_mr:
+                sql_mr_fallback = """
+                    SELECT feed_records_id
+                    FROM kvmes.material_resource
+                    WHERE id = %s
+                    ORDER BY updated_at DESC
+                    LIMIT 1;
+                """
+                rows_mr, _ = execute_pg_select_query(sql_mr_fallback, (resource_id,))
+
+            if not rows_mr or not rows_mr[0] or not rows_mr[0][0]:
+                return jsonify({'success': True, 'data': []})
+
+            feed_ids = rows_mr[0][0]
+            if isinstance(feed_ids, str):
+                feed_ids = [f.strip() for f in feed_ids.strip('{}').split(',') if f.strip()]
+            elif not isinstance(feed_ids, (list, tuple)):
+                feed_ids = list(feed_ids)
+
+            if not feed_ids:
+                return jsonify({'success': True, 'data': []})
+
+            # 2. Truy vấn bảng kvmes.feed_record qua Primary Key (id)
+            sql_feed = """
+                SELECT id, operator_id, materials, time
+                FROM kvmes.feed_record
+                WHERE id = ANY(%s)
+                ORDER BY time DESC;
+            """
+            rows_feed, _ = execute_pg_select_query(sql_feed, (feed_ids,))
+            if not rows_feed:
+                return jsonify({'success': True, 'data': []})
+
+            child_feed_items = []
+            child_res_ids = set()
+
+            for f_row in rows_feed:
+                f_id, f_op, f_mats_raw, f_time = f_row
+                if not f_mats_raw:
+                    continue
+                f_mats = json.loads(f_mats_raw) if isinstance(f_mats_raw, str) else f_mats_raw
+                if not isinstance(f_mats, list):
+                    continue
+
+                for m_site in f_mats:
+                    if not isinstance(m_site, dict):
+                        continue
+                    site_station = m_site.get('station', '')
+                    feed_res_list = m_site.get('feed_resources', [])
+
+                    for res in feed_res_list:
+                        if not isinstance(res, dict):
+                            continue
+                        c_rid = str(res.get('resource_id') or '').strip()
+                        if not c_rid:
+                            continue
+                        child_res_ids.add(c_rid)
+                        child_feed_items.append({
+                            'feed_id': f_id,
+                            'feed_op': f_op,
+                            'feed_time': f_time,
+                            'site_station': site_station,
+                            'resource_id': c_rid,
+                            'product_id': str(res.get('product_id') or '').strip(),
+                            'product_type': str(res.get('product_type') or '').strip(),
+                            'quantity': str(res.get('quantity') if res.get('quantity') is not None else ''),
+                            'status': res.get('status', 1),
+                            'expiry_time': str(res.get('expiry_time') or ''),
+                            'bound_user': str(res.get('bound_resource_user_id') or f_op or '')
+                        })
+
+            if not child_feed_items:
+                return jsonify({'success': True, 'data': []})
+
+            # 3. Batch query chi tiết từng child barcode trong kvmes.material_resource qua index (id)
+            sql_children = """
+                SELECT id, product_id, product_type, quantity, status, expiry_time, standing_time, info, created_at, created_by
+                FROM kvmes.material_resource
+                WHERE id = ANY(%s);
+            """
+            rows_children, _ = execute_pg_select_query(sql_children, (list(child_res_ids),))
+
+            child_mr_map = {}
+            for c_row in rows_children:
+                c_id, c_pid, c_ptype, c_qty, c_st, c_exp, c_std, c_info_raw, c_cat, c_cby = c_row
+                c_info = json.loads(c_info_raw) if isinstance(c_info_raw, str) else (c_info_raw or {})
+                key = (c_id, c_pid) if c_pid else c_id
+                child_mr_map[key] = {
+                    'id': c_id,
+                    'product_id': c_pid,
+                    'product_type': c_ptype,
+                    'stock_quantity': _format_stock_qty(c_qty),
+                    'status': c_st,
+                    'expiry_time': c_exp,
+                    'info': c_info,
+                    'created_at': c_cat,
+                    'created_by': c_cby
+                }
+                if c_id not in child_mr_map:
+                    child_mr_map[c_id] = child_mr_map[key]
+
+            # 4. Ghép kết quả theo đúng chuẩn MaterialHistory
+            results = []
+            for item in child_feed_items:
+                c_rid = item['resource_id']
+                c_pid = item['product_id']
+                mr_info = child_mr_map.get((c_rid, c_pid)) or child_mr_map.get(c_rid) or {}
+                raw_info = mr_info.get('info', {})
+                prod_info = raw_info.get('production_info', {}) if isinstance(raw_info, dict) else {}
+
+                lot_number = str(raw_info.get('lot_number') or '')
+                station_id = str(prod_info.get('station') or item.get('site_station') or '')
+                prod_staff = item.get('bound_user') or mr_info.get('created_by') or ''
+                bound_users = [prod_staff] if prod_staff else []
+
+                f_time = item.get('feed_time')
+                prod_time_str = _format_dt_to_iso(f_time)
+                prod_date_str = _format_date_str(f_time)
+
+                exp_time_val = item.get('expiry_time')
+                if not exp_time_val and mr_info.get('expiry_time'):
+                    exp_time_val = _format_epoch_nanos_to_iso(mr_info.get('expiry_time'))
+
+                stock_qty = mr_info.get('stock_quantity') or item.get('quantity')
+
+                res_obj = {
+                    "abnormality": 0,
+                    "boundResourceUserIds": bound_users,
+                    "boundResourceUserIDs": bound_users,
+                    "carrierId": "",
+                    "causesOfAbnormalities": 0,
+                    "expiryTime": exp_time_val or '',
+                    "lotNumber": lot_number,
+                    "productId": c_pid or mr_info.get('product_id') or '',
+                    "productID": c_pid or mr_info.get('product_id') or '',
+                    "productType": item.get('product_type') or mr_info.get('product_type') or '',
+                    "productionDate": prod_date_str,
+                    "productionId": lot_number,
+                    "productionQuantity": stock_qty,
+                    "productionStaff": prod_staff,
+                    "productionTime": prod_time_str,
+                    "quantity": item.get('quantity') or '',
+                    "resourceId": c_rid,
+                    "resourceID": c_rid,
+                    "stationId": station_id,
+                    "stationID": station_id,
+                    "status": item.get('status', 1),
+                    "stockQuantity": stock_qty
+                }
+                results.append(res_obj)
+
+            return jsonify({
+                'success': True,
+                'data': results
+            })
+
+        else:
+            # TYPE 1: Tra cứu nguồn gốc ngược (Where this barcode was used)
+            json_pattern = json.dumps([{"feed_resources": [{"resource_id": resource_id}]}])
+            sql_feed_search = """
+                SELECT id, operator_id, time 
+                FROM kvmes.feed_record 
+                WHERE materials @> %s::jsonb
+                ORDER BY time DESC
+                LIMIT 50;
+            """
+            rows_feed, _ = execute_pg_select_query(sql_feed_search, (json_pattern,))
+            if not rows_feed:
+                return jsonify({'success': True, 'data': []})
+
+            feed_ids = [r[0] for r in rows_feed]
+            feed_map = {r[0]: {'operator_id': r[1], 'time': r[2]} for r in rows_feed}
+
+            parent_mr_rows = []
+            for fid in feed_ids[:10]:
+                sql_parent = """
+                    SELECT id, product_id, product_type, quantity, status, expiry_time, standing_time, info, created_at, created_by, feed_records_id
+                    FROM kvmes.material_resource
+                    WHERE kvmes.immutable_array_to_string(feed_records_id, ' ') LIKE %s
+                    ORDER BY created_at DESC
+                    LIMIT 5;
+                """
+                p_rows, _ = execute_pg_select_query(sql_parent, (f'%{fid}%',))
+                for p_row in p_rows:
+                    parent_mr_rows.append((p_row, fid))
+
+            results = []
+            seen_keys = set()
+            for p_row, matched_fid in parent_mr_rows:
+                p_id, p_pid, p_ptype, p_qty, p_st, p_exp, p_std, p_info_raw, p_cat, p_cby, p_fids = p_row
+                key = (p_id, p_pid)
+                if key in seen_keys:
+                    continue
+                seen_keys.add(key)
+
+                p_info = json.loads(p_info_raw) if isinstance(p_info_raw, str) else (p_info_raw or {})
+                prod_info = p_info.get('production_info', {}) if isinstance(p_info, dict) else {}
+                lot_number = str(p_info.get('lot_number') or '')
+                station_id = str(prod_info.get('station') or '')
+
+                f_info = feed_map.get(matched_fid, {})
+                f_time = f_info.get('time')
+                prod_time_str = _format_dt_to_iso(f_time) if f_time else _format_epoch_nanos_to_iso(p_cat)
+                prod_date_str = _format_date_str(f_time) if f_time else prod_time_str[:10]
+                prod_staff = f_info.get('operator_id') or p_cby or ''
+                bound_users = [prod_staff] if prod_staff else []
+                stock_qty = _format_stock_qty(p_qty)
+
+                exp_time_val = _format_epoch_nanos_to_iso(p_exp)
+
+                res_obj = {
+                    "abnormality": 0,
+                    "boundResourceUserIds": bound_users,
+                    "boundResourceUserIDs": bound_users,
+                    "carrierId": "",
+                    "causesOfAbnormalities": 0,
+                    "expiryTime": exp_time_val or '',
+                    "lotNumber": lot_number,
+                    "productId": p_pid or '',
+                    "productID": p_pid or '',
+                    "productType": p_ptype or '',
+                    "productionDate": prod_date_str,
+                    "productionId": lot_number,
+                    "productionQuantity": stock_qty,
+                    "productionStaff": prod_staff,
+                    "productionTime": prod_time_str,
+                    "quantity": stock_qty,
+                    "resourceId": p_id,
+                    "resourceID": p_id,
+                    "stationId": station_id,
+                    "stationID": station_id,
+                    "status": p_st,
+                    "stockQuantity": stock_qty
+                }
+                results.append(res_obj)
+
+            return jsonify({
+                'success': True,
+                'data': results
+            })
+
     except Exception as e:
-        logger.error(f"get_mes_material_history error: {e}")
+        logger.error(f"get_mes_material_history error: {e}", exc_info=True)
         return jsonify({
             'success': False,
-            'message': f"Lỗi gọi API MES: {str(e)}",
+            'message': f"Lỗi tra cứu lịch sử vật liệu: {str(e)}",
             'data': []
         }), 500
 
