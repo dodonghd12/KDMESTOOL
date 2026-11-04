@@ -273,11 +273,17 @@
                         <div class="kd-d2e-input-grid">
                             <div class="kd-field-col">
                                 <label for="d2eDateInput" class="kd-convert-label">Chọn Ngày:</label>
-                                <input type="date" id="d2eDateInput" class="kd-convert-input">
+                                <div class="kd-picker-input-wrap">
+                                    <input type="text" id="d2eDateInput" class="kd-convert-input font-mono" placeholder="YYYY-MM-DD" autocomplete="off" spellcheck="false">
+                                    <span class="material-symbols-outlined kd-picker-icon" id="d2eDateIcon" title="Chọn ngày">calendar_today</span>
+                                </div>
                             </div>
                             <div class="kd-field-col">
                                 <label for="d2eTimeInput" class="kd-convert-label">Chọn Giờ (HH:mm:ss):</label>
-                                <input type="time" step="1" id="d2eTimeInput" class="kd-convert-input font-mono">
+                                <div class="kd-picker-input-wrap">
+                                    <input type="text" id="d2eTimeInput" class="kd-convert-input font-mono" placeholder="HH:mm:ss" autocomplete="off" spellcheck="false">
+                                    <span class="material-symbols-outlined kd-picker-icon" id="d2eTimeIcon" title="Chọn giờ">schedule</span>
+                                </div>
                             </div>
                             <div class="kd-field-col">
                                 <label for="d2eTzSelect" class="kd-convert-label">Timezone:</label>
@@ -299,4 +305,6 @@
     </div>
 </div>
 
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/flatpickr/flatpickr.min.css') }}">
+<script src="{{ url_for('static', filename='vendor/flatpickr/flatpickr.min.js') }}"></script>
 <script src="{{ url_for('static', filename='js/fab_speed_dial.js') }}?v={{ version }}"></script>

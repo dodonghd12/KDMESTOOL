@@ -580,6 +580,10 @@
 
         if (modal) modal.classList.add('hidden');
 
+        if (fpDateInstance) fpDateInstance.close();
+
+        if (fpTimeInstance) fpTimeInstance.close();
+
     }
 
 
@@ -1003,7 +1007,8 @@
 
     // ──────────────────────────────────────────────────────────────────────────
 
-
+    let fpDateInstance = null;
+    let fpTimeInstance = null;
 
     function initDateToEpochInputs() {
 
@@ -1027,7 +1032,11 @@
 
             dateInput.value = `${y}-${m}-${d}`;
 
+        }
 
+        if (!timeInput.value) {
+
+            const now = new Date();
 
             const hh = String(now.getHours()).padStart(2, '0');
 
@@ -1037,6 +1046,62 @@
 
             timeInput.value = `${hh}:${mm}:${ss}`;
 
+        }
+
+        // Initialize flatpickr instances
+        if (typeof flatpickr !== 'undefined') {
+            if (!fpDateInstance) {
+                fpDateInstance = flatpickr(dateInput, {
+                    dateFormat: 'Y-m-d',
+                    defaultDate: dateInput.value || 'today',
+                    allowInput: true,
+                    clickOpens: true,
+                    disableMobile: true,
+                    onChange: function(selectedDates, dateStr) {
+                        dateInput.value = dateStr;
+                        handleDateToEpochChange();
+                    }
+                });
+            } else {
+                fpDateInstance.setDate(dateInput.value || 'today', false);
+            }
+
+            if (!fpTimeInstance) {
+                fpTimeInstance = flatpickr(timeInput, {
+                    enableTime: true,
+                    noCalendar: true,
+                    enableSeconds: true,
+                    time_24hr: true,
+                    dateFormat: 'H:i:S',
+                    defaultDate: timeInput.value || '12:00:00',
+                    allowInput: true,
+                    clickOpens: true,
+                    disableMobile: true,
+                    onChange: function(selectedDates, dateStr) {
+                        timeInput.value = dateStr;
+                        handleDateToEpochChange();
+                    }
+                });
+            } else {
+                fpTimeInstance.setDate(timeInput.value || '12:00:00', false);
+            }
+
+            const d2eDateIcon = document.getElementById('d2eDateIcon');
+            const d2eTimeIcon = document.getElementById('d2eTimeIcon');
+            if (d2eDateIcon) {
+                d2eDateIcon.onclick = (e) => {
+                    e.stopPropagation();
+                    if (fpDateInstance) fpDateInstance.open();
+                    else dateInput.focus();
+                };
+            }
+            if (d2eTimeIcon) {
+                d2eTimeIcon.onclick = (e) => {
+                    e.stopPropagation();
+                    if (fpTimeInstance) fpTimeInstance.open();
+                    else timeInput.focus();
+                };
+            }
         }
 
         handleDateToEpochChange();
@@ -1059,9 +1124,9 @@
 
 
 
-        const dateVal = dateInput.value;
+        const dateVal = (dateInput.value || '').trim();
 
-        const timeVal = timeInput.value || '00:00:00';
+        const timeVal = (timeInput.value || '00:00:00').trim();
 
         const isUtc = tzSelect && tzSelect.value === 'UTC';
 
@@ -1079,7 +1144,9 @@
 
         let parsedDate;
 
-        const [y, m, d] = dateVal.split('-').map(Number);
+        const dateParts = dateVal.includes('-') ? dateVal.split('-') : dateVal.split('/');
+
+        const [y, m, d] = dateParts.map(Number);
 
         const [hh, mm, ss] = timeVal.split(':').map(Number);
 
@@ -1217,7 +1284,7 @@
 
         const d = String(now.getDate()).padStart(2, '0');
 
-        dateInput.value = `${y}-${m}-${d}`;
+        const dateStr = `${y}-${m}-${d}`;
 
 
 
@@ -1227,9 +1294,19 @@
 
         const ss = String(now.getSeconds()).padStart(2, '0');
 
-        timeInput.value = `${hh}:${mm}:${ss}`;
+        const timeStr = `${hh}:${mm}:${ss}`;
 
+        if (fpDateInstance) {
+            fpDateInstance.setDate(dateStr, false);
+        } else {
+            dateInput.value = dateStr;
+        }
 
+        if (fpTimeInstance) {
+            fpTimeInstance.setDate(timeStr, false);
+        } else {
+            timeInput.value = timeStr;
+        }
 
         handleDateToEpochChange();
 
@@ -1243,7 +1320,11 @@
 
         if (timeInput) {
 
-            timeInput.value = timeStr;
+            if (fpTimeInstance) {
+                fpTimeInstance.setDate(timeStr, false);
+            } else {
+                timeInput.value = timeStr;
+            }
 
             handleDateToEpochChange();
 
@@ -1607,9 +1688,15 @@
 
         const d2eTz = document.getElementById('d2eTzSelect');
 
-        if (d2eDate) d2eDate.addEventListener('change', handleDateToEpochChange);
+        if (d2eDate) {
+            d2eDate.addEventListener('change', handleDateToEpochChange);
+            d2eDate.addEventListener('input', handleDateToEpochChange);
+        }
 
-        if (d2eTime) d2eTime.addEventListener('input', handleDateToEpochChange);
+        if (d2eTime) {
+            d2eTime.addEventListener('input', handleDateToEpochChange);
+            d2eTime.addEventListener('change', handleDateToEpochChange);
+        }
 
         if (d2eTz) d2eTz.addEventListener('change', handleDateToEpochChange);
 

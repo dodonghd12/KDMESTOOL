@@ -641,7 +641,7 @@ body {
     padding: var(--space-3, 12px) !important;
     width: 320px !important;
     box-sizing: border-box !important;
-    z-index: 99999 !important;
+    z-index: 100005 !important;
     overflow: hidden !important;
 }
 
@@ -1020,6 +1020,105 @@ span.flatpickr-weekday {
 .flatpickr-calendar.arrowLeft::before,
 .flatpickr-calendar.arrowLeft::after {
     border-right-color: var(--color-bg-surface-elevated, rgba(13, 22, 40, 0.98)) !important;
+}
+
+/* ===== FLATPICKR TIME PICKER (CYBERPUNK GLASS THEME) ===== */
+.flatpickr-calendar.hasTime.noCalendar {
+    width: 250px !important;
+    padding: 12px 14px !important;
+    border-radius: 14px !important;
+}
+
+.flatpickr-calendar.hasTime.noCalendar .flatpickr-time {
+    height: 44px !important;
+    max-height: 44px !important;
+    line-height: 44px !important;
+    border: none !important;
+    background: transparent !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+}
+
+.flatpickr-time {
+    border-top: 1px solid var(--color-border-glass, rgba(255, 255, 255, 0.08)) !important;
+    background: transparent !important;
+    color: #f8fafc !important;
+}
+
+.flatpickr-time .numInputWrapper {
+    height: 38px !important;
+    background: var(--color-bg-input, rgba(15, 23, 42, 0.95)) !important;
+    border: 1px solid var(--color-border-interactive, rgba(61, 213, 192, 0.3)) !important;
+    border-radius: 8px !important;
+    transition: all 0.2s ease !important;
+    overflow: hidden !important;
+}
+
+.flatpickr-time .numInputWrapper:hover,
+.flatpickr-time .numInputWrapper:focus-within {
+    border-color: var(--color-text-accent, #3dd5c0) !important;
+    box-shadow: 0 0 10px rgba(61, 213, 192, 0.3) !important;
+}
+
+.flatpickr-time input.numInput {
+    background: transparent !important;
+    color: #f8fafc !important;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    text-align: center !important;
+    border: none !important;
+    outline: none !important;
+    padding: 0 !important;
+}
+
+.flatpickr-time input.numInput:hover,
+.flatpickr-time input.numInput:focus {
+    background: transparent !important;
+    color: var(--color-text-accent, #3dd5c0) !important;
+}
+
+.flatpickr-time .flatpickr-time-separator {
+    color: var(--color-text-accent, #3dd5c0) !important;
+    font-weight: 800 !important;
+    font-size: 16px !important;
+    width: 10px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    user-select: none !important;
+}
+
+.flatpickr-time .flatpickr-am-pm {
+    color: var(--color-text-accent, #3dd5c0) !important;
+    font-weight: 700 !important;
+    font-size: 13px !important;
+    border-radius: 6px !important;
+    background: rgba(61, 213, 192, 0.1) !important;
+    border: 1px solid rgba(61, 213, 192, 0.25) !important;
+    height: 38px !important;
+    line-height: 38px !important;
+}
+
+.flatpickr-time .flatpickr-am-pm:hover,
+.flatpickr-time .flatpickr-am-pm:focus {
+    background: var(--color-text-accent, #3dd5c0) !important;
+    color: #0f172a !important;
+}
+
+/* Arrows in time picker */
+.flatpickr-time .numInputWrapper span.arrowUp:after {
+    border-bottom-color: var(--color-text-accent, #3dd5c0) !important;
+}
+
+.flatpickr-time .numInputWrapper span.arrowDown:after {
+    border-top-color: var(--color-text-accent, #3dd5c0) !important;
+}
+
+.flatpickr-time .numInputWrapper span:hover {
+    background: rgba(61, 213, 192, 0.2) !important;
 }
 
 /* ===== GLASSMORPHISM CONTAINER ===== */
@@ -14070,6 +14169,42 @@ body.is-spa-frame .kd-fab-container {
     min-width: 0 !important;
 }
 
+.kd-picker-input-wrap {
+    position: relative !important;
+    display: flex !important;
+    align-items: center !important;
+    width: 100% !important;
+}
+
+.kd-picker-input-wrap .kd-convert-input {
+    padding-right: 36px !important;
+    cursor: pointer !important;
+}
+
+.kd-picker-input-wrap .kd-picker-icon {
+    position: absolute !important;
+    right: 10px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    color: var(--color-text-accent, #3dd5c0) !important;
+    font-size: 19px !important;
+    line-height: 1 !important;
+    cursor: pointer !important;
+    user-select: none !important;
+    transition: color 0.18s ease, transform 0.18s ease !important;
+    z-index: 2 !important;
+}
+
+.kd-picker-input-wrap .kd-picker-icon:hover {
+    color: #6ee7b7 !important;
+    transform: translateY(-50%) scale(1.1) !important;
+}
+
+.kd-convert-input::-webkit-calendar-picker-indicator {
+    display: none !important;
+    -webkit-appearance: none !important;
+}
+
 .kd-convert-label {
     font-size: 12px !important;
     font-weight: 600 !important;
@@ -14079,17 +14214,32 @@ body.is-spa-frame .kd-fab-container {
 .kd-convert-select {
     width: 100% !important;
     box-sizing: border-box !important;
-    padding: 9px 12px !important;
+    padding: 9px 34px 9px 12px !important;
     background: rgba(15, 23, 42, 0.85) !important;
     border: 1px solid rgba(255, 255, 255, 0.14) !important;
     border-radius: 8px !important;
     color: #f8fafc !important;
     font-size: 12.5px !important;
     outline: none !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%233dd5c0' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 10px center !important;
+    background-size: 16px 16px !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
 }
 
 .kd-convert-select:focus {
     border-color: var(--color-text-accent, #3dd5c0) !important;
+    box-shadow: 0 0 0 3px rgba(61, 213, 192, 0.2) !important;
+}
+
+.kd-convert-select option {
+    background-color: var(--color-bg-canvas, #0b1120) !important;
+    color: #f8fafc !important;
 }
 
 /* Reverse Hero Output Card */
