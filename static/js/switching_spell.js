@@ -761,7 +761,6 @@
             return `
                 <div class="station-dropdown-item ${isAlready ? 'is-disabled' : ''}" data-station="${escapeHtml(st)}" title="${escapeHtml(tooltip)}">
                     <span class="station-name">${escapeHtml(st)}</span>
-                    ${isAlready ? '<span class="already-badge">(Đã có)</span>' : ''}
                 </div>
             `;
         }).join('');
@@ -926,8 +925,8 @@
         if (!dropdown || !anchorBtn) return;
 
         const rect = anchorBtn.getBoundingClientRect();
-        const dropdownWidth = 330;
-        const dropdownHeight = dropdown.offsetHeight || 320;
+        const dropdownWidth = 260;
+        const dropdownHeight = dropdown.offsetHeight || 300;
 
         let top = rect.bottom + 4;
         let left = rect.left - dropdownWidth + rect.width;
@@ -1061,14 +1060,6 @@
                 tooltip = isIdle ? 'Chọn máy in (Sẵn sàng)' : `Máy in đang bị lỗi: ${rawStatus}`;
             }
 
-            let inUseBadge = '';
-            if (isCurrentGroup) {
-                inUseBadge = '<span class="already-badge" style="color: #38bdf8; font-weight: 600;">(Đang chọn)</span>';
-            } else if (otherGroups.length > 0) {
-                const groupLabels = otherGroups.map(idx => `#${idx + 1}`).join(', ');
-                inUseBadge = `<span class="already-badge">(Nhóm ${groupLabels})</span>`;
-            }
-
             return `
                 <div class="printer-dropdown-item ${isCurrentGroup ? 'is-selected' : ''}" data-printer="${escapeHtml(p.queue_name)}" title="${escapeHtml(tooltip)}">
                     <div class="printer-dropdown-item-main">
@@ -1077,7 +1068,6 @@
                     </div>
                     <div class="printer-dropdown-item-meta">
                         <span class="printer-status-badge ${statusClass}" title="${isIdle ? 'Trạng thái: Sẵn sàng (Idle)' : escapeHtml('Lỗi máy in: ' + rawStatus)}">${statusText}</span>
-                        ${inUseBadge}
                     </div>
                 </div>
             `;
