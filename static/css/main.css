@@ -13496,81 +13496,19 @@ body.is-spa-frame .kd-fab-container {
     }
 }
 
-/* Full-Width Header Bar */
-.kd-utility-modal-header {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    width: 100% !important;
-    box-sizing: border-box !important;
-    padding: 8px 18px !important;
-    border-bottom: 1px solid var(--color-border-glass, rgba(255, 255, 255, 0.08)) !important;
-    background: var(--color-bg-surface-elevated, #0f172a) !important;
-    flex-shrink: 0 !important;
-}
-
-.kd-utility-title-wrap {
-    display: flex !important;
-    align-items: center !important;
-    gap: 8px !important;
-    text-align: left !important;
-}
-
-.kd-utility-header-icon {
-    font-size: 18px !important;
-    color: var(--color-text-accent, #3dd5c0) !important;
-    background: var(--color-interactive-bg-hover, rgba(61, 213, 192, 0.12)) !important;
-    border: 1px solid var(--color-border-interactive, rgba(61, 213, 192, 0.25)) !important;
-    padding: 4px !important;
-    border-radius: 6px !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-}
-
-.kd-utility-modal-title {
-    margin: 0 !important;
-    font-size: 15px !important;
-    font-weight: 700 !important;
-    color: var(--color-text-primary, #f8fafc) !important;
-    letter-spacing: -0.2px !important;
-}
-
-.kd-utility-header-actions {
-    display: flex !important;
-    align-items: center !important;
-    gap: 8px !important;
-}
-
-.kd-utility-header-actions .details-modal-close {
-    width: 26px !important;
-    height: 26px !important;
-    border-radius: 6px !important;
-    background: rgba(255, 255, 255, 0.06) !important;
-    border: 1px solid var(--color-border-glass, rgba(255, 255, 255, 0.1)) !important;
-    color: #94a3b8 !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    cursor: pointer !important;
-    transition: all 0.18s ease !important;
-}
-
-.kd-utility-header-actions .details-modal-close:hover {
-    background: rgba(239, 68, 68, 0.16) !important;
-    border-color: rgba(239, 68, 68, 0.4) !important;
-    color: #f87171 !important;
-}
-
-/* Full-Width Left-Aligned Tabs Navigation */
+/* Full-Width Left-Aligned Tabs Navigation with Far-Right Close Button */
 .kd-tabs-container {
     width: 100% !important;
     box-sizing: border-box !important;
-    padding: 0 18px !important;
-    background: rgba(15, 23, 42, 0.55) !important;
+    padding: 6px 14px 0 16px !important;
+    background: rgba(15, 23, 42, 0.75) !important;
     border-bottom: 1px solid var(--color-border-glass, rgba(255, 255, 255, 0.08)) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
     text-align: left !important;
     flex-shrink: 0 !important;
+    min-height: 44px !important;
 }
 
 .kd-tablist {
@@ -13579,8 +13517,32 @@ body.is-spa-frame .kd-fab-container {
     align-items: center !important;
     justify-content: flex-start !important;
     gap: 8px !important;
-    width: 100% !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
     text-align: left !important;
+}
+
+.kd-tabs-container .details-modal-close {
+    width: 28px !important;
+    height: 28px !important;
+    border-radius: 6px !important;
+    background: rgba(255, 255, 255, 0.06) !important;
+    border: 1px solid var(--color-border-glass, rgba(255, 255, 255, 0.1)) !important;
+    color: #94a3b8 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    flex-shrink: 0 !important;
+    margin-left: 12px !important;
+    margin-bottom: 6px !important;
+    transition: all 0.18s ease !important;
+}
+
+.kd-tabs-container .details-modal-close:hover {
+    background: rgba(239, 68, 68, 0.16) !important;
+    border-color: rgba(239, 68, 68, 0.4) !important;
+    color: #f87171 !important;
 }
 
 .kd-tab {

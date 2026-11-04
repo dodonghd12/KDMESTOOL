@@ -172,27 +172,9 @@
 <!-- ==============================================================================
      MODAL 1: FYI (ACCESSIBLE TABS: Product Type)
      ============================================================================== -->
-<div id="fyiModal" class="custom-modal kd-utility-modal hidden" role="dialog" aria-modal="true" aria-labelledby="fyiModalTitle">
+<div id="fyiModal" class="custom-modal kd-utility-modal hidden" role="dialog" aria-modal="true" aria-labelledby="fyiTabProductType">
     <div class="kd-utility-modal-content">
-        <!-- Header -->
-        <div class="kd-utility-modal-header">
-            <div class="kd-utility-title-wrap">
-                <span class="material-symbols-outlined kd-utility-header-icon" aria-hidden="true">info</span>
-                <div>
-                    <h3 class="kd-utility-modal-title" id="fyiModalTitle">FYI</h3>
-                </div>
-            </div>
-            <div class="kd-utility-header-actions">
-                <button type="button" class="details-modal-close" id="fyiModalCloseBtn" title="Đóng (ESC)" aria-label="Đóng hộp thoại FYI">
-                    <svg class="close-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
-                </button>
-            </div>
-        </div>
-
-        <!-- Accessible Tabs Navigation (Left-aligned, label only) -->
+        <!-- Accessible Tabs Navigation (Left-aligned tabs + Right-aligned close button) -->
         <div class="kd-tabs-container" id="fyiTabsContainer">
             <div class="kd-tablist" role="tablist" aria-label="Danh mục FYI">
                 <button type="button" class="kd-tab active" role="tab" id="fyiTabProductType" aria-selected="true" aria-controls="fyiPanelProductType" tabindex="0">
@@ -200,6 +182,12 @@
                 </button>
                 <div class="kd-tab-indicator" aria-hidden="true"></div>
             </div>
+            <button type="button" class="details-modal-close" id="fyiModalCloseBtn" title="Đóng (ESC)" aria-label="Đóng hộp thoại FYI">
+                <svg class="close-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
         </div>
 
         <!-- Accessible Tab Panels -->
@@ -217,27 +205,9 @@
 <!-- ==============================================================================
      MODAL 2: CONVERT (UNIFIED 2-WAY PANEL: Epoch & Datetime)
      ============================================================================== -->
-<div id="convertModal" class="custom-modal kd-utility-modal hidden" role="dialog" aria-modal="true" aria-labelledby="convertModalTitle">
+<div id="convertModal" class="custom-modal kd-utility-modal hidden" role="dialog" aria-modal="true" aria-labelledby="convertTabUnified">
     <div class="kd-utility-modal-content">
-        <!-- Header -->
-        <div class="kd-utility-modal-header">
-            <div class="kd-utility-title-wrap">
-                <span class="material-symbols-outlined kd-utility-header-icon" aria-hidden="true">sync_alt</span>
-                <div>
-                    <h3 class="kd-utility-modal-title" id="convertModalTitle">Convert</h3>
-                </div>
-            </div>
-            <div class="kd-utility-header-actions">
-                <button type="button" class="details-modal-close" id="convertModalCloseBtn" title="Đóng (ESC)" aria-label="Đóng hộp thoại Convert">
-                    <svg class="close-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
-                </button>
-            </div>
-        </div>
-
-        <!-- Accessible Tabs Navigation (Left-aligned, label only) -->
+        <!-- Accessible Tabs Navigation (Left-aligned tabs + Right-aligned close button) -->
         <div class="kd-tabs-container" id="convertTabsContainer">
             <div class="kd-tablist" role="tablist" aria-label="Công cụ chuyển đổi">
                 <button type="button" class="kd-tab active" role="tab" id="convertTabUnified" aria-selected="true" aria-controls="convertPanelUnified" tabindex="0">
@@ -245,6 +215,12 @@
                 </button>
                 <div class="kd-tab-indicator" aria-hidden="true"></div>
             </div>
+            <button type="button" class="details-modal-close" id="convertModalCloseBtn" title="Đóng (ESC)" aria-label="Đóng hộp thoại Convert">
+                <svg class="close-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
         </div>
 
         <!-- Accessible Tab Panels -->
