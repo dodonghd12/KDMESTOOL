@@ -769,7 +769,8 @@ body.theme-light .btn-remove-station:hover {
     background: transparent !important;
 }
 
-.station-dropdown-item .already-badge {
+.station-dropdown-item .already-badge,
+.printer-dropdown-item .already-badge {
     font-size: 11px;
     color: var(--color-text-muted);
     font-family: var(--font-stack, sans-serif);
@@ -828,6 +829,11 @@ body.theme-light .btn-remove-station:hover {
 .printer-dropdown-item:hover,
 .printer-dropdown-item.is-highlighted {
     background: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+}
+
+.printer-dropdown-item.is-selected {
+    background: rgba(56, 189, 248, 0.08);
     color: #38bdf8;
 }
 

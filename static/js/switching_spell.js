@@ -838,7 +838,7 @@
         if (listEl) {
             listEl.addEventListener('click', (e) => {
                 const item = e.target.closest('.printer-dropdown-item');
-                if (!item || item.classList.contains('is-disabled')) return;
+                if (!item) return;
                 e.preventDefault();
                 e.stopPropagation();
 
@@ -1005,12 +1005,16 @@
         const currentPrinters = availablePrintersCache[selectedFolder] || [];
         if (!listEl) return;
 
-        // Thu thập các máy in đang được sử dụng ở bất kỳ nhóm nào
-        const inUsePrintersMap = new Map(); // printerNameUpper -> groupIndex
+        // Thu thập các máy in đang được sử dụng ở các nhóm
+        const inUsePrintersMap = new Map(); // printerNameUpper -> array of group indices
         currentGroups.forEach((g, gIdx) => {
             const p = String(g.printerName || '').trim();
             if (p && p !== '--') {
-                inUsePrintersMap.set(p.toUpperCase(), gIdx);
+                const key = p.toUpperCase();
+                if (!inUsePrintersMap.has(key)) {
+                    inUsePrintersMap.set(key, []);
+                }
+                inUsePrintersMap.get(key).push(gIdx);
             }
         });
 
@@ -1025,25 +1029,21 @@
 
         if (emptyEl) emptyEl.style.display = 'none';
 
-        // Đưa các máy in khả dụng lên đầu, các máy in đã được dùng (is-disabled) xuống cuối danh sách
-        const enabledPrinters = [];
-        const disabledPrinters = [];
-
-        filtered.forEach(p => {
-            if (inUsePrintersMap.has(p.queue_name.toUpperCase())) {
-                disabledPrinters.push(p);
-            } else {
-                enabledPrinters.push(p);
-            }
+        // Sắp xếp: Máy in đang chọn của nhóm này lên đầu, còn lại sắp xếp theo tên A-Z
+        const sortedPrinters = [...filtered].sort((a, b) => {
+            const aUpper = a.queue_name.toUpperCase();
+            const bUpper = b.queue_name.toUpperCase();
+            const aIsCurrent = inUsePrintersMap.get(aUpper)?.includes(activeGroupIndexForPrinter) ? 1 : 0;
+            const bIsCurrent = inUsePrintersMap.get(bUpper)?.includes(activeGroupIndexForPrinter) ? 1 : 0;
+            if (aIsCurrent !== bIsCurrent) return bIsCurrent - aIsCurrent;
+            return a.queue_name.localeCompare(b.queue_name);
         });
-
-        const sortedPrinters = enabledPrinters.concat(disabledPrinters);
 
         const html = sortedPrinters.map(p => {
             const pUpper = p.queue_name.toUpperCase();
-            const inUseInGroupIdx = inUsePrintersMap.get(pUpper);
-            const isInUse = inUseInGroupIdx !== undefined;
-            const isCurrentGroup = inUseInGroupIdx === activeGroupIndexForPrinter;
+            const inUseGroups = inUsePrintersMap.get(pUpper) || [];
+            const isCurrentGroup = inUseGroups.includes(activeGroupIndexForPrinter);
+            const otherGroups = inUseGroups.filter(idx => idx !== activeGroupIndexForPrinter);
 
             const rawStatus = String(p.status || 'Idle').trim();
             const isIdle = rawStatus.toLowerCase() === 'idle';
@@ -1051,21 +1051,33 @@
             const statusClass = isIdle ? 'is-idle' : 'is-error';
             const errorSuffix = isIdle ? '' : ` [Lỗi: ${rawStatus}]`;
 
-            const tooltip = isInUse 
-                ? (isCurrentGroup 
-                    ? `Máy in đang được chọn cho nhóm này${errorSuffix}` 
-                    : `Máy in đang được gán cho nhóm #${inUseInGroupIdx + 1}${errorSuffix}`)
-                : (isIdle ? 'Chọn máy in (Sẵn sàng)' : `Máy in đang bị lỗi: ${rawStatus}`);
+            let tooltip;
+            if (isCurrentGroup) {
+                tooltip = `Máy in đang được chọn cho nhóm này${errorSuffix}`;
+            } else if (otherGroups.length > 0) {
+                const groupLabels = otherGroups.map(idx => `#${idx + 1}`).join(', ');
+                tooltip = `Máy in đang được gán cho nhóm ${groupLabels} (vẫn có thể chọn cho nhóm này)${errorSuffix}`;
+            } else {
+                tooltip = isIdle ? 'Chọn máy in (Sẵn sàng)' : `Máy in đang bị lỗi: ${rawStatus}`;
+            }
+
+            let inUseBadge = '';
+            if (isCurrentGroup) {
+                inUseBadge = '<span class="already-badge" style="color: #38bdf8; font-weight: 600;">(Đang chọn)</span>';
+            } else if (otherGroups.length > 0) {
+                const groupLabels = otherGroups.map(idx => `#${idx + 1}`).join(', ');
+                inUseBadge = `<span class="already-badge">(Nhóm ${groupLabels})</span>`;
+            }
 
             return `
-                <div class="printer-dropdown-item ${isInUse ? 'is-disabled' : ''}" data-printer="${escapeHtml(p.queue_name)}" title="${escapeHtml(tooltip)}">
+                <div class="printer-dropdown-item ${isCurrentGroup ? 'is-selected' : ''}" data-printer="${escapeHtml(p.queue_name)}" title="${escapeHtml(tooltip)}">
                     <div class="printer-dropdown-item-main">
                         <span class="material-symbols-outlined printer-item-icon">print</span>
                         <span class="printer-queue-name">${escapeHtml(p.queue_name)}</span>
                     </div>
                     <div class="printer-dropdown-item-meta">
                         <span class="printer-status-badge ${statusClass}" title="${isIdle ? 'Trạng thái: Sẵn sàng (Idle)' : escapeHtml('Lỗi máy in: ' + rawStatus)}">${statusText}</span>
-                        ${isInUse ? '<span class="already-badge">(Đang dùng)</span>' : ''}
+                        ${inUseBadge}
                     </div>
                 </div>
             `;
