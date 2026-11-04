@@ -659,23 +659,15 @@
     function formatLocalFull(date) {
 
         const options = {
-
             weekday: 'long',
-
             year: 'numeric',
-
             month: 'long',
-
             day: 'numeric',
-
             hour: 'numeric',
-
             minute: '2-digit',
-
             second: '2-digit',
-
-            hour12: true
-
+            hour12: true,
+            timeZone: 'Asia/Ho_Chi_Minh'
         };
 
         const parts = new Intl.DateTimeFormat('en-US', options).formatToParts(date);
@@ -722,7 +714,7 @@
 
 
 
-        return `${weekday}, ${month} ${day}, ${year} at ${hour}:${minute}:${second} ${dayPeriod} ${tzStr}`;
+        return `${weekday}, ${month} ${day}, ${year} at ${hour}:${minute}:${second} ${dayPeriod}`;
 
     }
 
@@ -889,11 +881,11 @@
 
             <div class="kd-result-row">
 
-                <div class="kd-result-label"><span class="kd-label-tag tag-local">Local time</span></div>
+                <div class="kd-result-label"><span class="kd-label-tag tag-local">UTC+7</span></div>
 
                 <div class="kd-result-value font-mono" id="valLocal">${escapeHtml(data.local)}</div>
 
-                <button type="button" class="kd-copy-btn" onclick="copyResultText('valLocal', 'Đã copy Local time')" title="Copy Local">
+                <button type="button" class="kd-copy-btn" onclick="copyResultText('valLocal', 'Đã copy UTC+7 time')" title="Copy UTC+7">
 
                     <span class="material-symbols-outlined">content_copy</span>
 
@@ -1187,11 +1179,11 @@
 
                         <tr>
 
-                            <td>Local Representation</td>
+                            <td>UTC+7 Representation</td>
 
                             <td class="font-mono text-muted" id="d2eLocalVal">${escapeHtml(localFormatted)}</td>
 
-                            <td><button type="button" class="kd-copy-mini" onclick="copyResultText('d2eLocalVal', 'Đã copy Local')">Copy</button></td>
+                            <td><button type="button" class="kd-copy-mini" onclick="copyResultText('d2eLocalVal', 'Đã copy UTC+7')">Copy</button></td>
 
                         </tr>
 
