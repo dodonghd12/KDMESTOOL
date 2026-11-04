@@ -10408,14 +10408,30 @@ def fetch_remote_printers_manager(folder: str, server_ip: str = None) -> dict:
         }
 
     target_server = normalize_avada_kedavra_server(server_ip or DEFAULT_AVADA_KEDAVRA_SERVER)
-    yaml_path = f"/srv/go/service/mesage/KV2/{clean_folder}/assets/services/printers/printers-manager.yaml"
-    cmd = f"test -f '{yaml_path}' && cat '{yaml_path}' || echo '__FILE_NOT_FOUND__'"
+    base_printers_dir = f"/srv/go/service/mesage/KV2/{clean_folder}/assets/services/printers"
+    yaml_path = f"{base_printers_dir}/printers-manager.yaml"
+    cmd = (
+        f"if [ -f '{base_printers_dir}/printers-manager.yaml' ]; then echo '__PATH__:{base_printers_dir}/printers-manager.yaml'; cat '{base_printers_dir}/printers-manager.yaml'; "
+        f"elif [ -f '{base_printers_dir}/printers-manager.yaml1' ]; then echo '__PATH__:{base_printers_dir}/printers-manager.yaml1'; cat '{base_printers_dir}/printers-manager.yaml1'; "
+        f"elif [ -f '{base_printers_dir}/printers-manager.yml' ]; then echo '__PATH__:{base_printers_dir}/printers-manager.yml'; cat '{base_printers_dir}/printers-manager.yml'; "
+        f"else echo '__FILE_NOT_FOUND__'; fi"
+    )
     out, err = run_avada_kedavra_ssh_cmd(cmd, server_ip=target_server, timeout=15)
 
     if '__FILE_NOT_FOUND__' not in out and out.strip():
+        # Trích xuất đường dẫn thực tế nếu có
+        raw_content = out
+        if '__PATH__:' in out:
+            lines = out.splitlines()
+            for i, line in enumerate(lines):
+                if line.startswith('__PATH__:'):
+                    yaml_path = line.replace('__PATH__:', '').strip()
+                    raw_content = '\n'.join(lines[i+1:])
+                    break
+
         try:
             import yaml
-            docs = list(yaml.safe_load_all(out))
+            docs = list(yaml.safe_load_all(raw_content))
             groups = []
             for d in docs:
                 if isinstance(d, dict) and 'networkGroups' in d:
@@ -10439,7 +10455,7 @@ def fetch_remote_printers_manager(folder: str, server_ip: str = None) -> dict:
                     break
 
             # Gắn defaultPrinterName và isCustomPrinter cho từng nhóm dựa trên raw_yaml
-            groups_meta = extract_group_printers_from_yaml(out)
+            groups_meta = extract_group_printers_from_yaml(raw_content)
             for idx, g in enumerate(groups):
                 if idx < len(groups_meta):
                     meta = groups_meta[idx]
@@ -10459,7 +10475,7 @@ def fetch_remote_printers_manager(folder: str, server_ip: str = None) -> dict:
                 'groups': groups,
                 'total_groups': len(groups),
                 'total_stations': total_stations,
-                'raw_yaml': out
+                'raw_yaml': raw_content
             }
         except Exception as parse_err:
             app.logger.error(f"Lỗi parse YAML printers-manager.yaml ({clean_folder}): {parse_err}")
@@ -10668,6 +10684,8 @@ def save_remote_printers_manager(folder: str, updated_groups: list, server_ip: s
 
     try:
         run_avada_kedavra_ssh_write(new_yaml_content, yaml_path, server_ip=target_server, timeout=20)
+        # Giữ đồng bộ cả printers-manager.yaml1 nếu có tồn tại trên server
+        run_avada_kedavra_ssh_cmd(f"test -f '{yaml_path}1' && cp -p '{yaml_path}' '{yaml_path}1' || true", server_ip=target_server, timeout=10)
     except Exception as write_err:
         app.logger.error(f"Lỗi ghi file YAML lên server {target_server}: {write_err}", exc_info=True)
         return {
