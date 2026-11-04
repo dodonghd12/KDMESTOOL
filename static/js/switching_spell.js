@@ -84,11 +84,22 @@
             applyClientSearch(keyword);
         };
 
-        // 3. Lắng nghe chọn thư mục máy in: chọn xong bỏ focus dropdown
+        // 3. Khởi tạo custom folder dropdown & lắng nghe chọn thư mục máy in
+        initFolderCustomDropdown();
+
         if (folderSelect) {
             folderSelect.addEventListener('change', (e) => {
                 selectedFolder = e.target.value;
-                folderSelect.blur();
+                const label = document.getElementById('folderSelectedLabel');
+                const menu = document.getElementById('folderDropdownMenu');
+                if (label) {
+                    label.textContent = selectedFolder || '-- Chọn thư mục máy in (KV2) --';
+                }
+                if (menu) {
+                    menu.querySelectorAll('.folder-menu-item').forEach(it => {
+                        it.classList.toggle('is-selected', it.dataset.value === selectedFolder);
+                    });
+                }
                 const tableContainer = document.getElementById('switchingSpellTableContainer') || document.querySelector('.table-container');
                 if (selectedFolder) {
                     hideStandbyPlaceholder();
@@ -101,6 +112,120 @@
                 }
             });
         }
+    /**
+     * Khởi tạo custom folder dropdown UI với padding và spacing rộng rãi, hiện đại
+     */
+    function initFolderCustomDropdown() {
+        const wrapper = document.getElementById('folderDropdownWrapper');
+        const menu = document.getElementById('folderDropdownMenu');
+        const label = document.getElementById('folderSelectedLabel');
+        const select = document.getElementById('folderSelect');
+        if (!wrapper || !menu || !select) return;
+
+        function openMenu() {
+            wrapper.classList.add('is-open');
+            menu.classList.add('show');
+            wrapper.setAttribute('aria-expanded', 'true');
+        }
+
+        function closeMenu() {
+            wrapper.classList.remove('is-open');
+            menu.classList.remove('show');
+            wrapper.setAttribute('aria-expanded', 'false');
+            menu.querySelectorAll('.folder-menu-item').forEach(it => it.classList.remove('highlight'));
+        }
+
+        function toggleMenu() {
+            if (menu.classList.contains('show')) {
+                closeMenu();
+            } else {
+                openMenu();
+            }
+        }
+
+        wrapper.addEventListener('click', (e) => {
+            const item = e.target.closest('.folder-menu-item');
+            if (item) {
+                const val = item.dataset.value;
+                if (!val) {
+                    closeMenu();
+                    return;
+                }
+                const text = item.querySelector('.item-text')?.textContent || val;
+                selectFolder(val, text);
+                return;
+            }
+            toggleMenu();
+        });
+
+        function selectFolder(val, text) {
+            select.value = val;
+            if (label) label.textContent = text || val;
+            menu.querySelectorAll('.folder-menu-item').forEach(it => {
+                it.classList.toggle('is-selected', it.dataset.value === val);
+            });
+            closeMenu();
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        // Đóng khi click ngoài
+        document.addEventListener('click', (e) => {
+            if (!wrapper.contains(e.target)) {
+                closeMenu();
+            }
+        });
+
+        // Đóng khi ấn Escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && menu.classList.contains('show')) {
+                closeMenu();
+            }
+        });
+
+        // Điều hướng bằng phím
+        wrapper.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                if (!menu.classList.contains('show')) {
+                    e.preventDefault();
+                    openMenu();
+                } else {
+                    const highlighted = menu.querySelector('.folder-menu-item.highlight');
+                    if (highlighted && highlighted.dataset.value) {
+                        e.preventDefault();
+                        selectFolder(highlighted.dataset.value, highlighted.querySelector('.item-text')?.textContent || highlighted.dataset.value);
+                    }
+                }
+            } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (!menu.classList.contains('show')) {
+                    openMenu();
+                    return;
+                }
+                const items = Array.from(menu.querySelectorAll('.folder-menu-item:not(.is-placeholder)'));
+                const activeIdx = items.findIndex(it => it.classList.contains('highlight') || it.classList.contains('is-selected'));
+                let nextIdx = e.key === 'ArrowDown' ? activeIdx + 1 : activeIdx - 1;
+                if (nextIdx < 0) nextIdx = items.length - 1;
+                if (nextIdx >= items.length) nextIdx = 0;
+                items.forEach((it, idx) => {
+                    it.classList.toggle('highlight', idx === nextIdx);
+                });
+                const target = items[nextIdx];
+                if (target) {
+                    target.scrollIntoView({ block: 'nearest' });
+                }
+            }
+        });
+
+        // Đồng bộ giá trị khởi tạo nếu có
+        if (select.value) {
+            const activeItem = menu.querySelector(`.folder-menu-item[data-value="${select.value}"]`);
+            if (activeItem) {
+                activeItem.classList.add('is-selected');
+                if (label) label.textContent = activeItem.querySelector('.item-text')?.textContent || select.value;
+            }
+        }
+    }
+
 
                 // Nút xem nội dung file printers-manager.yaml
         const btnOpenPrintersYaml = document.getElementById('btnOpenPrintersYaml');

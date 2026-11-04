@@ -39,16 +39,40 @@
 
             <!-- 3. Folder Input Dropdown (KV2) -->
             <div class="folder-select-box" id="folderSelectBox">
-                <div class="folder-dropdown-wrapper">
+                <div class="folder-dropdown-wrapper" id="folderDropdownWrapper" tabindex="0" role="combobox" aria-expanded="false" aria-haspopup="listbox" title="Chọn thư mục máy in">
                     <span class="material-symbols-outlined folder-icon">folder_open</span>
-                    <select id="folderSelect" class="folder-select" aria-label="Chọn thư mục máy in">
+                    <span class="folder-selected-label" id="folderSelectedLabel">-- Chọn thư mục máy in (KV2) --</span>
+                    <span class="material-symbols-outlined dropdown-arrow" id="folderDropdownArrow">expand_more</span>
+                    <select id="folderSelect" class="folder-select-hidden" aria-hidden="true" tabindex="-1">
                         <option value="" disabled selected>-- Chọn thư mục máy in (KV2) --</option>
                         <option value="p5300_ic">p5300_ic</option>
                         <option value="p8300">p8300</option>
                         <option value="p8400">p8400</option>
                         <option value="p9100">p9100</option>
                     </select>
-                    <span class="material-symbols-outlined dropdown-arrow">expand_more</span>
+                    <div class="folder-dropdown-menu" id="folderDropdownMenu" role="listbox">
+                        <div class="folder-menu-item is-placeholder" data-value="" role="option">-- Chọn thư mục máy in (KV2) --</div>
+                        <div class="folder-menu-item" data-value="p5300_ic" role="option">
+                            <span class="material-symbols-outlined item-icon">folder</span>
+                            <span class="item-text">p5300_ic</span>
+                            <span class="material-symbols-outlined check-icon">check</span>
+                        </div>
+                        <div class="folder-menu-item" data-value="p8300" role="option">
+                            <span class="material-symbols-outlined item-icon">folder</span>
+                            <span class="item-text">p8300</span>
+                            <span class="material-symbols-outlined check-icon">check</span>
+                        </div>
+                        <div class="folder-menu-item" data-value="p8400" role="option">
+                            <span class="material-symbols-outlined item-icon">folder</span>
+                            <span class="item-text">p8400</span>
+                            <span class="material-symbols-outlined check-icon">check</span>
+                        </div>
+                        <div class="folder-menu-item" data-value="p9100" role="option">
+                            <span class="material-symbols-outlined item-icon">folder</span>
+                            <span class="item-text">p9100</span>
+                            <span class="material-symbols-outlined check-icon">check</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
