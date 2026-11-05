@@ -1498,6 +1498,30 @@
 
         // Action 1: FYI (Button & Chip)
 
+        // Action: Help Guide (Button & Chip)
+        const helpBtn = document.getElementById('kdSpeedDialHelpBtn');
+        const helpChip = document.getElementById('kdSpeedDialHelpChip');
+        if (helpBtn) helpBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            closeSpeedDialMenu();
+            if (typeof window.openHelpModal === 'function') {
+                window.openHelpModal();
+            } else if (window.parent && typeof window.parent.openHelpModal === 'function') {
+                window.parent.openHelpModal();
+            }
+        });
+        if (helpChip) helpChip.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            closeSpeedDialMenu();
+            if (typeof window.openHelpModal === 'function') {
+                window.openHelpModal();
+            } else if (window.parent && typeof window.parent.openHelpModal === 'function') {
+                window.parent.openHelpModal();
+            }
+        });
+
         const fyiBtn = document.getElementById('kdSpeedDialFyiBtn');
 
         const fyiChip = document.getElementById('kdSpeedDialFyiChip');

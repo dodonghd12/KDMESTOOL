@@ -900,3 +900,25 @@ if (document.readyState === 'loading') {
 } else {
     initDbEnvControl();
 }
+
+
+// --- In-App Help Modal Trigger ---
+function initSidebarHelp() {
+    const helpBtn = document.getElementById('sidebarHelpBtn');
+    if (helpBtn) {
+        helpBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (typeof window.openHelpModal === 'function') {
+                window.openHelpModal();
+            } else if (window.parent && typeof window.parent.openHelpModal === 'function') {
+                window.parent.openHelpModal();
+            }
+        });
+    }
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initSidebarHelp);
+} else {
+    initSidebarHelp();
+}
