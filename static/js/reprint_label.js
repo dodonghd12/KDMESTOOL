@@ -27,6 +27,22 @@
     let barcodeDebounceTimer = null;
     let mesDebounceTimer = null;
 
+    // Environment State (KV1 vs KV2)
+    let currentEnv = (function () {
+        const urlParams = new URLSearchParams(window.location.search);
+        const qEnv = (urlParams.get('env') || urlParams.get('plant') || '').trim().toUpperCase();
+        if (qEnv === 'KV1' || qEnv === 'KV2') return qEnv;
+        if (window.REPRINT_CONFIG?.active_db_env) return window.REPRINT_CONFIG.active_db_env;
+        const ref = document.referrer || '';
+        if (ref.includes('198.1.1.106')) return 'KV1';
+        if (ref.includes('198.1.9.245:8011')) return 'KV2';
+        const match = document.cookie.match(/(?:^|;\s*)kdmes_db_env=([^;]+)/);
+        if (match && (match[1].toUpperCase() === 'KV1' || match[1].toUpperCase() === 'KV2')) {
+            return match[1].toUpperCase();
+        }
+        return 'KV2';
+    })();
+
     // Status map
     const STATUS_MAP = {
         0: { text: 'Khởi tạo', cls: 'status-other' },
@@ -48,6 +64,7 @@
         }
 
         initEventListeners();
+        updateEnvUI();
         loadPrintersFromCups();
         initUserBadge();
     });
@@ -64,6 +81,34 @@
         if (uname && userBadge && userNameText) {
             userNameText.textContent = uname;
             userBadge.style.display = 'inline-flex';
+        }
+    }
+
+    function updateEnvUI() {
+        const envBtns = document.querySelectorAll('.reprint-env-btn');
+        envBtns.forEach(btn => {
+            const isMatch = btn.dataset.env === currentEnv;
+            btn.classList.toggle('active', isMatch);
+            btn.setAttribute('aria-pressed', isMatch ? 'true' : 'false');
+        });
+    }
+
+    function switchEnvironment(targetEnv) {
+        if (!targetEnv || (targetEnv !== 'KV1' && targetEnv !== 'KV2')) return;
+        if (currentEnv === targetEnv) return;
+        currentEnv = targetEnv;
+        document.cookie = `kdmes_db_env=${currentEnv}; path=/; max-age=2592000`;
+        updateEnvUI();
+        showToast('Môi trường', `Đã chuyển sang hệ thống nhà máy ${currentEnv}`, 'info');
+        loadPrintersFromCups();
+
+        // Re-run search if barcode or MES is present
+        const barcodeInput = document.getElementById('barcodeInput');
+        const mesInput = document.getElementById('mesInput');
+        if (barcodeInput && barcodeInput.value.trim()) {
+            executeBarcodeSearch(barcodeInput.value.trim().toUpperCase());
+        } else if (mesInput && mesInput.value.trim()) {
+            executeMesSearch(mesInput.value.trim().toUpperCase());
         }
     }
 
@@ -87,6 +132,18 @@
                 }
             });
         }
+
+        // Environment Switcher Buttons (KV1 / KV2)
+        const envBtns = document.querySelectorAll('.reprint-env-btn');
+        envBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const targetEnv = btn.dataset.env;
+                if (targetEnv && targetEnv !== currentEnv) {
+                    switchEnvironment(targetEnv);
+                }
+            });
+        });
 
         // 1. Barcode Input Events
         if (barcodeInput) {
@@ -202,9 +259,14 @@
        ══════════════════════════════════════════════════════════════════════ */
     async function loadPrintersFromCups() {
         const select = document.getElementById('printerSelect');
+        if (select) {
+            select.innerHTML = '<option value="">Đang tải máy in...</option>';
+        }
 
         try {
-            const resp = await fetch('/api/switching-spell/available-printers');
+            const resp = await fetch(`/api/switching-spell/available-printers?env=${encodeURIComponent(currentEnv)}`, {
+                headers: { 'X-DB-Env': currentEnv }
+            });
             const data = await resp.json();
 
             if (resp.ok && data.success && Array.isArray(data.printers)) {
@@ -252,8 +314,11 @@
         try {
             const resp = await fetch('/api/barcodes', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ keyword: barcode })
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-DB-Env': currentEnv
+                },
+                body: JSON.stringify({ keyword: barcode, env: currentEnv })
             });
 
             const data = await resp.json();
@@ -298,8 +363,11 @@
         try {
             const resp = await fetch('/api/workorders/fetch-output-barcodes', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ work_order_id: workOrderId })
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-DB-Env': currentEnv
+                },
+                body: JSON.stringify({ work_order_id: workOrderId, env: currentEnv })
             });
 
             const data = await resp.json();
@@ -567,11 +635,15 @@
 
             const resp = await fetch('/api/barcodes/print-label-cups', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-DB-Env': currentEnv
+                },
                 body: JSON.stringify({
                     barcode: barcode,
                     printer_name: selectedPrinter,
-                    username: currentUsername
+                    username: currentUsername,
+                    env: currentEnv
                 })
             });
 

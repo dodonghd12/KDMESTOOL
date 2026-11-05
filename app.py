@@ -24,6 +24,7 @@ from typing import Optional
 from db_execute import (execute_pg_select_query, execute_pg_kv1_select_query, execute_pg_update_query, execute_pg_kv1_update_query, execute_pg_dev_select_query, execute_pg_insert_query, execute_mssql_select_query, execute_mssql_dml_query)
 from db_connections import (
     get_pg_connection,
+    get_pg_prod_connection,
     get_pg_dev_connection,
     get_pg_kv1_connection,
     get_current_db_env,
@@ -923,7 +924,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.78"
+APP_VERSION = "2.3.79"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -1288,13 +1289,27 @@ def reprint_label():
     username = url_username or session.get('username') or ''
     user_id = session.get('user_id', DEFAULT_MES_USER)
     user_ip = session.get('user_ip', get_client_ip() or '127.0.0.1')
-    return render_template('reprint_label.html',
+
+    # Định tuyến môi trường tự động: URL Query (?env=) > Header > Referer (8011) > Cookie > Mặc định KV2
+    active_env = get_current_db_env()
+    if active_env not in ('KV1', 'KV2'):
+        active_env = 'KV2'
+
+    cups_host = "198.1.1.92" if active_env == 'KV1' else "198.1.10.85"
+    cups_server = f"https://{cups_host}:631/printers/"
+
+    resp = make_response(render_template('reprint_label.html',
                            is_frame=True,
                            username=username,
                            user_id=user_id,
                            user_ip=user_ip,
                            version=current_version,
-                           app_version=APP_VERSION)
+                           app_version=APP_VERSION,
+                           active_db_env=active_env,
+                           cups_host=cups_host,
+                           cups_server=cups_server))
+    resp.set_cookie('kdmes_db_env', active_env, max_age=86400*30, path='/')
+    return resp
 
 @app.route('/material-transfer')
 def material_transfer():
@@ -6522,14 +6537,19 @@ def get_prdebc():
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
 
 
-def build_reprint_label_pdf_buffer(raw_barcode: str):
+def build_reprint_label_pdf_buffer(raw_barcode: str, env: str = None):
     """
     Sinh buffer PDF in lại tem chuẩn MES cho barcode chỉ định.
+    Hỗ trợ định tuyến database động KV1 (198.1.1.92) hoặc KV2 (198.1.10.85).
     Trả về: (pdf_io: io.BytesIO, final_barcode: str)
     """
     barcode = str(raw_barcode or '').strip()
     if not barcode:
         raise ValueError('Thiếu Barcode')
+
+    target_env = (env or get_current_db_env() or 'KV2').strip().upper()
+    if target_env not in ('KV1', 'KV2'):
+        target_env = 'KV2'
 
     query_mr = """
         SELECT
@@ -6553,11 +6573,27 @@ def build_reprint_label_pdf_buffer(raw_barcode: str):
         ORDER BY wo.reserved_date DESC NULLS LAST, cr.sequence ASC, cr.created_at DESC NULLS LAST
         LIMIT 1;
     """
-    result, _ = execute_pg_select_query(query_mr, (barcode,))
+    def _run_query(bc_val):
+        if target_env == 'KV1':
+            with get_pg_kv1_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(query_mr, (bc_val,))
+                rows = cursor.fetchall()
+                cursor.close()
+                return rows
+        else:
+            with get_pg_prod_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(query_mr, (bc_val,))
+                rows = cursor.fetchall()
+                cursor.close()
+                return rows
+
+    result = _run_query(barcode)
     if not result and str(barcode).strip() != barcode:
-        result, _ = execute_pg_select_query(query_mr, (str(barcode).strip(),))
+        result = _run_query(str(barcode).strip())
     if not result:
-        raise LookupError(f'Không tìm thấy dữ liệu tem cho barcode: {barcode}')
+        raise LookupError(f'Không tìm thấy dữ liệu tem cho barcode: {barcode} trên hệ thống {target_env}')
 
     row = result[0]
     (mr_id, mr_oid, product_id, product_type, quantity,
@@ -6667,9 +6703,11 @@ def build_reprint_label_pdf_buffer(raw_barcode: str):
     return pdf_io, (mr_id or barcode)
 
 
-def send_cups_print_job(printer_name: str, pdf_bytes: bytes, job_name: str = "reprint_label.pdf", user_name: str = "kdmes") -> dict:
+def send_cups_print_job(printer_name: str, pdf_bytes: bytes, job_name: str = "reprint_label.pdf", user_name: str = "kdmes", env: str = None) -> dict:
     """
-    Gửi lệnh in trực tiếp tới hàng đợi CUPS 2.4.7 tại https://198.1.10.85:631/printers/{printer_name}
+    Gửi lệnh in trực tiếp tới hàng đợi CUPS 2.4.7:
+      - KV1: https://198.1.1.92:631/printers/{printer_name} (Basic Auth root:kenda)
+      - KV2: https://198.1.10.85:631/printers/{printer_name} (Basic Auth root:kenda)
     sử dụng chuẩn Internet Printing Protocol (IPP 2.0 RFC 8011).
     """
     try:
@@ -6681,6 +6719,11 @@ def send_cups_print_job(printer_name: str, pdf_bytes: bytes, job_name: str = "re
         clean_printer = str(printer_name or '').strip()
         if not clean_printer:
             return {'success': False, 'message': 'Tên máy in CUPS không hợp lệ'}
+
+        target_env = (env or get_current_db_env() or 'KV2').strip().upper()
+        if target_env not in ('KV1', 'KV2'):
+            target_env = 'KV2'
+        cups_host = "198.1.1.92" if target_env == 'KV1' else "198.1.10.85"
 
         # 1. IPP Header: Version 2.0 (0x0200), Operation Print-Job (0x0002), Request-ID 1 (0x00000001)
         # Operation attributes tag: 0x01
@@ -6696,7 +6739,7 @@ def send_cups_print_job(printer_name: str, pdf_bytes: bytes, job_name: str = "re
 
         add_attr(0x47, 'attributes-charset', 'utf-8')
         add_attr(0x48, 'attributes-natural-language', 'en')
-        printer_uri = f"ipp://198.1.10.85:631/printers/{clean_printer}"
+        printer_uri = f"ipp://{cups_host}:631/printers/{clean_printer}"
         add_attr(0x45, 'printer-uri', printer_uri)
         add_attr(0x42, 'requesting-user-name', user_name or 'kdmes')
         add_attr(0x42, 'job-name', job_name or 'reprint_label.pdf')
@@ -6707,11 +6750,12 @@ def send_cups_print_job(printer_name: str, pdf_bytes: bytes, job_name: str = "re
         # Gắn dữ liệu file PDF
         payload.extend(pdf_bytes)
 
-        url = f"https://198.1.10.85:631/printers/{clean_printer}"
+        url = f"https://{cups_host}:631/printers/{clean_printer}"
         resp = requests.post(
             url,
             headers={'Content-Type': 'application/ipp'},
             data=bytes(payload),
+            auth=('root', 'kenda'),
             verify=False,
             timeout=10
         )
@@ -6811,7 +6855,10 @@ def api_reprint_label_pdf():
         if not raw_barcode:
             return jsonify({'success': False, 'message': 'Thiếu Barcode'}), 400
 
-        pdf_io, final_barcode = build_reprint_label_pdf_buffer(raw_barcode)
+        target_env = str(data.get('env') or request.args.get('env') or request.headers.get('X-DB-Env') or get_current_db_env() or 'KV2').strip().upper()
+        if target_env not in ('KV1', 'KV2'):
+            target_env = 'KV2'
+        pdf_io, final_barcode = build_reprint_label_pdf_buffer(raw_barcode, env=target_env)
 
         # Ghi log in lại tem vào \\198.1.10.2\Vitinh\Thu\QUAN TRONG KHONG XOA\reprint_label_log.txt
         client_ip = get_client_ip()
@@ -6940,11 +6987,15 @@ def api_print_label_cups():
             append_reprint_label_log(client_ip, raw_barcode, username=client_username or 'Unknown', note="Thất bại, Thiếu tên máy in CUPS")
             return jsonify({'success': False, 'message': 'Thiếu tên máy in CUPS'}), 400
 
-        pdf_io, final_barcode = build_reprint_label_pdf_buffer(raw_barcode)
+        target_env = str(data.get('env') or request.args.get('env') or request.headers.get('X-DB-Env') or get_current_db_env() or 'KV2').strip().upper()
+        if target_env not in ('KV1', 'KV2'):
+            target_env = 'KV2'
+
+        pdf_io, final_barcode = build_reprint_label_pdf_buffer(raw_barcode, env=target_env)
         pdf_bytes = pdf_io.getvalue()
 
         user_name = client_username if client_username else (session.get('username') or 'kdmes')
-        result = send_cups_print_job(printer_name, pdf_bytes, job_name=f"Tem_{final_barcode}.pdf", user_name=user_name)
+        result = send_cups_print_job(printer_name, pdf_bytes, job_name=f"Tem_{final_barcode}.pdf", user_name=user_name, env=target_env)
 
         if not result.get('success'):
             err_msg = result.get('message', 'Lỗi gửi lệnh in tới CUPS')
@@ -11014,8 +11065,8 @@ def api_switching_spell_available_stations():
 
 
 _cups_printers_cache = {
-    'timestamp': 0,
-    'data': []
+    'KV1': {'timestamp': 0, 'data': []},
+    'KV2': {'timestamp': 0, 'data': []}
 }
 
 EXCLUDED_CUPS_PRINTERS = {
@@ -11026,33 +11077,31 @@ EXCLUDED_CUPS_PRINTERS = {
 }
 
 
-def fetch_cups_printers_list(folder: str = None) -> list:
+def fetch_cups_printers_list(folder: str = None, env: str = None) -> list:
     """
-    Lấy danh sách máy in từ CUPS 2.4.7 tại https://198.1.10.85:631/printers/.
-    Loại bỏ các máy in không dùng trong EXCLUDED_CUPS_PRINTERS:
-      - Brother_HL_L2360D_series
-      - Brother_HL_L2360D_series_94ddf8513242
-      - Brother_HL_L2360D_series_b42200678b34
-      - KV2-P8700-8_111
-    Lưu dữ liệu gồm queue_name, description, location và status.
-    Lọc theo folder nếu được cung cấp:
-      - p8300: KV2_P83...
-      - p5300_ic: KV2_P5...
-      - p8400: KV2_P84...
-      - p9100: KV2_P9... hoặc KV2_P87...
+    Lấy danh sách máy in từ CUPS 2.4.7 theo môi trường:
+      - KV1: https://198.1.1.92:631/printers/ (Basic Auth root:kenda)
+      - KV2: https://198.1.10.85:631/printers/ (Basic Auth root:kenda)
+    Loại bỏ các máy in không dùng trong EXCLUDED_CUPS_PRINTERS.
     """
     now = time.time()
+    target_env = (env or get_current_db_env() or 'KV2').strip().upper()
+    if target_env not in ('KV1', 'KV2'):
+        target_env = 'KV2'
+
+    cache_entry = _cups_printers_cache.setdefault(target_env, {'timestamp': 0, 'data': []})
     printers = []
 
-    if _cups_printers_cache['data'] and (now - _cups_printers_cache['timestamp'] < 30):
-        printers = _cups_printers_cache['data']
+    if cache_entry['data'] and (now - cache_entry['timestamp'] < 30):
+        printers = cache_entry['data']
     else:
         try:
             import urllib3
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
             import requests
-            url = "https://198.1.10.85:631/printers/"
-            resp = requests.get(url, verify=False, timeout=6)
+            cups_host = "198.1.1.92" if target_env == 'KV1' else "198.1.10.85"
+            url = f"https://{cups_host}:631/printers/"
+            resp = requests.get(url, auth=('root', 'kenda'), verify=False, timeout=6)
             if resp.status_code == 200:
                 raw_html = resp.text
                 m = re.search(r'<TABLE[^>]*>(.*?)</TABLE>', raw_html, re.DOTALL | re.IGNORECASE)
@@ -11075,12 +11124,13 @@ def fetch_cups_printers_list(folder: str = None) -> list:
                                     'status': status or 'Idle'
                                 })
                     if printers:
-                        _cups_printers_cache['data'] = printers
-                        _cups_printers_cache['timestamp'] = now
+                        cache_entry['data'] = printers
+                        cache_entry['timestamp'] = now
+                        _cups_printers_cache[target_env] = cache_entry
         except Exception as e:
-            app.logger.error(f"Lỗi fetch printers từ CUPS 198.1.10.85:631: {e}")
-            if _cups_printers_cache['data']:
-                printers = _cups_printers_cache['data']
+            app.logger.error(f"Lỗi fetch printers từ CUPS {target_env}: {e}")
+            if cache_entry['data']:
+                printers = cache_entry['data']
 
     clean_folder = (folder or '').strip().lower()
     if clean_folder == 'p8300':
@@ -11099,13 +11149,15 @@ def fetch_cups_printers_list(folder: str = None) -> list:
 
 @app.route('/api/switching-spell/available-printers', methods=['GET'])
 def api_switching_spell_available_printers():
-    """Lấy danh sách các máy in từ CUPS 2.4.7 (198.1.10.85:631) theo thư mục được chọn."""
+    """Lấy danh sách các máy in từ CUPS 2.4.7 theo môi trường KV1 hoặc KV2."""
     try:
         folder = (request.args.get('folder') or request.args.get('item') or '').strip().lower()
-        printers = fetch_cups_printers_list(folder)
+        env = request.args.get('env', '').strip() or request.headers.get('X-DB-Env', '').strip() or get_current_db_env()
+        printers = fetch_cups_printers_list(folder, env=env)
         return jsonify({
             'success': True,
             'folder': folder,
+            'env': env,
             'printers': printers,
             'count': len(printers)
         })

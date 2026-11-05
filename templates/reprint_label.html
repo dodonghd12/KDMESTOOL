@@ -5,6 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>In lại tem KD | KDMES TOOL</title>
 
+    <script>
+        window.REPRINT_CONFIG = {
+            active_db_env: "{{ active_db_env or 'KV2' }}",
+            cups_host: "{{ cups_host or '198.1.10.85' }}",
+            cups_server: "{{ cups_server or 'https://198.1.10.85:631/printers/' }}",
+            username: "{{ username or '' }}",
+            app_version: "{{ app_version or '2.3.79' }}"
+        };
+    </script>
+
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v={{ version }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/smooth_input.css') }}?v={{ version }}">
 
@@ -95,6 +105,46 @@
             display: flex;
             align-items: center;
             gap: 8px;
+        }
+
+        /* Plant / Environment Switcher Pill */
+        .reprint-env-switcher {
+            display: inline-flex;
+            align-items: center;
+            background: #e2e8f0;
+            border-radius: 8px;
+            padding: 3px;
+            gap: 3px;
+            margin-left: 12px;
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
+        }
+
+        .reprint-env-btn {
+            border: none;
+            background: transparent;
+            color: #64748b;
+            font-size: 11.5px;
+            font-weight: 700;
+            padding: 4px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.16s ease;
+            user-select: none;
+            outline: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .reprint-env-btn:hover {
+            color: #0f172a;
+            background: rgba(255, 255, 255, 0.65);
+        }
+
+        .reprint-env-btn.active {
+            background: #0d9488;
+            color: #ffffff;
+            box-shadow: 0 1px 3px rgba(13, 148, 136, 0.4);
         }
 
         .reprint-user-badge {
@@ -522,6 +572,19 @@
                 <h1 class="reprint-brand-title">
                     <span>IN LẠI TEM KD</span>
                 </h1>
+
+                <!-- Plant / Database Environment Switcher -->
+                <div class="reprint-env-switcher" id="reprintEnvSwitcher" role="group" aria-label="Chọn môi trường nhà máy (KV1 / KV2)">
+                    <button type="button" class="reprint-env-btn {% if active_db_env == 'KV1' %}active{% endif %}" id="reprintEnvBtnKV1" data-env="KV1" title="Nhà máy KV1 (DB: 198.1.1.92 | CUPS: 198.1.1.92:631)" aria-pressed="{% if active_db_env == 'KV1' %}true{% else %}false{% endif %}">
+                        <span class="material-symbols-outlined" style="font-size: 13px;">precision_manufacturing</span>
+                        <span>KV1</span>
+                    </button>
+                    <button type="button" class="reprint-env-btn {% if active_db_env != 'KV1' %}active{% endif %}" id="reprintEnvBtnKV2" data-env="KV2" title="Nhà máy KV2 (DB: 198.1.10.85 | CUPS: 198.1.10.85:631)" aria-pressed="{% if active_db_env != 'KV1' %}true{% else %}false{% endif %}">
+                        <span class="material-symbols-outlined" style="font-size: 13px;">precision_manufacturing</span>
+                        <span>KV2</span>
+                    </button>
+                </div>
+
                 <div class="reprint-user-badge" id="reprintUserBadge" {% if not username %}style="display: none;"{% endif %} title="Tài khoản thực hiện">
                     <span class="material-symbols-outlined">person</span>
                     <span id="reprintUserNameText">{{ username }}</span>

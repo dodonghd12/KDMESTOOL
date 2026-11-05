@@ -248,6 +248,13 @@ def get_current_db_env():
             if val in ('KV1', 'KV2', 'DEV'):
                 return val
                 
+        # 3.5. Referer inspection for iframe embeddings from portal 8011
+        referer = request.referrer or request.headers.get('Referer') or ''
+        if '198.1.1.106' in referer:
+            return 'KV1'
+        elif '198.1.9.245:8011' in referer:
+            return 'KV2'
+
         # 4. Cookie (Client browser authoritative)
         cookie_env = request.cookies.get('kdmes_db_env')
         if cookie_env:
