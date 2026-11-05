@@ -13249,6 +13249,12 @@ body.is-spa-frame .kd-fab-container {
     transition-delay: 0ms;
 }
 
+.kd-speed-dial-menu.is-open #kdSpeedDialDbEnvItem {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    transition-delay: 70ms;
+}
+
 .kd-speed-dial-menu.is-open #kdSpeedDialFyiItem {
     opacity: 1;
     transform: translateY(0) scale(1);

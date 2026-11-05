@@ -736,3 +736,167 @@ if (document.readyState === 'loading') {
 } else {
     initTetCountdown();
 }
+// ══════════════════════════════════════════════════════════════════════
+// DATABASE ENVIRONMENT SWITCHER CONTROLLER (KV1 / KV2 / DEV)
+// Integrated into Speed Dial Action with Toast Notifications
+// ══════════════════════════════════════════════════════════════════════
+function showDbToast(type, title, message) {
+    // 1. Try global Toast
+    if (typeof Toast !== 'undefined' && typeof Toast[type] === 'function') {
+        Toast[type](title, message);
+        return;
+    }
+    // 2. Try window.top.Toast
+    try {
+        if (window.top && typeof window.top.Toast !== 'undefined' && typeof window.top.Toast[type] === 'function') {
+            window.top.Toast[type](title, message);
+            return;
+        }
+    } catch (e) {}
+
+    // 3. Fallback inline toast
+    let cont = document.getElementById('toastContainer');
+    if (!cont && window.top) {
+        try { cont = window.top.document.getElementById('toastContainer'); } catch(e) {}
+    }
+    if (!cont) {
+        cont = document.createElement('div');
+        cont.id = 'toastContainer';
+        document.body.appendChild(cont);
+    }
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.innerHTML = `
+        <div class="toast-icon"><span class="material-symbols-outlined">${type === 'success' ? 'check_circle' : (type === 'error' ? 'error' : 'info')}</span></div>
+        <div class="toast-content"><div class="toast-title">${title}</div><div class="toast-message">${message}</div></div>
+    `;
+    cont.appendChild(toast);
+    setTimeout(() => {
+        toast.classList.add('toast-exit');
+        setTimeout(() => toast.remove(), 300);
+    }, 4000);
+}
+
+function initDbEnvControl() {
+    const container = document.getElementById('dbEnvControl');
+    const dialBtn = document.getElementById('kdSpeedDialDbEnvBtn');
+    if (!container && !dialBtn) return;
+
+    let activeEnv = localStorage.getItem('kdmes_db_env');
+    if (!activeEnv) {
+        const match = document.cookie.match(/(?:^|;\s*)kdmes_db_env=([^;]+)/);
+        activeEnv = match ? match[1] : 'KV2';
+    }
+    activeEnv = (activeEnv || 'KV2').toUpperCase();
+
+    const buttons = container ? container.querySelectorAll('.db-env-btn') : [];
+
+    function updateActiveUI(env) {
+        activeEnv = env;
+        if (buttons.length > 0) {
+            buttons.forEach(btn => {
+                const isActive = btn.dataset.env === env;
+                btn.classList.toggle('active', isActive);
+                btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+            });
+        }
+        if (dialBtn) {
+            dialBtn.setAttribute('data-active-env', env);
+            dialBtn.title = `Môi trường hiện tại: ${env} (Nhấp để chuyển đổi)`;
+        }
+    }
+
+    updateActiveUI(activeEnv);
+
+    async function switchEnv(targetEnv) {
+        if (!['KV1', 'KV2', 'DEV'].includes(targetEnv)) return;
+
+        updateActiveUI(targetEnv);
+        localStorage.setItem('kdmes_db_env', targetEnv);
+        document.cookie = `kdmes_db_env=${targetEnv}; path=/; max-age=31536000; SameSite=Lax`;
+
+        const hostInfo = {
+            'KV1': 'PostgreSQL KV1 (198.1.1.92:5432)',
+            'KV2': 'PostgreSQL KV2 (198.1.10.85:5432)',
+            'DEV': 'PostgreSQL DEV (198.1.10.3:5432)'
+        }[targetEnv] || targetEnv;
+
+        try {
+            const resp = await fetch('/api/system/set-db-env', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ env: targetEnv })
+            });
+            const data = await resp.json();
+
+            if (resp.ok && data && data.success) {
+                showDbToast('success', 'Chuyển Database thành công', `Đã chuyển toàn bộ API sang ${hostInfo}`);
+            } else {
+                const msg = (data && data.message) ? data.message : `Lỗi HTTP ${resp.status}`;
+                showDbToast('error', 'Chuyển Database thất bại', msg);
+            }
+
+            // Broadcast change to other components, tabs, or iframes
+            window.dispatchEvent(new CustomEvent('kdmes-db-env-changed', { detail: { env: targetEnv } }));
+            try {
+                const bc = new BroadcastChannel('kdmes_db_env_channel');
+                bc.postMessage({ env: targetEnv });
+                bc.close();
+            } catch (e) {}
+
+            // Notify SPA frame iframe if present
+            const frames = document.querySelectorAll('iframe');
+            frames.forEach(fr => {
+                try {
+                    if (fr.contentWindow) {
+                        fr.contentWindow.postMessage({ type: 'KDMES_DB_ENV_CHANGED', env: targetEnv }, '*');
+                    }
+                } catch (e) {}
+            });
+
+        } catch (err) {
+            console.error('Failed to set DB env on server:', err);
+            showDbToast('error', 'Lỗi kết nối', 'Không thể kết nối máy chủ để đổi môi trường DB.');
+        }
+    }
+
+    // Attach click listeners to segmented buttons
+    if (buttons.length > 0) {
+        buttons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                const targetEnv = btn.dataset.env;
+                if (targetEnv) {
+                    switchEnv(targetEnv);
+                }
+            });
+        });
+    }
+
+    // Attach click listener to circular speed dial button (cycles through KV2 -> KV1 -> DEV -> KV2)
+    if (dialBtn) {
+        dialBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            const cycleMap = { 'KV2': 'KV1', 'KV1': 'DEV', 'DEV': 'KV2' };
+            const nextEnv = cycleMap[activeEnv] || 'KV2';
+            switchEnv(nextEnv);
+        });
+    }
+
+    try {
+        const bc = new BroadcastChannel('kdmes_db_env_channel');
+        bc.onmessage = (e) => {
+            if (e.data && e.data.env) {
+                updateActiveUI(e.data.env);
+            }
+        };
+    } catch (e) {}
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initDbEnvControl);
+} else {
+    initDbEnvControl();
+}

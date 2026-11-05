@@ -612,6 +612,120 @@ main p {
     flex: 1 1 auto;
 }
 
+.user-badge-info .user-avatar-icon {
+    font-size: 22px !important;
+    width: 22px !important;
+    height: 22px !important;
+    color: var(--secondary-text-clr, #94a3b8);
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.user-badge-info .user-info-text {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-clr);
+    letter-spacing: -0.1px;
+    white-space: nowrap;
+    overflow: visible;
+    display: inline-flex;
+    align-items: center;
+}
+
+.user-badge-info .user-status-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    background: var(--emerald-500, #22c55e);
+    border-radius: 50%;
+    margin-left: 6px;
+    box-shadow: 0 0 8px var(--emerald-500, #22c55e);
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   DATABASE ENVIRONMENT SEGMENTED SWITCH (KV1 / KV2 / DEV)
+   ══════════════════════════════════════════════════════════════════════ */
+.db-env-segmented-control {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(15, 23, 42, 0.72);
+    border: 1px solid var(--color-border-glass, rgba(61, 213, 192, 0.2));
+    border-radius: 6px;
+    padding: 2px;
+    height: 26px;
+    box-sizing: border-box;
+    gap: 2px;
+    user-select: none;
+    flex-shrink: 0;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
+.db-env-btn {
+    border: none;
+    background: transparent;
+    color: var(--secondary-text-clr, #94a3b8);
+    font-size: 9.5px;
+    font-weight: 700;
+    padding: 0 5.5px;
+    height: 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    letter-spacing: 0.3px;
+    outline: none;
+    line-height: 1;
+    font-family: inherit;
+}
+
+.db-env-btn:hover:not(.active) {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.db-env-btn.active[data-env="KV1"] {
+    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+    color: #ffffff;
+    box-shadow: 0 1px 6px rgba(2, 132, 199, 0.45);
+}
+
+.db-env-btn.active[data-env="KV2"] {
+    background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+    color: #ffffff;
+    box-shadow: 0 1px 6px rgba(14, 165, 233, 0.45);
+}
+
+.db-env-btn.active[data-env="DEV"] {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: #ffffff;
+    box-shadow: 0 1px 6px rgba(245, 158, 11, 0.45);
+}
+
+.db-env-btn:active {
+    transform: scale(0.96);
+}
+
+body.theme-light .db-env-segmented-control {
+    background: rgba(241, 245, 249, 0.9);
+    border-color: rgba(0, 0, 0, 0.12);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+body.theme-light .db-env-btn {
+    color: #64748b;
+}
+
+body.theme-light .db-env-btn:hover:not(.active) {
+    color: #0f172a;
+    background: rgba(0, 0, 0, 0.05);
+}
+
 .user-profile-badge .top-quick-actions,
 .top-quick-actions.in-user-badge {
     position: static;
@@ -1399,3 +1513,31 @@ body.theme-light .quick-action-btn:hover {
 }
 
 
+
+/* Speed Dial DB Environment Chip */
+.kd-speed-dial-chip.db-env-chip {
+    padding: 3px 5px !important;
+    background: var(--color-bg-surface-elevated, rgba(15, 23, 42, 0.96)) !important;
+    border: 1px solid var(--color-border-glass, rgba(61, 213, 192, 0.28)) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    cursor: default !important;
+}
+
+.kd-speed-dial-chip.db-env-chip .db-env-segmented-control {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    height: 24px !important;
+    gap: 3px !important;
+}
+
+.kd-speed-dial-chip.db-env-chip .db-env-btn {
+    height: 22px !important;
+    padding: 0 8px !important;
+    font-size: 11px !important;
+    border-radius: 4px !important;
+}

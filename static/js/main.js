@@ -943,6 +943,7 @@ function enhanceContextMenu() {
         'feedRecords': 'history',
         'checkScanBarcodeHistory': 'precision_manufacturing',
         'checkBarcodeWorkOrder': 'assignment',
+        'viewSameMesBarcodes': 'hub',
         'mesTracking': 'account_tree',
         'checkBarcodeTransfer': 'local_shipping',
         'checkBarcodeExtendDateTime': 'update',
@@ -2927,6 +2928,16 @@ function handleContextMenuUnified(e, tableType = 'main') {
         return false;
     }
 
+    // Không cho phép mở context menu ở output container khi đang hiển thị response của "Xem tem cùng MES"
+    const outputContainer = document.getElementById('outputContainer');
+    if (currentOutputTableType === 'sameMesBarcodes' && (tableType === 'output' || (outputContainer && outputContainer.contains(row)))) {
+        if (e && typeof e.preventDefault === 'function') e.preventDefault();
+        if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+        const contextMenu = document.getElementById('contextMenu');
+        if (contextMenu) contextMenu.style.display = 'none';
+        return false;
+    }
+
     currentContextMenuTableType = tableType;
 
     // Select row based on table type
@@ -3064,6 +3075,7 @@ function updateContextMenu() {
         'feedRecords',
         'checkScanBarcodeHistory',
         'checkBarcodeWorkOrder',
+        'viewSameMesBarcodes',
         'mesTracking',
         'checkBarcodeTransfer',
         'checkBarcodeExtendDateTime',
@@ -3114,6 +3126,12 @@ function updateContextMenu() {
  * @returns {string[]} Array of allowed actions
  */
 function updateOutputContextMenu() {
+    // Không cho phép mở context menu ở output container khi đang hiển thị response của "Xem tem cùng MES"
+    if (currentOutputTableType === 'sameMesBarcodes') {
+        setMenuItemsVisibility([]);
+        return [];
+    }
+
     const pageMenuType = isContextMenuAllowedOnCurrentPage();
     if (!pageMenuType) {
         setMenuItemsVisibility([]);
@@ -3171,6 +3189,11 @@ function handleContextMenu(e) {
 
 function handleOutputContextMenu(e) {
     if (e && typeof e.preventDefault === 'function') e.preventDefault();
+    if (currentOutputTableType === 'sameMesBarcodes') {
+        const contextMenu = document.getElementById('contextMenu');
+        if (contextMenu) contextMenu.style.display = 'none';
+        return;
+    }
     const row = e.target ? e.target.closest('tr') : null;
     if (!row) return;
 
@@ -3235,6 +3258,9 @@ function handleContextMenuAction(e) {
             break;
         case 'checkBarcodeWorkOrder':
             if (typeof openOutputTable === 'function') openOutputTable('workOrderByBarcode', rowData);
+            break;
+        case 'viewSameMesBarcodes':
+            if (typeof openOutputTable === 'function') openOutputTable('sameMesBarcodes', rowData);
             break;
         case 'mesTracking':
             if (typeof openMesTrackingModal === 'function') openMesTrackingModal(rowData);
@@ -3777,6 +3803,40 @@ async function fetchOriginalInfoByBarcode(id = null, product_type = null) {
         console.error('Error fetching original info:', err);
     }
 }
+
+async function fetchSameMesBarcodes(id = null) {
+    const barcode_id = id || (selectedRowData ? (selectedRowData['id'] || selectedRowData['Barcode ID'] || selectedRowData['barcode_id']) : null);
+    if (!barcode_id) {
+        Toast.warning('Cảnh báo', 'Chưa chọn mã barcode để tra cứu.');
+        return;
+    }
+
+    try {
+        const data = await apiFetch('/api/barcodes/fetch-same-mes-barcodes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ barcode_id })
+        });
+
+        if (data && data.success && data.result && data.result.length > 0) {
+            outputBarcodeRawData = data.result;
+            outputBarcodeColumns = data.columns;
+            currentOutputTableType = 'sameMesBarcodes';
+            renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
+            Toast.success('Thành công', `Tải thành công ${data.result.length} tem cùng MES (${barcode_id})`);
+        } else {
+            currentOutputTableType = 'sameMesBarcodes';
+            renderOutputBarcodeTable([], data?.columns || []);
+            Toast.warning('Không có dữ liệu', (data && data.message) ? data.message : `Không tìm thấy tem cùng MES cho barcode ${barcode_id}`);
+        }
+    } catch (err) {
+        console.error('Error fetching same MES barcodes:', err);
+        currentOutputTableType = 'sameMesBarcodes';
+        renderOutputBarcodeTable([], []);
+        Toast.error('Lỗi', err.message || 'Lỗi kết nối khi tải danh sách tem cùng MES');
+    }
+}
+window.fetchSameMesBarcodes = fetchSameMesBarcodes;
 
 async function fetchPrde(type, rowData = null) {
     const dataObj = rowData || selectedRowData;
@@ -7538,6 +7598,10 @@ function openOutputTable(type, rowData = null) {
     } else if (type === 'workOrderByBarcode') {
         if (outputHeaderContentEl) outputHeaderContentEl.textContent = 'Đơn điều động theo barcode';
         fetchWorkOrderByBarcode(dataObj.id, dataObj.info);
+    } else if (type === 'sameMesBarcodes') {
+        const barcodeId = dataObj.id || dataObj['Barcode ID'] || dataObj.barcode_id || '';
+        if (outputHeaderContentEl) outputHeaderContentEl.textContent = `Danh sách tem cùng MES (${barcodeId})`;
+        fetchSameMesBarcodes(barcodeId);
     } else if (type === 'fetchOriginalInfoByBarcode') {
         if (outputHeaderContentEl) outputHeaderContentEl.textContent = 'Thông tin gốc của barcode';
         fetchOriginalInfoByBarcode(dataObj.id, dataObj.product_type);

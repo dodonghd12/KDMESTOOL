@@ -2,6 +2,9 @@ import json
 from db_connections import (
     get_pg_connection,
     get_pg_dev_connection,
+    get_pg_kv1_connection,
+    get_pg_prod_connection,
+    get_current_db_env,
     get_erp_mssql_connection,
     DatabaseError,
     DatabaseConnectionError,
@@ -56,6 +59,38 @@ def execute_pg_dev_select_query(query, params=()):
         raise _classify_db_exception(e, "PostgreSQL Dev (198.1.10.3)")
 
 # ==============================================================================
+# ==============================================================================
+# PostgreSQL KV1 Select Query (198.1.1.92)
+# ==============================================================================
+def execute_pg_kv1_select_query(query, params=()):
+    """
+    Thực thi câu lệnh SELECT trên KV1 PostgreSQL (198.1.1.92).
+    Trả về: (result, column_names) nếu thành công (result có thể là [] nếu 0 dòng).
+    """
+    try:
+        with get_pg_kv1_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, params)
+            result = cursor.fetchall()
+            column_names = [desc[0] for desc in cursor.description] if cursor.description else []
+            cursor.close()
+            return result, column_names
+    except Exception as e:
+        raise _classify_db_exception(e, "PostgreSQL KV1 (198.1.1.92)")
+
+def execute_pg_kv1_update_query(query, params):
+    """
+    Thực thi câu lệnh UPDATE / DELETE trên KV1 PostgreSQL (198.1.1.92).
+    """
+    try:
+        with get_pg_kv1_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, params)
+            conn.commit()
+            cursor.close()
+    except Exception as e:
+        raise _classify_db_exception(e, "PostgreSQL KV1 (198.1.1.92)")
+
 # PostgreSQL Update Query
 # ==============================================================================
 def execute_pg_update_query(query, params):

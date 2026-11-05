@@ -21,10 +21,12 @@ import glob
 import subprocess
 import shutil
 from typing import Optional
-from db_execute import (execute_pg_select_query, execute_pg_update_query, execute_pg_dev_select_query, execute_pg_insert_query, execute_mssql_select_query, execute_mssql_dml_query)
+from db_execute import (execute_pg_select_query, execute_pg_kv1_select_query, execute_pg_update_query, execute_pg_kv1_update_query, execute_pg_dev_select_query, execute_pg_insert_query, execute_mssql_select_query, execute_mssql_dml_query)
 from db_connections import (
     get_pg_connection,
     get_pg_dev_connection,
+    get_pg_kv1_connection,
+    get_current_db_env,
     DatabaseError,
     DatabaseConnectionError,
     DatabaseQueryError
@@ -1151,11 +1153,68 @@ def custom_db_error_handler(e):
 def inject_global_context():
     return {
         'version': APP_VERSION + '.' + str(int(time.time())),
-        'app_version': APP_VERSION
+        'app_version': APP_VERSION,
+        'active_db_env': get_current_db_env()
     }
 
 # Default language
 default_language = "vi"
+
+
+# ==============================================================================
+# Database Environment Switcher API (KV1 / KV2 / DEV)
+# ==============================================================================
+@app.route('/api/system/set-db-env', methods=['POST'])
+def api_set_db_env():
+    """Lưu trữ môi trường DB người dùng chọn (KV1 / KV2 / DEV) vào session & cookie."""
+    data = request.get_json(silent=True) or {}
+    env = (data.get('env') or data.get('db_env') or 'KV2').strip().upper()
+    if env not in ('KV1', 'KV2', 'DEV'):
+        return jsonify({'success': False, 'message': 'Môi trường không hợp lệ (chỉ chấp nhận KV1, KV2, DEV)'}), 400
+    
+    session['db_env'] = env
+    
+    host_map = {
+        'KV1': '198.1.1.92:5432',
+        'KV2': '198.1.10.85:5432',
+        'DEV': '198.1.10.3:5432'
+    }
+    db_map = {
+        'KV1': 'kverp',
+        'KV2': 'kverp',
+        'DEV': 'kverp_dev'
+    }
+    
+    resp = jsonify({
+        'success': True,
+        'env': env,
+        'host': host_map.get(env),
+        'database': db_map.get(env),
+        'message': f'Đã chuyển sang môi trường {env} ({host_map.get(env)})'
+    })
+    resp.set_cookie('kdmes_db_env', env, max_age=31536000, path='/', samesite='Lax')
+    return resp
+
+@app.route('/api/system/get-db-env', methods=['GET'])
+def api_get_db_env():
+    """Lấy môi trường DB hiện tại của client."""
+    env = get_current_db_env()
+    host_map = {
+        'KV1': '198.1.1.92:5432',
+        'KV2': '198.1.10.85:5432',
+        'DEV': '198.1.10.3:5432'
+    }
+    db_map = {
+        'KV1': 'kverp',
+        'KV2': 'kverp',
+        'DEV': 'kverp_dev'
+    }
+    return jsonify({
+        'success': True,
+        'env': env,
+        'host': host_map.get(env),
+        'database': db_map.get(env)
+    })
 
 @app.route('/')
 def index():
@@ -1816,7 +1875,9 @@ def get_product_id_search_variants(pid):
     return variants
 
 
-def query_material_resource_by_label_fields(label_data):
+def query_material_resource_by_label_fields(label_data, query_fn=None):
+    if query_fn is None:
+        query_fn = execute_pg_select_query
     """
     Truy vấn bảng kvmes.material_resource theo các thuộc tính trích xuất từ nhãn tem:
     - barcode (id trực tiếp hoặc biến thể OCR)
@@ -1854,11 +1915,11 @@ def query_material_resource_by_label_fields(label_data):
             ORDER BY created_at DESC
             LIMIT 10;
         """
-        res_bc, col_bc = execute_pg_select_query(q_bc, (f"%{clean_bc}%",))
+        res_bc, col_bc = query_fn(q_bc, (f"%{clean_bc}%",))
         if res_bc:
             return res_bc, col_bc
         for cand in get_ocr_barcode_variants(clean_bc):
-            res_cand, col_cand = execute_pg_select_query(q_bc, (f"%{cand}%",))
+            res_cand, col_cand = query_fn(q_bc, (f"%{cand}%",))
             if res_cand:
                 return res_cand, col_cand
 
@@ -1913,7 +1974,7 @@ def query_material_resource_by_label_fields(label_data):
             LIMIT 100;
         """
         try:
-            res_both, col_both = execute_pg_select_query(q_both, tuple(fast_params))
+            res_both, col_both = query_fn(q_both, tuple(fast_params))
             if res_both:
                 return res_both, col_both
         except Exception as _fe:
@@ -1936,7 +1997,7 @@ def query_material_resource_by_label_fields(label_data):
             LIMIT 100;
         """
         try:
-            res_prod, col_prod = execute_pg_select_query(q_prod, tuple(fast_params))
+            res_prod, col_prod = query_fn(q_prod, tuple(fast_params))
             if res_prod:
                 return res_prod, col_prod
         except Exception as _fe:
@@ -1954,7 +2015,7 @@ def query_material_resource_by_label_fields(label_data):
             """
             params_pid = [p_start, p_end] + [f"%{v}%" for v in pid_variants]
             try:
-                res_pid, col_pid = execute_pg_select_query(q_pid, tuple(params_pid))
+                res_pid, col_pid = query_fn(q_pid, tuple(params_pid))
                 if res_pid:
                     return res_pid, col_pid
             except Exception:
@@ -1972,7 +2033,7 @@ def query_material_resource_by_label_fields(label_data):
                 LIMIT 10;
             """
             try:
-                res_lot, col_lot = execute_pg_select_query(q_lot, (p_start, p_end, f"%{clean_lot}%"))
+                res_lot, col_lot = query_fn(q_lot, (p_start, p_end, f"%{clean_lot}%"))
                 if res_lot:
                     return res_lot, col_lot
             except Exception:
@@ -1990,7 +2051,7 @@ def query_material_resource_by_label_fields(label_data):
                 LIMIT 10;
             """
             try:
-                res_st, col_st = execute_pg_select_query(q_st, (p_start, p_end, f"%{clean_st}%"))
+                res_st, col_st = query_fn(q_st, (p_start, p_end, f"%{clean_st}%"))
                 if res_st:
                     return res_st, col_st
             except Exception:
@@ -2009,7 +2070,7 @@ def query_material_resource_by_label_fields(label_data):
             LIMIT 100;
         """
         try:
-            res_exp, col_exp = execute_pg_select_query(q_exp, tuple(fast_params))
+            res_exp, col_exp = query_fn(q_exp, tuple(fast_params))
             if res_exp:
                 return res_exp, col_exp
         except Exception as _fe:
@@ -2028,7 +2089,7 @@ def query_material_resource_by_label_fields(label_data):
         """
         params_pid_lot = [f"%{v}%" for v in pid_variants] + [f"%{clean_lot}%"]
         try:
-            res_pl, col_pl = execute_pg_select_query(q_pid_lot, tuple(params_pid_lot))
+            res_pl, col_pl = query_fn(q_pid_lot, tuple(params_pid_lot))
             if res_pl:
                 return res_pl, col_pl
         except Exception:
@@ -2042,7 +2103,7 @@ def query_material_resource_by_label_fields(label_data):
         ORDER BY created_at DESC
         LIMIT 100;
     """
-    res_gen, col_gen = execute_pg_select_query(query, tuple(params))
+    res_gen, col_gen = query_fn(query, tuple(params))
     if res_gen:
         return res_gen, col_gen
 
@@ -2056,7 +2117,7 @@ def query_material_resource_by_label_fields(label_data):
             ORDER BY created_at DESC
             LIMIT 10;
         """
-        res_tail, col_tail = execute_pg_select_query(q_tail, (f"%{tail}%",))
+        res_tail, col_tail = query_fn(q_tail, (f"%{tail}%",))
         if res_tail:
             return res_tail, col_tail
 
@@ -2699,6 +2760,72 @@ def fetch_work_order_by_barcode():
             'result': [],
             'columns': column_names
         })
+
+@app.route('/api/barcodes/fetch-same-mes-barcodes', methods=['POST'])
+@login_required
+def fetch_same_mes_barcodes():
+    data = request.get_json(silent=True) or {}
+    barcode_id = data.get('barcode_id') or data.get('id') or data.get('resource_id') or ''
+    barcode_id = barcode_id.strip()
+
+    if not barcode_id:
+        return jsonify({
+            'success': False,
+            'message': 'Thiếu thông tin mã Barcode ID',
+            'result': [],
+            'columns': []
+        }), 400
+
+    query = """
+        SELECT 
+            mr.id AS barcode_id,
+            mr.product_id,
+            mr.product_type,
+            mr.quantity,
+            mr.initial_quantity,
+            (cr.detail->>'quantity')::numeric AS collect_quantity,
+            to_timestamp(mr.expiry_time::numeric / 1e9) AT TIME ZONE 'Asia/Ho_Chi_Minh' AS expiry_time,
+            to_timestamp(mr.created_at::numeric / 1e9) AT TIME ZONE 'Asia/Ho_Chi_Minh' AS created_at,
+            COALESCE(cr.lot_number, mr.info->>'lot_number') AS lot_number,
+            mr.status,
+            mr.created_by,
+            COALESCE(NULLIF(TRIM(mr.station), ''), cr.station) AS station,
+            mr.info
+        FROM kvmes.collect_record cr
+        JOIN kvmes.material_resource mr ON mr.oid = cr.resource_oid
+        WHERE cr.work_order = (
+            SELECT cr_sub.work_order
+            FROM kvmes.material_resource mr_sub
+            JOIN kvmes.collect_record cr_sub ON cr_sub.resource_oid = mr_sub.oid
+            WHERE mr_sub.id = %s
+            LIMIT 1
+        )
+        ORDER BY cr.sequence ASC;
+    """
+
+    try:
+        result, column_names = execute_pg_select_query(query, (barcode_id,))
+        if result:
+            serialized_result = [serialize_row(list(row), column_names) for row in result]
+            return jsonify({
+                'success': True,
+                'result': serialized_result,
+                'columns': column_names
+            })
+        else:
+            return jsonify({
+                'success': True,
+                'result': [],
+                'columns': column_names,
+                'message': f'Không tìm thấy tem cùng MES cho barcode {barcode_id}'
+            })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Lỗi truy vấn tem cùng MES: {str(e)}',
+            'result': [],
+            'columns': []
+        }), 500
           
 @app.route('/api/barcodes/fetch-input-barcodes', methods=['POST'])
 def get_input_barcode():
@@ -4630,10 +4757,12 @@ def get_material_transfer():
     data = request.get_json(silent=True) or {}
     keyword = (data.get('keyword') or data.get('barcode') or '').strip()
     label_data = data.get('label_data')
+    plant = (data.get('plant') or data.get('branch') or 'KV2').strip().upper()
+    query_exec_fn = execute_pg_kv1_select_query if plant == 'KV1' else execute_pg_select_query
 
     # 1. Trường hợp tra cứu qua thông tin nhận diện trên tem
     if label_data and (label_data.get('is_label') or any(label_data.get(k) for k in ('station', 'product_id', 'lot_number', 'quantity', 'barcode'))):
-        mr_result, mr_columns = query_material_resource_by_label_fields(label_data)
+        mr_result, mr_columns = query_material_resource_by_label_fields(label_data, query_fn=query_exec_fn)
         if mr_result:
             id_idx = mr_columns.index('id')
             oid_idx = mr_columns.index('oid')
@@ -4661,7 +4790,7 @@ def get_material_transfer():
                     LIMIT 100;
                 """
                 try:
-                    result, column_names = execute_pg_select_query(query, (matched_oids,))
+                    result, column_names = query_exec_fn(query, (matched_oids,))
                     if result:
                         convert_columns = ["transaction_time", "created_at"]
                         result = convert_timestamp(result, column_names, convert_columns)
@@ -4716,13 +4845,13 @@ def get_material_transfer():
         LIMIT 100;
     """
     try:
-        result, column_names = execute_pg_select_query(query, (f"%{clean_keyword}%",))
+        result, column_names = query_exec_fn(query, (f"%{clean_keyword}%",))
         resolved_id = None
 
         if not result and len(keyword) >= 8:
             for cand in get_ocr_barcode_variants(keyword):
                 clean_cand = cand.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
-                cand_res, cand_cols = execute_pg_select_query(query, (f"%{clean_cand}%",))
+                cand_res, cand_cols = query_exec_fn(query, (f"%{clean_cand}%",))
                 if cand_res:
                     result = cand_res
                     column_names = cand_cols
@@ -4760,6 +4889,9 @@ def api_material_transfer_failed():
         'product_id', 'product_type', 'quantity', 'transaction_time',
         'created_at', 'created_by', 'material_resource_oid'
     ]
+    data = request.get_json(silent=True) or {}
+    plant = (data.get('plant') or request.args.get('plant') or 'KV2').strip().upper()
+    query_exec_fn = execute_pg_kv1_select_query if plant == 'KV1' else execute_pg_select_query
     try:
         query = """
             SELECT 
@@ -4780,7 +4912,7 @@ def api_material_transfer_failed():
             WHERE UPPER(TRIM(mrt.status)) = 'FAILED'
             ORDER BY mrt.created_at DESC;
         """
-        result, column_names = execute_pg_select_query(query)
+        result, column_names = query_exec_fn(query)
         if result:
             convert_columns = ["transaction_time", "created_at"]
             result = convert_timestamp(result, column_names, convert_columns)
@@ -4807,6 +4939,8 @@ def api_material_transfer_failed():
 @login_required
 def retry_failed_material_transfer():
     data = request.get_json(silent=True) or {}
+    plant = (data.get('plant') or 'KV2').strip().upper()
+    conn_getter = get_pg_kv1_connection if plant == 'KV1' else get_pg_connection
     oid = (data.get('material_resource_oid') or '').strip()
     quantity_val = data.get('quantity')
     if not oid:

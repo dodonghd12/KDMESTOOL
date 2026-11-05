@@ -283,6 +283,20 @@
 
                     <!-- Speed Dial Actions Menu (fanning up out of the FAB) -->
                     <div class="kd-speed-dial-menu" id="kdSpeedDialMenu" role="menu" aria-label="Quick Actions">
+                                                <!-- Action 3: Database Environment Switcher (KV1 / KV2 / DEV) -->
+                        <div class="kd-speed-dial-item kd-speed-dial-db-env-item" id="kdSpeedDialDbEnvItem">
+                            <div class="kd-speed-dial-chip db-env-chip" id="kdSpeedDialDbEnvChip" role="group" aria-label="Chọn môi trường cơ sở dữ liệu">
+                                <div class="db-env-segmented-control" id="dbEnvControl" role="group" aria-label="Chọn máy chủ cơ sở dữ liệu" title="Chọn môi trường cơ sở dữ liệu (KV1 / KV2 / DEV)">
+                                    <button type="button" class="db-env-btn {% if active_db_env == 'KV1' %}active{% endif %}" data-env="KV1" title="Kết nối PostgreSQL KV1 (198.1.1.92)" aria-pressed="{% if active_db_env == 'KV1' %}true{% else %}false{% endif %}">KV1</button>
+                                    <button type="button" class="db-env-btn {% if active_db_env != 'KV1' and active_db_env != 'DEV' %}active{% endif %}" data-env="KV2" title="Kết nối PostgreSQL KV2 (198.1.10.85)" aria-pressed="{% if active_db_env != 'KV1' and active_db_env != 'DEV' %}true{% else %}false{% endif %}">KV2</button>
+                                    <button type="button" class="db-env-btn {% if active_db_env == 'DEV' %}active{% endif %}" data-env="DEV" title="Kết nối PostgreSQL DEV (198.1.10.3)" aria-pressed="{% if active_db_env == 'DEV' %}true{% else %}false{% endif %}">DEV</button>
+                                </div>
+                            </div>
+                            <button type="button" class="kd-speed-dial-action" id="kdSpeedDialDbEnvBtn" role="menuitem" aria-label="Chuyển đổi Database (KV1 / KV2 / DEV)" title="Chuyển đổi Database (KV1 / KV2 / DEV)">
+                                <span class="material-symbols-outlined" aria-hidden="true">database</span>
+                            </button>
+                        </div>
+
                         <!-- Action 2: FYI -->
                         <div class="kd-speed-dial-item" id="kdSpeedDialFyiItem">
                             <span class="kd-speed-dial-chip" id="kdSpeedDialFyiChip" role="button" tabindex="0" aria-label="Mở bảng tra cứu FYI">FYI</span>

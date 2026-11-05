@@ -190,7 +190,8 @@ async function fetchFailedMaterialTransfers() {
     try {
         const response = await fetch('/api/material-transfer/failed', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
         });
 
         let data = null;
@@ -496,3 +497,22 @@ function initTableBodyObserver() {
 
     observer.observe(tbody, { childList: true });
 }
+
+// Sync with system DB environment changes from topQuickActions in sidebar
+window.addEventListener('message', function (e) {
+    if (e.data && e.data.type === 'KDMES_DB_ENV_CHANGED') {
+        const barcodeInput = document.getElementById('barcode');
+        if (barcodeInput && barcodeInput.value.trim()) {
+            searchMaterialTransfer();
+        }
+    }
+});
+try {
+    const dbChannel = new BroadcastChannel('kdmes_db_env_channel');
+    dbChannel.onmessage = function () {
+        const barcodeInput = document.getElementById('barcode');
+        if (barcodeInput && barcodeInput.value.trim()) {
+            searchMaterialTransfer();
+        }
+    };
+} catch (e) {}

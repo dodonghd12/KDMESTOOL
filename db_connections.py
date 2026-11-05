@@ -197,13 +197,102 @@ dev_pool = PgConnectionPool(
     max_connections=10
 )
 
-def get_pg_connection():
-    """Context manager lấy kết nối Production từ connection pool."""
+# KV1 PostgreSQL connection pool (198.1.1.92)
+kv1_pool = PgConnectionPool(
+    host="198.1.1.92",
+    port=5432,
+    user="postgres",
+    password="kenda",
+    database="kverp",
+    max_connections=10
+)
+
+def get_current_db_env():
+    """
+    Xác định môi trường DB hiện tại ('KV1', 'KV2', 'DEV'). Mặc định: 'KV2'.
+    Kiểm tra theo thứ tự ưu tiên:
+    1. Header: 'X-DB-Env' hoặc 'X-Plant'
+    2. JSON payload: 'db_env', 'env', 'plant', 'branch'
+    3. Query args: 'db_env', 'plant', 'env'
+    4. Session: session.get('db_env')
+    5. Cookie: request.cookies.get('kdmes_db_env')
+    """
+    try:
+        from flask import has_request_context, request, session
+        if not has_request_context():
+            return 'KV2'
+        
+        # 1. Header
+        header_env = request.headers.get('X-DB-Env') or request.headers.get('X-Plant')
+        if header_env:
+            val = header_env.strip().upper()
+            if val in ('KV1', 'KV2', 'DEV'):
+                return val
+                
+        # 2. JSON payload
+        try:
+            data = request.get_json(silent=True)
+            if isinstance(data, dict):
+                body_env = data.get('db_env') or data.get('env') or data.get('plant') or data.get('branch')
+                if body_env:
+                    val = str(body_env).strip().upper()
+                    if val in ('KV1', 'KV2', 'DEV'):
+                        return val
+        except Exception:
+            pass
+            
+        # 3. Query args
+        query_env = request.args.get('db_env') or request.args.get('plant') or request.args.get('env')
+        if query_env:
+            val = query_env.strip().upper()
+            if val in ('KV1', 'KV2', 'DEV'):
+                return val
+                
+        # 4. Cookie (Client browser authoritative)
+        cookie_env = request.cookies.get('kdmes_db_env')
+        if cookie_env:
+            val = cookie_env.strip().upper()
+            if val in ('KV1', 'KV2', 'DEV'):
+                return val
+
+        # 5. Session
+        sess_env = session.get('db_env')
+        if sess_env:
+            val = str(sess_env).strip().upper()
+            if val in ('KV1', 'KV2', 'DEV'):
+                return val
+    except Exception:
+        pass
+
+    return 'KV2'
+
+def get_pg_prod_connection():
+    """Context manager lấy kết nối Production KV2 (198.1.10.85) trực tiếp."""
     return prod_pool.connection()
 
 def get_pg_dev_connection():
-    """Context manager lấy kết nối Dev từ connection pool."""
+    """Context manager lấy kết nối Dev (198.1.10.3) từ connection pool."""
     return dev_pool.connection()
+
+def get_pg_kv1_connection():
+    """Context manager lấy kết nối KV1 (198.1.1.92) từ connection pool."""
+    return kv1_pool.connection()
+
+def get_pg_connection():
+    """
+    Context manager lấy kết nối PostgreSQL theo môi trường active (KV1 / KV2 / DEV).
+    - KV1 tương ứng với get_pg_kv1_connection (198.1.1.92:5432)
+    - KV2 tương ứng với get_pg_prod_connection (198.1.10.85:5432)
+    - DEV tương ứng với get_pg_dev_connection (198.1.10.3:5432)
+    Mặc định: KV2.
+    """
+    env = get_current_db_env()
+    if env == 'KV1':
+        return kv1_pool.connection()
+    elif env == 'DEV':
+        return dev_pool.connection()
+    else:
+        return prod_pool.connection()
 
 # ==============================================================================
 # SQL Server ERP Configuration & Connection (198.1.10.33)
