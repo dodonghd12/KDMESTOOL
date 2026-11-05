@@ -60,15 +60,14 @@
     box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.25);
 }
 
-/* --- Header --- */
+/* --- Header (Compact) --- */
 .help-modal-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 16px 28px;
+    padding: 10px 24px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     background: rgba(15, 23, 42, 0.96);
-    gap: 20px;
     flex-shrink: 0;
 }
 
@@ -80,106 +79,28 @@
 .help-header-title-wrap {
     display: flex;
     align-items: center;
-    gap: 14px;
-}
-
-.help-header-icon {
-    font-size: 28px;
-    color: #00adb5;
-    background: rgba(0, 173, 181, 0.12);
-    padding: 8px;
-    border-radius: 10px;
-}
-
-.help-header-title {
-    font-size: 1.2rem;
-    font-weight: 700;
-    margin: 0;
-    letter-spacing: 0.3px;
-    display: flex;
-    align-items: center;
     gap: 10px;
 }
 
-.help-header-badge {
-    font-size: 0.72rem;
-    padding: 2px 8px;
-    background: linear-gradient(135deg, #00adb5, #00818a);
-    color: #fff;
-    border-radius: 12px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+.help-header-icon {
+    font-size: 22px;
+    color: #00adb5;
+    background: rgba(0, 173, 181, 0.12);
+    padding: 6px;
+    border-radius: 8px;
+    line-height: 1;
 }
 
-.help-header-subtitle {
-    font-size: 0.8rem;
-    color: #94a3b8;
-    margin-top: 2px;
-}
-
-[data-theme="light"] .help-header-subtitle {
-    color: #64748b;
-}
-
-/* Header Search Input */
-.help-search-wrap {
-    position: relative;
-    flex: 1;
-    max-width: 440px;
-}
-
-.help-search-input {
-    width: 100%;
-    padding: 9px 36px 9px 38px;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 20px;
+.help-header-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: 0.3px;
     color: #f1f5f9;
-    font-size: 0.86rem;
-    outline: none;
-    box-sizing: border-box;
-    transition: all 0.2s ease;
 }
 
-[data-theme="light"] .help-search-input {
-    background: #ffffff;
-    border-color: #cbd5e1;
+[data-theme="light"] .help-header-title {
     color: #0f172a;
-}
-
-.help-search-input:focus {
-    border-color: #00adb5;
-    background: rgba(0, 173, 181, 0.06);
-    box-shadow: 0 0 0 3px rgba(0, 173, 181, 0.18);
-}
-
-.help-search-icon {
-    position: absolute;
-    left: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 18px;
-    color: #94a3b8;
-    pointer-events: none;
-}
-
-.help-search-clear {
-    position: absolute;
-    right: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: none;
-    border: none;
-    color: #94a3b8;
-    cursor: pointer;
-    font-size: 16px;
-    padding: 0;
-    display: none;
-}
-
-.help-search-clear.visible {
-    display: block;
 }
 
 /* Close Button */
@@ -187,15 +108,16 @@
     background: rgba(255, 255, 255, 0.06);
     border: 1px solid rgba(255, 255, 255, 0.1);
     color: #94a3b8;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     transition: all 0.2s ease;
     flex-shrink: 0;
+    padding: 0;
 }
 
 [data-theme="light"] .help-modal-close-btn {
@@ -561,40 +483,134 @@
     color: #047857;
 }
 
-/* --- Footer --- */
-.help-modal-footer {
+/* --- Help Item List & Cards (Replacing Tables) --- */
+.help-item-list {
+    list-style: none;
+    padding: 0;
+    margin: 14px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.help-item-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 9px;
+    padding: 12px 16px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.help-item-card:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(0, 173, 181, 0.35);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="light"] .help-item-card {
+    background: #ffffff;
+    border-color: #e2e8f0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="light"] .help-item-card:hover {
+    background: #f8fafc;
+    border-color: #00adb5;
+    box-shadow: 0 4px 12px rgba(0, 173, 181, 0.12);
+}
+
+.help-item-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 14px 28px;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(15, 23, 42, 0.96);
-    font-size: 0.85rem;
-    color: #94a3b8;
-    flex-shrink: 0;
+    margin-bottom: 6px;
+    gap: 8px;
 }
 
-[data-theme="light"] .help-modal-footer {
-    background: #f8fafc;
-    border-top-color: rgba(0, 0, 0, 0.08);
-    color: #64748b;
+.help-item-name {
+    font-weight: 700;
+    font-size: 0.92rem;
+    color: #38bdf8;
+    letter-spacing: 0.2px;
 }
 
-.help-footer-btn {
-    padding: 8px 18px;
-    border-radius: 8px;
-    background: rgba(0, 173, 181, 0.14);
-    border: 1px solid rgba(0, 173, 181, 0.35);
+[data-theme="light"] .help-item-name {
+    color: #0284c7;
+}
+
+.help-tag-pill {
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: rgba(0, 173, 181, 0.18);
     color: #00adb5;
-    font-weight: 600;
-    font-size: 0.85rem;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-family: inherit;
+    border: 1px solid rgba(0, 173, 181, 0.38);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
 }
 
-.help-footer-btn:hover {
-    background: #00adb5;
-    color: #fff;
-    box-shadow: 0 4px 14px rgba(0, 173, 181, 0.25);
+.help-role-pill {
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(56, 189, 248, 0.12);
+    color: #7dd3fc;
+    border: 1px solid rgba(56, 189, 248, 0.25);
+}
+
+.help-role-pill.danger {
+    background: rgba(239, 68, 68, 0.15);
+    color: #fca5a5;
+    border-color: rgba(239, 68, 68, 0.35);
+}
+
+.help-role-pill.warning {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fcd34d;
+    border-color: rgba(245, 158, 11, 0.35);
+}
+
+[data-theme="light"] .help-role-pill {
+    background: #e0f2fe;
+    color: #0369a1;
+    border-color: #bae6fd;
+}
+
+[data-theme="light"] .help-role-pill.danger {
+    background: #fee2e2;
+    color: #b91c1c;
+    border-color: #fca5a5;
+}
+
+[data-theme="light"] .help-role-pill.warning {
+    background: #fef3c7;
+    color: #b45309;
+    border-color: #fde68a;
+}
+
+.help-item-desc {
+    font-size: 0.86rem;
+    color: #cbd5e1;
+    margin: 0 0 6px 0;
+    line-height: 1.5;
+}
+
+[data-theme="light"] .help-item-desc {
+    color: #334155;
+}
+
+.help-item-meta {
+    font-size: 0.81rem;
+    color: #94a3b8;
+    line-height: 1.45;
+    padding-top: 4px;
+    border-top: 1px dashed rgba(255, 255, 255, 0.06);
+}
+
+[data-theme="light"] .help-item-meta {
+    color: #64748b;
+    border-top-color: #f1f5f9;
 }

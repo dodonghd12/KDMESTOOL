@@ -1,5 +1,5 @@
 # CẨM NANG HƯỚNG DẪN SỬ DỤNG TOÀN DIỆN HỆ THỐNG KDMES TOOL
-> **Phiên bản:** v2.3.77+ | **Phát hành:** 2026 | **Đơn vị vận hành:** Đội ngũ Kỹ thuật & Quản trị Hệ thống KDMES KV1 & KV2  
+> **Phiên bản:** v2.3.78+ | **Phát hành:** 2026 | **Đơn vị vận hành:** Đội ngũ Kỹ thuật & Quản trị Hệ thống KDMES KV1 & KV2  
 > **Tài liệu tham chiếu nội bộ:** Cẩm nang tiêu chuẩn thao tác chuẩn (SOP), quản trị dữ liệu sản xuất, kiểm soát cấp liệu Poka-Yoke và xử lý sự cố.
 
 ---
@@ -37,10 +37,14 @@ Main Dashboard là trung tâm chỉ huy số của KDMES TOOL. Hỗ trợ tra c�
 * **Cập nhật OID / Chuyển đổi mã liên kết:** Đồng bộ OID giữa bảng vật tư và bảng cân cấp liệu tự động.
 
 ### 3. Quy trình chuẩn
-1. Nhập mã Barcode vào ô tìm kiếm chính $ightarrow$ Nhấn **Enter** hoặc click biểu tượng Kính lúp.
+1. Nhập mã Barcode vào ô tìm kiếm chính $
+ightarrow$ Nhấn **Enter** hoặc click biểu tượng Kính lúp.
 2. Kiểm tra thông tin thẻ tóm tắt và bảng chi tiết thuộc tính.
-3. Nếu cần đổi trạng thái: Click nút chức năng tương ứng $ightarrow$ Điền lý do $ightarrow$ Nhấn **Xác nhận**.
-4. Nếu cần xem lịch sử tiêu hao: Click **"Kiểm tra tiêu thụ"** $ightarrow$ Hệ thống tự động phân tích và liệt kê các mẻ máy đã nạp tem này.
+3. Nếu cần đổi trạng thái: Click nút chức năng tương ứng $
+ightarrow$ Điền lý do $
+ightarrow$ Nhấn **Xác nhận**.
+4. Nếu cần xem lịch sử tiêu hao: Click **"Kiểm tra tiêu thụ"** $
+ightarrow$ Hệ thống tự động phân tích và liệt kê các mẻ máy đã nạp tem này.
 
 ---
 
@@ -131,7 +135,8 @@ Quản lý danh mục nguyên vật liệu thay thế tương đương khi mã c
 1. Tra cứu mã NVL chính đang thiếu.
 2. Kiểm tra danh sách NVL thay thế đã được phê duyệt trong hồ sơ công nghệ.
 3. Khai báo tỷ lệ quy đổi tương đương (Hệ số K).
-4. Thiết lập thời hạn áp dụng (Từ ngày - Đến ngày) $ightarrow$ Lưu cấu hình.
+4. Thiết lập thời hạn áp dụng (Từ ngày - Đến ngày) $
+ightarrow$ Lưu cấu hình.
 
 ---
 
@@ -142,7 +147,8 @@ Nhật ký điện tử ghi nhận 100% luồng thao tác quét mã vạch cấp
 
 ### 2. Ứng dụng điều tra sự cố
 * Khi phát hiện một mẻ keo hoặc bán thành phẩm bị lỗi chất lượng, mở ngay phân hệ này.
-* Nhập số mẻ hoặc mã máy $ightarrow$ Lọc ra chính xác danh sách các cuộn tem/thùng hóa chất đã được quét nạp vào mẻ đó cùng danh tính người thực hiện.
+* Nhập số mẻ hoặc mã máy $
+ightarrow$ Lọc ra chính xác danh sách các cuộn tem/thùng hóa chất đã được quét nạp vào mẻ đó cùng danh tính người thực hiện.
 
 ---
 

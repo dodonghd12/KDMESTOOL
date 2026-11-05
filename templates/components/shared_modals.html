@@ -314,24 +314,11 @@
 
 <div id="helpModal" class="help-modal" role="dialog" aria-modal="true" aria-labelledby="helpModalTitle" aria-hidden="true">
     <div class="help-modal-container">
-        <!-- Modal Header -->
+        <!-- Modal Header (Compact) -->
         <div class="help-modal-header">
             <div class="help-header-title-wrap">
                 <span class="material-symbols-outlined help-header-icon" aria-hidden="true">menu_book</span>
-                <div>
-                    <h3 id="helpModalTitle" class="help-header-title">
-                        HƯỚNG DẪN SỬ DỤNG KDMES TOOL
-                        <span class="help-header-badge">v2.3.77 TOÀN DIỆN</span>
-                    </h3>
-                    <div class="help-header-subtitle">Cẩm nang hướng dẫn thao tác & quy trình kỹ thuật chuẩn hóa toàn bộ phân hệ</div>
-                </div>
-            </div>
-
-            <!-- Real-time search filter -->
-            <div class="help-search-wrap">
-                <span class="material-symbols-outlined help-search-icon" aria-hidden="true">search</span>
-                <input type="text" id="helpSearchInput" class="help-search-input" placeholder="Tìm kiếm nhanh phân hệ, tính năng, mã lỗi..." autocomplete="off">
-                <button type="button" id="helpSearchClear" class="help-search-clear" aria-label="Xóa tìm kiếm">✕</button>
+                <h3 id="helpModalTitle" class="help-header-title">HƯỚNG DẪN SỬ DỤNG KDMES TOOL</h3>
             </div>
 
             <button type="button" id="helpModalCloseBtn" class="help-modal-close-btn" aria-label="Đóng hướng dẫn" title="Đóng (Phím Esc)">
@@ -372,7 +359,6 @@
 
                     <div class="help-section">
                         <h3 class="help-section-title">
-                            <span class="material-symbols-outlined section-icon">manage_search</span>
                             Quy Trình Tra Cứu 3 Bước
                         </h3>
                         <div class="help-steps-list">
@@ -402,66 +388,70 @@
 
                     <div class="help-section">
                         <h3 class="help-section-title">
-                            <span class="material-symbols-outlined section-icon">ads_click</span>
                             Cẩm Nang 8 Tính Năng Chuột Phải (Context Menu)
                         </h3>
-                        <div class="help-table-wrap">
-                            <table class="help-table">
-                                <thead>
-                                    <tr>
-                                        <th style="width: 25%;">Tính năng chuột phải</th>
-                                        <th style="width: 45%;">Mục đích & Ý nghĩa nghiệp vụ</th>
-                                        <th style="width: 30%;">Kết quả trả về</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td><strong>Xem tem cùng MES</strong> <span class="help-header-badge" style="font-size:0.6rem;">MỚI</span></td>
-                                        <td>Tìm toàn bộ các tem NVL/BTP được sản xuất trong <strong>cùng đơn điều động (Work Order)</strong> với tem đang chọn.</td>
-                                        <td>Hiển thị danh sách tem cùng MES tại bảng Output (khóa menu tạm thời chống click lặp).</td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>MES Tracking</strong></td>
-                                        <td>Theo dõi toàn bộ tiến trình lịch sử tạo tem, trạm máy sản xuất, ca làm việc, thời gian standing time và đồng bộ ERP.</td>
-                                        <td>Mở popup hành trình di chuyển qua từng công đoạn.</td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>Xem đơn điều động</strong></td>
-                                        <td>Tra cứu chi tiết lệnh sản xuất (Work Order): mã công thức (`recipe_id`), trạm máy (`station`), ngày điều động (`reserved_date`), số mẻ kế hoạch.</td>
-                                        <td>Hiển thị thông tin chi tiết lệnh điều phối sản xuất.</td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>Xem tem đầu ra</strong></td>
-                                        <td>Xem danh sách các tem thành phẩm hoặc BTP phát sinh từ tem nguyên liệu này (đã lọc chống trùng lặp `DISTINCT`).</td>
-                                        <td>Danh sách tem đầu ra kèm số lượng thực tế.</td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>Kiểm tra tiêu thụ tem</strong></td>
-                                        <td>Báo cáo tổng lượng vật liệu đã tiêu hao (consumption), số mẻ hoàn thành (`total_barcode`), vị trí bind khay.</td>
-                                        <td>Bảng chi tiết định mức và tiêu hao mẻ thực tế.</td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>Kiểm tra commit GitLab</strong></td>
-                                        <td>Áp dụng khi đối tượng là <strong>Recipe</strong>: so sánh lịch sử các commit chỉnh sửa công thức trên GitLab CE.</td>
-                                        <td>Xem diff sửa đổi từng phiên bản và pipeline status.</td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>Xem nội dung YAML</strong></td>
-                                        <td>Xem trực tiếp mã nguồn file công thức YAML, kiểm tra cấu trúc thụt lề 2 khoảng trắng tiêu chuẩn.</td>
-                                        <td>Trình xem mã YAML có highlight cú pháp.</td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>In lại tem (Reprint)</strong></td>
-                                        <td>Kích hoạt in lại tem vật tư này ra máy in mã vạch Zebra hoặc TSC tại trạm.</td>
-                                        <td>Mở hộp thoại chọn máy in đích và gửi lệnh in.</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
+                        <ul class="help-item-list">
+                            <li class="help-item-card">
+                                <div class="help-item-header">
+                                    <span class="help-item-name">Xem tem cùng MES</span>
+                                    <span class="help-tag-pill">MỚI</span>
+                                </div>
+                                <p class="help-item-desc">Tìm toàn bộ các tem NVL/BTP được sản xuất trong <strong>cùng đơn điều động (Work Order)</strong> với tem đang chọn.</p>
+                                <div class="help-item-meta"><strong>Kết quả:</strong> Hiển thị danh sách tem cùng MES tại bảng Output (khóa menu tạm thời chống click lặp).</div>
+                            </li>
+                            <li class="help-item-card">
+                                <div class="help-item-header">
+                                    <span class="help-item-name">MES Tracking</span>
+                                </div>
+                                <p class="help-item-desc">Theo dõi toàn bộ tiến trình lịch sử tạo tem, trạm máy sản xuất, ca làm việc, thời gian standing time và đồng bộ ERP.</p>
+                                <div class="help-item-meta"><strong>Kết quả:</strong> Mở popup hành trình di chuyển qua từng công đoạn.</div>
+                            </li>
+                            <li class="help-item-card">
+                                <div class="help-item-header">
+                                    <span class="help-item-name">Xem đơn điều động</span>
+                                </div>
+                                <p class="help-item-desc">Tra cứu chi tiết lệnh sản xuất (Work Order): mã công thức (<code>recipe_id</code>), trạm máy (<code>station</code>), ngày điều động (<code>reserved_date</code>), số mẻ kế hoạch.</p>
+                                <div class="help-item-meta"><strong>Kết quả:</strong> Hiển thị thông tin chi tiết lệnh điều phối sản xuất.</div>
+                            </li>
+                            <li class="help-item-card">
+                                <div class="help-item-header">
+                                    <span class="help-item-name">Xem tem đầu ra</span>
+                                </div>
+                                <p class="help-item-desc">Xem danh sách các tem thành phẩm hoặc BTP phát sinh từ tem nguyên liệu này (đã lọc chống trùng lặp <code>DISTINCT</code>).</p>
+                                <div class="help-item-meta"><strong>Kết quả:</strong> Danh sách tem đầu ra kèm số lượng thực tế.</div>
+                            </li>
+                            <li class="help-item-card">
+                                <div class="help-item-header">
+                                    <span class="help-item-name">Kiểm tra tiêu thụ tem</span>
+                                </div>
+                                <p class="help-item-desc">Báo cáo tổng lượng vật liệu đã tiêu hao (consumption), số mẻ hoàn thành (<code>total_barcode</code>), vị trí bind khay.</p>
+                                <div class="help-item-meta"><strong>Kết quả:</strong> Bảng chi tiết định mức và tiêu hao mẻ thực tế.</div>
+                            </li>
+                            <li class="help-item-card">
+                                <div class="help-item-header">
+                                    <span class="help-item-name">Kiểm tra commit GitLab</span>
+                                </div>
+                                <p class="help-item-desc">Áp dụng khi đối tượng là <strong>Recipe</strong>: so sánh lịch sử các commit chỉnh sửa công thức trên GitLab CE.</p>
+                                <div class="help-item-meta"><strong>Kết quả:</strong> Xem diff sửa đổi từng phiên bản và pipeline status.</div>
+                            </li>
+                            <li class="help-item-card">
+                                <div class="help-item-header">
+                                    <span class="help-item-name">Xem nội dung YAML</span>
+                                </div>
+                                <p class="help-item-desc">Xem trực tiếp mã nguồn file công thức YAML, kiểm tra cấu trúc thụt lề 2 khoảng trắng tiêu chuẩn.</p>
+                                <div class="help-item-meta"><strong>Kết quả:</strong> Trình xem mã YAML có highlight cú pháp.</div>
+                            </li>
+                            <li class="help-item-card">
+                                <div class="help-item-header">
+                                    <span class="help-item-name">In lại tem (Reprint)</span>
+                                </div>
+                                <p class="help-item-desc">Kích hoạt in lại tem vật tư này ra máy in mã vạch Zebra hoặc TSC tại trạm.</p>
+                                <div class="help-item-meta"><strong>Kết quả:</strong> Mở hộp thoại chọn máy in đích và gửi lệnh in.</div>
+                            </li>
+                        </ul>
                     </div>
 
                     <div class="help-callout info">
-                        <span class="material-symbols-outlined help-callout-icon">info</span>
                         <div>
                             <strong>Mẹo hữu ích:</strong> Bạn có thể dùng ô tìm kiếm nhanh ở đầu mỗi cột để lọc dữ liệu theo thời gian thực hoặc click nút <strong>Export to Excel</strong> ở góc phải bảng để tải báo cáo về máy tính.
                         </div>
@@ -479,7 +469,6 @@
 
                     <div class="help-section">
                         <h3 class="help-section-title">
-                            <span class="material-symbols-outlined section-icon">swap_horiz</span>
                             Tính Năng Chuyển Đổi Môi Trường KV1 & KV2
                         </h3>
                         <p style="font-size:0.88rem; color:#94a3b8; line-height:1.5;">
@@ -505,7 +494,6 @@
 
                     <div class="help-section">
                         <h3 class="help-section-title">
-                            <span class="material-symbols-outlined section-icon">rule</span>
                             Quy Trình Kiểm Tra Tem Lỗi Chuyển Kho
                         </h3>
                         <div class="help-steps-list">
@@ -527,7 +515,6 @@
                     </div>
 
                     <div class="help-callout warning">
-                        <span class="material-symbols-outlined help-callout-icon">warning</span>
                         <div>
                             <strong>Lưu ý:</strong> Khi đang ở môi trường KV1, nếu gặp lỗi không tải được dữ liệu, hãy kiểm tra lại kết nối mạng nội bộ giữa 2 phân xưởng hoặc liên hệ IT số nội bộ <strong>198</strong>.
                         </div>
@@ -545,7 +532,6 @@
 
                     <div class="help-section">
                         <h3 class="help-section-title">
-                            <span class="material-symbols-outlined section-icon">checklist</span>
                             Quy Trình Thao Tác 4 Bước Tại Trạm
                         </h3>
                         <div class="help-steps-list">
@@ -581,7 +567,6 @@
                     </div>
 
                     <div class="help-callout warning">
-                        <span class="material-symbols-outlined help-callout-icon">gpp_maybe</span>
                         <div>
                             <strong>QUY ĐỊNH AN TOÀN CHẤT LƯỢNG:</strong> Tuyệt đối không tự ý đổ vật liệu vào máy khi có cảnh báo Đỏ. Kiện hàng lỗi cần được cách ly và xin phê duyệt đặc biệt (Special Approved) từ Kỹ thuật/QC.
                         </div>
@@ -599,7 +584,6 @@
 
                     <div class="help-section">
                         <h3 class="help-section-title">
-                            <span class="material-symbols-outlined section-icon">print</span>
                             Quy Trình 5 Bước In Lại Tem
                         </h3>
                         <div class="help-steps-list">
@@ -642,7 +626,6 @@
                     </div>
 
                     <div class="help-callout success">
-                        <span class="material-symbols-outlined help-callout-icon">verified_user</span>
                         <div>
                             <strong>Kiểm soát bảo mật:</strong> Mọi thao tác in bù đều được lưu vết đầy đủ vào nhật ký hệ thống (User in, thời gian, số lượng, lý do) nhằm phục vụ công tác kiểm kê và truy xuất nguồn gốc.
                         </div>
@@ -660,7 +643,6 @@
 
                     <div class="help-section">
                         <h3 class="help-section-title">
-                            <span class="material-symbols-outlined section-icon">tune</span>
                             Các Thông Số Tiêu Chuẩn Quản Lý
                         </h3>
                         <div class="help-steps-list">
@@ -700,7 +682,6 @@
 
                     <div class="help-section">
                         <h3 class="help-section-title">
-                            <span class="material-symbols-outlined section-icon">delete_history</span>
                             1. GitLab Deleted Files (`/gitlab-deleted-files`)
                         </h3>
                         <p style="font-size:0.88rem; color:#94a3b8; line-height:1.5;">
@@ -719,7 +700,6 @@
 
                     <div class="help-section">
                         <h3 class="help-section-title">
-                            <span class="material-symbols-outlined section-icon">database</span>
                             2. Postgres Deleted Data (`/postgres-deleted-data`)
                         </h3>
                         <div class="help-steps-list">
@@ -745,7 +725,6 @@
 
                     <div class="help-section">
                         <h3 class="help-section-title">
-                            <span class="material-symbols-outlined section-icon">person_add</span>
                             1. Tạo Tài Khoản Mới (`/create-kd-account`)
                         </h3>
                         <div class="help-steps-list">
@@ -768,7 +747,6 @@
 
                     <div class="help-section">
                         <h3 class="help-section-title">
-                            <span class="material-symbols-outlined section-icon">badge</span>
                             2. Kiểm Tra Quyền Tài Khoản (`/check-kd-account`)
                         </h3>
                         <p style="font-size:0.88rem; color:#94a3b8; line-height:1.5;">
@@ -788,7 +766,6 @@
 
                     <div class="help-section">
                         <h3 class="help-section-title">
-                            <span class="material-symbols-outlined section-icon">find_replace</span>
                             Quy Tắc Quản Lý NVL Thay Thế
                         </h3>
                         <div class="help-steps-list">
@@ -821,7 +798,6 @@
 
                     <div class="help-section">
                         <h3 class="help-section-title">
-                            <span class="material-symbols-outlined section-icon">history</span>
                             Tra Cứu Nhật Ký
                         </h3>
                         <div class="help-steps-list">
@@ -854,7 +830,6 @@
 
                     <div class="help-section">
                         <h3 class="help-section-title">
-                            <span class="material-symbols-outlined section-icon">lab_research</span>
                             Các Chỉ Tiêu Cơ Lý Được Đối Soát
                         </h3>
                         <div class="help-steps-list">
@@ -887,7 +862,6 @@
 
                     <div class="help-section">
                         <h3 class="help-section-title">
-                            <span class="material-symbols-outlined section-icon">sync</span>
                             Phát Hiện & Xử Lý Sự Cố Đồng Bộ
                         </h3>
                         <div class="help-steps-list">
@@ -913,7 +887,6 @@
 
                     <div class="help-section">
                         <h3 class="help-section-title">
-                            <span class="material-symbols-outlined section-icon">display_settings</span>
                             Các Thiết Lập Trạm Cần Chú Ý
                         </h3>
                         <div class="help-steps-list">
@@ -946,46 +919,41 @@
 
                     <div class="help-section">
                         <h3 class="help-section-title">
-                            <span class="material-symbols-outlined section-icon">auto_fix_high</span>
                             Bốn Phép Thuật Quản Trị Cốt Lõi
                         </h3>
-                        <div class="help-table-wrap">
-                            <table class="help-table">
-                                <thead>
-                                    <tr>
-                                        <th style="width: 25%;">Tên Công Cụ</th>
-                                        <th style="width: 50%;">Ý Nghĩa Nghiệp Vụ & Cơ Chế Hoạt Động</th>
-                                        <th style="width: 25%;">Phân Quyền</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td><strong>Switching Spell</strong></td>
-                                        <td>Điều chuyển máy in tức thời khi máy in trạm bị hỏng/kẹt giấy sang máy in của trạm kế bên mà không làm gián đoạn sản xuất.</td>
-                                        <td>Tổ trưởng / IT Bảo trì</td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>Avada Kedavra</strong></td>
-                                        <td>Tiêu hủy tem rác, hủy trạng thái bind vật tư bị treo kẹt trong máy sản xuất, giải phóng khay nạp.</td>
-                                        <td>IT MES / Admin</td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>Time Turner</strong></td>
-                                        <td>Gia hạn standing time hoặc điều chỉnh thời hạn sử dụng tem vật tư theo biên bản phê duyệt kỹ thuật đặc biệt.</td>
-                                        <td>Kỹ thuật / QC Manager</td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>Reparo Spell</strong></td>
-                                        <td>Công cụ khôi phục và hiệu chỉnh dữ liệu mẻ sản xuất phát sinh lỗi bất thường.</td>
-                                        <td>Quản trị viên CSDL</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
+                        <ul class="help-item-list">
+                            <li class="help-item-card">
+                                <div class="help-item-header">
+                                    <span class="help-item-name">Switching Spell</span>
+                                    <span class="help-role-pill">Tổ trưởng / IT Bảo trì</span>
+                                </div>
+                                <p class="help-item-desc">Điều chuyển máy in tức thời khi máy in trạm bị hỏng/kẹt giấy sang máy in của trạm kế bên mà không làm gián đoạn sản xuất.</p>
+                            </li>
+                            <li class="help-item-card">
+                                <div class="help-item-header">
+                                    <span class="help-item-name">Avada Kedavra</span>
+                                    <span class="help-role-pill danger">IT MES / Admin</span>
+                                </div>
+                                <p class="help-item-desc">Tiêu hủy tem rác, hủy trạng thái bind vật tư bị treo kẹt trong máy sản xuất, giải phóng khay nạp.</p>
+                            </li>
+                            <li class="help-item-card">
+                                <div class="help-item-header">
+                                    <span class="help-item-name">Time Turner</span>
+                                    <span class="help-role-pill warning">Kỹ thuật / QC Manager</span>
+                                </div>
+                                <p class="help-item-desc">Gia hạn standing time hoặc điều chỉnh thời hạn sử dụng tem vật tư theo biên bản phê duyệt kỹ thuật đặc biệt.</p>
+                            </li>
+                            <li class="help-item-card">
+                                <div class="help-item-header">
+                                    <span class="help-item-name">Reparo Spell</span>
+                                    <span class="help-role-pill">Quản trị viên CSDL</span>
+                                </div>
+                                <p class="help-item-desc">Công cụ khôi phục và hiệu chỉnh dữ liệu mẻ sản xuất phát sinh lỗi bất thường.</p>
+                            </li>
+                        </ul>
                     </div>
 
                     <div class="help-callout warning">
-                        <span class="material-symbols-outlined help-callout-icon">gpp_bad</span>
                         <div>
                             <strong>CẢNH BÁO QUẢN TRỊ:</strong> Toàn bộ các thao tác trong phân hệ Elder Wand đều can thiệp trực tiếp vào CSDL sản xuất. Bắt buộc kiểm tra kỹ mã đối tượng và có biên bản phê duyệt trước khi thực thi lệnh.
                         </div>
@@ -1003,38 +971,32 @@
 
                     <div class="help-section">
                         <h3 class="help-section-title">
-                            <span class="material-symbols-outlined section-icon">keyboard</span>
                             Bảng Phím Tắt Thao Tác Nhanh
                         </h3>
-                        <div class="help-table-wrap">
-                            <table class="help-table">
-                                <thead>
-                                    <tr>
-                                        <th style="width: 30%;">Phím Tắt</th>
-                                        <th style="width: 70%;">Hành Động Tương Ứng</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td><span class="help-code-pill">Ctrl + V</span></td>
-                                        <td>Dán ảnh chụp màn hình tem vào vùng nhận dạng OCR (Image to Text) tại trang chủ và tem vận chuyển.</td>
-                                    </tr>
-                                    <tr>
-                                        <td><span class="help-code-pill">Esc</span></td>
-                                        <td>Đóng nhanh cửa sổ Hướng dẫn sử dụng hoặc các hộp thoại popup.</td>
-                                    </tr>
-                                    <tr>
-                                        <td><span class="help-code-pill">Enter</span></td>
-                                        <td>Kích hoạt tìm kiếm tại các ô nhập Barcode / Recipe / Work Order.</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
+                        <ul class="help-item-list">
+                            <li class="help-item-card">
+                                <div class="help-item-header">
+                                    <span class="help-code-pill">Ctrl + V</span>
+                                </div>
+                                <p class="help-item-desc">Dán ảnh chụp màn hình tem vào vùng nhận dạng OCR (Image to Text) tại trang chủ và tem vận chuyển.</p>
+                            </li>
+                            <li class="help-item-card">
+                                <div class="help-item-header">
+                                    <span class="help-code-pill">Esc</span>
+                                </div>
+                                <p class="help-item-desc">Đóng nhanh cửa sổ Hướng dẫn sử dụng hoặc các hộp thoại popup.</p>
+                            </li>
+                            <li class="help-item-card">
+                                <div class="help-item-header">
+                                    <span class="help-code-pill">Enter</span>
+                                </div>
+                                <p class="help-item-desc">Kích hoạt tìm kiếm tại các ô nhập Barcode / Recipe / Work Order.</p>
+                            </li>
+                        </ul>
                     </div>
 
                     <div class="help-section">
                         <h3 class="help-section-title">
-                            <span class="material-symbols-outlined section-icon">toggle_on</span>
                             Chuyển Đổi Môi Trường CSDL & Giao Diện Sáng / Tối
                         </h3>
                         <div class="help-steps-list">
@@ -1058,14 +1020,7 @@
             </main>
         </div>
 
-        <!-- Modal Footer -->
-        <div class="help-modal-footer">
-            <div>
-                <span>Cẩm nang tài liệu kỹ thuật: </span>
-                <code style="color:#00adb5;">DOCS/GUIDES/HUONG_DAN_SU_DUNG_TOAN_DIEN.md</code>
-            </div>
-            <button type="button" id="helpFooterCloseBtn" class="help-footer-btn">Đã hiểu & Đóng</button>
-        </div>
+
     </div>
 </div>
 
