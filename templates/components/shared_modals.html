@@ -308,7 +308,7 @@
 
 
 <!-- ==============================================================================
-     IN-APP HELP & DOCUMENTATION MODAL (v2.3.76+)
+     IN-APP HELP & DOCUMENTATION MODAL (v2.3.77+ COMPREHENSIVE GUIDE)
      ============================================================================== -->
 <link rel="stylesheet" href="{{ url_for('static', filename='css/help_modal.css') }}?v={{ version }}">
 
@@ -321,16 +321,16 @@
                 <div>
                     <h3 id="helpModalTitle" class="help-header-title">
                         HƯỚNG DẪN SỬ DỤNG KDMES TOOL
-                        <span class="help-header-badge">v2.3.76 SOP</span>
+                        <span class="help-header-badge">v2.3.77 TOÀN DIỆN</span>
                     </h3>
-                    <div class="help-header-subtitle">Cẩm nang hướng dẫn thao tác & quy trình kỹ thuật chuẩn hóa</div>
+                    <div class="help-header-subtitle">Cẩm nang hướng dẫn thao tác & quy trình kỹ thuật chuẩn hóa toàn bộ phân hệ</div>
                 </div>
             </div>
 
             <!-- Real-time search filter -->
             <div class="help-search-wrap">
                 <span class="material-symbols-outlined help-search-icon" aria-hidden="true">search</span>
-                <input type="text" id="helpSearchInput" class="help-search-input" placeholder="Tìm nhanh tính năng, phím tắt, SOP..." autocomplete="off">
+                <input type="text" id="helpSearchInput" class="help-search-input" placeholder="Tìm kiếm nhanh phân hệ, tính năng, mã lỗi..." autocomplete="off">
                 <button type="button" id="helpSearchClear" class="help-search-clear" aria-label="Xóa tìm kiếm">✕</button>
             </div>
 
@@ -341,81 +341,65 @@
 
         <!-- Modal Body (Two-Column Layout) -->
         <div class="help-modal-body">
-            <!-- Left Navigation Sidebar -->
+            <!-- Left Navigation Sidebar: Clean Text Only (No icons, no badges) -->
             <nav class="help-nav-sidebar" aria-label="Danh mục hướng dẫn">
-                <button type="button" class="help-nav-item active" data-target="helpPaneMain">
-                    <span class="material-symbols-outlined help-nav-item-icon">home</span>
-                    <span>1. Main Dashboard</span>
-                    <span class="help-nav-badge">Cốt lõi</span>
-                </button>
-                <button type="button" class="help-nav-item" data-target="helpPaneTransfer">
-                    <span class="material-symbols-outlined help-nav-item-icon">local_shipping</span>
-                    <span>2. Tem Vận Chuyển</span>
-                    <span class="help-nav-badge">KV1/KV2</span>
-                </button>
-                <button type="button" class="help-nav-item" data-target="helpPaneValidate">
-                    <span class="material-symbols-outlined help-nav-item-icon">category_search</span>
-                    <span>3. Kiểm Tra Cấp Liệu</span>
-                    <span class="help-nav-badge">Poka-Yoke</span>
-                </button>
-                <button type="button" class="help-nav-item" data-target="helpPaneReprint">
-                    <span class="material-symbols-outlined help-nav-item-icon">feature_search</span>
-                    <span>4. Truy Vấn In Bù</span>
-                    <span class="help-nav-badge">Máy in</span>
-                </button>
-                <button type="button" class="help-nav-item" data-target="helpPaneElderWand">
-                    <span class="material-symbols-outlined help-nav-item-icon">auto_fix_high</span>
-                    <span>5. Phân Hệ Khác</span>
-                    <span class="help-nav-badge">Đợt 2</span>
-                </button>
+                <button type="button" class="help-nav-item active" data-target="helpPaneMain">1. Main Dashboard & Tra Cứu</button>
+                <button type="button" class="help-nav-item" data-target="helpPaneTransfer">2. Tem Vận Chuyển (KV1 & KV2)</button>
+                <button type="button" class="help-nav-item" data-target="helpPaneValidate">3. Kiểm Tra Cấp Liệu (Poka-Yoke)</button>
+                <button type="button" class="help-nav-item" data-target="helpPaneReprint">4. Truy Vấn In Bù (Reprint)</button>
+                <button type="button" class="help-nav-item" data-target="helpPaneTechSpec">5. Thông Số Kỹ Thuật (Recipe Spec)</button>
+                <button type="button" class="help-nav-item" data-target="helpPaneDeletedData">6. Dữ Liệu Đã Xóa (GitLab & DB)</button>
+                <button type="button" class="help-nav-item" data-target="helpPaneAccount">7. Quản Lý Tài Khoản KDMES</button>
+                <button type="button" class="help-nav-item" data-target="helpPaneSubstitutions">8. NVL Thay Thế (Substitutions)</button>
+                <button type="button" class="help-nav-item" data-target="helpPaneHistory">9. Lịch Sử Quét & In Tem</button>
+                <button type="button" class="help-nav-item" data-target="helpPaneQC">10. Check QC Data (Kiểm Định KCS)</button>
+                <button type="button" class="help-nav-item" data-target="helpPaneMesync">11. Check Mesync (Đồng Bộ MES-ERP)</button>
+                <button type="button" class="help-nav-item" data-target="helpPaneStation">12. Thiết Lập Máy & Trạm Cân</button>
+                <button type="button" class="help-nav-item" data-target="helpPaneElderWand">13. Elder Wand (Công Cụ Quản Trị)</button>
+                <button type="button" class="help-nav-item" data-target="helpPaneUtilities">14. Tiện Ích Toàn Cục & Phím Tắt</button>
             </nav>
 
-            <!-- Right Content Area -->
+            <!-- Right Content Area (Guaranteed Scrollable) -->
             <main class="help-content-area">
                 <!-- PANE 1: MAIN DASHBOARD -->
                 <div id="helpPaneMain" class="help-pane active">
                     <div class="help-pane-header">
-                        <h2 class="help-pane-title">
-                            <span class="material-symbols-outlined">home</span>
-                            1. Main Dashboard & Tra Cứu Toàn Năng
-                        </h2>
+                        <h2 class="help-pane-title">1. Main Dashboard & Tra Cứu Toàn Năng</h2>
                         <p class="help-pane-desc">
-                            Trung tâm tra cứu hợp nhất mọi dữ liệu sản xuất: Barcode vật liệu, BTP, Thành phẩm lốp, Đơn điều động (Work Order) và Công thức (Recipe).
+                            Trung tâm hợp nhất tra cứu mọi dữ liệu sản xuất: Barcode nguyên vật liệu, bán thành phẩm (Tread, Sidewall, Ply, Bead...), Đơn điều động (Work Order) và Công thức (Recipe).
                         </p>
                     </div>
 
-                    <!-- Section: Quy trình tra cứu -->
                     <div class="help-section">
                         <h3 class="help-section-title">
                             <span class="material-symbols-outlined section-icon">manage_search</span>
-                            Quy Trình Tra Cứu Chuẩn
+                            Quy Trình Tra Cứu 3 Bước
                         </h3>
                         <div class="help-steps-list">
                             <div class="help-step-item">
                                 <div class="help-step-num">1</div>
                                 <div class="help-step-content">
                                     <h4>Chọn Loại Đối Tượng</h4>
-                                    <p>Chọn loại đối tượng cần tìm tại Dropdown: <span class="help-code-pill">Barcode</span>, <span class="help-code-pill">Recipe</span>, <span class="help-code-pill">Work Order</span>, hoặc <span class="help-code-pill">Station</span>.</p>
+                                    <p>Chọn loại đối tượng cần tra cứu tại Dropdown: <span class="help-code-pill">Barcode</span>, <span class="help-code-pill">Recipe</span>, <span class="help-code-pill">Work Order</span>, hoặc <span class="help-code-pill">Station</span>.</p>
                                 </div>
                             </div>
                             <div class="help-step-item">
                                 <div class="help-step-num">2</div>
                                 <div class="help-step-content">
-                                    <h4>Nhập Mã Hoặc Quét Ảnh OCR</h4>
-                                    <p>Bắn đầu đọc mã vạch, gõ chuỗi mã trực tiếp hoặc kéo thả/dán ảnh tem (phím tắt <code>Ctrl + V</code>) vào khung <strong>Image to Text</strong> để nhận dạng tự động.</p>
+                                    <h4>Nhập Mã Hoặc Nhận Dạng Ảnh OCR</h4>
+                                    <p>Quét mã vạch bằng máy đọc laser, nhập trực tiếp chuỗi ký tự, hoặc dán ảnh chụp tem bằng phím tắt <code>Ctrl + V</code> vào khung <strong>Image to Text</strong>.</p>
                                 </div>
                             </div>
                             <div class="help-step-item">
                                 <div class="help-step-num">3</div>
                                 <div class="help-step-content">
-                                    <h4>Xem & Tương Tác Dữ Liệu</h4>
-                                    <p>Dữ liệu xuất hiện ngay tức thì. Double-click chuột trái vào dòng để xem chi tiết JSON, hoặc nhấp <strong>chuột phải</strong> để mở menu tính năng nghiệp vụ nâng cao.</p>
+                                    <h4>Tương Tác Nâng Cao Qua Chuột Phải</h4>
+                                    <p>Double-click chuột trái vào dòng để xem chi tiết JSON, hoặc nhấp <strong>chuột phải</strong> để mở menu 8 tính năng nghiệp vụ nâng cao.</p>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Section: Context Menu Cheat-sheet -->
                     <div class="help-section">
                         <h3 class="help-section-title">
                             <span class="material-symbols-outlined section-icon">ads_click</span>
@@ -425,30 +409,30 @@
                             <table class="help-table">
                                 <thead>
                                     <tr>
-                                        <th style="width: 26%;">Tính năng chuột phải</th>
-                                        <th style="width: 44%;">Mục đích & Ý nghĩa nghiệp vụ</th>
+                                        <th style="width: 25%;">Tính năng chuột phải</th>
+                                        <th style="width: 45%;">Mục đích & Ý nghĩa nghiệp vụ</th>
                                         <th style="width: 30%;">Kết quả trả về</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr>
                                         <td><strong>Xem tem cùng MES</strong> <span class="help-header-badge" style="font-size:0.6rem;">MỚI</span></td>
-                                        <td>Truy vết toàn bộ các tem BTP/NVL được sản xuất trong <strong>cùng đơn điều động (Work Order)</strong> với tem đang chọn.</td>
+                                        <td>Tìm toàn bộ các tem NVL/BTP được sản xuất trong <strong>cùng đơn điều động (Work Order)</strong> với tem đang chọn.</td>
                                         <td>Hiển thị danh sách tem cùng MES tại bảng Output (khóa menu tạm thời chống click lặp).</td>
                                     </tr>
                                     <tr>
                                         <td><strong>MES Tracking</strong></td>
-                                        <td>Xem toàn bộ tiến trình lịch sử tạo tem, trạm máy sản xuất, ca làm việc, thời gian standing time và đồng bộ ERP.</td>
-                                        <td>Mở popup lịch sử di chuyển qua các công đoạn.</td>
+                                        <td>Theo dõi toàn bộ tiến trình lịch sử tạo tem, trạm máy sản xuất, ca làm việc, thời gian standing time và đồng bộ ERP.</td>
+                                        <td>Mở popup hành trình di chuyển qua từng công đoạn.</td>
                                     </tr>
                                     <tr>
                                         <td><strong>Xem đơn điều động</strong></td>
-                                        <td>Tra cứu chi tiết lệnh sản xuất (Work Order): công thức, trạm máy, ngày điều động, số mẻ kế hoạch.</td>
-                                        <td>Hiển thị chi tiết lệnh điều phối sản xuất tương ứng.</td>
+                                        <td>Tra cứu chi tiết lệnh sản xuất (Work Order): mã công thức (`recipe_id`), trạm máy (`station`), ngày điều động (`reserved_date`), số mẻ kế hoạch.</td>
+                                        <td>Hiển thị thông tin chi tiết lệnh điều phối sản xuất.</td>
                                     </tr>
                                     <tr>
                                         <td><strong>Xem tem đầu ra</strong></td>
-                                        <td>Xem danh sách các tem thành phẩm hoặc BTP phát sinh từ tem nguyên liệu này (đã lọc chống trùng lặp).</td>
+                                        <td>Xem danh sách các tem thành phẩm hoặc BTP phát sinh từ tem nguyên liệu này (đã lọc chống trùng lặp `DISTINCT`).</td>
                                         <td>Danh sách tem đầu ra kèm số lượng thực tế.</td>
                                     </tr>
                                     <tr>
@@ -487,10 +471,7 @@
                 <!-- PANE 2: MATERIAL TRANSFER -->
                 <div id="helpPaneTransfer" class="help-pane">
                     <div class="help-pane-header">
-                        <h2 class="help-pane-title">
-                            <span class="material-symbols-outlined">local_shipping</span>
-                            2. Tem Vận Chuyển (Material Transfer)
-                        </h2>
+                        <h2 class="help-pane-title">2. Tem Vận Chuyển (Material Transfer)</h2>
                         <p class="help-pane-desc">
                             Kiểm soát và đối soát quá trình điều chuyển nguyên vật liệu nội bộ giữa các kho và xưởng sản xuất Xưởng 1 (KV1) và Xưởng 2 (KV2).
                         </p>
@@ -509,14 +490,14 @@
                                 <div class="help-step-num">KV2</div>
                                 <div class="help-step-content">
                                     <h4>Kết Nối Xưởng 2 (Mặc định)</h4>
-                                    <p>Truy vấn máy chủ PostgreSQL Xưởng 2 (<code>198.1.10.85</code>). Dành cho các đơn điều chuyển nội bộ KV2.</p>
+                                    <p>Truy vấn máy chủ PostgreSQL Xưởng 2 (<code>198.1.10.85:5432</code>). Dành cho các đơn điều chuyển nội bộ KV2.</p>
                                 </div>
                             </div>
                             <div class="help-step-item">
                                 <div class="help-step-num">KV1</div>
                                 <div class="help-step-content">
                                     <h4>Kết Nối Xưởng 1</h4>
-                                    <p>Truy vấn máy chủ PostgreSQL Xưởng 1 (<code>198.1.1.92</code>). Dành cho tra cứu các lô hàng chuyển từ Xưởng 1 sang.</p>
+                                    <p>Truy vấn máy chủ PostgreSQL Xưởng 1 (<code>198.1.1.92:5432</code>). Dành cho tra cứu các lô hàng chuyển từ Xưởng 1 sang.</p>
                                 </div>
                             </div>
                         </div>
@@ -556,10 +537,7 @@
                 <!-- PANE 3: VALIDATE SCAN BARCODE -->
                 <div id="helpPaneValidate" class="help-pane">
                     <div class="help-pane-header">
-                        <h2 class="help-pane-title">
-                            <span class="material-symbols-outlined">category_search</span>
-                            3. Kiểm Tra Cấp Liệu (Poka-Yoke)
-                        </h2>
+                        <h2 class="help-pane-title">3. Kiểm Tra Cấp Liệu (Poka-Yoke)</h2>
                         <p class="help-pane-desc">
                             Chốt chặn phòng ngừa sai sót chất lượng tại các trạm cân, máy trộn và công đoạn nạp liệu. Ngăn ngừa 100% việc cấp sai quy cách, sai trạm hoặc cấp vật tư hết hạn.
                         </p>
@@ -613,10 +591,7 @@
                 <!-- PANE 4: REPRINT LABEL -->
                 <div id="helpPaneReprint" class="help-pane">
                     <div class="help-pane-header">
-                        <h2 class="help-pane-title">
-                            <span class="material-symbols-outlined">feature_search</span>
-                            4. Truy Vấn In Bù (Reprint Label)
-                        </h2>
+                        <h2 class="help-pane-title">4. Truy Vấn In Bù (Reprint Label)</h2>
                         <p class="help-pane-desc">
                             Quy trình chuẩn phục vụ việc cấp bù tem bị rách, nhòe mã vạch, mất tem hoặc chia nhỏ kiện vật liệu trong quá trình sản xuất.
                         </p>
@@ -674,61 +649,409 @@
                     </div>
                 </div>
 
-                <!-- PANE 5: ELDER WAND & KHÁC -->
-                <div id="helpPaneElderWand" class="help-pane">
+                <!-- PANE 5: TECHNICAL SPECIFICATIONS -->
+                <div id="helpPaneTechSpec" class="help-pane">
                     <div class="help-pane-header">
-                        <h2 class="help-pane-title">
-                            <span class="material-symbols-outlined">auto_fix_high</span>
-                            5. Các Phân Hệ Quản Trị & Khác (Đợt 2)
-                        </h2>
+                        <h2 class="help-pane-title">5. Thông Số Kỹ Thuật (Recipe Specifications)</h2>
                         <p class="help-pane-desc">
-                            Tổng quan ngắn gọn về các công cụ quản trị nâng cao và phân hệ hỗ trợ kỹ thuật sẽ được bổ sung tài liệu chi tiết ở Đợt 2.
+                            Tra cứu chi tiết các thông số kỹ thuật tiêu chuẩn của từng bán thành phẩm và thành phẩm lốp xe theo công thức sản xuất đã được ban Kỹ thuật phê duyệt.
                         </p>
                     </div>
 
                     <div class="help-section">
+                        <h3 class="help-section-title">
+                            <span class="material-symbols-outlined section-icon">tune</span>
+                            Các Thông Số Tiêu Chuẩn Quản Lý
+                        </h3>
+                        <div class="help-steps-list">
+                            <div class="help-step-item">
+                                <div class="help-step-num">1</div>
+                                <div class="help-step-content">
+                                    <h4>Thông Số Nhiệt Độ & Áp Suất</h4>
+                                    <p>Quy định dải nhiệt độ buồng trộn Banbury, nhiệt độ xả mẻ, nhiệt độ trục cán làm nguội, áp suất thủy lực của máy ép đùn.</p>
+                                </div>
+                            </div>
+                            <div class="help-step-item">
+                                <div class="help-step-num">2</div>
+                                <div class="help-step-content">
+                                    <h4>Quy Cách Kích Thước BTP</h4>
+                                    <p>Chiều rộng, bề dày tâm, bề dày vai của Mặt lốp (Tread), Hông lốp (Sidewall), Tanh lốp (Bead), Lớp lót (Innerliner), số lượng sợi/inch của Lớp mành (Ply cord).</p>
+                                </div>
+                            </div>
+                            <div class="help-step-item">
+                                <div class="help-step-num">3</div>
+                                <div class="help-step-content">
+                                    <h4>Dung Sai Cho Phép (Tolerance)</h4>
+                                    <p>Hiển thị rõ dải chặn trên (Upper Limit) và chặn dưới (Lower Limit). Nếu thiết bị báo vượt dải dung sai, công nhân cần hiệu chỉnh máy ngay.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PANE 6: DELETED DATA -->
+                <div id="helpPaneDeletedData" class="help-pane">
+                    <div class="help-pane-header">
+                        <h2 class="help-pane-title">6. Dữ Liệu Đã Xóa (GitLab & Postgres Deleted Data)</h2>
+                        <p class="help-pane-desc">
+                            Công cụ điều tra và phục hồi dữ liệu chuyên sâu: Truy vết các file công thức Recipe YAML bị xóa trên GitLab và các bản ghi CSDL bị xóa trong PostgreSQL.
+                        </p>
+                    </div>
+
+                    <div class="help-section">
+                        <h3 class="help-section-title">
+                            <span class="material-symbols-outlined section-icon">delete_history</span>
+                            1. GitLab Deleted Files (`/gitlab-deleted-files`)
+                        </h3>
+                        <p style="font-size:0.88rem; color:#94a3b8; line-height:1.5;">
+                            Truy vấn trực tiếp lịch sử commit của kho lưu trữ GitLab CE:
+                        </p>
+                        <div class="help-steps-list">
+                            <div class="help-step-item">
+                                <div class="help-step-num">Git</div>
+                                <div class="help-step-content">
+                                    <h4>Xem Lại Commit Xóa File</h4>
+                                    <p>Tìm kiếm theo tên file YAML hoặc mã Recipe. Hệ thống hiển thị: Mã Commit Hash, Người thực hiện xóa, Thời gian xóa và xem lại toàn bộ nội dung file trước khi bị xóa.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="help-section">
+                        <h3 class="help-section-title">
+                            <span class="material-symbols-outlined section-icon">database</span>
+                            2. Postgres Deleted Data (`/postgres-deleted-data`)
+                        </h3>
+                        <div class="help-steps-list">
+                            <div class="help-step-item">
+                                <div class="help-step-num">DB</div>
+                                <div class="help-step-content">
+                                    <h4>Truy Vết Bản Ghi Bị Hủy</h4>
+                                    <p>Tra cứu nhật ký thay đổi của các bảng vật tư, tem và cấu hình trạm. Hỗ trợ đối soát và tái tạo lại dữ liệu khi xảy ra sự cố thao tác nhầm trên hệ thống.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PANE 7: ACCOUNT MANAGEMENT -->
+                <div id="helpPaneAccount" class="help-pane">
+                    <div class="help-pane-header">
+                        <h2 class="help-pane-title">7. Quản Lý Tài Khoản KDMES</h2>
+                        <p class="help-pane-desc">
+                            Cấp phát, phân quyền trạm máy và kiểm soát bảo mật danh tính cho toàn bộ nhân sự vận hành hệ thống MES tại phân xưởng.
+                        </p>
+                    </div>
+
+                    <div class="help-section">
+                        <h3 class="help-section-title">
+                            <span class="material-symbols-outlined section-icon">person_add</span>
+                            1. Tạo Tài Khoản Mới (`/create-kd-account`)
+                        </h3>
+                        <div class="help-steps-list">
+                            <div class="help-step-item">
+                                <div class="help-step-num">1</div>
+                                <div class="help-step-content">
+                                    <h4>Nhập Thông Tin Nhân Viên</h4>
+                                    <p>Nhập Mã nhân viên (User ID), Họ tên, Mật khẩu khởi tạo và Phòng ban / Ca sản xuất.</p>
+                                </div>
+                            </div>
+                            <div class="help-step-item">
+                                <div class="help-step-num">2</div>
+                                <div class="help-step-content">
+                                    <h4>Gán Phân Quyền & Trạm Phụ Trách</h4>
+                                    <p>Chọn các trạm máy (Stations) mà nhân viên được phép đăng nhập thao tác (Tránh việc nhân viên trạm này thao tác nhầm tại trạm khác).</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="help-section">
+                        <h3 class="help-section-title">
+                            <span class="material-symbols-outlined section-icon">badge</span>
+                            2. Kiểm Tra Quyền Tài Khoản (`/check-kd-account`)
+                        </h3>
+                        <p style="font-size:0.88rem; color:#94a3b8; line-height:1.5;">
+                            Tra cứu trạng thái tài khoản: Đang hoạt động, Bị khóa (Disabled), danh sách quyền hạn chi tiết và lịch sử các lần đăng nhập gần nhất.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- PANE 8: SUBSTITUTIONS -->
+                <div id="helpPaneSubstitutions" class="help-pane">
+                    <div class="help-pane-header">
+                        <h2 class="help-pane-title">8. NVL Thay Thế (Material Substitutions)</h2>
+                        <p class="help-pane-desc">
+                            Quản lý danh mục và cơ chế quy đổi nguyên vật liệu thay thế tương đương trong công thức sản xuất khi mã chính bị thiếu hụt hoặc hết hạn.
+                        </p>
+                    </div>
+
+                    <div class="help-section">
+                        <h3 class="help-section-title">
+                            <span class="material-symbols-outlined section-icon">find_replace</span>
+                            Quy Tắc Quản Lý NVL Thay Thế
+                        </h3>
+                        <div class="help-steps-list">
+                            <div class="help-step-item">
+                                <div class="help-step-num">1</div>
+                                <div class="help-step-content">
+                                    <h4>Tra Cứu Vật Tư Tương Đương</h4>
+                                    <p>Nhập mã vật tư gốc $ightarrow$ Hệ thống liệt kê toàn bộ các mã vật tư thay thế đã được phòng Kỹ thuật công nghệ phê duyệt.</p>
+                                </div>
+                            </div>
+                            <div class="help-step-item">
+                                <div class="help-step-num">2</div>
+                                <div class="help-step-content">
+                                    <h4>Kiểm Tra Tỷ Lệ Quy Đổi</h4>
+                                    <p>Mỗi loại vật tư thay thế có tỷ lệ quy đổi trọng lượng cụ thể (Ví dụ: 1.0 kg mã A tương đương 1.02 kg mã B). Kiểm tra kỹ trước khi cân định lượng.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PANE 9: HISTORY -->
+                <div id="helpPaneHistory" class="help-pane">
+                    <div class="help-pane-header">
+                        <h2 class="help-pane-title">9. Lịch Sử Quét & In Tem</h2>
+                        <p class="help-pane-desc">
+                            Nhật ký số hóa toàn diện phục vụ việc giám sát hoạt động quét mã nạp liệu và phát hành tem nhãn trên toàn nhà máy.
+                        </p>
+                    </div>
+
+                    <div class="help-section">
+                        <h3 class="help-section-title">
+                            <span class="material-symbols-outlined section-icon">history</span>
+                            Tra Cứu Nhật Ký
+                        </h3>
+                        <div class="help-steps-list">
+                            <div class="help-step-item">
+                                <div class="help-step-num">Quét</div>
+                                <div class="help-step-content">
+                                    <h4>Lịch Sử Quét Tem (`/scan-barcode-history`)</h4>
+                                    <p>Truy xuất danh sách mọi lần bắn mã vạch theo khung thời gian, trạm máy, ca sản xuất và mã nhân viên thực hiện.</p>
+                                </div>
+                            </div>
+                            <div class="help-step-item">
+                                <div class="help-step-num">In</div>
+                                <div class="help-step-content">
+                                    <h4>Lịch Sử In Tem (`/print-barcode-history`)</h4>
+                                    <p>Theo dõi toàn bộ các lượt in tem (In mới, In lại, In bù), máy in đã thực hiện và số lượng nhãn đã tiêu hao.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PANE 10: CHECK QC DATA -->
+                <div id="helpPaneQC" class="help-pane">
+                    <div class="help-pane-header">
+                        <h2 class="help-pane-title">10. Check QC Data (Kiểm Định KCS)</h2>
+                        <p class="help-pane-desc">
+                            Kết nối và đối soát kết quả kiểm nghiệm chất lượng sản phẩm từ phòng thí nghiệm KCS / QC trước khi xuất xưởng hoặc chuyển công đoạn.
+                        </p>
+                    </div>
+
+                    <div class="help-section">
+                        <h3 class="help-section-title">
+                            <span class="material-symbols-outlined section-icon">lab_research</span>
+                            Các Chỉ Tiêu Cơ Lý Được Đối Soát
+                        </h3>
+                        <div class="help-steps-list">
+                            <div class="help-step-item">
+                                <div class="help-step-num">QC</div>
+                                <div class="help-step-content">
+                                    <h4>Độ Cứng, Độ Bền Kéo & Độ Giãn Dài</h4>
+                                    <p>Tra cứu kết quả đo độ cứng Shore A, độ bền kéo đứt (Tensile Strength), độ giãn dài khi đứt (Elongation) và đường cong lưu hóa Rheometer.</p>
+                                </div>
+                            </div>
+                            <div class="help-step-item">
+                                <div class="help-step-num">Status</div>
+                                <div class="help-step-content">
+                                    <h4>Trạng Thái Phán Quyết (Judgment)</h4>
+                                    <p>Mỗi lô bán thành phẩm có trạng thái rõ ràng: <strong>Pass (Đạt tiêu chuẩn)</strong> hoặc <strong>Hold / Reject (Không đạt tiêu chuẩn)</strong>.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PANE 11: CHECK MESYNC -->
+                <div id="helpPaneMesync" class="help-pane">
+                    <div class="help-pane-header">
+                        <h2 class="help-pane-title">11. Check Mesync (Đồng Bộ Dữ Liệu MES-ERP)</h2>
+                        <p class="help-pane-desc">
+                            Giám sát tính toàn vẹn và đường truyền đồng bộ thời gian thực giữa máy chủ MES tại phân xưởng và hệ thống quản trị trung tâm ERP.
+                        </p>
+                    </div>
+
+                    <div class="help-section">
+                        <h3 class="help-section-title">
+                            <span class="material-symbols-outlined section-icon">sync</span>
+                            Phát Hiện & Xử Lý Sự Cố Đồng Bộ
+                        </h3>
+                        <div class="help-steps-list">
+                            <div class="help-step-item">
+                                <div class="help-step-num">Sync</div>
+                                <div class="help-step-content">
+                                    <h4>Phát Hiện Bản Ghi Bị Kẹt (Pending / Failed)</h4>
+                                    <p>Nếu đường truyền mạng bị ngắt, dữ liệu mẻ trộn hoặc xuất nhập kho sẽ nằm ở trạng thái hàng đợi (Queue). Màn hình này liệt kê danh sách bản ghi cần đẩy đồng bộ lại.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PANE 12: STATION CONFIGURATION -->
+                <div id="helpPaneStation" class="help-pane">
+                    <div class="help-pane-header">
+                        <h2 class="help-pane-title">12. Thiết Lập Máy & Trạm Cân (Station Config)</h2>
+                        <p class="help-pane-desc">
+                            Cấu hình tham số vận hành cho từng trạm cân, máy trộn Banbury, máy ép đùn và dây chuyền thành hình lốp.
+                        </p>
+                    </div>
+
+                    <div class="help-section">
+                        <h3 class="help-section-title">
+                            <span class="material-symbols-outlined section-icon">display_settings</span>
+                            Các Thiết Lập Trạm Cần Chú Ý
+                        </h3>
+                        <div class="help-steps-list">
+                            <div class="help-step-item">
+                                <div class="help-step-num">1</div>
+                                <div class="help-step-content">
+                                    <h4>Gán Địa Chỉ IP Máy In Mã Vạch</h4>
+                                    <p>Thiết lập IP mạng của máy in tem Zebra hoặc TSC tương ứng với vị trí trạm làm việc của công nhân.</p>
+                                </div>
+                            </div>
+                            <div class="help-step-item">
+                                <div class="help-step-num">2</div>
+                                <div class="help-step-content">
+                                    <h4>Cấu Hình Vị Trí Nạp Liệu (Slot / Site)</h4>
+                                    <p>Khai báo danh mục các khay nạp cao su, phễu nạp dầu, phễu hóa chất nhỏ theo đúng vị trí cơ khí thực tế của máy.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PANE 13: ELDER WAND -->
+                <div id="helpPaneElderWand" class="help-pane">
+                    <div class="help-pane-header">
+                        <h2 class="help-pane-title">13. Elder Wand (Bộ Công Cụ Quản Trị Nâng Cao)</h2>
+                        <p class="help-pane-desc">
+                            Bộ công cụ can thiệp và xử lý dữ liệu đặc biệt dành riêng cho Tổ trưởng sản xuất, Kỹ sư IT MES và Quản trị viên hệ thống.
+                        </p>
+                    </div>
+
+                    <div class="help-section">
+                        <h3 class="help-section-title">
+                            <span class="material-symbols-outlined section-icon">auto_fix_high</span>
+                            Bốn Phép Thuật Quản Trị Cốt Lõi
+                        </h3>
                         <div class="help-table-wrap">
                             <table class="help-table">
                                 <thead>
                                     <tr>
-                                        <th style="width: 25%;">Phân hệ</th>
-                                        <th style="width: 45%;">Chức năng cốt lõi</th>
-                                        <th style="width: 30%;">Đối tượng sử dụng</th>
+                                        <th style="width: 25%;">Tên Công Cụ</th>
+                                        <th style="width: 50%;">Ý Nghĩa Nghiệp Vụ & Cơ Chế Hoạt Động</th>
+                                        <th style="width: 25%;">Phân Quyền</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr>
                                         <td><strong>Switching Spell</strong></td>
-                                        <td>Điều chuyển máy in linh hoạt giữa các trạm khi xảy ra sự cố hỏng máy in.</td>
+                                        <td>Điều chuyển máy in tức thời khi máy in trạm bị hỏng/kẹt giấy sang máy in của trạm kế bên mà không làm gián đoạn sản xuất.</td>
                                         <td>Tổ trưởng / IT Bảo trì</td>
                                     </tr>
                                     <tr>
                                         <td><strong>Avada Kedavra</strong></td>
-                                        <td>Tiêu hủy tem rác, hủy trạng thái bind kẹt trong máy sản xuất.</td>
-                                        <td>IT MES / Quản trị viên</td>
+                                        <td>Tiêu hủy tem rác, hủy trạng thái bind vật tư bị treo kẹt trong máy sản xuất, giải phóng khay nạp.</td>
+                                        <td>IT MES / Admin</td>
                                     </tr>
                                     <tr>
                                         <td><strong>Time Turner</strong></td>
-                                        <td>Gia hạn standing time hoặc điều chỉnh thời gian tem theo phê duyệt đặc biệt.</td>
+                                        <td>Gia hạn standing time hoặc điều chỉnh thời hạn sử dụng tem vật tư theo biên bản phê duyệt kỹ thuật đặc biệt.</td>
                                         <td>Kỹ thuật / QC Manager</td>
                                     </tr>
                                     <tr>
-                                        <td><strong>Check QC Data</strong></td>
-                                        <td>Tra cứu kết quả kiểm định chất lượng, thông số cơ lý từ phòng thí nghiệm KCS.</td>
-                                        <td>Nhân viên QC / Kiểm định</td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>Check Mesync</strong></td>
-                                        <td>Kiểm tra tình trạng đồng bộ dữ liệu giữa MES trạm máy và hệ thống ERP lõi.</td>
-                                        <td>IT MES / Quản trị hệ thống</td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>Thiết Lập Máy</strong></td>
-                                        <td>Cấu hình thông số trạm máy, gán máy in mặc định và vị trí nạp liệu.</td>
-                                        <td>Kỹ thuật cài đặt MES</td>
+                                        <td><strong>Reparo Spell</strong></td>
+                                        <td>Công cụ khôi phục và hiệu chỉnh dữ liệu mẻ sản xuất phát sinh lỗi bất thường.</td>
+                                        <td>Quản trị viên CSDL</td>
                                     </tr>
                                 </tbody>
                             </table>
+                        </div>
+                    </div>
+
+                    <div class="help-callout warning">
+                        <span class="material-symbols-outlined help-callout-icon">gpp_bad</span>
+                        <div>
+                            <strong>CẢNH BÁO QUẢN TRỊ:</strong> Toàn bộ các thao tác trong phân hệ Elder Wand đều can thiệp trực tiếp vào CSDL sản xuất. Bắt buộc kiểm tra kỹ mã đối tượng và có biên bản phê duyệt trước khi thực thi lệnh.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PANE 14: UTILITIES & SHORTCUTS -->
+                <div id="helpPaneUtilities" class="help-pane">
+                    <div class="help-pane-header">
+                        <h2 class="help-pane-title">14. Tiện Ích Toàn Cục & Phím Tắt</h2>
+                        <p class="help-pane-desc">
+                            Tổng hợp các công cụ hỗ trợ nhanh, phím tắt tiện ích và tùy biến giao diện giúp tăng tốc độ thao tác trên hệ thống.
+                        </p>
+                    </div>
+
+                    <div class="help-section">
+                        <h3 class="help-section-title">
+                            <span class="material-symbols-outlined section-icon">keyboard</span>
+                            Bảng Phím Tắt Thao Tác Nhanh
+                        </h3>
+                        <div class="help-table-wrap">
+                            <table class="help-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 30%;">Phím Tắt</th>
+                                        <th style="width: 70%;">Hành Động Tương Ứng</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><span class="help-code-pill">Ctrl + V</span></td>
+                                        <td>Dán ảnh chụp màn hình tem vào vùng nhận dạng OCR (Image to Text) tại trang chủ và tem vận chuyển.</td>
+                                    </tr>
+                                    <tr>
+                                        <td><span class="help-code-pill">Esc</span></td>
+                                        <td>Đóng nhanh cửa sổ Hướng dẫn sử dụng hoặc các hộp thoại popup.</td>
+                                    </tr>
+                                    <tr>
+                                        <td><span class="help-code-pill">Enter</span></td>
+                                        <td>Kích hoạt tìm kiếm tại các ô nhập Barcode / Recipe / Work Order.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="help-section">
+                        <h3 class="help-section-title">
+                            <span class="material-symbols-outlined section-icon">toggle_on</span>
+                            Chuyển Đổi Môi Trường CSDL & Giao Diện Sáng / Tối
+                        </h3>
+                        <div class="help-steps-list">
+                            <div class="help-step-item">
+                                <div class="help-step-num">DB</div>
+                                <div class="help-step-content">
+                                    <h4>Nút Chuyển Môi Trường [ KV1 | KV2 | DEV ]</h4>
+                                    <p>Nằm trong nút bấm tròn (+) Speed Dial FAB tại góc chân trang sidebar. Click chọn để chuyển toàn bộ kết nối của ứng dụng sang CSDL tương ứng.</p>
+                                </div>
+                            </div>
+                            <div class="help-step-item">
+                                <div class="help-step-num">Theme</div>
+                                <div class="help-step-content">
+                                    <h4>Đổi Giao Diện Sáng / Tối</h4>
+                                    <p>Click biểu tượng bóng đèn tại thanh trạng thái người dùng để chuyển đổi mượt mà giữa chế độ Dark Mode và Light Mode với hiệu ứng sóng tròn lan tỏa.</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -738,8 +1061,8 @@
         <!-- Modal Footer -->
         <div class="help-modal-footer">
             <div>
-                <span>Tài liệu tham khảo chi tiết: </span>
-                <code style="color:#00adb5;">DOCS/GUIDES/HUONG_DAN_SU_DUNG_DOT_1.md</code>
+                <span>Cẩm nang tài liệu kỹ thuật: </span>
+                <code style="color:#00adb5;">DOCS/GUIDES/HUONG_DAN_SU_DUNG_TOAN_DIEN.md</code>
             </div>
             <button type="button" id="helpFooterCloseBtn" class="help-footer-btn">Đã hiểu & Đóng</button>
         </div>

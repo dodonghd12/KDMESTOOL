@@ -1,7 +1,7 @@
 /**
  * ==============================================================================
- * KDMES TOOL - IN-APP HELP & DOCUMENTATION MODAL (v2.3.76+)
- * Client Controller: Navigation, Context-Aware Detection & Real-Time Filter
+ * KDMES TOOL - IN-APP HELP & DOCUMENTATION MODAL (v2.3.77+)
+ * Client Controller: Navigation, Full Context-Aware Detection & Real-Time Filter
  * ==============================================================================
  */
 
@@ -83,6 +83,9 @@
         navItems.forEach(btn => {
             const isMatch = (btn.getAttribute('data-target') === targetId);
             btn.classList.toggle('active', isMatch);
+            if (isMatch) {
+                btn.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            }
         });
 
         contentPanes.forEach(pane => {
@@ -96,15 +99,13 @@
     }
 
     /**
-     * Detect current active page and auto-select relevant tab
+     * Detect current active page and auto-select relevant tab across all 14 modules
      */
     function getContextAwareTab() {
-        const path = window.location.pathname || '';
-        const search = window.location.search || '';
+        let effectivePath = window.location.pathname || '';
 
         // Check SPA iframe path if running in parent shell
         const activeFrame = document.querySelector('iframe.spa-frame.active, #spaFrame, #contentFrame');
-        let effectivePath = path;
         try {
             if (activeFrame && activeFrame.contentWindow && activeFrame.contentWindow.location) {
                 effectivePath = activeFrame.contentWindow.location.pathname;
@@ -119,6 +120,24 @@
             return 'helpPaneValidate';
         } else if (effectivePath.includes('reprint')) {
             return 'helpPaneReprint';
+        } else if (effectivePath.includes('technical-specifications')) {
+            return 'helpPaneTechSpec';
+        } else if (effectivePath.includes('gitlab-deleted-files') || effectivePath.includes('postgres-deleted-data')) {
+            return 'helpPaneDeletedData';
+        } else if (effectivePath.includes('create-kd-account') || effectivePath.includes('check-kd-account')) {
+            return 'helpPaneAccount';
+        } else if (effectivePath.includes('substitutions')) {
+            return 'helpPaneSubstitutions';
+        } else if (effectivePath.includes('scan-barcode-history') || effectivePath.includes('print-barcode-history')) {
+            return 'helpPaneHistory';
+        } else if (effectivePath.includes('check-qc-data')) {
+            return 'helpPaneQC';
+        } else if (effectivePath.includes('check-mesync')) {
+            return 'helpPaneMesync';
+        } else if (effectivePath.includes('station-configuration')) {
+            return 'helpPaneStation';
+        } else if (effectivePath.includes('switching-spell') || effectivePath.includes('avada-kedavra') || effectivePath.includes('time-turner') || effectivePath.includes('reparo-spell')) {
+            return 'helpPaneElderWand';
         } else {
             return 'helpPaneMain';
         }
@@ -138,7 +157,7 @@
         const activePane = document.querySelector('.help-pane.active');
         if (!activePane) return;
 
-        // If query doesn't match active pane, check if another pane has it
+        // Check if query matches in active pane
         let foundInActive = false;
         const sections = activePane.querySelectorAll('.help-section');
         sections.forEach(sec => {
@@ -153,7 +172,6 @@
             for (const pane of contentPanes) {
                 if (pane.textContent.toLowerCase().includes(query)) {
                     switchHelpTab(pane.id);
-                    // re-filter on the new active pane
                     pane.querySelectorAll('.help-section').forEach(sec => {
                         const matches = sec.textContent.toLowerCase().includes(query);
                         sec.style.display = matches ? '' : 'none';

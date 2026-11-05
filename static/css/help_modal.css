@@ -1,6 +1,6 @@
 /* ==============================================================================
-   KDMES TOOL - IN-APP HELP & DOCUMENTATION MODAL (v2.3.76+)
-   Aesthetic, accessible, responsive two-column guide viewer
+   KDMES TOOL - IN-APP HELP & DOCUMENTATION MODAL (v2.3.77+)
+   Widescreen, accessible, high-performance guide viewer
    ============================================================================== */
 
 .help-modal {
@@ -9,9 +9,9 @@
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: rgba(8, 14, 26, 0.75);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    background: rgba(8, 14, 26, 0.78);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     z-index: 99999;
     display: flex;
     align-items: center;
@@ -19,7 +19,7 @@
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.28s;
-    padding: 20px;
+    padding: 16px;
     box-sizing: border-box;
 }
 
@@ -28,17 +28,19 @@
     visibility: visible;
 }
 
+/* Widescreen Modal Container */
 .help-modal-container {
-    width: 100%;
-    max-width: 1100px;
-    height: 85vh;
-    max-height: 850px;
+    width: 96vw;
+    max-width: 1560px;
+    height: 92vh;
+    max-height: 960px;
     background: #0f172a;
-    border: 1px solid rgba(0, 173, 181, 0.25);
+    border: 1px solid rgba(0, 173, 181, 0.28);
     border-radius: 16px;
-    box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.8), 0 0 40px rgba(0, 173, 181, 0.15);
+    box-shadow: 0 30px 70px -15px rgba(0, 0, 0, 0.85), 0 0 50px rgba(0, 173, 181, 0.15);
     display: flex;
     flex-direction: column;
+    min-height: 0;
     overflow: hidden;
     transform: scale(0.96) translateY(8px);
     transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
@@ -55,7 +57,7 @@
     background: #ffffff;
     color: #1e293b;
     border-color: rgba(0, 173, 181, 0.35);
-    box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.25);
+    box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.25);
 }
 
 /* --- Header --- */
@@ -63,10 +65,11 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 16px 24px;
+    padding: 16px 28px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(15, 23, 42, 0.95);
-    gap: 16px;
+    background: rgba(15, 23, 42, 0.96);
+    gap: 20px;
+    flex-shrink: 0;
 }
 
 [data-theme="light"] .help-modal-header {
@@ -77,7 +80,7 @@
 .help-header-title-wrap {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 14px;
 }
 
 .help-header-icon {
@@ -89,7 +92,7 @@
 }
 
 .help-header-title {
-    font-size: 1.15rem;
+    font-size: 1.2rem;
     font-weight: 700;
     margin: 0;
     letter-spacing: 0.3px;
@@ -123,17 +126,17 @@
 .help-search-wrap {
     position: relative;
     flex: 1;
-    max-width: 380px;
+    max-width: 440px;
 }
 
 .help-search-input {
     width: 100%;
-    padding: 9px 36px 9px 36px;
+    padding: 9px 36px 9px 38px;
     background: rgba(255, 255, 255, 0.06);
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 20px;
     color: #f1f5f9;
-    font-size: 0.85rem;
+    font-size: 0.86rem;
     outline: none;
     box-sizing: border-box;
     transition: all 0.2s ease;
@@ -147,13 +150,13 @@
 
 .help-search-input:focus {
     border-color: #00adb5;
-    background: rgba(0, 173, 181, 0.05);
-    box-shadow: 0 0 0 3px rgba(0, 173, 181, 0.15);
+    background: rgba(0, 173, 181, 0.06);
+    box-shadow: 0 0 0 3px rgba(0, 173, 181, 0.18);
 }
 
 .help-search-icon {
     position: absolute;
-    left: 10px;
+    left: 12px;
     top: 50%;
     transform: translateY(-50%);
     font-size: 18px;
@@ -163,7 +166,7 @@
 
 .help-search-clear {
     position: absolute;
-    right: 10px;
+    right: 12px;
     top: 50%;
     transform: translateY(-50%);
     background: none;
@@ -192,6 +195,7 @@
     justify-content: center;
     cursor: pointer;
     transition: all 0.2s ease;
+    flex-shrink: 0;
 }
 
 [data-theme="light"] .help-modal-close-btn {
@@ -212,19 +216,24 @@
     flex: 1;
     display: flex;
     overflow: hidden;
+    min-height: 0; /* CRITICAL for flex children to allow overflow-y: auto */
+    height: 100%;
 }
 
-/* Left Sidebar Tabs */
+/* Left Navigation Sidebar */
 .help-nav-sidebar {
-    width: 260px;
-    background: rgba(15, 23, 42, 0.6);
+    width: 290px;
+    flex-shrink: 0;
+    background: rgba(15, 23, 42, 0.65);
     border-right: 1px solid rgba(255, 255, 255, 0.08);
     overflow-y: auto;
-    padding: 14px 10px;
+    padding: 16px 12px;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
+    min-height: 0;
+    height: 100%;
 }
 
 [data-theme="light"] .help-nav-sidebar {
@@ -232,22 +241,26 @@
     border-right-color: #e2e8f0;
 }
 
+/* Sleek Nav Item (No icons, no badges) */
 .help-nav-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 10px 14px;
-    border-radius: 10px;
+    display: block;
+    width: 100%;
+    padding: 10px 16px;
+    border-radius: 8px;
     background: transparent;
-    border: 1px solid transparent;
+    border: none;
+    border-left: 3px solid transparent;
     color: #94a3b8;
     cursor: pointer;
-    font-size: 0.85rem;
+    font-size: 0.86rem;
     font-weight: 500;
     text-align: left;
-    transition: all 0.2s ease;
-    width: 100%;
+    transition: all 0.18s ease;
     box-sizing: border-box;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: inherit;
 }
 
 [data-theme="light"] .help-nav-item {
@@ -257,7 +270,7 @@
 .help-nav-item:hover {
     background: rgba(255, 255, 255, 0.05);
     color: #f1f5f9;
-    transform: translateX(2px);
+    border-left-color: rgba(0, 173, 181, 0.4);
 }
 
 [data-theme="light"] .help-nav-item:hover {
@@ -267,58 +280,43 @@
 
 .help-nav-item.active {
     background: rgba(0, 173, 181, 0.12);
-    border-color: rgba(0, 173, 181, 0.3);
+    border-left-color: #00adb5;
     color: #00adb5;
     font-weight: 600;
 }
 
-.help-nav-item-icon {
-    font-size: 20px;
-    color: inherit;
-}
-
-.help-nav-badge {
-    margin-left: auto;
-    font-size: 0.68rem;
-    padding: 2px 6px;
-    border-radius: 6px;
-    background: rgba(255, 255, 255, 0.08);
-    color: #cbd5e1;
-}
-
-.help-nav-item.active .help-nav-badge {
-    background: #00adb5;
-    color: #fff;
-}
-
-/* Right Content Area */
+/* Right Content Area (Guaranteed Scrollable) */
 .help-content-area {
     flex: 1;
-    overflow-y: auto;
-    padding: 24px 32px;
+    overflow-y: auto !important;
+    overflow-x: hidden;
+    padding: 28px 44px 60px 44px;
     box-sizing: border-box;
     scroll-behavior: smooth;
+    min-height: 0; /* CRITICAL */
+    height: 100%;
+    -webkit-overflow-scrolling: touch;
 }
 
-/* Custom Scrollbar */
+/* Custom Scrollbars */
 .help-nav-sidebar::-webkit-scrollbar,
 .help-content-area::-webkit-scrollbar {
     width: 6px;
 }
 .help-nav-sidebar::-webkit-scrollbar-thumb,
 .help-content-area::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.16);
     border-radius: 4px;
 }
 .help-nav-sidebar::-webkit-scrollbar-thumb:hover,
 .help-content-area::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 173, 181, 0.5);
+    background: rgba(0, 173, 181, 0.6);
 }
 
 /* Pane Styles */
 .help-pane {
     display: none;
-    animation: helpFadeIn 0.25s ease-out;
+    animation: helpFadeIn 0.22s ease-out;
 }
 
 .help-pane.active {
@@ -326,13 +324,13 @@
 }
 
 @keyframes helpFadeIn {
-    from { opacity: 0; transform: translateY(6px); }
+    from { opacity: 0; transform: translateY(4px); }
     to { opacity: 1; transform: translateY(0); }
 }
 
 /* Typography & Content Layout */
 .help-pane-header {
-    margin-bottom: 24px;
+    margin-bottom: 26px;
     padding-bottom: 16px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
@@ -342,9 +340,9 @@
 }
 
 .help-pane-title {
-    font-size: 1.45rem;
+    font-size: 1.55rem;
     font-weight: 700;
-    margin: 0 0 6px 0;
+    margin: 0 0 8px 0;
     color: #00adb5;
     display: flex;
     align-items: center;
@@ -352,10 +350,10 @@
 }
 
 .help-pane-desc {
-    font-size: 0.92rem;
+    font-size: 0.94rem;
     color: #94a3b8;
     margin: 0;
-    line-height: 1.5;
+    line-height: 1.55;
 }
 
 [data-theme="light"] .help-pane-desc {
@@ -364,17 +362,17 @@
 
 /* Sections */
 .help-section {
-    margin-bottom: 30px;
+    margin-bottom: 34px;
 }
 
 .help-section-title {
-    font-size: 1.05rem;
+    font-size: 1.1rem;
     font-weight: 600;
-    margin: 0 0 14px 0;
+    margin: 0 0 16px 0;
     color: #f1f5f9;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
 }
 
 [data-theme="light"] .help-section-title {
@@ -383,20 +381,20 @@
 
 .help-section-title .section-icon {
     color: #00adb5;
-    font-size: 20px;
+    font-size: 22px;
 }
 
 /* Step-by-Step SOP Grid */
 .help-steps-list {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 14px;
 }
 
 .help-step-item {
     display: flex;
-    gap: 14px;
-    padding: 14px 18px;
+    gap: 16px;
+    padding: 16px 20px;
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: 12px;
@@ -409,18 +407,18 @@
 }
 
 .help-step-item:hover {
-    border-color: rgba(0, 173, 181, 0.3);
+    border-color: rgba(0, 173, 181, 0.35);
     background: rgba(0, 173, 181, 0.03);
 }
 
 .help-step-num {
-    width: 28px;
-    height: 28px;
+    width: 30px;
+    height: 30px;
     border-radius: 50%;
     background: #00adb5;
     color: #fff;
     font-weight: 700;
-    font-size: 0.85rem;
+    font-size: 0.88rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -428,8 +426,8 @@
 }
 
 .help-step-content h4 {
-    margin: 0 0 4px 0;
-    font-size: 0.92rem;
+    margin: 0 0 6px 0;
+    font-size: 0.95rem;
     font-weight: 600;
     color: #f1f5f9;
 }
@@ -440,9 +438,9 @@
 
 .help-step-content p {
     margin: 0;
-    font-size: 0.85rem;
+    font-size: 0.88rem;
     color: #94a3b8;
-    line-height: 1.5;
+    line-height: 1.55;
 }
 
 [data-theme="light"] .help-step-content p {
@@ -463,13 +461,13 @@
 .help-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.84rem;
+    font-size: 0.86rem;
     text-align: left;
 }
 
 .help-table th {
     background: rgba(255, 255, 255, 0.06);
-    padding: 10px 14px;
+    padding: 12px 16px;
     font-weight: 600;
     color: #00adb5;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
@@ -482,10 +480,10 @@
 }
 
 .help-table td {
-    padding: 10px 14px;
+    padding: 12px 16px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.04);
     color: #cbd5e1;
-    line-height: 1.45;
+    line-height: 1.5;
 }
 
 [data-theme="light"] .help-table td {
@@ -499,31 +497,31 @@
 
 .help-code-pill {
     display: inline-block;
-    padding: 2px 6px;
+    padding: 2px 7px;
     border-radius: 4px;
     background: rgba(0, 173, 181, 0.15);
     color: #00adb5;
     font-family: monospace;
-    font-size: 0.82rem;
+    font-size: 0.84rem;
     font-weight: 600;
 }
 
 /* Callout Box */
 .help-callout {
-    padding: 14px 18px;
+    padding: 16px 20px;
     border-radius: 10px;
-    margin: 16px 0;
+    margin: 18px 0;
     display: flex;
-    gap: 12px;
+    gap: 14px;
     align-items: flex-start;
-    font-size: 0.85rem;
-    line-height: 1.5;
+    font-size: 0.88rem;
+    line-height: 1.55;
 }
 
 .help-callout-icon {
-    font-size: 22px;
+    font-size: 24px;
     flex-shrink: 0;
-    margin-top: 2px;
+    margin-top: 1px;
 }
 
 .help-callout.info {
@@ -568,11 +566,12 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 24px;
+    padding: 14px 28px;
     border-top: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(15, 23, 42, 0.95);
-    font-size: 0.82rem;
+    background: rgba(15, 23, 42, 0.96);
+    font-size: 0.85rem;
     color: #94a3b8;
+    flex-shrink: 0;
 }
 
 [data-theme="light"] .help-modal-footer {
@@ -582,31 +581,20 @@
 }
 
 .help-footer-btn {
-    padding: 7px 16px;
+    padding: 8px 18px;
     border-radius: 8px;
-    background: rgba(0, 173, 181, 0.12);
-    border: 1px solid rgba(0, 173, 181, 0.3);
+    background: rgba(0, 173, 181, 0.14);
+    border: 1px solid rgba(0, 173, 181, 0.35);
     color: #00adb5;
     font-weight: 600;
-    font-size: 0.82rem;
+    font-size: 0.85rem;
     cursor: pointer;
     transition: all 0.2s ease;
+    font-family: inherit;
 }
 
 .help-footer-btn:hover {
     background: #00adb5;
     color: #fff;
-    box-shadow: 0 4px 12px rgba(0, 173, 181, 0.25);
-}
-
-/* Sidebar Hot Badge */
-.sidebar-help-badge {
-    margin-left: auto;
-    font-size: 0.65rem;
-    padding: 2px 5px;
-    border-radius: 4px;
-    background: linear-gradient(135deg, #00adb5, #00818a);
-    color: #fff;
-    font-weight: 700;
-    letter-spacing: 0.5px;
+    box-shadow: 0 4px 14px rgba(0, 173, 181, 0.25);
 }
