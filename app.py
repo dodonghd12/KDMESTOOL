@@ -923,7 +923,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.74"
+APP_VERSION = "2.3.75"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -3046,7 +3046,10 @@ def get_used_history_by_barcode():
                     res_rows.append(serialize_row(row))
                 return jsonify({'success': True, 'result': res_rows, 'columns': columns})
 
-            feed_qty_map = {row[0]: float(row[4] or 0) for row in matched_feeds}
+            feed_qty_map = {}
+            for row in matched_feeds:
+                fid = row[0]
+                feed_qty_map[fid] = feed_qty_map.get(fid, 0.0) + float(row[4] or 0)
             feed_site_map = {row[0]: (row[2], row[3]) for row in matched_feeds}
             matched_feed_ids = list(feed_qty_map.keys())
             feed_dates = [row[1] for row in matched_feeds if row[1]]
@@ -3744,7 +3747,7 @@ def fetch_output_barcodes_data(resource_id, work_order):
     try:
         query = """
             WITH matched_batches AS (
-                SELECT 
+                SELECT DISTINCT
                     b.number AS batch_seq
                 FROM kvmes.batch b
                 JOIN kvmes.feed_record fr ON fr.id = ANY(b.records_id)
@@ -3755,7 +3758,7 @@ def fetch_output_barcodes_data(resource_id, work_order):
                   AND elem->>'resource_id' = %s
             ),
             matched_collects AS (
-                SELECT 
+                SELECT DISTINCT
                     cr.resource_oid,
                     cr.detail->>'quantity' AS original_quantity,
                     cr.lot_number AS cr_lot_number
@@ -3763,7 +3766,7 @@ def fetch_output_barcodes_data(resource_id, work_order):
                 JOIN matched_batches mb ON mb.batch_seq = cr.sequence
                 WHERE (cr.work_order = %s OR btrim(cr.work_order) = %s)
             )
-            SELECT
+            SELECT DISTINCT
                 mr.id,
                 mr.product_id,
                 COALESCE(NULLIF(mc.original_quantity, '')::numeric, mr.quantity) AS quantity,
