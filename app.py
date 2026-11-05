@@ -924,7 +924,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.79"
+APP_VERSION = "2.3.80"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -1295,6 +1295,9 @@ def reprint_label():
     if active_env not in ('KV1', 'KV2'):
         active_env = 'KV2'
 
+    referer = request.referrer or request.headers.get('Referer') or ''
+    is_portal_embed = ('198.1.1.106' in referer) or ('198.1.9.245:8011' in referer) or (':8011' in referer)
+
     cups_host = "198.1.1.92" if active_env == 'KV1' else "198.1.10.85"
     cups_server = f"https://{cups_host}:631/printers/"
 
@@ -1307,7 +1310,8 @@ def reprint_label():
                            app_version=APP_VERSION,
                            active_db_env=active_env,
                            cups_host=cups_host,
-                           cups_server=cups_server))
+                           cups_server=cups_server,
+                           is_portal_embed=is_portal_embed))
     resp.set_cookie('kdmes_db_env', active_env, max_age=86400*30, path='/')
     return resp
 

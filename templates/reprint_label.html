@@ -11,7 +11,8 @@
             cups_host: "{{ cups_host or '198.1.10.85' }}",
             cups_server: "{{ cups_server or 'https://198.1.10.85:631/printers/' }}",
             username: "{{ username or '' }}",
-            app_version: "{{ app_version or '2.3.79' }}"
+            app_version: "{{ app_version or '2.3.80' }}",
+            is_portal_embed: {{ 'true' if is_portal_embed else 'false' }}
         };
     </script>
 
@@ -573,8 +574,8 @@
                     <span>IN LẠI TEM KD</span>
                 </h1>
 
-                <!-- Plant / Database Environment Switcher -->
-                <div class="reprint-env-switcher" id="reprintEnvSwitcher" role="group" aria-label="Chọn môi trường nhà máy (KV1 / KV2)">
+                <!-- Plant / Database Environment Switcher (Ẩn khi nhúng trong iframe Portal 8011) -->
+                <div class="reprint-env-switcher" id="reprintEnvSwitcher" role="group" aria-label="Chọn môi trường nhà máy (KV1 / KV2)" {% if is_portal_embed %}style="display: none !important;"{% endif %}>
                     <button type="button" class="reprint-env-btn {% if active_db_env == 'KV1' %}active{% endif %}" id="reprintEnvBtnKV1" data-env="KV1" title="Nhà máy KV1 (DB: 198.1.1.92 | CUPS: 198.1.1.92:631)" aria-pressed="{% if active_db_env == 'KV1' %}true{% else %}false{% endif %}">
                         <span class="material-symbols-outlined" style="font-size: 13px;">precision_manufacturing</span>
                         <span>KV1</span>

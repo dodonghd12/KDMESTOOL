@@ -84,7 +84,28 @@
         }
     }
 
+    function isPortalEmbedded() {
+        if (window.REPRINT_CONFIG?.is_portal_embed) return true;
+        const ref = document.referrer || '';
+        if (ref.includes('198.1.1.106') || ref.includes('198.1.9.245:8011') || ref.includes(':8011')) return true;
+        try {
+            if (window.self !== window.top && (ref.includes('8011') || !ref)) {
+                return true;
+            }
+        } catch (e) {
+            return true;
+        }
+        return false;
+    }
+
     function updateEnvUI() {
+        const switcher = document.getElementById('reprintEnvSwitcher');
+        if (isPortalEmbedded()) {
+            if (switcher) switcher.style.display = 'none';
+            return;
+        }
+        if (switcher) switcher.style.display = 'inline-flex';
+
         const envBtns = document.querySelectorAll('.reprint-env-btn');
         envBtns.forEach(btn => {
             const isMatch = btn.dataset.env === currentEnv;
@@ -94,6 +115,7 @@
     }
 
     function switchEnvironment(targetEnv) {
+        if (isPortalEmbedded()) return; // Khóa chuyển đổi khi nhúng trong portal 8011
         if (!targetEnv || (targetEnv !== 'KV1' && targetEnv !== 'KV2')) return;
         if (currentEnv === targetEnv) return;
         currentEnv = targetEnv;
