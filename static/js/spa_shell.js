@@ -177,18 +177,13 @@
             iconContainer.innerHTML = '<span class="material-symbols-outlined" style="color: #34d399; font-size: 22px;">check_circle</span>';
         }
 
-        // Notify and remove skeleton loading across all iframes
-        allFrames.forEach(frame => {
-            try {
-                const doc = frame.contentDocument || frame.contentWindow?.document;
-                if (doc && doc.body) {
-                    doc.body.classList.remove('app-loading-state');
-                }
-                frame.contentWindow?.postMessage({ type: 'SPA_ALL_PAGES_LOADED' }, '*');
-            } catch (e) { }
-        });
+        // 1. Notify Prisma Hero Preloader overlay FIRST to start smooth reveal
+        const introEngine = window.PrismaHeroIntro || window.LusionIntro || window.SupercarIntro;
+        if (introEngine && typeof introEngine.onAllLoaded === 'function') {
+            introEngine.onAllLoaded(total);
+        }
 
-        // Hide preload toast with smooth spring out
+        // 2. Hide preload toast with smooth spring out
         if (badge) {
             setTimeout(() => {
                 badge.classList.add('removing');
@@ -198,10 +193,24 @@
             }, 1200);
         }
 
-        // Notify Prisma Hero Preloader overlay
-        const introEngine = window.PrismaHeroIntro || window.LusionIntro || window.SupercarIntro;
-        if (introEngine && typeof introEngine.onAllLoaded === 'function') {
-            introEngine.onAllLoaded(total);
+        // 3. Defer heavy iframe postMessage broadcast & skeleton cleanup until AFTER reveal animation finishes (60fps lock)
+        const deferIframeCleanup = () => {
+            allFrames.forEach(frame => {
+                try {
+                    const doc = frame.contentDocument || frame.contentWindow?.document;
+                    if (doc && doc.body) {
+                        doc.body.classList.remove('app-loading-state');
+                    }
+                    frame.contentWindow?.postMessage({ type: 'SPA_ALL_PAGES_LOADED' }, '*');
+                } catch (e) { }
+            });
+        };
+
+        if (window.__kd_intro_finished) {
+            deferIframeCleanup();
+        } else {
+            document.addEventListener('kd_intro_finished', deferIframeCleanup, { once: true });
+            setTimeout(deferIframeCleanup, 900);
         }
     }
 

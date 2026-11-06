@@ -47,12 +47,14 @@
             -webkit-user-select: none;
             opacity: 1;
             visibility: visible;
-            transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.35s;
-            will-change: opacity, visibility, -webkit-mask-image, mask-image;
+            transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.2s;
+            will-change: opacity, visibility;
             pointer-events: auto;
+            transform: translateZ(0);
+            contain: strict;
             --reveal-radius: 0%;
-            -webkit-mask-image: radial-gradient(circle at 52% 51.5%, transparent var(--reveal-radius), #000 calc(var(--reveal-radius) + 1.2%));
-            mask-image: radial-gradient(circle at 52% 51.5%, transparent var(--reveal-radius), #000 calc(var(--reveal-radius) + 1.2%));
+            -webkit-mask-image: radial-gradient(circle at 52% 51.5%, transparent var(--reveal-radius), #000 calc(var(--reveal-radius) + 0.8%));
+            mask-image: radial-gradient(circle at 52% 51.5%, transparent var(--reveal-radius), #000 calc(var(--reveal-radius) + 0.8%));
         }
         .prisma-hero-container.fade-out {
             opacity: 0 !important;
@@ -168,16 +170,19 @@
             position: absolute;
             top: 51.5%;
             left: 52%;
-            width: 0px;
-            height: 0px;
-            transform: translate(-50%, -50%);
+            width: 100px;
+            height: 100px;
             border-radius: 50%;
             pointer-events: none;
             z-index: 30;
-            border: 2px solid rgba(61, 213, 192, 0.85);
-            box-shadow: 0 0 35px rgba(61, 213, 192, 0.95), inset 0 0 25px rgba(61, 213, 192, 0.8);
+            border: 2px solid rgba(61, 213, 192, 0.9);
+            box-shadow: 0 0 25px rgba(61, 213, 192, 0.85), inset 0 0 15px rgba(61, 213, 192, 0.65);
             opacity: 0;
-            will-change: width, height, opacity;
+            transform: translate3d(-50%, -50%, 0) scale(0);
+            will-change: transform, opacity;
+        }
+        .prisma-hero-container.is-revealing .prisma-noise-overlay {
+            display: none !important;
         }
         .prisma-hero-container.is-revealing .prisma-hero-counter-zone {
             opacity: 0 !important;
