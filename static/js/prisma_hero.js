@@ -9,11 +9,8 @@
 
     // Cinematic Easing Curves - Hardware-accelerated butter-smooth curves
     const ease = {
-        cubicOut(t) {
-            return 1 - Math.pow(1 - t, 3);
-        },
-        quartOut(t) {
-            return 1 - Math.pow(1 - t, 4);
+        smoothReveal(t) {
+            return 1 - Math.pow(1 - t, 2.6);
         }
     };
 
@@ -37,7 +34,7 @@
             this.isRevealing = false;
 
             this.revealTime = 0;
-            this.REVEAL_DURATION = 0.52; // 520ms snappy & ultra-smooth portal cutout
+            this.REVEAL_DURATION = 0.82; // 820ms majestic, cinematic & silky-smooth portal cutout
 
             this.lastTime = 0;
             this.animFrameId = null;
@@ -79,26 +76,34 @@
             this.lastTime = timestamp;
 
             if (!this.isRevealing) {
-                // ── Phase 1: Smooth progress interpolation 0 -> 100 ──
-                const speed = this.isAllPreloaded ? 12.0 : 2.5;
-                if (this.currentPercent < this.targetPercent) {
-                    const step = Math.max(dt * speed, (this.targetPercent - this.currentPercent) * (this.isAllPreloaded ? 0.35 : 0.15));
-                    this.currentPercent = Math.min(this.targetPercent, this.currentPercent + step);
-                }
+                // ── Phase 1: Butter-smooth continuous odometer counter & progress track ──
+                // Continuous baseline forward drift so counter never stalls, freezes, or hesitates
+                const baseStep = dt * (this.isAllPreloaded ? 0.85 : 0.20);
+                const lerpFactor = this.isAllPreloaded ? 0.12 : 0.055;
+                this.currentPercent += Math.max(baseStep, (this.targetPercent - this.currentPercent) * lerpFactor);
+                this.currentPercent = Math.min(1.0, this.currentPercent);
 
-                const intVal = Math.min(100, Math.floor(this.currentPercent * 100));
-                if (intVal !== this.displayInteger) {
-                    this.displayInteger = intVal;
+                // Target integer from floating-point currentPercent
+                const targetInt = Math.min(100, Math.floor(this.currentPercent * 100));
+
+                // Smooth odometer step: advance by at most 1 (or 2-3 when catching up) per frame to guarantee 60fps fluid roll
+                if (this.displayInteger < targetInt) {
+                    const diff = targetInt - this.displayInteger;
+                    const increment = diff > 12 ? 3 : (diff > 5 ? 2 : 1);
+                    this.displayInteger = Math.min(targetInt, this.displayInteger + increment);
+
                     if (this.counterEl) {
                         this.counterEl.textContent = this.displayInteger.toString().padStart(2, '0');
                     }
-                    if (this.progressBar) {
-                        this.progressBar.style.width = `${this.displayInteger}%`;
-                    }
                 }
 
-                // Check if ready to trigger portal reveal
-                if (this.isAllPreloaded && this.currentPercent >= 0.999) {
+                // Smooth floating-point progress bar update (60fps glide, zero CSS transition fighting)
+                if (this.progressBar) {
+                    this.progressBar.style.width = `${(this.currentPercent * 100).toFixed(1)}%`;
+                }
+
+                // Check if ready to trigger portal reveal (both counter reached 100 and all preloaded)
+                if (this.isAllPreloaded && this.displayInteger >= 100) {
                     this.triggerPortalReveal();
                     return;
                 }
@@ -106,7 +111,7 @@
                 // ── Phase 2: Expanding Portal Hole Cutout (Laptop Screen 52% 51.5% Outward) ──
                 this.revealTime += dt;
                 const progress = Math.min(1.0, this.revealTime / this.REVEAL_DURATION);
-                const easedRatio = ease.cubicOut(progress);
+                const easedRatio = ease.smoothReveal(progress);
 
                 // Radius expands from 0% to 150% (reveals entire viewport)
                 const currentRadius = easedRatio * 150;
@@ -119,7 +124,7 @@
                     const maxDim = Math.max(window.innerWidth, window.innerHeight) * 2.5;
                     const scale = (easedRatio * maxDim) / 100;
                     this.portalRim.style.transform = `translate3d(-50%, -50%, 0) scale(${scale.toFixed(3)})`;
-                    this.portalRim.style.opacity = progress < 0.75 ? '1' : Math.max(0, (1 - progress) * 4).toFixed(2);
+                    this.portalRim.style.opacity = progress < 0.78 ? '1' : Math.max(0, (1 - progress) * 4.5).toFixed(2);
                 }
 
                 if (progress >= 1.0) {
