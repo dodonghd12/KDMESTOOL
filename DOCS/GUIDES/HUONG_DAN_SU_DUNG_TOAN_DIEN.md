@@ -1,5 +1,5 @@
 # CẨM NANG HƯỚNG DẪN SỬ DỤNG TOÀN DIỆN HỆ THỐNG KDMES TOOL
-> **Phiên bản:** v2.3.87 | **Phát hành:** 2026 | **Đơn vị vận hành:** Đội ngũ Kỹ thuật & Quản trị Hệ thống KDMES KV1 & KV2  
+> **Phiên bản:** v2.3.88 | **Phát hành:** 2026 | **Đơn vị vận hành:** Đội ngũ Kỹ thuật & Quản trị Hệ thống KDMES KV1 & KV2  
 > **Tài liệu tham chiếu nội bộ:** Cẩm nang tiêu chuẩn thao tác chuẩn (SOP), quản trị dữ liệu sản xuất, kiểm soát cấp liệu Poka-Yoke và xử lý sự cố.
 
 ---
@@ -33,7 +33,7 @@ Main Dashboard là trung tâm chỉ huy số của KDMES TOOL. Hỗ trợ tra c�
 * **Xem chi tiết tem (Modal Details):** Hiển thị đầy đủ thông tin: Mã sản phẩm, Số mẻ (Lot No), Khối lượng thực tế / ban đầu, Hạn sử dụng, Máy sản xuất, Người thao tác, Trạng thái Khóa / Mở khóa / Gia hạn.
 * **Thay đổi trạng thái tem:** Khóa (Lock), Mở khóa (Unlock), Hủy bỏ (Scrap) với ghi nhận lý do bắt buộc.
 * **Gia hạn hạn sử dụng (Extend Expiry):** Dành cho tem bán thành phẩm được KCS phê duyệt nghiệm thu lại hạn dùng.
-* **Kiểm tra tiêu thụ (Used History):** Tra cứu tem đã được đưa vào máy nào cân, thuộc Work Order (Lệnh sản xuất) nào, tiêu thụ bao nhiêu kg, tỷ lệ tiêu hao và danh sách tem đầu ra liên quan.
+* **Kiểm tra tiêu thụ (Used History):** Tra cứu tem đã được đưa vào máy nào cân, thuộc Work Order (Lệnh sản xuất) nào, tiêu thụ bao nhiêu kg, tỷ lệ tiêu hao và danh sách tem đầu ra liên quan. Đối với tem đang gắn trên trạm (`Đang gắn`), cột `consumption` hiển thị trực tiếp số lượng thực tế tem đang gắn vào máy.
 * **Cập nhật OID / Chuyển đổi mã liên kết:** Đồng bộ OID giữa bảng vật tư và bảng cân cấp liệu tự động.
 
 ### 3. Quy trình chuẩn

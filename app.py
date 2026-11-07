@@ -1020,7 +1020,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.87"
+APP_VERSION = "2.3.88"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -2989,6 +2989,15 @@ def get_input_barcode():
 @app.route('/api/barcodes/check-used-history', methods=['POST'])
 @login_required
 def get_used_history_by_barcode():
+    def format_quantity(val):
+        if val is None or val == '':
+            return 0
+        try:
+            f = float(val)
+            return int(f) if f.is_integer() else round(f, 6)
+        except (ValueError, TypeError):
+            return val
+
     material_oid = request.json.get('material_oid')
     if not material_oid:
         return jsonify({'success': False, 'message': 'Thiếu material_oid'})
@@ -3069,7 +3078,7 @@ def get_used_history_by_barcode():
                     CASE 
                         WHEN (lsc.content ? 'slot' AND (lsc.content#>>'{slot,material,resource_id}') = %s)
                           OR (lsc.content ? 'container' AND lsc.content->'container' @> jsonb_build_array(jsonb_build_object('material', jsonb_build_object('resource_id', %s::text))))
-                        THEN 'Đang bind'
+                        THEN 'Đang gắn'
                         ELSE 'Đã unbind'
                     END AS bind_status,
                     COALESCE(
@@ -3104,13 +3113,13 @@ def get_used_history_by_barcode():
             for r in (sc_rows or []):
                 st, site, b_time, b_user, b_status, rem_qty = r
                 val_qty = float(rem_qty) if rem_qty is not None else default_mr_qty
-                is_currently_bound = (b_status == 'Đang bind')
+                is_currently_bound = (b_status == 'Đang gắn')
                 entry = {
                     'station': st,
                     'site': (site or '').strip() or None,
                     'bind_time': b_time if is_currently_bound else None,
                     'bound_by': b_user if is_currently_bound else None,
-                    'bind_status': 'Đang bind' if is_currently_bound else None,
+                    'bind_status': 'Đang gắn' if is_currently_bound else None,
                     'remaining_qty': val_qty if val_qty is not None else default_mr_qty
                 }
                 site_info_by_st_site[(st, site)] = entry
@@ -3134,27 +3143,30 @@ def get_used_history_by_barcode():
             """, (material_oid, material_oid))
             matched_feeds = cursor.fetchall()
 
-            bound_sc_sites = [s for s in all_sc_sites if s['bind_status'] == 'Đang bind']
+            bound_sc_sites = [s for s in all_sc_sites if s['bind_status'] == 'Đang gắn']
 
-            # Trường hợp 1: Không có feed_record và cũng không có vị trí Đang bind nào -> Trả về rỗng
+            # Trường hợp 1: Không có feed_record và cũng không có vị trí Đang gắn nào -> Trả về rỗng
             if not matched_feeds and not bound_sc_sites:
                 return jsonify({'success': True, 'result': [], 'columns': columns})
 
-            # Trường hợp 2: Chưa phát sinh feed_record nhưng ĐANG BIND vào site_contents -> Hiển thị vị trí Đang bind
+            # Trường hợp 2: Chưa phát sinh feed_record nhưng ĐANG GẮN vào site_contents -> Hiển thị vị trí Đang gắn
             if not matched_feeds and bound_sc_sites:
                 res_rows = []
                 for sc_item in bound_sc_sites:
+                    cur_qty = sc_item.get('remaining_qty')
+                    if cur_qty is None:
+                        cur_qty = default_mr_qty or 0
                     row = [
                         None,
                         None,
                         sc_item['station'],
                         None,
-                        0,
+                        format_quantity(cur_qty),
                         0,
                         0,
                         0,
                         sc_item['site'],
-                        'Đang bind',
+                        'Đang gắn',
                         sc_item['bind_time'],
                         sc_item['bound_by']
                     ]
@@ -3295,14 +3307,14 @@ def get_used_history_by_barcode():
                         st = binfo['station']
                         site_name = wo_sites.get(wo)
                         s_info = site_info_by_st_site.get((st, site_name)) or site_info_by_st.get(st) or {}
-                        is_st_bound = (s_info.get('bind_status') == 'Đang bind')
+                        is_st_bound = (s_info.get('bind_status') == 'Đang gắn')
                         summary[wo] = {
                             'work_order': wo,
                             'recipe_id': binfo['recipe_id'],
                             'station': st,
                             'reserved_date': res_date_str,
                             'site': site_name or s_info.get('site') or None,
-                            'bind_status': 'Đang bind' if is_st_bound else None,
+                            'bind_status': 'Đang gắn' if is_st_bound else None,
                             'bind_time': s_info.get('bind_time') if is_st_bound else None,
                             'bound_by': s_info.get('bound_by') if is_st_bound else None,
                             'remaining_quantity': s_info.get('remaining_qty', default_mr_qty),
@@ -3321,7 +3333,12 @@ def get_used_history_by_barcode():
                 for wo in sorted(summary.keys()):
                     s = summary[wo]
                     covered_stations.add(s['station'])
-                    if s['total_output_qty'] > 0:
+                    if s['bind_status'] == 'Đang gắn':
+                        cur_qty = s.get('remaining_quantity')
+                        if cur_qty is None:
+                            cur_qty = default_mr_qty or 0
+                        consumption = format_quantity(cur_qty)
+                    elif s['total_output_qty'] > 0:
                         consumption = str(round(s['total_consumption'] / s['total_output_qty'], 6))
                     else:
                         consumption = "0"
@@ -3396,20 +3413,23 @@ def get_used_history_by_barcode():
                     ]
                     result_rows.append(serialize_row(row))
 
-            # 8. Nếu tem Đang bind trên một trạm khác chưa chạy đơn điều động nào, bổ sung dòng trạm đó
+            # 8. Nếu tem Đang gắn trên một trạm khác chưa chạy đơn điều động nào, bổ sung dòng trạm đó
             for sc_item in all_sc_sites:
-                if sc_item['bind_status'] == 'Đang bind' and sc_item['station'] not in covered_stations:
+                if sc_item['bind_status'] == 'Đang gắn' and sc_item['station'] not in covered_stations:
+                    cur_qty = sc_item.get('remaining_qty')
+                    if cur_qty is None:
+                        cur_qty = default_mr_qty or 0
                     row = [
                         None,
                         None,
                         sc_item['station'],
                         None,
-                        0,
+                        format_quantity(cur_qty),
                         0,
                         0,
                         0,
                         sc_item['site'],
-                        'Đang bind',
+                        'Đang gắn',
                         sc_item['bind_time'],
                         sc_item['bound_by']
                     ]

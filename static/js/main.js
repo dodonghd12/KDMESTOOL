@@ -3540,8 +3540,8 @@ async function showFeedRecords(rowData = null) {
             renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
             const hasWO = data.result.some(r => r[0] && r[0] !== '-');
             const msg = hasWO 
-                ? `Tìm thấy ${data.result.length} đơn điều động tiêu thụ & bind tem` 
-                : `Tìm thấy thông tin bind tem trên trạm (${data.result.length} vị trí)`;
+                ? `Tìm thấy ${data.result.length} đơn điều động tiêu thụ & gắn tem` 
+                : `Tìm thấy thông tin gắn tem trên trạm (${data.result.length} vị trí)`;
             Toast.success('Thành công', msg);
         } else {
             currentOutputTableType = null;
@@ -7768,8 +7768,8 @@ function renderOutputBarcodeTable(rows, columns) {
             td.dataset.fullValue = fullValue;
 
             if (colName === 'bind_status') {
-                if (cellValue === 'Đang bind') {
-                    td.innerHTML = `<span style="display:inline-flex; align-items:center; gap:5px; font-weight:600; color:#059669;"><span style="width:7px; height:7px; border-radius:50%; background:#10b981; display:inline-block;"></span>Đang bind</span>`;
+                if (cellValue === 'Đang gắn' || cellValue === 'Đang bind') {
+                    td.innerHTML = `<span style="display:inline-flex; align-items:center; gap:5px; font-weight:600; color:#059669;"><span style="width:7px; height:7px; border-radius:50%; background:#10b981; display:inline-block;"></span>Đang gắn</span>`;
                 } else {
                     td.textContent = '-';
                 }
@@ -7969,8 +7969,8 @@ function renderSubOutputBarcodeTable(rows, columns) {
             td.dataset.fullValue = fullValue;
 
             if (colName === 'bind_status') {
-                if (cellValue === 'Đang bind') {
-                    td.innerHTML = `<span style="display:inline-flex; align-items:center; gap:5px; font-weight:600; color:#059669;"><span style="width:7px; height:7px; border-radius:50%; background:#10b981; display:inline-block;"></span>Đang bind</span>`;
+                if (cellValue === 'Đang gắn' || cellValue === 'Đang bind') {
+                    td.innerHTML = `<span style="display:inline-flex; align-items:center; gap:5px; font-weight:600; color:#059669;"><span style="width:7px; height:7px; border-radius:50%; background:#10b981; display:inline-block;"></span>Đang gắn</span>`;
                 } else {
                     td.textContent = '-';
                 }
