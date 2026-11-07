@@ -872,7 +872,15 @@ function displayComparison(result, recipeId, station, workOrderId) {
                 const countBadge = rowCount > 1
                     ? `<span class="badge-tag-site-count" title="Trạm dạng CONTAINER: Có ${rowCount} tem quét vào"><span class="material-symbols-outlined count-icon">layers</span> ${rowCount} tem</span>`
                     : '';
-                html += `<td class="site-cell"${rowspanAttr}>`;
+                let siteStateClass = '';
+                if (group.items.some(it => !it._isValid && (!it._hasBarcode || !it._isMatch))) {
+                    siteStateClass = ' site-mismatch';
+                } else if (group.items.some(it => !it._isValid && it._isExpired)) {
+                    siteStateClass = ' site-expired';
+                } else if (group.items.some(it => !it._isValid && it._isEmptyQuantity)) {
+                    siteStateClass = ' site-empty-qty';
+                }
+                html += `<td class="site-cell${siteStateClass}"${rowspanAttr}>`;
                 html += `<div class="site-title-row">`;
                 html += `<span class="site-name"><strong>${escapeHtml(group.site || '')}</strong></span>`;
                 if (countBadge) html += countBadge;

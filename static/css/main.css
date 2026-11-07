@@ -5494,14 +5494,21 @@ body.theme-light .yaml-code-scroll::-webkit-scrollbar-track {
 
 .comparison-table {
     width: 100%;
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
     font-size: var(--font-size-base);
+}
+
+.comparison-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 
 .comparison-table th {
     position: sticky;
     top: 0;
-    z-index: 5;
+    z-index: 10;
     background: var(--color-bg-surface-elevated-solid, #1e293b);
     color: var(--color-text-accent);
     font-weight: 700;
@@ -5512,6 +5519,10 @@ body.theme-light .yaml-code-scroll::-webkit-scrollbar-track {
     border-bottom: 2px solid var(--color-border-interactive);
     border-right: 1px solid var(--color-border-subtle);
     text-align: left;
+}
+
+.comparison-table th:first-child {
+    border-left: 4px solid transparent;
 }
 
 .comparison-table th:last-child {
@@ -5545,7 +5556,6 @@ body.theme-light .yaml-code-scroll::-webkit-scrollbar-track {
 
 .comparison-row.row-mismatch {
     background: var(--color-feedback-error-bg);
-    border-left: 4px solid var(--rose-500);
 }
 
 .comparison-row.row-mismatch:hover {
@@ -5554,7 +5564,6 @@ body.theme-light .yaml-code-scroll::-webkit-scrollbar-track {
 
 .comparison-row.row-expired {
     background: var(--color-feedback-warning-bg);
-    border-left: 4px solid var(--amber-500);
 }
 
 .comparison-row.row-expired:hover {
@@ -5563,19 +5572,34 @@ body.theme-light .yaml-code-scroll::-webkit-scrollbar-track {
 
 .comparison-row.row-empty-quantity {
     background: var(--color-feedback-purple-bg);
-    border-left: 4px solid var(--purple-500);
 }
 
 .comparison-row.row-empty-quantity:hover {
     background: var(--color-feedback-purple-bg);
 }
 
-.comparison-table .site-cell {
+.comparison-table td.site-cell {
+    border-left: 4px solid transparent;
     font-weight: 600;
     color: var(--color-text-muted);
     font-size: var(--font-size-sm);
     letter-spacing: 0.3px;
     vertical-align: middle;
+}
+
+.comparison-row.row-mismatch > td.site-cell,
+.comparison-table td.site-cell.site-mismatch {
+    border-left: 4px solid var(--rose-500);
+}
+
+.comparison-row.row-expired > td.site-cell,
+.comparison-table td.site-cell.site-expired {
+    border-left: 4px solid var(--amber-500);
+}
+
+.comparison-row.row-empty-quantity > td.site-cell,
+.comparison-table td.site-cell.site-empty-qty {
+    border-left: 4px solid var(--purple-500);
 }
 
 .comparison-table .material-cell {
