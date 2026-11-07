@@ -5798,6 +5798,13 @@ body.theme-light .yaml-code-scroll::-webkit-scrollbar-track {
     border-color: var(--color-feedback-purple-border) !important;
 }
 
+.comparison-table .barcode-highlight.mismatch,
+.comparison-table .barcode-highlight.wrong-spec {
+    color: var(--color-feedback-error-text) !important;
+    background: var(--color-feedback-error-bg) !important;
+    border-color: var(--color-feedback-error-border) !important;
+}
+
 /* Dòng 3: barcode-meta-row */
 .comparison-table .barcode-meta-row {
     display: flex;

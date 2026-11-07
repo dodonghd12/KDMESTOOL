@@ -911,7 +911,9 @@ function displayComparison(result, recipeId, station, workOrderId) {
 
             if (item._hasBarcode) {
                 let barcodeClass = 'barcode-highlight';
-                if (item._isEmptyQuantity) {
+                if (isMismatch) {
+                    barcodeClass += ' mismatch';
+                } else if (item._isEmptyQuantity) {
                     barcodeClass += ' empty-quantity';
                 } else if (item._isExpired) {
                     barcodeClass += ' expired';
