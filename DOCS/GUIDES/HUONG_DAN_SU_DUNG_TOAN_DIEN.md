@@ -1,5 +1,5 @@
 # CẨM NANG HƯỚNG DẪN SỬ DỤNG TOÀN DIỆN HỆ THỐNG KDMES TOOL
-> **Phiên bản:** v2.3.88 | **Phát hành:** 2026 | **Đơn vị vận hành:** Đội ngũ Kỹ thuật & Quản trị Hệ thống KDMES KV1 & KV2  
+> **Phiên bản:** v2.3.89 | **Phát hành:** 2026 | **Đơn vị vận hành:** Đội ngũ Kỹ thuật & Quản trị Hệ thống KDMES KV1 & KV2  
 > **Tài liệu tham chiếu nội bộ:** Cẩm nang tiêu chuẩn thao tác chuẩn (SOP), quản trị dữ liệu sản xuất, kiểm soát cấp liệu Poka-Yoke và xử lý sự cố.
 
 ---

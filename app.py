@@ -1020,7 +1020,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.88"
+APP_VERSION = "2.3.89"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -3463,7 +3463,7 @@ def fetch_output_barcode_by_work_order():
                 mr.id AS barcode,
                 mr.product_id,
                 mr.product_type,
-                COALESCE((cr.detail->>'quantity')::numeric, mr.quantity) AS quantity,
+                COALESCE(mr.quantity, (cr.detail->>'quantity')::numeric) AS quantity,
                 mr.initial_quantity,
                 (cr.detail->>'quantity') AS collect_quantity,
                 mr.expiry_time,
