@@ -5455,38 +5455,41 @@ body.theme-light .yaml-code-scroll::-webkit-scrollbar-track {
 .comparison-modal-body {
     flex: 1;
     min-height: 0;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    padding: 16px 22px;
-}
-
-.comparison-table-scroll {
-    flex: 1;
-    min-height: 0;
     overflow-y: auto;
     overflow-x: auto;
-    border-radius: 10px;
-    border: 1px solid var(--color-border-glass);
+    display: flex;
+    flex-direction: column;
+    padding: 0;
     background: var(--color-bg-canvas);
 }
 
-.comparison-table-scroll::-webkit-scrollbar {
+.comparison-modal-body::-webkit-scrollbar {
     width: 8px;
     height: 8px;
 }
 
-.comparison-table-scroll::-webkit-scrollbar-track {
+.comparison-modal-body::-webkit-scrollbar-track {
     background: var(--color-bg-canvas);
 }
 
-.comparison-table-scroll::-webkit-scrollbar-thumb {
+.comparison-modal-body::-webkit-scrollbar-thumb {
     background: var(--color-border-interactive);
     border-radius: 4px;
 }
 
-.comparison-table-scroll::-webkit-scrollbar-thumb:hover {
+.comparison-modal-body::-webkit-scrollbar-thumb:hover {
     background: var(--color-text-accent);
+}
+
+#comparisonContent {
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.comparison-table-scroll {
+    display: contents;
 }
 
 .comparison-table {
@@ -6016,6 +6019,16 @@ body.theme-light .yaml-code-scroll::-webkit-scrollbar-track {
 .comparison-legend .legend-item.normal .legend-dot {
     background: var(--color-feedback-success-text);
     box-shadow: 0 0 6px var(--color-feedback-success-text);
+}
+
+.comparison-legend .legend-item.mismatch {
+    background: var(--color-feedback-error-bg);
+    border: 1px solid var(--color-feedback-error-border);
+    color: var(--color-feedback-error-text);
+}
+.comparison-legend .legend-item.mismatch .legend-dot {
+    background: var(--color-feedback-error-text);
+    box-shadow: 0 0 6px var(--color-feedback-error-text);
 }
 
 .comparison-legend .legend-item.expired {
@@ -12253,15 +12266,15 @@ body.theme-light .material-transfer-retry-btn.is-success {
     }
 
     .comparison-modal-body {
-        padding: 8px 10px !important;
+        padding: 0 !important;
         flex: 1 1 0% !important;
         min-height: 0 !important;
+        overflow-y: auto !important;
+        overflow-x: auto !important;
     }
 
     .comparison-table-scroll {
-        flex: 1 1 0% !important;
-        min-height: 0 !important;
-        border-radius: 10px !important;
+        display: contents !important;
     }
 
     .comparison-table th,
