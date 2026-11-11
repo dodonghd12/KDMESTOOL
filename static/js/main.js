@@ -3513,7 +3513,7 @@ async function showFeedRecords(rowData = null) {
     activeSearchContext = 'outputBarcodeByFeedRecords';
     const outputHeaderContentEl = document.getElementById('outputHeaderContent');
     if (outputHeaderContentEl) {
-        outputHeaderContentEl.textContent = `Kiểm tra tiêu thụ tem (${material_oid})`;
+        outputHeaderContentEl.textContent = `Kiểm tra tiêu thụ tem (${material_oid}) - Sum Consumption: 0`;
     }
 
     showLoading();
@@ -3525,6 +3525,21 @@ async function showFeedRecords(rowData = null) {
             body: JSON.stringify({ material_oid, material_type })
         });
         hideLoading();
+
+        let sumConsumption = 0;
+        if (data && typeof data.sum_consumption !== 'undefined' && data.sum_consumption !== null) {
+            sumConsumption = data.sum_consumption;
+        } else if (data && Array.isArray(data.result)) {
+            const colIdx = (data.columns || []).indexOf('total_consumption');
+            if (colIdx !== -1) {
+                sumConsumption = data.result.reduce((acc, row) => acc + (parseFloat(row[colIdx]) || 0), 0);
+                sumConsumption = Math.round(sumConsumption * 1000000) / 1000000;
+            }
+        }
+
+        if (outputHeaderContentEl) {
+            outputHeaderContentEl.textContent = `Kiểm tra tiêu thụ tem (${material_oid}) - Sum Consumption: ${sumConsumption}`;
+        }
 
         if (!data || !data.result || data.result.length === 0) {
             Toast.warning('Không có dữ liệu', 'Barcode chưa quét tem lần nào');
@@ -3550,6 +3565,9 @@ async function showFeedRecords(rowData = null) {
         }
     } catch (err) {
         hideLoading();
+        if (outputHeaderContentEl) {
+            outputHeaderContentEl.textContent = `Kiểm tra tiêu thụ tem (${material_oid}) - Sum Consumption: 0`;
+        }
         renderOutputBarcodeTable([], []);
         Toast.error('Lỗi', err.message || 'Lỗi kết nối');
     }
@@ -7586,7 +7604,7 @@ function openOutputTable(type, rowData = null) {
         if (outputHeaderContentEl) outputHeaderContentEl.textContent = 'Kiểm tra tem đầu vào';
         fetchInputBarcode(dataObj.id, dataObj.product_type);
     } else if (type === 'feedRecords' || type === 'outputBarcodeByFeedRecords') {
-        if (outputHeaderContentEl) outputHeaderContentEl.textContent = `Kiểm tra tiêu thụ tem (${dataObj.id || ''})`;
+        if (outputHeaderContentEl) outputHeaderContentEl.textContent = `Kiểm tra tiêu thụ tem (${dataObj.id || ''}) - Sum Consumption: 0`;
         showFeedRecords(dataObj);
     } else if (type === 'workOrderByRecipe') {
         if (outputHeaderContentEl) outputHeaderContentEl.textContent = 'Đơn điều động theo quy cách';

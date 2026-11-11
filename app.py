@@ -1006,7 +1006,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.92"
+APP_VERSION = "2.3.93"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -3017,11 +3017,11 @@ def get_used_history_by_barcode():
         'total_barcode',
         'total_fail_barcode',
         'total_consumption',
+        'created_by',
         'site',
         'bind_status',
         'bind_time',
-        'bind_by',
-        'created_by'
+        'bind_by'
     ]
 
     try:
@@ -3177,7 +3177,7 @@ def get_used_history_by_barcode():
 
             # Trường hợp 1: Không có feed_record và cũng không có vị trí Đang gắn nào -> Trả về rỗng
             if not matched_feeds and not bound_sc_sites:
-                return jsonify({'success': True, 'result': [], 'columns': columns})
+                return jsonify({'success': True, 'result': [], 'columns': columns, 'sum_consumption': 0})
 
             # Trường hợp 2: Chưa phát sinh feed_record nhưng ĐANG GẮN vào site_contents -> Hiển thị vị trí Đang gắn
             if not matched_feeds and bound_sc_sites:
@@ -3195,14 +3195,14 @@ def get_used_history_by_barcode():
                         0,
                         0,
                         0,
+                        None,
                         sc_item['site'],
                         'Đang gắn',
                         sc_item['bind_time'],
-                        sc_item['bind_by'],
-                        None
+                        sc_item['bind_by']
                     ]
                     res_rows.append(serialize_row(row))
-                return jsonify({'success': True, 'result': res_rows, 'columns': columns})
+                return jsonify({'success': True, 'result': res_rows, 'columns': columns, 'sum_consumption': 0})
 
             feed_qty_map = {}
             for row in matched_feeds:
@@ -3388,11 +3388,11 @@ def get_used_history_by_barcode():
                         s['total_barcode'],
                         s['total_fail_barcode'],
                         round(s['total_consumption'], 6),
+                        created_by_val,
                         s['site'],
                         s['bind_status'],
                         s['bind_time'],
-                        s['bind_by'],
-                        created_by_val
+                        s['bind_by']
                     ]
                     result_rows.append(serialize_row(row))
 
@@ -3439,19 +3439,19 @@ def get_used_history_by_barcode():
                     created_by_feed = s_info_feed.get('created_by') or st_users_feed or bound_by_val or None
 
                     row = [
-                        None,                         # work_order: null (-)
-                        recipe_id_val,                # recipe_id: null (-)
-                        station_val,                  # station: 'KV-P8300-RETURNCOMPOUND'
-                        None,                         # reserved_date: null (-)
-                        fed_qty,                      # consumption: 352 / 426
-                        out_barcode_count,            # total_barcode: 1
-                        0,                            # total_fail_barcode: 0
-                        fed_qty,                      # total_consumption: 352 / 426
+                        None,                              # work_order: null (-)
+                        recipe_id_val,                     # recipe_id: null (-)
+                        station_val,                       # station: 'KV-P8300-RETURNCOMPOUND'
+                        None,                              # reserved_date: null (-)
+                        fed_qty,                           # consumption: 352 / 426
+                        out_barcode_count,                 # total_barcode: 1
+                        0,                                 # total_fail_barcode: 0
+                        fed_qty,                           # total_consumption: 352 / 426
+                        created_by_feed,                   # created_by: '024659'
                         (feed_site or '').strip() or None, # site: null (-)
-                        None,                         # bind_status: null (-)
-                        None,                         # bind_time: null (-)
-                        bound_by_val,                 # bind_by: 'p8300' hoặc null (-)
-                        created_by_feed               # created_by: '024659'
+                        None,                              # bind_status: null (-)
+                        None,                              # bind_time: null (-)
+                        bound_by_val                       # bind_by: 'p8300' hoặc null (-)
                     ]
                     result_rows.append(serialize_row(row))
 
@@ -3470,18 +3470,32 @@ def get_used_history_by_barcode():
                         0,
                         0,
                         0,
+                        None,
                         sc_item['site'],
                         'Đang gắn',
                         sc_item['bind_time'],
-                        sc_item['bind_by'],
-                        None
+                        sc_item['bind_by']
                     ]
                     result_rows.append(serialize_row(row))
+
+            # Tính tổng total_consumption (sum_consumption) cho toàn bộ kết quả (cột index 7)
+            total_sum = 0.0
+            for r in result_rows:
+                try:
+                    val = float(r[7]) if r[7] is not None else 0.0
+                    total_sum += val
+                except (ValueError, TypeError):
+                    pass
+
+            sum_consumption = round(total_sum, 6) if total_sum else 0
+            if isinstance(sum_consumption, float) and sum_consumption.is_integer():
+                sum_consumption = int(sum_consumption)
 
             return jsonify({
                 'success': True,
                 'result': result_rows,
-                'columns': columns
+                'columns': columns,
+                'sum_consumption': sum_consumption
             })
 
     except Exception as e:
