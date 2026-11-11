@@ -1006,7 +1006,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.90"
+APP_VERSION = "2.3.91"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -3020,7 +3020,8 @@ def get_used_history_by_barcode():
         'site',
         'bind_status',
         'bind_time',
-        'bound_by'
+        'bind_by',
+        'created_by'
     ]
 
     try:
@@ -3041,6 +3042,15 @@ def get_used_history_by_barcode():
                         sc.index AS site_index,
                         sc.updated_at,
                         sc.updated_by,
+                        COALESCE(
+                            (
+                                SELECT NULLIF(TRIM(c->'material'->>'user_id'), '')
+                                FROM jsonb_array_elements(sc.content->'container') c
+                                WHERE (c->'material'->>'resource_id') = %s
+                                LIMIT 1
+                            ),
+                            NULLIF(TRIM(sc.content#>>'{slot,material,user_id}'), '')
+                        ) AS content_user_id,
                         to_timestamp(sc.updated_at::numeric / 1e9) AT TIME ZONE 'Asia/Ho_Chi_Minh' AS bind_time_ts,
                         CASE 
                             WHEN sc.content ? 'slot' AND (sc.content#>>'{slot,material,resource_id}') = %s 
@@ -3068,12 +3078,25 @@ def get_used_history_by_barcode():
                     JOIN (SELECT DISTINCT station, site, site_index FROM barcode_sc) bsc
                       ON bsc.station = sc.station AND bsc.site = sc.name AND bsc.site_index = sc.index
                     ORDER BY sc.station, sc.name, sc.index, sc.updated_at DESC
+                ),
+                sc_users AS (
+                    SELECT 
+                        station, 
+                        site, 
+                        string_agg(DISTINCT u_code, ', ' ORDER BY u_code) AS created_by_list
+                    FROM (
+                        SELECT station, site, NULLIF(TRIM(updated_by), '') AS u_code FROM barcode_sc
+                        UNION
+                        SELECT station, site, NULLIF(TRIM(content_user_id), '') AS u_code FROM barcode_sc
+                    ) sub
+                    WHERE u_code IS NOT NULL
+                    GROUP BY station, site
                 )
                 SELECT DISTINCT ON (bsc.station, bsc.site)
                     bsc.station,
                     bsc.site,
                     to_char(bsc.bind_time_ts, 'YYYY-MM-DD HH24:MI:SS') AS bind_time,
-                    bsc.updated_by AS bound_by,
+                    bsc.updated_by AS bind_by,
                     CASE 
                         WHEN (lsc.content ? 'slot' AND (lsc.content#>>'{slot,material,resource_id}') = %s)
                           OR (lsc.content ? 'container' AND lsc.content->'container' @> jsonb_build_array(jsonb_build_object('material', jsonb_build_object('resource_id', %s::text))))
@@ -3095,36 +3118,44 @@ def get_used_history_by_barcode():
                         END,
                         bsc.container_qty,
                         bsc.slot_qty
-                    ) AS remaining_qty
+                    ) AS remaining_qty,
+                    u.created_by_list
                 FROM barcode_sc bsc
                 JOIN latest_sc lsc 
                   ON lsc.station = bsc.station AND lsc.site = bsc.site AND lsc.site_index = bsc.site_index
+                LEFT JOIN sc_users u 
+                  ON u.station = bsc.station AND u.site = bsc.site
                 ORDER BY bsc.station, bsc.site, bsc.updated_at DESC;
-            """, (material_oid, material_oid, material_oid, material_oid, material_oid, material_oid, material_oid, material_oid))
+            """, (material_oid, material_oid, material_oid, material_oid, material_oid, material_oid, material_oid, material_oid, material_oid))
             sc_rows = cursor.fetchall()
 
             # Build site_info lookup maps
-            # Quy tắc người dùng: bind_status chỉ hiển thị 'Đang bind', còn lại là null (-).
+            # Quy tắc người dùng: bind_status chỉ hiển thị 'Đang gắn', còn lại là null (-).
             # Đi kèm với bind_status là null thì bind_time cũng là null (-).
             site_info_by_st_site = {}
             site_info_by_st = {}
             all_sc_sites = []
+            users_by_st = {}
             for r in (sc_rows or []):
-                st, site, b_time, b_user, b_status, rem_qty = r
+                st, site, b_time, b_user, b_status, rem_qty, c_by = r
                 val_qty = float(rem_qty) if rem_qty is not None else default_mr_qty
                 is_currently_bound = (b_status == 'Đang gắn')
                 entry = {
                     'station': st,
                     'site': (site or '').strip() or None,
                     'bind_time': b_time if is_currently_bound else None,
-                    'bound_by': b_user if is_currently_bound else None,
+                    'bind_by': b_user if is_currently_bound else None,
                     'bind_status': 'Đang gắn' if is_currently_bound else None,
-                    'remaining_qty': val_qty if val_qty is not None else default_mr_qty
+                    'remaining_qty': val_qty if val_qty is not None else default_mr_qty,
+                    'created_by': c_by or None
                 }
                 site_info_by_st_site[(st, site)] = entry
-                if st not in site_info_by_st:
+                if st not in site_info_by_st or (not site_info_by_st[st].get('created_by') and c_by):
                     site_info_by_st[st] = entry
                 all_sc_sites.append(entry)
+                if c_by:
+                    for u in [x.strip() for x in c_by.split(',') if x.strip()]:
+                        users_by_st.setdefault(st, set()).add(u)
 
             # 2. Query feed_records directly using GIN index on materials
             cursor.execute("""
@@ -3167,7 +3198,8 @@ def get_used_history_by_barcode():
                         sc_item['site'],
                         'Đang gắn',
                         sc_item['bind_time'],
-                        sc_item['bound_by']
+                        sc_item['bind_by'],
+                        None
                     ]
                     res_rows.append(serialize_row(row))
                 return jsonify({'success': True, 'result': res_rows, 'columns': columns})
@@ -3307,6 +3339,8 @@ def get_used_history_by_barcode():
                         site_name = wo_sites.get(wo)
                         s_info = site_info_by_st_site.get((st, site_name)) or site_info_by_st.get(st) or {}
                         is_st_bound = (s_info.get('bind_status') == 'Đang gắn')
+                        st_users = ', '.join(sorted(users_by_st.get(st, []))) if st in users_by_st else None
+                        c_by_val = s_info.get('created_by') or st_users or None
                         summary[wo] = {
                             'work_order': wo,
                             'recipe_id': binfo['recipe_id'],
@@ -3315,7 +3349,8 @@ def get_used_history_by_barcode():
                             'site': site_name or s_info.get('site') or None,
                             'bind_status': 'Đang gắn' if is_st_bound else None,
                             'bind_time': s_info.get('bind_time') if is_st_bound else None,
-                            'bound_by': s_info.get('bound_by') if is_st_bound else None,
+                            'bind_by': s_info.get('bind_by') if is_st_bound else None,
+                            'created_by': c_by_val,
                             'remaining_quantity': s_info.get('remaining_qty', default_mr_qty),
                             'total_barcode': 0,
                             'total_fail_barcode': 0,
@@ -3342,6 +3377,8 @@ def get_used_history_by_barcode():
                     else:
                         consumption = "0"
                     
+                    is_bound = (s['bind_status'] == 'Đang gắn')
+                    created_by_val = None if is_bound else (s.get('created_by') or None)
                     row = [
                         s['work_order'],
                         s['recipe_id'],
@@ -3354,7 +3391,8 @@ def get_used_history_by_barcode():
                         s['site'],
                         s['bind_status'],
                         s['bind_time'],
-                        s['bound_by']
+                        s['bind_by'],
+                        created_by_val
                     ]
                     result_rows.append(serialize_row(row))
 
@@ -3396,6 +3434,10 @@ def get_used_history_by_barcode():
                     if station_val:
                         covered_stations.add(station_val)
 
+                    s_info_feed = site_info_by_st_site.get((station_val, feed_site)) or site_info_by_st.get(station_val) or {}
+                    st_users_feed = ', '.join(sorted(users_by_st.get(station_val, []))) if station_val in users_by_st else None
+                    created_by_feed = s_info_feed.get('created_by') or st_users_feed or bound_by_val or None
+
                     row = [
                         None,                         # work_order: null (-)
                         recipe_id_val,                # recipe_id: null (-)
@@ -3408,7 +3450,8 @@ def get_used_history_by_barcode():
                         (feed_site or '').strip() or None, # site: null (-)
                         None,                         # bind_status: null (-)
                         None,                         # bind_time: null (-)
-                        bound_by_val                  # bound_by: 'p8300' hoặc null (-)
+                        bound_by_val,                 # bind_by: 'p8300' hoặc null (-)
+                        created_by_feed               # created_by: '024659'
                     ]
                     result_rows.append(serialize_row(row))
 
@@ -3430,7 +3473,8 @@ def get_used_history_by_barcode():
                         sc_item['site'],
                         'Đang gắn',
                         sc_item['bind_time'],
-                        sc_item['bound_by']
+                        sc_item['bind_by'],
+                        None
                     ]
                     result_rows.append(serialize_row(row))
 
