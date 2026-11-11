@@ -15,6 +15,7 @@ if os.path.exists(_ocr_libs_path) and _ocr_libs_path not in sys.path:
 import base64
 import yaml
 import hashlib
+import hmac
 from datetime import datetime, timezone, timedelta, date
 import re
 import glob
@@ -941,49 +942,34 @@ def get_client_ip():
 DEFAULT_MES_USER = os.environ.get('DEFAULT_MES_USER', 'thsang')
 DEFAULT_MES_PASS = os.environ.get('DEFAULT_MES_PASS', 'thsang')
 
+def generate_ip_token(user_ip: str, issued_at: int) -> str:
+    """Tạo token ký số HMAC-SHA256 theo IP người dùng và timestamp."""
+    secret = app.secret_key if isinstance(app.secret_key, bytes) else str(app.secret_key).encode('utf-8')
+    raw_payload = f"{user_ip}:{issued_at}".encode('utf-8')
+    signature = hmac.new(secret, raw_payload, hashlib.sha256).hexdigest()[:32]
+    return f"kd_{user_ip}_{issued_at}_{signature}"
+
 def perform_mes_login(user_id=None, password=None):
-    """Tự động đăng nhập ngầm vào MES (198.1.10.85:8810) và lưu session."""
-    u_id = user_id or DEFAULT_MES_USER
-    pwd = password or DEFAULT_MES_PASS
+    """
+    Tự động cấp token nội bộ theo IP người dùng (thời hạn 1 tiếng - 3600s).
+    Không còn gọi và sử dụng https://198.1.10.85:8810/api/user/login,
+    không sử dụng username hay password.
+    """
     try:
-        user_ip = get_client_ip()
+        user_ip = get_client_ip() or "127.0.0.1"
     except Exception:
         user_ip = "127.0.0.1"
     
-    url = "https://198.1.10.85:8810/api/user/login"
-    headers = {
-        "accept": "application/json",
-        "Content-Type": "application/json"
-    }
-    data = {
-        "ID": u_id,
-        "loginType": 0,
-        "password": pwd
-    }
-    try:
-        response = requests.post(url, headers=headers, json=data, verify=False, timeout=10)
-        response_data = response.json()
-        if response_data.get('data') and response_data['data'].get('token'):
-            session['user_id'] = u_id
-            session['user_token'] = response_data['data']['token']
-            session['user_ip'] = user_ip
-            
-            cookie_parts = []
-            if response.cookies:
-                for cookie in response.cookies:
-                    cookie_parts.append(f"{cookie.name}={cookie.value}")
-            if 'Set-Cookie' in response.headers:
-                set_cookie = response.headers['Set-Cookie']
-                if ';' in set_cookie:
-                    cookie_parts.append(set_cookie.split(';')[0])
-                else:
-                    cookie_parts.append(set_cookie)
-            if cookie_parts:
-                session['user_cookie_string'] = '; '.join(cookie_parts)
-            return True
-    except Exception as e:
-        logger.error(f"perform_mes_login error: {e}")
-    return False
+    now = int(time.time())
+    token = generate_ip_token(user_ip, now)
+    
+    session['user_id'] = f"user_{user_ip}"
+    session['user_ip'] = user_ip
+    session['user_token'] = token
+    session['user_token_created_at'] = now
+    session['user_token_expires_at'] = now + 3600  # Thời hạn 1 tiếng (3600 giây)
+    session['user_cookie_string'] = ''
+    return True
 
 def fetch_mes_api_with_retry(method, url, **kwargs):
     """
@@ -1020,7 +1006,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.89"
+APP_VERSION = "2.3.90"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -1187,9 +1173,21 @@ def make_unauthorized_response(message='Phiên đăng nhập đã hết hạn. V
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+        token = session.get('user_token')
+        expires_at = session.get('user_token_expires_at')
+        
+        # Nếu chưa có token trong session (ví dụ request API khi chưa khởi tạo phiên)
+        if not token or not expires_at:
             if not perform_mes_login():
                 return make_unauthorized_response()
+            expires_at = session.get('user_token_expires_at')
+            
+        # Kiểm tra token đã hết hạn 1 tiếng (3600s) chưa
+        now = int(time.time())
+        if now >= expires_at:
+            logger.warning(f"Phiên token đã hết hạn cho IP {session.get('user_ip')} (hết hạn lúc {expires_at}, hiện tại {now})")
+            return make_unauthorized_response('Phiên đăng nhập đã hết hạn (1 tiếng). Vui lòng tải lại trang.')
+            
         return f(*args, **kwargs)
     return decorated_function
 
@@ -1334,7 +1332,8 @@ def check_auth():
 
 #========= PAGE ROUTES =========#
 def render_page_or_shell(template_name, page_path, page_title="KDMES TOOL"):
-    if 'user_id' not in session or 'user_token' not in session or 'user_ip' not in session:
+    now = int(time.time())
+    if 'user_token' not in session or now >= session.get('user_token_expires_at', 0):
         perform_mes_login()
     is_frame = request.args.get('frame') == '1'
     current_version = get_asset_version()
@@ -4085,100 +4084,73 @@ _STATIONS_CACHE_TTL = 600  # 10 minutes cache
 @app.route('/api/departments', methods=['GET'])
 @login_required
 def get_department_list():
-    url = 'https://198.1.10.85:8810/api/departments'
+    """
+    Lấy danh sách các phòng ban được chỉ định từ PostgreSQL (198.1.10.85).
+    Chỉ lấy các department: P5300, P5400, P5500, P8300, P8400, P8500, P8700, P8800, P9100.
+    """
     try:
-        response = fetch_mes_api_with_retry('GET', url)
-        response.raise_for_status()
-        data = response.json()
-        
-        dept_data = []
-        if isinstance(data, dict) and 'data' in data:
-            dept_data = data['data']
-        elif isinstance(data, list):
-            dept_data = data
-        
-        normalized_data = []
-        for item in dept_data:
-            if isinstance(item, dict):
-                dept_id = str(
-                    item.get('departmentId') or 
-                    item.get('departmentID') or 
-                    item.get('id') or 
-                    item.get('department') or 
-                    ''
-                ).strip()
-                dept_dict = dict(item)
-                dept_dict['id'] = dept_id
-                dept_dict['departmentId'] = dept_id
-                dept_dict['departmentID'] = dept_id
-                normalized_data.append(dept_dict)
-            elif isinstance(item, str):
-                s_id = item.strip()
-                normalized_data.append({
-                    'id': s_id,
-                    'departmentId': s_id,
-                    'departmentID': s_id
-                })
-            else:
-                normalized_data.append(item)
-        
+        query = """
+            SELECT id 
+            FROM kvmes.department 
+            WHERE id IN ('P5300', 'P5400', 'P5500', 'P8300', 'P8400', 'P8500', 'P8700', 'P8800', 'P9100')
+            ORDER BY id;
+        """
+        rows, _ = execute_pg_select_query(query)
+        normalized_data = [
+            {
+                'id': row[0],
+                'departmentId': row[0],
+                'departmentID': row[0]
+            }
+            for row in rows
+        ]
         return jsonify({
             'error': False,
             'data': normalized_data
         })
-    
     except Exception as e:
-        error_msg = str(e)
+        logger.error(f"Lỗi truy vấn departments từ PostgreSQL: {e}")
         return jsonify({
             'error': True,
-            'code': 'INTERNAL_ERROR',
-            'message': error_msg
+            'code': 'DATABASE_ERROR',
+            'message': str(e)
         }), 500
 
 @app.route('/api/departments/stations', methods=['POST'])
 @login_required
 def get_station_list_by_department():
-    department_oid = request.json.get('department_oid', '').strip()
+    """
+    Lấy danh sách trạm máy thuộc phòng ban từ PostgreSQL (198.1.10.85).
+    Truy vấn bảng kvmes.station theo admin_department_id.
+    """
+    department_oid = request.json.get('department_oid', '').strip() if request.is_json and request.json else ''
     if not department_oid:
         return jsonify({'stations': []})
     
-    now = time.time()
-    cached_entry = _STATIONS_CACHE.get(department_oid)
-    if cached_entry and (now - cached_entry['timestamp'] < _STATIONS_CACHE_TTL):
-        return jsonify({'stations': cached_entry['data']})
-    
-    url = f'https://198.1.10.85:8810/api/station-list/department-oid/{department_oid}'
     try:
-        response = fetch_mes_api_with_retry('GET', url)
-        data = response.json()
-        stations = []
-        if data.get('data'):
-            for item in data['data']:
-                if isinstance(item, dict):
-                    st_id = str(item.get('id') or item.get('ID') or item.get('stationId') or item.get('stationID') or '').strip()
-                    st_name = str(item.get('name') or item.get('Name') or st_id).strip()
-                    stations.append({
-                        'id': st_id,
-                        'ID': st_id,
-                        'name': st_name
-                    })
-                elif isinstance(item, str):
-                    s_str = item.strip()
-                    stations.append({
-                        'id': s_str,
-                        'ID': s_str,
-                        'name': s_str
-                    })
-        
-        _STATIONS_CACHE[department_oid] = {
-            'data': stations,
-            'timestamp': now
-        }
+        query = """
+            SELECT id 
+            FROM kvmes.station 
+            WHERE admin_department_id = %s 
+            ORDER BY id;
+        """
+        rows, _ = execute_pg_select_query(query, (department_oid,))
+        stations = [
+            {
+                'id': row[0],
+                'ID': row[0],
+                'name': row[0]
+            }
+            for row in rows
+        ]
         return jsonify({'stations': stations})
     except Exception as e:
-        if cached_entry:
-            return jsonify({'stations': cached_entry['data']})
-        return jsonify({'stations': [], 'error': str(e)})
+        logger.error(f"Lỗi truy vấn stations cho department '{department_oid}' từ PostgreSQL: {e}")
+        return jsonify({
+            'error': True,
+            'message': f"Lỗi truy vấn cơ sở dữ liệu: {str(e)}",
+            'stations': []
+        }), 500
 
 @app.route('/api/work-orders/get-active-list', methods=['POST'])
 @login_required
@@ -9891,7 +9863,6 @@ def resolve_mes_account_password(acc_id, raw_pwd):
 @app.route('/api/account/check-kd-account', methods=['GET', 'POST'])
 @login_required
 def api_check_kd_account():
-    import hashlib
     try:
         search_term = ''
         if request.method == 'POST':
@@ -10048,7 +10019,6 @@ def api_fetch_all_accounts():
 @app.route('/api/account/update-kd-accounts', methods=['POST'])
 @login_required
 def api_update_kd_accounts():
-    import hashlib
     try:
         data = request.get_json(silent=True) or {}
         updates = data.get('updates') or []
