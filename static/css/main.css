@@ -14370,3 +14370,48 @@ body.is-spa-frame .kd-fab-container {
     font-size: 14px !important;
     padding: 9px 16px !important;
 }
+
+/* ==============================================================================
+ * FAB SPEED DIAL - FLOATING TOAST NOTIFICATION SAFEGUARD
+ * ============================================================================== */
+.kd-toast-notification {
+    position: fixed !important;
+    bottom: 24px !important;
+    left: 50% !important;
+    transform: translateX(-50%) translateY(20px) !important;
+    background: rgba(15, 23, 42, 0.95) !important;
+    border: 1px solid rgba(16, 185, 129, 0.5) !important;
+    box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.7), 0 0 18px rgba(16, 185, 129, 0.25) !important;
+    color: #ecfdf5 !important;
+    padding: 10px 22px !important;
+    border-radius: 9999px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.3px !important;
+    z-index: 2147483647 !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.25s !important;
+    white-space: nowrap !important;
+    user-select: none !important;
+}
+
+.kd-toast-notification.show {
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: translateX(-50%) translateY(0) !important;
+}
+
+@media (max-width: 600px) {
+    #toastContainer {
+        bottom: 16px !important;
+        right: 16px !important;
+        left: 16px !important;
+        width: calc(100vw - 32px) !important;
+        max-width: calc(100vw - 32px) !important;
+        align-items: stretch !important;
+    }
+}

@@ -1363,91 +1363,124 @@
 
 
     function copyToClipboard(text, successMsg) {
+        const handleSuccess = () => showToast(successMsg || 'Đã sao chép');
+        const handleFail = () => showToast('Không thể sao chép');
 
-        if (!navigator.clipboard) {
-
-            const ta = document.createElement('textarea');
-
-            ta.value = text;
-
-            ta.style.position = 'fixed';
-
-            ta.style.opacity = '0';
-
-            document.body.appendChild(ta);
-
-            ta.select();
-
-            document.execCommand('copy');
-
-            document.body.removeChild(ta);
-
-            showToast(successMsg || 'Đã sao chép');
-
+        if (!navigator.clipboard || !navigator.clipboard.writeText) {
+            try {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                ta.style.pointerEvents = 'none';
+                document.body.appendChild(ta);
+                ta.select();
+                const ok = document.execCommand('copy');
+                if (ta.parentNode) ta.parentNode.removeChild(ta);
+                if (ok) handleSuccess();
+                else handleFail();
+            } catch (e) {
+                handleFail();
+            }
             return;
-
         }
-
-
 
         navigator.clipboard.writeText(text).then(() => {
-
-            showToast(successMsg || 'Đã sao chép');
-
+            handleSuccess();
         }).catch(err => {
-
-            console.error('Clipboard error:', err);
-
-            showToast('Không thể sao chép');
-
+            console.warn('Clipboard API failed, trying fallback execCommand:', err);
+            try {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                ta.style.pointerEvents = 'none';
+                document.body.appendChild(ta);
+                ta.select();
+                const ok = document.execCommand('copy');
+                if (ta.parentNode) ta.parentNode.removeChild(ta);
+                if (ok) handleSuccess();
+                else handleFail();
+            } catch (fallbackErr) {
+                console.error('Clipboard fallback error:', fallbackErr);
+                handleFail();
+            }
         });
-
     }
 
-
-
     window.copyResultText = function (elementId, msg) {
-
         const el = document.getElementById(elementId);
-
         if (el) {
-
             copyToClipboard(el.textContent.trim(), msg);
 
+            // Button feedback (visual confirmation on the clicked element)
+            try {
+                const ev = window.event;
+                const btn = ev ? (ev.currentTarget || ev.target) : null;
+                const targetBtn = btn ? (btn.tagName === 'BUTTON' ? btn : btn.closest('button')) : null;
+                if (targetBtn && !targetBtn._copying) {
+                    targetBtn._copying = true;
+                    const origHtml = targetBtn.innerHTML;
+                    if (targetBtn.classList.contains('kd-copy-mini')) {
+                        targetBtn.innerHTML = '<span style="color:#10b981;font-weight:700;">✓ Đã chép</span>';
+                    } else if (targetBtn.classList.contains('btn-copy-hero')) {
+                        targetBtn.innerHTML = '<span class="material-symbols-outlined" style="color:#10b981;font-size:15px;">check</span> Đã copy!';
+                    } else if (targetBtn.classList.contains('kd-copy-btn')) {
+                        targetBtn.innerHTML = '<span class="material-symbols-outlined" style="color:#10b981;font-size:16px;">check</span>';
+                    }
+                    setTimeout(() => {
+                        targetBtn.innerHTML = origHtml;
+                        targetBtn._copying = false;
+                    }, 1400);
+                }
+            } catch (e) {
+                // silent fallback
+            }
         }
-
     };
 
-
-
     function showToast(msg) {
-
-        let toast = document.getElementById('kdToastNotification');
-
-        if (!toast) {
-
-            toast = document.createElement('div');
-
-            toast.id = 'kdToastNotification';
-
-            toast.className = 'kd-toast-notification';
-
-            document.body.appendChild(toast);
-
+        // Clean up any legacy or orphan #kdToastNotification element
+        const legacy = document.getElementById('kdToastNotification');
+        if (legacy) {
+            try { legacy.remove(); } catch (e) {}
         }
 
-        toast.textContent = msg;
+        // 1. First priority: Use project's global Toast system (top/parent/window)
+        const toastSystem = (typeof Toast !== 'undefined' && Toast)
+            || (window.top && typeof window.top.Toast !== 'undefined' && window.top.Toast)
+            || (window.parent && typeof window.parent.Toast !== 'undefined' && window.parent.Toast);
 
+        if (toastSystem && typeof toastSystem.show === 'function') {
+            const isError = /không|lỗi|thất bại|error|fail/i.test(msg || '');
+            if (isError) {
+                toastSystem.error('Lỗi', msg || 'Không thể sao chép');
+            } else {
+                toastSystem.success('Thành công', msg || 'Đã sao chép');
+            }
+            return;
+        }
+
+        // 2. Safe Fallback: Floating toast pill with auto-removal from DOM
+        const toast = document.createElement('div');
+        toast.id = 'kdToastNotification';
+        toast.className = 'kd-toast-notification';
+        toast.textContent = msg || 'Đã sao chép';
+        document.body.appendChild(toast);
+
+        // Force reflow for CSS animation
+        void toast.offsetWidth;
         toast.classList.add('show');
 
         clearTimeout(toast._timer);
-
         toast._timer = setTimeout(() => {
-
             toast.classList.remove('show');
-
+            setTimeout(() => {
+                try {
+                    if (toast && toast.parentNode) toast.parentNode.removeChild(toast);
+                } catch (e) {}
+            }, 300);
         }, 2200);
-
     }
 
 
