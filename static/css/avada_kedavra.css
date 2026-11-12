@@ -113,13 +113,13 @@
 
 /* Inactive State: "Kích hoạt" */
 .btn-avada-kedavra-toggle.is-inactive {
-    background: linear-gradient(135deg, rgba(244, 63, 94, 0.15) 0%, rgba(225, 29, 72, 0.3) 100%);
+    background: #e11d48;
     border-color: rgba(244, 63, 94, 0.4);
     color: #fda4af;
 }
 
 .btn-avada-kedavra-toggle.is-inactive:hover {
-    background: linear-gradient(135deg, rgba(244, 63, 94, 0.28) 0%, rgba(225, 29, 72, 0.5) 100%);
+    background: #e11d48;
     border-color: var(--rose-500);
     color: #ffffff;
     transform: translateY(-1px);
@@ -132,7 +132,7 @@
 
 /* Active State: "Đang kích hoạt" */
 .btn-avada-kedavra-toggle.is-active {
-    background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
+    background: #e11d48;
     border-color: #f43f5e;
     color: #ffffff;
     box-shadow: 0 0 20px rgba(225, 29, 72, 0.55), inset 0 1px 1px rgba(255, 255, 255, 0.25);
@@ -140,7 +140,7 @@
 }
 
 .btn-avada-kedavra-toggle.is-active:hover {
-    background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
+    background: #e11d48;
     box-shadow: 0 0 28px rgba(225, 29, 72, 0.75);
     transform: translateY(-1px);
 }
