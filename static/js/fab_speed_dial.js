@@ -1440,16 +1440,31 @@
     };
 
     function showToast(msg) {
-        // Clean up any legacy or orphan #kdToastNotification element
-        const legacy = document.getElementById('kdToastNotification');
-        if (legacy) {
-            try { legacy.remove(); } catch (e) {}
-        }
+        // Clean up any legacy or orphan #kdToastNotification element across documents
+        const removeOrphan = (targetDoc) => {
+            try {
+                if (!targetDoc) return;
+                const legacy = targetDoc.getElementById('kdToastNotification');
+                if (legacy) legacy.remove();
+            } catch (e) {}
+        };
+        removeOrphan(document);
+        try { if (window.top && window.top.document) removeOrphan(window.top.document); } catch (e) {}
+        try { if (window.parent && window.parent.document) removeOrphan(window.parent.document); } catch (e) {}
 
         // 1. First priority: Use project's global Toast system (top/parent/window)
-        const toastSystem = (typeof Toast !== 'undefined' && Toast)
-            || (window.top && typeof window.top.Toast !== 'undefined' && window.top.Toast)
-            || (window.parent && typeof window.parent.Toast !== 'undefined' && window.parent.Toast);
+        let toastSystem = null;
+        try {
+            if (typeof Toast !== 'undefined' && Toast && typeof Toast.show === 'function') {
+                toastSystem = Toast;
+            } else if (window.top && typeof window.top.Toast !== 'undefined' && window.top.Toast && typeof window.top.Toast.show === 'function') {
+                toastSystem = window.top.Toast;
+            } else if (window.parent && typeof window.parent.Toast !== 'undefined' && window.parent.Toast && typeof window.parent.Toast.show === 'function') {
+                toastSystem = window.parent.Toast;
+            }
+        } catch (e) {
+            toastSystem = (typeof Toast !== 'undefined' && Toast) ? Toast : null;
+        }
 
         if (toastSystem && typeof toastSystem.show === 'function') {
             const isError = /không|lỗi|thất bại|error|fail/i.test(msg || '');
@@ -1461,12 +1476,23 @@
             return;
         }
 
-        // 2. Safe Fallback: Floating toast pill with auto-removal from DOM
-        const toast = document.createElement('div');
+        // 2. Safe Fallback: Floating toast pill with inline styles safeguard (0% unstyled chance)
+        let hostDoc = document;
+        try {
+            if (window.top && window.top.document && window.top.document.body) {
+                hostDoc = window.top.document;
+            }
+        } catch (e) {
+            hostDoc = document;
+        }
+
+        const toast = hostDoc.createElement('div');
         toast.id = 'kdToastNotification';
         toast.className = 'kd-toast-notification';
+        toast.setAttribute('role', 'alert');
+        toast.style.cssText = 'position:fixed!important;bottom:24px!important;left:50%!important;transform:translateX(-50%)!important;background:#111827!important;color:#3DD5C0!important;border:1px solid #1E293B!important;box-shadow:0 12px 30px rgba(0,0,0,0.85)!important;padding:10px 22px!important;border-radius:9999px!important;font-size:13px!important;font-weight:600!important;z-index:2147483647!important;white-space:nowrap!important;pointer-events:none!important;font-family:inherit!important;line-height:1.4!important;letter-spacing:0.3px!important;';
         toast.textContent = msg || 'Đã sao chép';
-        document.body.appendChild(toast);
+        hostDoc.body.appendChild(toast);
 
         // Force reflow for CSS animation
         void toast.offsetWidth;

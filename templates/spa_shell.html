@@ -203,9 +203,8 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/smooth_input.css') }}?v={{ version }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/material-symbols/material-symbols.css') }}">
 
-    <!-- Deferred main.css (only needed for modals in top shell, prevents 340KB render blocking) -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v={{ version }}" media="print" onload="this.media='all'">
-    <noscript><link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v={{ version }}"></noscript>
+    <!-- Main CSS for Modals, Toasts, and Shared UI Components -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v={{ version }}">
 </head>
 
 <body class="spa-shell-body">
