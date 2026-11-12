@@ -1365,9 +1365,10 @@ body.theme-light .quick-action-btn:hover {
 
     .mobile-menu-btn,
     .mobile-action-btn {
-        width: 40px;
-        height: 40px;
-        min-width: 40px;
+        width: 44px;
+        height: 44px;
+        min-width: 44px;
+        min-height: 44px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -1486,6 +1487,18 @@ body.theme-light .quick-action-btn:hover {
         overflow-y: auto !important;
         -webkit-overflow-scrolling: touch !important;
         padding-bottom: 16px !important;
+    }
+
+    #sidebar a,
+    #sidebar .dropdown-btn {
+        min-height: 44px !important;
+        display: flex !important;
+        align-items: center !important;
+    }
+
+    .sidebar-footer-help-btn {
+        min-height: 44px !important;
+        height: 44px !important;
     }
 
     /* 5. SPA Viewport on Mobile */

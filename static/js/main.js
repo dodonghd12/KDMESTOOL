@@ -2308,6 +2308,10 @@ function displayTable(result, columns) {
         row.forEach((cell, cellIndex) => {
             const td = document.createElement('td');
             const colName = (columns && columns.length > cellIndex) ? String(columns[cellIndex]).trim() : '';
+            if (colName) {
+                td.setAttribute('data-label', colName);
+                td.dataset.label = colName;
+            }
 
             // Format cell value - if it's an object, convert to JSON
             let cellValue = '';
@@ -4691,6 +4695,7 @@ function createMesTableRow(item, level = 0, parentNodeId = null, ancestorIds = [
 
     // 2. Product_type (Badge)
     const tdType = document.createElement('td');
+    tdType.setAttribute('data-label', 'Loại');
     const rawType = (item.productType || 'N/A').toUpperCase();
     tdType.innerHTML = `<span class="mes-product-type-badge mes-badge-${rawType.toLowerCase()}">${escapeHtml(rawType)}</span>`;
     tdType.dataset.fullValue = rawType;
@@ -4698,6 +4703,7 @@ function createMesTableRow(item, level = 0, parentNodeId = null, ancestorIds = [
 
     // 3. Barcode (Resource ID)
     const tdResource = document.createElement('td');
+    tdResource.setAttribute('data-label', 'Barcode');
     tdResource.className = 'font-mono text-cyan-400 font-medium';
     tdResource.textContent = item.resourceID || '-';
     tdResource.dataset.fullValue = item.resourceID || '';
@@ -4706,6 +4712,7 @@ function createMesTableRow(item, level = 0, parentNodeId = null, ancestorIds = [
 
     // 4. Product_id (Product ID)
     const tdProduct = document.createElement('td');
+    tdProduct.setAttribute('data-label', 'Product ID');
     tdProduct.className = 'font-mono font-medium';
     tdProduct.textContent = item.productID || '-';
     tdProduct.dataset.fullValue = item.productID || '';
@@ -4714,6 +4721,7 @@ function createMesTableRow(item, level = 0, parentNodeId = null, ancestorIds = [
 
     // 5. Số Lượng
     const tdQty = document.createElement('td');
+    tdQty.setAttribute('data-label', 'Số lượng');
     tdQty.className = 'text-right font-mono font-medium';
     tdQty.textContent = (item.quantity !== undefined && item.quantity !== null && item.quantity !== '') ? item.quantity : '-';
     tdQty.dataset.fullValue = String(item.quantity ?? '');
@@ -4721,6 +4729,7 @@ function createMesTableRow(item, level = 0, parentNodeId = null, ancestorIds = [
 
     // 6. Số Lô
     const tdLot = document.createElement('td');
+    tdLot.setAttribute('data-label', 'Số lô');
     tdLot.className = 'font-mono';
     tdLot.textContent = item.lotNumber || '-';
     tdLot.dataset.fullValue = item.lotNumber || '';
@@ -4728,6 +4737,7 @@ function createMesTableRow(item, level = 0, parentNodeId = null, ancestorIds = [
 
     // 7. Trạm / Máy
     const tdStation = document.createElement('td');
+    tdStation.setAttribute('data-label', 'Trạm / Máy');
     tdStation.className = 'font-mono';
     tdStation.textContent = item.stationID || '-';
     tdStation.dataset.fullValue = item.stationID || '';
@@ -4735,12 +4745,14 @@ function createMesTableRow(item, level = 0, parentNodeId = null, ancestorIds = [
 
     // 8. Ngày SX
     const tdProdDate = document.createElement('td');
+    tdProdDate.setAttribute('data-label', 'Ngày SX');
     tdProdDate.textContent = item.productionDate || '-';
     tdProdDate.dataset.fullValue = item.productionDate || '';
     tr.appendChild(tdProdDate);
 
     // 9. Thời Gian SX
     const tdProdTime = document.createElement('td');
+    tdProdTime.setAttribute('data-label', 'Giờ SX');
     const formattedProdTime = item.productionTime ? formatIsoDateTimeStr(item.productionTime) : '-';
     tdProdTime.textContent = formattedProdTime;
     tdProdTime.dataset.fullValue = formattedProdTime;
@@ -4749,6 +4761,7 @@ function createMesTableRow(item, level = 0, parentNodeId = null, ancestorIds = [
 
     // 10. NV Sản Xuất
     const tdStaff = document.createElement('td');
+    tdStaff.setAttribute('data-label', 'Nhân viên');
     const staffVal = item.productionStaff || (Array.isArray(item.boundResourceUserIDs) && item.boundResourceUserIDs.length > 0 ? item.boundResourceUserIDs.join(', ') : (Array.isArray(item.boundResourceUserIds) && item.boundResourceUserIds.length > 0 ? item.boundResourceUserIds.join(', ') : '-'));
     tdStaff.textContent = staffVal;
     tdStaff.dataset.fullValue = staffVal;
@@ -4756,6 +4769,7 @@ function createMesTableRow(item, level = 0, parentNodeId = null, ancestorIds = [
 
     // 11. Hạn Dùng
     const tdExpiry = document.createElement('td');
+    tdExpiry.setAttribute('data-label', 'Hạn dùng');
     const formattedExpiry = item.expiryTime ? formatIsoDateTimeStr(item.expiryTime) : '-';
     tdExpiry.textContent = formattedExpiry;
     tdExpiry.dataset.fullValue = formattedExpiry;
@@ -7745,6 +7759,10 @@ function renderOutputBarcodeTable(rows, columns) {
         row.forEach((val, valIdx) => {
             const td = document.createElement('td');
             const colName = (columns && columns.length > valIdx) ? String(columns[valIdx]).trim() : '';
+            if (colName) {
+                td.setAttribute('data-label', colName);
+                td.dataset.label = colName;
+            }
             if (colName && hiddenColumns.includes(colName)) {
                 td.style.display = 'none';
             }
@@ -7946,6 +7964,10 @@ function renderSubOutputBarcodeTable(rows, columns) {
         row.forEach((val, valIdx) => {
             const td = document.createElement('td');
             const colName = (columns && columns.length > valIdx) ? String(columns[valIdx]).trim() : '';
+            if (colName) {
+                td.setAttribute('data-label', colName);
+                td.dataset.label = colName;
+            }
             if (colName && hiddenColumns.includes(colName)) {
                 td.style.display = 'none';
             }

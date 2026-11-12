@@ -10756,11 +10756,11 @@ body.theme-light .material-transfer-retry-btn.is-success {
         margin-bottom: 0 !important;
     }
 
-    /* Floating switcher pills (Barcode ⇋ Feed Record, Recipe ⇋ Work Order) - 2x2 Compact Grid */
+    /* Floating switcher pills (Barcode ⇋ Feed Record, Recipe ⇋ Work Order) - 2x2 Grid with Touch-friendly Gap */
     .search-section:has(.search-row-switchable) {
         display: grid !important;
         grid-template-columns: 1fr 1fr !important;
-        row-gap: 14px !important;
+        row-gap: 28px !important;
         column-gap: 8px !important;
         width: 100% !important;
     }
@@ -10792,7 +10792,8 @@ body.theme-light .material-transfer-retry-btn.is-success {
         width: 100% !important;
         min-width: 0 !important;
         max-width: 100% !important;
-        height: 42px !important;
+        height: 44px !important;
+        min-height: 44px !important;
         margin-bottom: 0 !important;
     }
 
@@ -10801,39 +10802,43 @@ body.theme-light .material-transfer-retry-btn.is-success {
         width: 100% !important;
         min-width: 0 !important;
         max-width: 100% !important;
-        height: 42px !important;
+        height: 44px !important;
+        min-height: 44px !important;
     }
 
     .search-section .input-switcher-container .input {
-        height: 42px !important;
+        height: 44px !important;
+        min-height: 44px !important;
         padding: 0 10px !important;
-        font-size: 16px !important;
+        font-size: 15px !important;
     }
 
     .search-section .input-mode-toggle-btn {
-        bottom: -10px !important;
-        height: 20px !important;
-        line-height: 18px !important;
-        padding: 0 8px !important;
-        font-size: 10.5px !important;
+        bottom: -22px !important;
+        height: 44px !important;
+        min-height: 44px !important;
+        line-height: 42px !important;
+        padding: 0 14px !important;
+        font-size: 11px !important;
         letter-spacing: 0.2px !important;
+        border-radius: 22px !important;
     }
 
     .search-section .input-mode-toggle-btn .toggle-icon {
-        font-size: 12px !important;
-        width: 12px !important;
-        height: 12px !important;
+        font-size: 14px !important;
+        width: 14px !important;
+        height: 14px !important;
     }
 
     .search-section:has(.search-row-switchable) .search-row-client .input,
     .search-section:has(.search-row-switchable) .search-row-client .input-box {
-        height: 42px !important;
-        min-height: 42px !important;
+        height: 44px !important;
+        min-height: 44px !important;
     }
 
     .search-section:has(.search-row-switchable) .ocr-dropzone {
-        height: 42px !important;
-        min-height: 42px !important;
+        height: 44px !important;
+        min-height: 44px !important;
         padding: 2px 8px !important;
         box-sizing: border-box !important;
     }
@@ -12149,9 +12154,32 @@ body.theme-light .material-transfer-retry-btn.is-success {
         margin-top: 0 !important;
     }
 
-    .output-header {
+    .output-header,
+    .sub-output-header {
         font-size: 12px !important;
-        padding: 6px 10px !important;
+        padding: 4px 10px !important;
+        min-height: 48px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+    }
+
+    .output-header .close-btn,
+    .sub-output-header .close-btn {
+        width: 44px !important;
+        height: 44px !important;
+        min-width: 44px !important;
+        min-height: 44px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        border-radius: 8px !important;
+    }
+
+    .output-header .close-btn svg,
+    .sub-output-header .close-btn svg {
+        width: 18px !important;
+        height: 18px !important;
     }
 
     .output-table-scroll {
@@ -12162,16 +12190,39 @@ body.theme-light .material-transfer-retry-btn.is-success {
         -webkit-overflow-scrolling: touch !important;
     }
 
-    .output-footer {
+    .output-footer,
+    .table-footer {
         flex-shrink: 0 !important;
         display: flex !important;
         justify-content: space-between !important;
         align-items: center !important;
         padding: 6px 10px !important;
+        min-height: 52px !important;
         margin-top: auto !important;
         border-top: 1px solid var(--color-border-glass) !important;
         background: var(--color-bg-surface-elevated, rgba(15, 23, 42, 0.95)) !important;
         gap: 6px !important;
+    }
+
+    .btn-export-excel {
+        min-height: 44px !important;
+        height: 44px !important;
+        min-width: 105px !important;
+        width: auto !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        border-radius: 10px !important;
+    }
+
+    .btn-export-excel-wrapper {
+        min-height: 44px !important;
+        height: 44px !important;
+    }
+
+    .btn-export-excel .text {
+        font-size: 13px !important;
+        font-weight: 700 !important;
     }
 
     /* 11. Details Modal & Custom Modal on Mobile */
@@ -12184,7 +12235,50 @@ body.theme-light .material-transfer-retry-btn.is-success {
 
     .details-modal-header {
         padding: 8px 12px !important;
-        min-height: 40px !important;
+        min-height: 48px !important;
+    }
+
+    .details-modal-close,
+    .help-modal-close-btn {
+        width: 44px !important;
+        height: 44px !important;
+        min-width: 44px !important;
+        min-height: 44px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        border-radius: 8px !important;
+    }
+
+    .kd-tab {
+        min-height: 44px !important;
+        height: 44px !important;
+        padding: 0 16px !important;
+    }
+
+    .kd-action-btn,
+    .btn-now {
+        min-height: 44px !important;
+        height: 44px !important;
+        padding: 0 16px !important;
+    }
+
+    .kd-fab-main {
+        width: 44px !important;
+        height: 44px !important;
+        min-width: 44px !important;
+        min-height: 44px !important;
+    }
+
+    .kd-speed-dial-action {
+        width: 44px !important;
+        height: 44px !important;
+        min-width: 44px !important;
+        min-height: 44px !important;
+    }
+
+    .help-nav-item {
+        min-height: 44px !important;
     }
 
     .details-modal-search-box {
@@ -12253,9 +12347,14 @@ body.theme-light .material-transfer-retry-btn.is-success {
     }
 
     .comparison-close-btn {
-        width: 32px !important;
-        height: 32px !important;
+        width: 44px !important;
+        height: 44px !important;
+        min-width: 44px !important;
+        min-height: 44px !important;
         border-radius: 8px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
     }
 
     .comparison-meta-info {
@@ -14415,3 +14514,272 @@ body.is-spa-frame .kd-fab-container {
         align-items: stretch !important;
     }
 }
+
+/* ==============================================================================
+ * RESPONSIVE OPTIMIZATION SUITE: 390px, 768px, 1440px
+ * 1. Global Zero-Horizontal-Scroll Enforcer
+ * 2. Stacked Cards for Data Tables (< 768px)
+ * 3. Touch Targets (Minimum 44px per WCAG 2.5.5 / Apple HIG)
+ * 4. Desktop Layout Preservation (1440px Unchanged)
+ * ============================================================================== */
+
+/* 1. Global Zero-Horizontal-Scroll Enforcer */
+html, body, .spa-shell-body, .spa-viewport, .container {
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
+    box-sizing: border-box !important;
+}
+
+/* 2. Stacked Cards for Data Tables when Screen Width < 768px */
+@media (max-width: 767.98px) {
+    .table-container,
+    .table-scroll,
+    .output-table-scroll,
+    .sub-output-table-scroll {
+        overflow-x: hidden !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Hide standard multi-column table headers */
+    .table-scroll table thead,
+    .output-table-scroll table thead,
+    .sub-output-table-scroll table thead,
+    table:not(.calendar-table) thead {
+        display: none !important;
+    }
+
+    /* Block display for table elements */
+    .table-scroll table,
+    .output-table-scroll table,
+    .sub-output-table-scroll table,
+    table:not(.calendar-table) {
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        border-collapse: separate !important;
+        border-spacing: 0 !important;
+    }
+
+    .table-scroll table tbody,
+    .output-table-scroll table tbody,
+    .sub-output-table-scroll table tbody,
+    table:not(.calendar-table) tbody {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 12px !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        padding: 4px 0 12px 0 !important;
+    }
+
+    /* Transform each table row (tr) into a Stacked Card */
+    .table-scroll table tbody tr:not(.empty-row),
+    .output-table-scroll table tbody tr:not(.empty-row),
+    .sub-output-table-scroll table tbody tr:not(.empty-row),
+    table:not(.calendar-table) tbody tr:not(.empty-row) {
+        display: flex !important;
+        flex-direction: column !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        background: rgba(15, 23, 42, 0.85) !important;
+        border: 1px solid rgba(61, 213, 192, 0.25) !important;
+        border-radius: 12px !important;
+        padding: 12px 14px !important;
+        margin-bottom: 0 !important;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+        backdrop-filter: blur(14px) !important;
+        -webkit-backdrop-filter: blur(14px) !important;
+        position: relative !important;
+        transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease !important;
+    }
+
+    .table-scroll table tbody tr:active,
+    .output-table-scroll table tbody tr:active,
+    .sub-output-table-scroll table tbody tr:active,
+    table:not(.calendar-table) tbody tr:active {
+        transform: scale(0.99) !important;
+        border-color: rgba(61, 213, 192, 0.5) !important;
+    }
+
+    /* Preserve missing collect alert styling on cards */
+    .table-scroll table tbody tr.row-missing-collect,
+    .output-table-scroll table tbody tr.row-missing-collect,
+    .sub-output-table-scroll table tbody tr.row-missing-collect {
+        border-left: 5px solid #f59e0b !important;
+        background: rgba(245, 158, 11, 0.12) !important;
+    }
+
+    /* Transform each cell (td) into a Key-Value flex line */
+    .table-scroll table tbody td,
+    .output-table-scroll table tbody td,
+    .sub-output-table-scroll table tbody td,
+    table:not(.calendar-table) tbody td {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        text-align: right !important;
+        padding: 7px 0 !important;
+        border: none !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.07) !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        font-size: 13px !important;
+        color: #f1f5f9 !important;
+        min-height: 38px !important;
+        word-break: break-word !important;
+        white-space: normal !important;
+    }
+
+    .table-scroll table tbody td:last-child,
+    .output-table-scroll table tbody td:last-child,
+    .sub-output-table-scroll table tbody td:last-child,
+    table:not(.calendar-table) tbody td:last-child {
+        border-bottom: none !important;
+    }
+
+    /* Display Column Header as key label via attr(data-label) */
+    .table-scroll table tbody td[data-label]::before,
+    .output-table-scroll table tbody td[data-label]::before,
+    .sub-output-table-scroll table tbody td[data-label]::before,
+    table:not(.calendar-table) tbody td[data-label]::before {
+        content: attr(data-label);
+        display: inline-block !important;
+        font-weight: 700 !important;
+        font-size: 11px !important;
+        letter-spacing: 0.5px !important;
+        color: #3dd5c0 !important;
+        text-transform: uppercase !important;
+        text-align: left !important;
+        margin-right: 12px !important;
+        flex-shrink: 0 !important;
+        max-width: 44% !important;
+    }
+
+    /* Empty state handling */
+    table tbody tr:has(.table-empty-state),
+    table tbody tr:has(.recipe-empty-container),
+    tr:has(td:not([data-label])) {
+        border: none !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+    }
+
+    td:not([data-label]) {
+        display: block !important;
+        text-align: center !important;
+        border: none !important;
+        width: 100% !important;
+    }
+
+    /* Disable sticky header and columns in card view */
+    .table-scroll table th,
+    .table-scroll table td,
+    .output-table-scroll table th,
+    .output-table-scroll table td {
+        position: static !important;
+        left: auto !important;
+    }
+}
+
+/* 3. Interactive Touch Targets Minimum 44px on Mobile & Tablet */
+@media (max-width: 800px) {
+    .btn-export-excel,
+    #exportExcelBtn,
+    #exportOutputExcelBtn,
+    #exportSubOutputExcelBtn {
+        min-height: 44px !important;
+        height: 44px !important;
+        min-width: 105px !important;
+        width: auto !important;
+        border-radius: 10px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    .output-header .close-btn,
+    .sub-output-header .close-btn {
+        width: 44px !important;
+        height: 44px !important;
+        min-width: 44px !important;
+        min-height: 44px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        border-radius: 8px !important;
+    }
+
+    .input-mode-toggle-btn {
+        min-height: 44px !important;
+        height: 44px !important;
+        line-height: 42px !important;
+        border-radius: 22px !important;
+        padding: 0 16px !important;
+        bottom: -22px !important;
+        font-size: 11.5px !important;
+    }
+
+    .search-section:has(.search-row-switchable) {
+        row-gap: 28px !important;
+    }
+
+    .input-box .input,
+    .input-wrapper .input,
+    .ocr-dropzone {
+        min-height: 44px !important;
+        height: 44px !important;
+    }
+
+    .kd-fab-main {
+        width: 44px !important;
+        height: 44px !important;
+        min-width: 44px !important;
+        min-height: 44px !important;
+    }
+
+    .kd-speed-dial-action {
+        width: 44px !important;
+        height: 44px !important;
+        min-width: 44px !important;
+        min-height: 44px !important;
+    }
+
+    .details-modal-close,
+    .comparison-close-btn,
+    .help-modal-close-btn {
+        width: 44px !important;
+        height: 44px !important;
+        min-width: 44px !important;
+        min-height: 44px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    .kd-tab,
+    .kd-action-btn,
+    .btn-now,
+    .help-nav-item {
+        min-height: 44px !important;
+    }
+}
+
+/* 4. Desktop Layout Preservation (1440px and >= 801px) */
+@media (min-width: 801px) {
+    /* Transparent touch zone safeguard that does NOT modify visual layout */
+    .input-mode-toggle-btn::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        min-width: 44px;
+        min-height: 44px;
+        width: 100%;
+        height: 100%;
+        pointer-events: auto;
+    }
+}
+
