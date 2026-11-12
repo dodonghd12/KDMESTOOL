@@ -1356,7 +1356,7 @@ span.flatpickr-weekday {
 /* Inactive 2nd Item when in 1st Mode (Pushed down) */
 .input-switcher-container[data-active-mode="barcode"] .input-switch-item[data-mode="feed_record"],
 .input-switcher-container[data-active-mode="recipe"] .input-switch-item[data-mode="work_order"] {
-    transform: translateY(18px) scale(0.95);
+    transform: translateY(18px);
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
@@ -1367,7 +1367,7 @@ span.flatpickr-weekday {
 /* Inactive 1st Item when in 2nd Mode (Pushed up) */
 .input-switcher-container[data-active-mode="feed_record"] .input-switch-item[data-mode="barcode"],
 .input-switcher-container[data-active-mode="work_order"] .input-switch-item[data-mode="recipe"] {
-    transform: translateY(-18px) scale(0.95);
+    transform: translateY(-18px);
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
@@ -14530,8 +14530,8 @@ html, body, .spa-shell-body, .spa-viewport, .container {
     box-sizing: border-box !important;
 }
 
-/* 2. Stacked Cards for Data Tables when Screen Width < 768px */
-@media (max-width: 767.98px) {
+/* 2. Stacked Cards for Data Tables when Screen Width <= 768px (Mobile & Tablet) */
+@media (max-width: 768px) {
     .table-container,
     .table-scroll,
     .output-table-scroll,
@@ -14565,8 +14565,8 @@ html, body, .spa-shell-body, .spa-viewport, .container {
     .output-table-scroll table tbody,
     .sub-output-table-scroll table tbody,
     table:not(.calendar-table) tbody {
-        display: flex !important;
-        flex-direction: column !important;
+        display: grid !important;
+        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)) !important;
         gap: 12px !important;
         width: 100% !important;
         box-sizing: border-box !important;
@@ -14760,9 +14760,14 @@ html, body, .spa-shell-body, .spa-viewport, .container {
 
     .kd-tab,
     .kd-action-btn,
-    .btn-now,
+    .btn-now {
+        min-height: 44px !important;
+        height: 44px !important;
+    }
+
     .help-nav-item {
         min-height: 44px !important;
+        height: 44px !important;
     }
 }
 
