@@ -16,7 +16,7 @@
         <!-- 1. Main -->
         <li>
             <a href="{{ url_for('main') }}">
-                <span class="material-symbols-outlined">home</span>
+                <span class="material-symbols-outlined" aria-hidden="true">home</span>
                 <span>Main</span>
             </a>
         </li>
@@ -24,7 +24,7 @@
         <!-- 2. Kiểm tra cấp liệu -->
         <li>
             <a href="{{ url_for('validate_scan_barcode') }}">
-                <span class="material-symbols-outlined">category_search</span>
+                <span class="material-symbols-outlined" aria-hidden="true">category_search</span>
                 <span>Kiểm tra cấp liệu</span>
             </a>
         </li>
@@ -32,30 +32,30 @@
         <!-- 3. Thông số kỹ thuật -->
         <li>
             <a href="{{ url_for('technical_specifications') }}">
-                <span class="material-symbols-outlined">tune</span>
+                <span class="material-symbols-outlined" aria-hidden="true">tune</span>
                 <span>Thông số kỹ thuật</span>
             </a>
         </li>
 
         <!-- 4. Deleted Data -->
         <li>
-            <button class="dropdown-btn">
-                <span class="material-symbols-outlined">delete_sweep</span>
+            <button type="button" class="dropdown-btn" aria-expanded="false">
+                <span class="material-symbols-outlined" aria-hidden="true">delete_sweep</span>
                 <span>Deleted Data</span>
-                <span class="material-symbols-outlined">keyboard_arrow_down</span>
+                <span class="material-symbols-outlined" aria-hidden="true">keyboard_arrow_down</span>
             </button>
 
             <ul class="sub-menu">
                 <div>
                     <li>
                         <a href="{{ url_for('gitlab_deleted_files') }}">
-                            <span class="material-symbols-outlined">delete_history</span>
+                            <span class="material-symbols-outlined" aria-hidden="true">delete_history</span>
                             <span>Gitlab Deleted Files</span>
                         </a>
                     </li>
                     <li>
                         <a href="{{ url_for('postgres_deleted_data') }}">
-                            <span class="material-symbols-outlined">database</span>
+                            <span class="material-symbols-outlined" aria-hidden="true">database</span>
                             <span>Postgres Deleted Data</span>
                         </a>
                     </li>
@@ -65,23 +65,23 @@
 
         <!-- 5. Quản lý tài khoản -->
         <li>
-            <button class="dropdown-btn">
-                <span class="material-symbols-outlined">manage_accounts</span>
+            <button type="button" class="dropdown-btn" aria-expanded="false">
+                <span class="material-symbols-outlined" aria-hidden="true">manage_accounts</span>
                 <span>Quản lý tài khoản</span>
-                <span class="material-symbols-outlined">keyboard_arrow_down</span>
+                <span class="material-symbols-outlined" aria-hidden="true">keyboard_arrow_down</span>
             </button>
 
             <ul class="sub-menu">
                 <div>
                     <li>
                         <a href="{{ url_for('create_kd_account') }}">
-                            <span class="material-symbols-outlined">person_add</span>
+                            <span class="material-symbols-outlined" aria-hidden="true">person_add</span>
                             <span>Tạo Tài Khoản</span>
                         </a>
                     </li>
                     <li>
                         <a href="{{ url_for('check_kd_account') }}">
-                            <span class="material-symbols-outlined">badge</span>
+                            <span class="material-symbols-outlined" aria-hidden="true">badge</span>
                             <span>Kiểm Tra Tài Khoản</span>
                         </a>
                     </li>
@@ -91,29 +91,29 @@
 
         <!-- 6. Xử lý Tem & NVL -->
         <li>
-            <button class="dropdown-btn">
-                <span class="material-symbols-outlined">published_with_changes</span>
+            <button type="button" class="dropdown-btn" aria-expanded="false">
+                <span class="material-symbols-outlined" aria-hidden="true">published_with_changes</span>
                 <span>Xử lý Tem & NVL</span>
-                <span class="material-symbols-outlined">keyboard_arrow_down</span>
+                <span class="material-symbols-outlined" aria-hidden="true">keyboard_arrow_down</span>
             </button>
 
             <ul class="sub-menu">
                 <div>
                     <li>
                         <a href="{{ url_for('reprint') }}">
-                            <span class="material-symbols-outlined">feature_search</span>
+                            <span class="material-symbols-outlined" aria-hidden="true">feature_search</span>
                             <span>Truy vấn in bù</span>
                         </a>
                     </li>
                     <li>
                         <a href="{{ url_for('material_transfer') }}">
-                            <span class="material-symbols-outlined">local_shipping</span>
+                            <span class="material-symbols-outlined" aria-hidden="true">local_shipping</span>
                             <span>Tem vận chuyển</span>
                         </a>
                     </li>
                     <li>
                         <a href="{{ url_for('substitutions') }}">
-                            <span class="material-symbols-outlined">find_replace</span>
+                            <span class="material-symbols-outlined" aria-hidden="true">find_replace</span>
                             <span>NVL thay thế</span>
                         </a>
                     </li>
@@ -123,23 +123,23 @@
 
         <!-- 7. Lịch sử quét in -->
         <li>
-            <button class="dropdown-btn">
-                <span class="material-symbols-outlined">history</span>
+            <button type="button" class="dropdown-btn" aria-expanded="false">
+                <span class="material-symbols-outlined" aria-hidden="true">history</span>
                 <span>Lịch sử quét in</span>
-                <span class="material-symbols-outlined">keyboard_arrow_down</span>
+                <span class="material-symbols-outlined" aria-hidden="true">keyboard_arrow_down</span>
             </button>
 
             <ul class="sub-menu">
                 <div>
                     <li>
                         <a href="{{ url_for('scan_barcode_history') }}">
-                            <span class="material-symbols-outlined">barcode_scanner</span>
+                            <span class="material-symbols-outlined" aria-hidden="true">barcode_scanner</span>
                             <span>Lịch sử quét tem</span>
                         </a>
                     </li>
                     <li>
                         <a href="{{ url_for('print_barcode_history') }}">
-                            <span class="material-symbols-outlined">print</span>
+                            <span class="material-symbols-outlined" aria-hidden="true">print</span>
                             <span>Lịch sử in tem</span>
                         </a>
                     </li>
@@ -150,7 +150,7 @@
         <!-- 8. Check QC Data -->
         <li>
             <a href="{{ url_for('check_qc_data') }}">
-                <span class="material-symbols-outlined">lab_research</span>
+                <span class="material-symbols-outlined" aria-hidden="true">lab_research</span>
                 <span>Check QC Data</span>
             </a>
         </li>
@@ -158,7 +158,7 @@
         <!-- 9. Check Mesync -->
         <li>
             <a href="{{ url_for('check_mesync') }}">
-                <span class="material-symbols-outlined">sync</span>
+                <span class="material-symbols-outlined" aria-hidden="true">sync</span>
                 <span>Check Mesync</span>
             </a>
         </li>
@@ -166,42 +166,42 @@
         <!-- 10. Thiết lập máy -->
         <li>
             <a href="{{ url_for('station_configuration') }}">
-                <span class="material-symbols-outlined">display_settings</span>
+                <span class="material-symbols-outlined" aria-hidden="true">display_settings</span>
                 <span>Thiết lập máy</span>
             </a>
         </li>
 
         <!-- 11. Elder Wand -->
         <li>
-            <button class="dropdown-btn">
-                <span class="material-symbols-outlined">auto_fix_high</span>
+            <button type="button" class="dropdown-btn" aria-expanded="false">
+                <span class="material-symbols-outlined" aria-hidden="true">auto_fix_high</span>
                 <span>Elder Wand</span>
-                <span class="material-symbols-outlined">keyboard_arrow_down</span>
+                <span class="material-symbols-outlined" aria-hidden="true">keyboard_arrow_down</span>
             </button>
 
             <ul class="sub-menu">
                 <div>
                     <li class="sidebar-item-disabled">
                         <a href="javascript:void(0)" class="disabled" tabindex="-1" aria-disabled="true" title="Tạm thời vô hiệu hóa">
-                            <span class="material-symbols-outlined">magic_button</span>
+                            <span class="material-symbols-outlined" aria-hidden="true">magic_button</span>
                             <span>Reparo Spell</span>
                         </a>
                     </li>
                     <li>
                         <a href="{{ url_for('avada_kedavra') }}">
-                            <span class="material-symbols-outlined">skull</span>
+                            <span class="material-symbols-outlined" aria-hidden="true">skull</span>
                             <span>Avada Kedavra</span>
                         </a>
                     </li>
                     <li>
                         <a href="{{ url_for('switching_spell') }}">
-                            <span class="material-symbols-outlined">sync_alt</span>
+                            <span class="material-symbols-outlined" aria-hidden="true">sync_alt</span>
                             <span>Switching Spell</span>
                         </a>
                     </li>
                     <li>
                         <a href="{{ url_for('time_turner') }}">
-                            <span class="material-symbols-outlined">hourglass_top</span>
+                            <span class="material-symbols-outlined" aria-hidden="true">hourglass_top</span>
                             <span>Time Turner</span>
                         </a>
                     </li>
@@ -237,15 +237,15 @@
 
         <!-- Hướng dẫn sử dụng (Nằm dưới tet-countdown-box, trên user-profile-badge) -->
         <div class="sidebar-footer-help-wrapper">
-            <button type="button" id="sidebarHelpBtn" class="sidebar-footer-help-btn" title="Hướng dẫn sử dụng KDMES TOOL">
-                <span class="material-symbols-outlined footer-help-icon">menu_book</span>
+            <button type="button" id="sidebarHelpBtn" class="sidebar-footer-help-btn" title="Hướng dẫn sử dụng KDMES TOOL" aria-label="Hướng dẫn sử dụng KDMES TOOL">
+                <span class="material-symbols-outlined footer-help-icon" aria-hidden="true">menu_book</span>
                 <span class="footer-help-text">Hướng dẫn sử dụng</span>
             </button>
         </div>
 
         <div class="user-profile-badge">
             <div class="user-badge-info">
-                <span class="material-symbols-outlined user-avatar-icon">account_circle</span>
+                <span class="material-symbols-outlined user-avatar-icon" aria-hidden="true">account_circle</span>
                 <span class="user-info-text">{{ user_ip }} <span class="user-status-dot" title="Online"></span></span>
             </div>
             <!-- Quick Actions Toolbar (Theme & Utility FAB Buttons) inside User Profile Badge -->

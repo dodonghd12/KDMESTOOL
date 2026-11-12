@@ -23,8 +23,8 @@
             </div>
             <div class="details-modal-header-actions">
                 <div class="details-modal-search-box">
-                    <span class="material-symbols-outlined search-icon">search</span>
-                    <input type="text" id="detailsModalSearch" placeholder="Search & highlight..." oninput="highlightDetailsModalText(this.value)" autocomplete="off">
+                    <span class="material-symbols-outlined search-icon" aria-hidden="true">search</span>
+                    <input type="text" id="detailsModalSearch" placeholder="Search & highlight..." aria-label="Tìm kiếm trong chi tiết dữ liệu" oninput="highlightDetailsModalText(this.value)" autocomplete="off">
                 </div>
                 <button class="details-modal-copy" id="copyDetailsBtn" title="Copy Data" aria-label="Copy Data" type="button">
                     <span class="material-symbols-outlined" aria-hidden="true">content_copy</span>
@@ -69,8 +69,8 @@
                     </div>
                 </div>
                 <div class="mes-modal-search-box">
-                    <span class="material-symbols-outlined search-icon">search</span>
-                    <input type="text" id="mesModalSearch" placeholder="Tìm & highlight Barcode..." oninput="highlightMesModalBarcode(this.value)" autocomplete="off">
+                    <span class="material-symbols-outlined search-icon" aria-hidden="true">search</span>
+                    <input type="text" id="mesModalSearch" placeholder="Tìm & highlight Barcode..." aria-label="Tìm và đánh dấu Barcode" oninput="highlightMesModalBarcode(this.value)" autocomplete="off">
                 </div>
                 <button class="comparison-close-btn" onclick="closeMesTrackingModal()" title="Đóng cửa sổ" aria-label="Đóng cửa sổ MES Tracking" type="button">
                     <svg class="close-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -242,7 +242,7 @@
                             <div class="kd-convert-input-row">
                                 <div class="kd-input-box-wrap" id="epochInputWrap">
                                     <input type="text" id="epochInput" class="kd-convert-input font-mono" placeholder="Nhập Nanosecond (19 số), Millisecond (13 số), Second..." autocomplete="off" spellcheck="false">
-                                    <button type="button" class="clear-btn" id="epochInputClearBtn" title="Xóa nội dung" aria-label="Xóa nội dung" tabindex="-1">
+                                    <button type="button" class="clear-btn" id="epochInputClearBtn" title="Xóa nội dung" aria-label="Xóa nội dung" tabindex="0">
                                         <svg class="clear-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                             <line x1="18" y1="6" x2="6" y2="18"></line>
                                             <line x1="6" y1="6" x2="18" y2="18"></line>
