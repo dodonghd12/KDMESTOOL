@@ -614,3 +614,19 @@
     color: #64748b;
     border-top-color: #f1f5f9;
 }
+
+@media (max-width: 800px) {
+    .help-modal-close-btn {
+        width: 44px !important;
+        height: 44px !important;
+        min-width: 44px !important;
+        min-height: 44px !important;
+    }
+    .help-nav-item {
+        min-height: 44px !important;
+        height: 44px !important;
+        display: flex !important;
+        align-items: center !important;
+        padding: 0 16px !important;
+    }
+}
