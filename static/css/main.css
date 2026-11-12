@@ -456,8 +456,8 @@ body.theme-light .quick-action-btn:hover {
     font-family: var(--font-stack);
 }
 
-body {
-    background: var(--bg-main);
+html, body {
+    background: var(--ds-bg-canvas, #0A0E1A);
     color: var(--text-secondary);
     line-height: var(--lh-normal);
     -webkit-font-smoothing: antialiased;
@@ -8331,7 +8331,7 @@ body.is-spa-frame {
     width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
-    background: transparent !important;
+    background: #0A0E1A !important;
 }
 
 body.is-spa-frame #sidebar,
@@ -10804,14 +10804,14 @@ body.theme-light .material-transfer-retry-btn.is-success {
     }
 
     .search-section .input-mode-toggle-btn {
-        bottom: -22px !important;
-        height: 44px !important;
-        min-height: 44px !important;
-        line-height: 42px !important;
-        padding: 0 14px !important;
+        bottom: -11px !important;
+        height: 22px !important;
+        min-height: 22px !important;
+        line-height: 20px !important;
+        padding: 0 10px !important;
         font-size: 11px !important;
         letter-spacing: 0.2px !important;
-        border-radius: 22px !important;
+        border-radius: 11px !important;
     }
 
     .search-section .input-mode-toggle-btn .toggle-icon {
@@ -14702,13 +14702,13 @@ html, body, .spa-shell-body, .spa-viewport, .container {
     }
 
     .input-mode-toggle-btn {
-        min-height: 44px !important;
-        height: 44px !important;
-        line-height: 42px !important;
-        border-radius: 22px !important;
-        padding: 0 16px !important;
-        bottom: -22px !important;
-        font-size: 11.5px !important;
+        min-height: 22px !important;
+        height: 22px !important;
+        line-height: 20px !important;
+        border-radius: 11px !important;
+        padding: 0 10px !important;
+        bottom: -11px !important;
+        font-size: 11px !important;
     }
 
     .search-section:has(.search-row-switchable) {
@@ -14761,20 +14761,17 @@ html, body, .spa-shell-body, .spa-viewport, .container {
     }
 }
 
-/* 4. Desktop Layout Preservation (1440px and >= 801px) */
-@media (min-width: 801px) {
-    /* Transparent touch zone safeguard that does NOT modify visual layout */
-    .input-mode-toggle-btn::after {
-        content: '';
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        min-width: 44px;
-        min-height: 44px;
-        width: 100%;
-        height: 100%;
-        pointer-events: auto;
-    }
+/* 4. Touch Zone Safeguard (Minimum 44x44px Tap Target without modifying visual layout) */
+.input-mode-toggle-btn::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    min-width: 44px;
+    min-height: 44px;
+    width: 100%;
+    height: 100%;
+    pointer-events: auto;
 }
 
