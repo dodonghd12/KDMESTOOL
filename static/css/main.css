@@ -146,8 +146,8 @@
     /* ── BRAND & THEME ALIASES (BACKWARD COMPATIBILITY) ── */
     --primary-cyan: var(--cyan-400);
     --primary-emerald: var(--emerald-600);
-    --primary-gradient: #0A0E1A;
-    --primary-gradient-hover: #0A0E1A;
+    --primary-gradient: linear-gradient(135deg, var(--cyan-400) 0%, var(--emerald-600) 100%);
+    --primary-gradient-hover: linear-gradient(135deg, #4ef2dc 0%, #1abc9c 100%);
     --bg-main: var(--color-bg-canvas);
     --bg-surface: var(--color-bg-surface);
     --bg-surface-elevated: var(--color-bg-surface-elevated);
@@ -1988,7 +1988,7 @@ td {
 }
 
 .pagination-link[aria-current="page"] {
-    background: var(--primary-gradient, #3DD5C0);
+    background: var(--primary-gradient, linear-gradient(135deg, #3dd5c0 0%, #16a085 100%));
     color: #030712;
     font-weight: 700;
     border-color: transparent;
@@ -2083,7 +2083,7 @@ td {
 .btn-export-excel {
     width: var(--btn-export-w, 94px);
     height: var(--btn-export-h, 22px);
-    background: #0A0E1A;
+    background: linear-gradient(135deg, var(--emerald-600) 0%, var(--emerald-700) 100%);
     position: relative;
     text-align: center;
     border-radius: 5px;
@@ -2170,7 +2170,7 @@ td {
 .btn-insert-query {
     width: var(--btn-export-w, 100px);
     height: var(--btn-export-h, 22px);
-    background: #0A0E1A;
+    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
     position: relative;
     text-align: center;
     border-radius: 5px;
@@ -2228,7 +2228,7 @@ td {
 }
 
 .btn-insert-query:hover {
-    background: #0A0E1A;
+    background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%);
     border-color: #38bdf8;
     box-shadow: 0 6px 20px rgba(56, 189, 248, 0.35);
     transform: translateY(-1.5px);
@@ -2299,7 +2299,14 @@ body.app-loading-state textarea,
 body.app-loading-state .input,
 body.app-loading-state .winx-input,
 body.app-loading-state .flatpickr-input {
-    background: #0A0E1A !important;
+    background: linear-gradient(
+        90deg,
+        var(--color-bg-canvas) 0%,
+        var(--color-interactive-bg-hover) 35%,
+        var(--color-bg-surface-elevated) 50%,
+        var(--color-interactive-bg-hover) 65%,
+        var(--color-bg-canvas) 100%
+    ) !important;
     background-size: 300% 100% !important;
     animation: skeletonShimmer 1.8s infinite ease-in-out !important;
     border-color: var(--color-border-interactive) !important;
@@ -2323,7 +2330,13 @@ body.app-loading-state .btn-export-excel,
 body.app-loading-state .winx-btn,
 body.app-loading-state .details-modal-copy,
 body.app-loading-state .winx-lot-btn {
-    background: #0A0E1A !important;
+    background: linear-gradient(
+        90deg,
+        var(--color-interactive-bg-hover) 0%,
+        var(--color-interactive-bg-active) 40%,
+        var(--color-interactive-bg-hover) 60%,
+        var(--color-interactive-bg-hover) 100%
+    ) !important;
     background-size: 300% 100% !important;
     animation: skeletonShimmer 1.8s infinite ease-in-out !important;
     border-color: var(--color-border-interactive) !important;
@@ -2373,7 +2386,7 @@ body.app-loading-state .winx-search-bar {
 .skeleton-cell {
     height: 14px;
     border-radius: 6px;
-    background: #0A0E1A;
+    background: linear-gradient(90deg, var(--color-bg-surface-glass) 25%, var(--color-interactive-bg-hover) 50%, var(--color-bg-surface-glass) 75%);
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
 }
@@ -2418,7 +2431,7 @@ body:not(.app-loading-state) .winx-btn {
     width: 68px;
     height: 68px;
     border-radius: 50%;
-    background: #0A0E1A;
+    background: radial-gradient(circle, var(--color-interactive-bg-hover) 0%, transparent 75%);
     border: 1.5px dashed var(--color-border-interactive);
     display: flex;
     align-items: center;
@@ -2476,7 +2489,7 @@ body:not(.app-loading-state) .winx-btn {
 
 :root[data-theme="light"] .empty-state-icon-wrapper,
 body.theme-light .empty-state-icon-wrapper {
-    background: #0A0E1A;
+    background: radial-gradient(circle, rgba(20, 184, 166, 0.12) 0%, transparent 75%);
     border-color: rgba(20, 184, 166, 0.35);
     box-shadow: 0 4px 16px rgba(20, 184, 166, 0.15);
 }
@@ -2627,7 +2640,7 @@ body.theme-light .empty-state-icon-wrapper::after {
     left: 10%;
     right: 10%;
     height: 2px;
-    background: #0A0E1A;
+    background: linear-gradient(90deg, transparent, var(--color-text-accent), transparent);
     border-radius: 2px;
 }
 
@@ -2637,7 +2650,7 @@ body.theme-light .empty-state-icon-wrapper::after {
     box-shadow: var(--color-shadow-glass), var(--color-feedback-warning-glow);
 }
 .custom-modal-content.type-warning::before {
-    background: #0A0E1A;
+    background: linear-gradient(90deg, transparent, var(--amber-400), transparent);
 }
 
 .custom-modal-content.type-error {
@@ -2645,7 +2658,7 @@ body.theme-light .empty-state-icon-wrapper::after {
     box-shadow: var(--color-shadow-glass), var(--color-feedback-error-glow);
 }
 .custom-modal-content.type-error::before {
-    background: #0A0E1A;
+    background: linear-gradient(90deg, transparent, var(--rose-500), transparent);
 }
 
 .custom-modal-content.type-success {
@@ -2653,7 +2666,7 @@ body.theme-light .empty-state-icon-wrapper::after {
     box-shadow: var(--color-shadow-glass), var(--color-feedback-success-glow);
 }
 .custom-modal-content.type-success::before {
-    background: #0A0E1A;
+    background: linear-gradient(90deg, transparent, var(--emerald-400), transparent);
 }
 
 .custom-modal-content.type-info {
@@ -2661,7 +2674,7 @@ body.theme-light .empty-state-icon-wrapper::after {
     box-shadow: var(--color-shadow-glass), var(--color-border-glow);
 }
 .custom-modal-content.type-info::before {
-    background: #0A0E1A;
+    background: linear-gradient(90deg, transparent, var(--color-text-accent), transparent);
 }
 
 /* Modal Icon Badge */
@@ -2701,28 +2714,28 @@ body.theme-light .empty-state-icon-wrapper::after {
 
 /* Icon Type Themes */
 .custom-modal-icon.warning {
-    background: #0A0E1A;
+    background: radial-gradient(circle, var(--color-feedback-warning-bg) 0%, transparent 70%);
     border: 2px solid var(--color-feedback-warning-border);
     color: var(--color-feedback-warning-text);
     box-shadow: var(--color-feedback-warning-glow);
 }
 
 .custom-modal-icon.error {
-    background: #0A0E1A;
+    background: radial-gradient(circle, var(--color-feedback-error-bg) 0%, transparent 70%);
     border: 2px solid var(--color-feedback-error-border);
     color: var(--color-feedback-error-text);
     box-shadow: var(--color-feedback-error-glow);
 }
 
 .custom-modal-icon.success {
-    background: #0A0E1A;
+    background: radial-gradient(circle, var(--color-feedback-success-bg) 0%, transparent 70%);
     border: 2px solid var(--color-feedback-success-border);
     color: var(--color-feedback-success-text);
     box-shadow: var(--color-feedback-success-glow);
 }
 
 .custom-modal-icon.info {
-    background: #0A0E1A;
+    background: radial-gradient(circle, var(--color-feedback-info-bg) 0%, transparent 70%);
     border: 2px solid var(--color-feedback-info-border);
     color: var(--color-feedback-info-text);
     box-shadow: var(--color-border-glow);
@@ -2816,14 +2829,14 @@ body.theme-light .empty-state-icon-wrapper::after {
 }
 
 .custom-modal-btn-danger {
-    background: #0A0E1A;
+    background: linear-gradient(135deg, var(--rose-600) 0%, var(--rose-700) 100%);
     border: 1px solid var(--color-feedback-error-border);
     color: var(--color-text-inverse);
     box-shadow: 0 4px 14px var(--color-feedback-error-glow);
 }
 
 .custom-modal-btn-danger:hover {
-    background: #0A0E1A;
+    background: linear-gradient(135deg, var(--rose-500) 0%, var(--rose-600) 100%);
     border-color: var(--rose-400);
     box-shadow: 0 6px 20px var(--color-feedback-error-glow);
     transform: translateY(-2px);
@@ -3014,7 +3027,7 @@ body.theme-light .empty-state-icon-wrapper::after {
 }
 
 .details-modal-copy.copied {
-    background: #0A0E1A;
+    background: linear-gradient(135deg, var(--emerald-500) 0%, var(--emerald-600) 100%);
     border-color: var(--emerald-400);
     color: var(--color-text-inverse);
     box-shadow: 0 0 16px var(--color-feedback-success-glow);
@@ -3834,7 +3847,7 @@ tbody tr:has(.table-empty-state):hover td {
     color: #38bdf8 !important;
 }
 .toast-info .toast-progress {
-    background: #0A0E1A !important;
+    background: linear-gradient(90deg, #0284c7, #38bdf8) !important;
 }
 
 /* 2. Warning: Yellow / Amber (Màu vàng, 8s) */
@@ -3847,7 +3860,7 @@ tbody tr:has(.table-empty-state):hover td {
     color: #fbbf24 !important;
 }
 .toast-warning .toast-progress {
-    background: #0A0E1A !important;
+    background: linear-gradient(90deg, #d97706, #fbbf24) !important;
 }
 
 /* 3. Success: Green (Xanh lá, 4s) */
@@ -3860,7 +3873,7 @@ tbody tr:has(.table-empty-state):hover td {
     color: #34d399 !important;
 }
 .toast-success .toast-progress {
-    background: #0A0E1A !important;
+    background: linear-gradient(90deg, #059669, #34d399) !important;
 }
 
 /* 4. Error: Red (Màu đỏ, 20s) */
@@ -3873,7 +3886,7 @@ tbody tr:has(.table-empty-state):hover td {
     color: #f87171 !important;
 }
 .toast-error .toast-progress {
-    background: #0A0E1A !important;
+    background: linear-gradient(90deg, #dc2626, #f87171) !important;
 }
 
 /* ===== SPRING KEYFRAME ANIMATIONS (DAMPING 20, STIFFNESS 180) ===== */
@@ -4081,7 +4094,7 @@ tbody tr:has(.table-empty-state):hover td {
     padding: 18px 24px;
     margin-top: 6px;
     border-radius: 14px;
-    background: #0A0E1A;
+    background: linear-gradient(135deg, rgba(22, 160, 133, 0.15) 0%, rgba(15, 23, 42, 0.75) 100%);
     border: 1.5px solid rgba(22, 160, 133, 0.4);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.08);
     width: 100%;
@@ -4105,7 +4118,7 @@ tbody tr:has(.table-empty-state):hover td {
     font-size: 14px;
     font-weight: 700;
     cursor: pointer;
-    background: #3DD5C0;
+    background: linear-gradient(135deg, #16a085 0%, #0d9488 100%);
     color: #ffffff !important;
     border: 1px solid rgba(255, 255, 255, 0.25);
     box-shadow: 0 4px 14px rgba(13, 148, 136, 0.4), 0 0 12px rgba(22, 160, 133, 0.25);
@@ -4115,7 +4128,7 @@ tbody tr:has(.table-empty-state):hover td {
 
 .btn-yaml-fallback-search:hover {
     transform: translateY(-2px) scale(1.02);
-    background: #3DD5C0;
+    background: linear-gradient(135deg, #1abc9c 0%, #14b8a6 100%);
     box-shadow: 0 6px 22px rgba(13, 148, 136, 0.6), 0 0 18px rgba(26, 188, 156, 0.45);
     color: #ffffff !important;
 }
@@ -4696,8 +4709,8 @@ a.pipeline-status-dot:hover {
     overflow: hidden;
     position: relative;
     height: 44px;
-    -webkit-mask-image: #0A0E1A;
-    mask-image: #0A0E1A;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 25%, black 75%, transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0%, black 25%, black 75%, transparent 100%);
 }
 
 .api-loading .word {
@@ -6362,7 +6375,7 @@ body.theme-light .dropzone-progress-track {
 .dropzone-progress-bar {
     height: 100%;
     width: 0%;
-    background: #3DD5C0;
+    background: linear-gradient(90deg, #10b981, var(--cyan-400));
     border-radius: 4px;
     transition: width 0.06s linear;
     box-shadow: 0 0 8px rgba(61, 213, 192, 0.5);
@@ -6420,7 +6433,7 @@ body.theme-light .dropzone-progress-track {
     height: 100%;
     min-height: 85px;
     border-radius: 10px;
-    background: #0A0E1A;
+    background: linear-gradient(135deg, #00b973 0%, #00d484 100%);
     color: #ffffff;
     box-shadow: 0 4px 16px rgba(0, 185, 115, 0.35);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -6519,7 +6532,7 @@ body.theme-light .dropzone-success-tag {
     font-weight: 700;
     border-radius: 8px;
     margin-top: auto;
-    background: #0A0E1A;
+    background: linear-gradient(135deg, #00cbb0 0%, #00b39b 100%);
     border: 1px solid rgba(61, 213, 192, 0.4);
     box-shadow: 0 4px 14px rgba(0, 203, 176, 0.3);
     color: #ffffff;
@@ -6528,7 +6541,7 @@ body.theme-light .dropzone-success-tag {
 }
 
 .dropzone-check-btn:hover:not(:disabled) {
-    background: #0A0E1A;
+    background: linear-gradient(135deg, #00e0c2 0%, #00c4aa 100%);
     box-shadow: 0 6px 18px rgba(0, 203, 176, 0.45);
     transform: translateY(-1px);
 }
@@ -6721,7 +6734,7 @@ body.theme-light .dropzone-success-tag {
 }
 
 .winx-btn-download:hover:not(:disabled) {
-    background: #0A0E1A;
+    background: linear-gradient(135deg, var(--emerald-500) 0%, var(--emerald-600) 100%);
     border-color: var(--emerald-400);
     color: var(--color-text-inverse);
     box-shadow: 0 0 16px var(--color-feedback-success-glow);
@@ -6729,14 +6742,14 @@ body.theme-light .dropzone-success-tag {
 }
 
 .winx-btn-danger {
-    background: #0A0E1A;
+    background: linear-gradient(135deg, var(--rose-600) 0%, var(--rose-700) 100%);
     border: 1px solid var(--color-feedback-error-border);
     color: var(--color-text-inverse);
     box-shadow: 0 4px 14px var(--color-feedback-error-glow);
 }
 
 .winx-btn-danger:hover:not(:disabled) {
-    background: #0A0E1A;
+    background: linear-gradient(135deg, var(--rose-500) 0%, var(--rose-600) 100%);
     border-color: var(--rose-400);
     box-shadow: 0 0 18px var(--color-feedback-error-glow), 0 4px 16px var(--color-shadow-glass);
     transform: translateY(-2px);
@@ -7657,7 +7670,7 @@ body.theme-light .account-dropzone.drag-over {
 /* Enforce red caret when inside error wrapper */
 .input-wrapper.has-error .smooth-input-caret,
 .input.has-error ~ .smooth-input-caret {
-    background: #0A0E1A !important;
+    background: linear-gradient(180deg, #f87171 0%, #ef4444 100%) !important;
     box-shadow: 0 0 6px rgba(239, 68, 68, 0.9), 0 0 14px rgba(248, 113, 113, 0.45) !important;
 }
 
@@ -7920,7 +7933,13 @@ button.winx-btn:disabled {
     left: 0;
     width: 100%;
     height: 100%;
-    background: #0A0E1A;
+    background: repeating-linear-gradient(
+        0deg,
+        rgba(0, 0, 0, 0.15),
+        rgba(0, 0, 0, 0.15) 1px,
+        transparent 1px,
+        transparent 2px
+    );
     animation: scanlines 8s linear infinite;
     pointer-events: none;
 }
@@ -8290,7 +8309,7 @@ button.winx-btn:disabled {
     border-radius: 10px;
     cursor: pointer !important;
     pointer-events: auto !important;
-    background: #0A0E1A;
+    background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
     color: #ffffff;
     border: 1px solid rgba(244, 63, 94, 0.5);
     box-shadow: 0 4px 16px rgba(225, 29, 72, 0.4);
@@ -8304,7 +8323,7 @@ button.winx-btn:disabled {
 }
 
 .kd-auth-expired-btn:hover {
-    background: #0A0E1A;
+    background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
     box-shadow: 0 6px 22px rgba(225, 29, 72, 0.6);
     transform: translateY(-2px);
 }
@@ -8540,7 +8559,7 @@ body.theme-light .ocr-dropzone {
 .ocr-progress-bar {
     height: 100%;
     width: 0%;
-    background: #3DD5C0;
+    background: linear-gradient(90deg, #10b981, var(--cyan-400));
     border-radius: 3px;
     transition: width 0.08s linear;
     box-shadow: 0 0 8px rgba(61, 213, 192, 0.5);
@@ -8861,7 +8880,7 @@ body.theme-light .ocr-dropzone {
     border: 1.5px solid rgba(239, 68, 68, 0.8) !important;
     border-left: 5px solid #ef4444 !important;
     box-shadow: 0 0 16px rgba(239, 68, 68, 0.25) !important;
-    background: #0A0E1A !important;
+    background: linear-gradient(145deg, rgba(239, 68, 68, 0.12), #1d1f21) !important;
 }
 
 .actions-commit-card.patch-card.pipeline-error .card-badge.patch-badge {
@@ -9917,7 +9936,7 @@ body.theme-light .ocr-dropzone {
     width: 100%;
     height: 46px;
     border-radius: 12px;
-    background: #3DD5C0;
+    background: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%);
     border: none;
     color: #ffffff;
     font-size: 14.5px;
@@ -9933,7 +9952,7 @@ body.theme-light .ocr-dropzone {
 }
 
 .security-gate-submit-btn:hover {
-    background: #3DD5C0;
+    background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%);
     box-shadow: 0 6px 18px rgba(13, 148, 136, 0.5);
     transform: translateY(-1px);
 }
@@ -11975,7 +11994,7 @@ body.theme-light .material-transfer-retry-btn.is-success {
     }
 
     .pagination-link[aria-current="page"] {
-        background: var(--primary-gradient, #3DD5C0) !important;
+        background: var(--primary-gradient, linear-gradient(135deg, #3dd5c0 0%, #16a085 100%)) !important;
         color: #030712 !important;
         font-weight: 700 !important;
         border-color: transparent !important;
@@ -13213,7 +13232,7 @@ body.theme-light .material-transfer-retry-btn.is-success {
     font-weight: 600;
     border-radius: 5px;
     border: 1px solid rgba(244, 63, 94, 0.5);
-    background: #0A0E1A;
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.25) 0%, rgba(185, 28, 28, 0.35) 100%);
     color: #fda4af;
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -13223,7 +13242,7 @@ body.theme-light .material-transfer-retry-btn.is-success {
 }
 
 .btn-undo-account:hover:not(:disabled) {
-    background: #0A0E1A;
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.35) 0%, rgba(185, 28, 28, 0.45) 100%);
     color: #ffffff;
     box-shadow: 0 4px 10px rgba(239, 68, 68, 0.35);
 }
@@ -13235,7 +13254,7 @@ body.theme-light .material-transfer-retry-btn.is-success {
     font-weight: 700;
     border-radius: 5px;
     border: 1px solid rgba(16, 185, 129, 0.5);
-    background: #111827;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.25) 0%, rgba(5, 150, 105, 0.35) 100%);
     color: #6ee7b7;
     cursor: pointer;
     position: relative;
@@ -13248,7 +13267,7 @@ body.theme-light .material-transfer-retry-btn.is-success {
 }
 
 .btn-save-account:hover:not(:disabled) {
-    background: #3DD5C0;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.35) 0%, rgba(5, 150, 105, 0.45) 100%);
     color: #ffffff;
     box-shadow: 0 4px 10px rgba(16, 185, 129, 0.35);
 }
@@ -13467,7 +13486,7 @@ body.is-spa-frame .kd-fab-container {
     width: 56px;
     height: 56px;
     border-radius: 50%;
-    background: #0A0E1A;
+    background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
     color: #ffffff;
     border: none;
     outline: none;
@@ -14374,7 +14393,7 @@ body.is-spa-frame .kd-fab-container {
 
 /* Reverse Hero Output Card */
 .kd-d2e-hero-card {
-    background: #0A0E1A !important;
+    background: linear-gradient(135deg, rgba(14, 165, 233, 0.1) 0%, rgba(13, 148, 136, 0.1) 100%) !important;
     border: 1px solid var(--color-border-interactive, rgba(61, 213, 192, 0.3)) !important;
     border-radius: 10px !important;
     padding: 14px 16px !important;
@@ -14497,559 +14516,275 @@ body.is-spa-frame .kd-fab-container {
 }
 
 /* ==============================================================================
- * KDMES UNIFIED DESIGN SYSTEM, WCAG 2.2 AA & RESPONSIVE SUITE (390px, 768px, 1440px)
- * ------------------------------------------------------------------------------
- * 1. STRICT 5-COLOR PALETTE (SOLID ONLY — ZERO GRADIENTS):
- *    - #0A0E1A : Canvas / App Background & High-Contrast Text on Accent
- *    - #111827 : Surface / Card / Sidebar / Modal / Input Background
- *    - #1E293B : Elevated Surface / Hairline Border / Hover / Table Header
- *    - #F8FAFC : Primary Text (Contrast 17.4:1 on #0A0E1A, 15.3:1 on #111827)
- *    - #3DD5C0 : Brand Accent / Focus Ring / Active / Primary CTA (Contrast 10.8:1)
- * 2. SPACING SYSTEM (8pt Modular Scale):
- *    --space-1: 4px | --space-2: 8px | --space-3: 12px | --space-4: 16px | --space-5: 24px | --space-6: 32px
- * 3. TYPOGRAPHY SCALE:
- *    --text-xs: 11.5px | --text-sm: 12px | --text-base: 13.5px | --text-md: 15px | --text-lg: 18px
+ * RESPONSIVE OPTIMIZATION SUITE: 390px, 768px, 1440px
+ * 1. Global Zero-Horizontal-Scroll Enforcer
+ * 2. Stacked Cards for Data Tables (< 768px)
+ * 3. Touch Targets (Minimum 44px per WCAG 2.5.5 / Apple HIG)
+ * 4. Desktop Layout Preservation (1440px Unchanged)
  * ============================================================================== */
 
-:root {
-    --ds-bg-canvas: #0A0E1A;
-    --ds-bg-surface: #111827;
-    --ds-border-surface: #1E293B;
-    --ds-text-primary: #F8FAFC;
-    --ds-accent: #3DD5C0;
-
-    --space-1: 4px;
-    --space-2: 8px;
-    --space-3: 12px;
-    --space-4: 16px;
-    --space-5: 24px;
-    --space-6: 32px;
-
-    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    --font-mono: 'JetBrains Mono', monospace;
-    --text-xs: 11.5px;
-    --text-sm: 12px;
-    --text-base: 13.5px;
-    --text-md: 15px;
-    --text-lg: 18px;
-}
-
-/* 1. Global Zero-Gradient & Strict 5-Color Surface Enforcement */
+/* 1. Global Zero-Horizontal-Scroll Enforcer */
 html, body, .spa-shell-body, .spa-viewport, .container {
-    background-color: var(--ds-bg-canvas) !important;
-    background-image: none !important;
-    color: var(--ds-text-primary) !important;
-    font-family: var(--font-sans) !important;
     overflow-x: hidden !important;
     max-width: 100vw !important;
     box-sizing: border-box !important;
 }
 
-*, *::before, *::after {
-    background-image: none !important;
-}
-
-.table-container,
-.output-barcode,
-.sub-output-barcode,
-.custom-modal-content,
-.details-modal-content,
-.comparison-modal-content,
-.kd-utility-modal-content,
-.help-modal-container,
-.toast-item {
-    background-color: var(--ds-bg-surface) !important;
-    border: 1px solid var(--ds-border-surface) !important;
-    box-shadow: none !important;
-}
-
-.input-box .input,
-.input-wrapper .input,
-.ocr-dropzone,
-.kd-convert-input,
-.kd-convert-select,
-.details-modal-search-box input,
-.mes-modal-search-box input {
-    background-color: var(--ds-bg-surface) !important;
-    border: 1px solid var(--ds-border-surface) !important;
-    color: var(--ds-text-primary) !important;
-    font-size: var(--text-base) !important;
-}
-
-.input-box .input:focus,
-.input-wrapper .input:focus,
-.ocr-dropzone:focus,
-.ocr-dropzone:focus-visible {
-    border-color: var(--ds-accent) !important;
-}
-
-/* High-Contrast Labels & Placeholders (WCAG 2.2 AA >= 4.5:1) */
-.user-label,
-.ocr-subtitle,
-.standby-subtitle,
-.kd-convert-label,
-input::placeholder,
-textarea::placeholder {
-    color: var(--ds-text-primary) !important;
-    opacity: 0.78 !important;
-}
-
-.input-box .input:focus ~ .user-label,
-.input-box .input:valid ~ .user-label {
-    background-color: var(--ds-bg-canvas) !important;
-    color: var(--ds-accent) !important;
-    opacity: 1 !important;
-    border-color: var(--ds-accent) !important;
-}
-
-.ocr-title,
-.standby-title {
-    color: var(--ds-text-primary) !important;
-    font-size: var(--text-md) !important;
-    font-weight: 600 !important;
-}
-
-.ocr-cloud-icon,
-.standby-icon {
-    color: var(--ds-accent) !important;
-}
-
-.standby-icon-ring {
-    background-color: var(--ds-border-surface) !important;
-    border: 1px solid var(--ds-accent) !important;
-}
-
-/* Primary Action Buttons (Accent #3DD5C0 bg + #0A0E1A text => 10.8:1 Contrast) */
-.btn-export-excel,
-#exportExcelBtn,
-#exportOutputExcelBtn,
-#exportSubOutputExcelBtn,
-.security-gate-submit-btn {
-    background-color: var(--ds-accent) !important;
-    color: var(--ds-bg-canvas) !important;
-    border: 1px solid var(--ds-accent) !important;
-    font-weight: 700 !important;
-    font-size: var(--text-sm) !important;
-    min-height: 44px !important;
-    height: 44px !important;
-    min-width: 110px !important;
-    padding: 0 var(--space-4) !important;
-    border-radius: 8px !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    box-shadow: none !important;
-}
-
-.btn-export-excel .text,
-.btn-export-excel .icon,
-.btn-export-excel svg {
-    color: var(--ds-bg-canvas) !important;
-    font-weight: 700 !important;
-}
-
-/* Row Count & Status Badges */
-.row-count {
-    background-color: var(--ds-border-surface) !important;
-    color: var(--ds-accent) !important;
-    border: 1px solid var(--ds-accent) !important;
-    font-size: var(--text-sm) !important;
-    font-weight: 600 !important;
-    padding: var(--space-1) var(--space-3) !important;
-    border-radius: 999px !important;
-}
-
-/* Output Header & Close Button Layout Fix (Never Clips Close Button on 390px) */
-.output-header,
-.sub-output-header {
-    background-color: var(--ds-border-surface) !important;
-    border-bottom: 1px solid var(--ds-border-surface) !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    gap: var(--space-3) !important;
-    padding: var(--space-2) var(--space-3) !important;
-    min-height: 52px !important;
-    height: auto !important;
-    width: 100% !important;
-    box-sizing: border-box !important;
-}
-
-#outputHeaderContent,
-#subOutputHeaderContent {
-    color: var(--ds-accent) !important;
-    font-size: var(--text-sm) !important;
-    font-weight: 700 !important;
-    flex: 1 1 0% !important;
-    min-width: 0 !important;
-    white-space: normal !important;
-    word-break: break-word !important;
-    overflow-wrap: anywhere !important;
-    line-height: 1.4 !important;
-    text-align: left !important;
-}
-
-.output-header .close-btn,
-.sub-output-header .close-btn,
-.details-modal-close,
-.comparison-close-btn,
-.help-modal-close-btn,
-.toast-close {
-    position: static !important;
-    transform: none !important;
-    flex: 0 0 44px !important;
-    width: 44px !important;
-    height: 44px !important;
-    min-width: 44px !important;
-    min-height: 44px !important;
-    background-color: var(--ds-bg-surface) !important;
-    color: var(--ds-text-primary) !important;
-    border: 1px solid var(--ds-border-surface) !important;
-    border-radius: 8px !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    cursor: pointer !important;
-}
-
-.output-header .close-btn:hover,
-.sub-output-header .close-btn:hover,
-.details-modal-close:hover,
-.comparison-close-btn:hover,
-.help-modal-close-btn:hover,
-.toast-close:hover {
-    border-color: var(--ds-accent) !important;
-    color: var(--ds-accent) !important;
-}
-
-/* 2. WCAG 2.2 AA Focus-Visible & Reduced Motion */
-a:focus-visible,
-button:focus-visible,
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible,
-[role="button"]:focus-visible,
-[tabindex="0"]:focus-visible {
-    outline: 2px solid var(--ds-accent) !important;
-    outline-offset: 2px !important;
-    box-shadow: 0 0 0 4px rgba(61, 213, 192, 0.25) !important;
-}
-
-@media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
-        scroll-behavior: auto !important;
-    }
-}
-
-/* 3. Desktop Table Styling (>= 769px): Preserve Desktop Layout + Zero Horizontal Scroll */
-.table-scroll:has(#tableBody tr) #tableStandbyPlaceholder {
-    display: none !important;
-}
-
-@media (min-width: 769px) {
-    .table-container,
-    .table-scroll,
-    .output-table-scroll,
-    .sub-output-table-scroll {
-        overflow-x: hidden !important;
-        max-width: 100% !important;
-        width: 100% !important;
-        box-sizing: border-box !important;
-    }
-
-    .table-scroll table,
-    .output-table-scroll table,
-    .sub-output-table-scroll table {
-        width: 100% !important;
-        max-width: 100% !important;
-        table-layout: auto !important;
-        border-collapse: collapse !important;
-    }
-
-    .table-scroll table th,
-    .output-table-scroll table th,
-    .sub-output-table-scroll table th {
-        background-color: var(--ds-border-surface) !important;
-        color: var(--ds-accent) !important;
-        font-size: 10.5px !important;
-        font-weight: 700 !important;
-        padding: var(--space-2) 4px !important;
-        border: 1px solid var(--ds-border-surface) !important;
-        white-space: normal !important;
-        word-break: normal !important;
-        overflow-wrap: break-word !important;
-        line-height: 1.25 !important;
-        position: sticky !important;
-        top: 0 !important;
-        left: auto !important;
-    }
-
-    .table-scroll table td,
-    .output-table-scroll table td,
-    .sub-output-table-scroll table td,
-    #tableBody td,
-    #outputBarcodeTableBody td,
-    #subOutputBarcodeTableBody td {
-        background-color: var(--ds-bg-surface) !important;
-        color: var(--ds-text-primary) !important;
-        font-size: 11.5px !important;
-        padding: var(--space-2) 4px !important;
-        border-bottom: 1px solid var(--ds-border-surface) !important;
-        white-space: normal !important;
-        word-break: break-word !important;
-        overflow-wrap: anywhere !important;
-        line-height: 1.35 !important;
-        position: static !important;
-        left: auto !important;
-    }
-
-    .table-scroll table td:first-child,
-    .output-table-scroll table td:first-child {
-        min-width: 145px !important;
-        word-break: normal !important;
-        white-space: nowrap !important;
-    }
-
-    .table-scroll table td:nth-child(14),
-    .table-scroll table td:nth-child(15) {
-        max-width: 85px !important;
-        overflow: hidden !important;
-        text-overflow: ellipsis !important;
-        white-space: nowrap !important;
-    }
-}
-
-/* 4. Stacked Cards for Data Tables on Mobile & Tablet (<= 768px) */
+/* 2. Stacked Cards for Data Tables when Screen Width <= 768px (Mobile & Tablet) */
 @media (max-width: 768px) {
     .table-container,
     .table-scroll,
     .output-table-scroll,
     .sub-output-table-scroll {
         overflow-x: hidden !important;
-        width: 100% !important;
         max-width: 100% !important;
         box-sizing: border-box !important;
-        padding: var(--space-2) !important;
     }
 
+    /* Hide standard multi-column table headers */
     .table-scroll table thead,
     .output-table-scroll table thead,
     .sub-output-table-scroll table thead,
-    #tableHead,
     table:not(.calendar-table) thead {
         display: none !important;
     }
 
+    /* Block display for table elements */
     .table-scroll table,
     .output-table-scroll table,
     .sub-output-table-scroll table,
-    #outputBarcodeTable,
-    #subOutputBarcodeTable,
     table:not(.calendar-table) {
-        display: flex !important;
-        flex-direction: column !important;
+        display: block !important;
         width: 100% !important;
-        min-width: 100% !important;
         max-width: 100% !important;
+        border-collapse: separate !important;
+        border-spacing: 0 !important;
     }
 
     .table-scroll table tbody,
     .output-table-scroll table tbody,
     .sub-output-table-scroll table tbody,
-    #tableBody,
-    #outputBarcodeTableBody,
-    #subOutputBarcodeTableBody,
     table:not(.calendar-table) tbody {
-        display: flex !important;
-        flex-direction: column !important;
-        gap: var(--space-3) !important;
+        display: grid !important;
+        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)) !important;
+        gap: 12px !important;
         width: 100% !important;
-        min-width: 100% !important;
-        max-width: 100% !important;
         box-sizing: border-box !important;
-        padding: var(--space-1) 0 var(--space-2) 0 !important;
+        padding: 4px 0 12px 0 !important;
     }
 
+    /* Transform each table row (tr) into a Stacked Card */
     .table-scroll table tbody tr:not(.empty-row),
     .output-table-scroll table tbody tr:not(.empty-row),
     .sub-output-table-scroll table tbody tr:not(.empty-row),
-    #tableBody tr:not(.empty-row),
-    #outputBarcodeTableBody tr:not(.empty-row),
-    #subOutputBarcodeTableBody tr:not(.empty-row),
     table:not(.calendar-table) tbody tr:not(.empty-row) {
         display: flex !important;
         flex-direction: column !important;
         width: 100% !important;
-        min-width: 100% !important;
-        max-width: 100% !important;
-        height: auto !important;
-        min-height: 0 !important;
         box-sizing: border-box !important;
-        background-color: var(--ds-bg-surface) !important;
-        border: 1px solid var(--ds-border-surface) !important;
-        border-radius: 8px !important;
-        padding: var(--space-3) !important;
-        margin: 0 !important;
-        box-shadow: none !important;
+        background: rgba(15, 23, 42, 0.85) !important;
+        border: 1px solid rgba(61, 213, 192, 0.25) !important;
+        border-radius: 12px !important;
+        padding: 12px 14px !important;
+        margin-bottom: 0 !important;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+        backdrop-filter: blur(14px) !important;
+        -webkit-backdrop-filter: blur(14px) !important;
+        position: relative !important;
+        transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease !important;
     }
 
+    .table-scroll table tbody tr:active,
+    .output-table-scroll table tbody tr:active,
+    .sub-output-table-scroll table tbody tr:active,
+    table:not(.calendar-table) tbody tr:active {
+        transform: scale(0.99) !important;
+        border-color: rgba(61, 213, 192, 0.5) !important;
+    }
+
+    /* Preserve missing collect alert styling on cards */
+    .table-scroll table tbody tr.row-missing-collect,
+    .output-table-scroll table tbody tr.row-missing-collect,
+    .sub-output-table-scroll table tbody tr.row-missing-collect {
+        border-left: 5px solid #f59e0b !important;
+        background: rgba(245, 158, 11, 0.12) !important;
+    }
+
+    /* Transform each cell (td) into a Key-Value flex line */
     .table-scroll table tbody td,
     .output-table-scroll table tbody td,
     .sub-output-table-scroll table tbody td,
-    #tableBody td,
-    #outputBarcodeTableBody td,
-    #subOutputBarcodeTableBody td,
     table:not(.calendar-table) tbody td {
         display: flex !important;
         justify-content: space-between !important;
-        align-items: flex-start !important;
+        align-items: center !important;
         text-align: right !important;
-        padding: var(--space-2) 0 !important;
+        padding: 7px 0 !important;
         border: none !important;
-        border-bottom: 1px solid var(--ds-border-surface) !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.07) !important;
         width: 100% !important;
-        max-width: 100% !important;
         box-sizing: border-box !important;
-        font-size: var(--text-base) !important;
-        color: var(--ds-text-primary) !important;
-        min-height: 36px !important;
-        height: auto !important;
-        overflow: visible !important;
-        text-overflow: clip !important;
+        font-size: 13px !important;
+        color: #f1f5f9 !important;
+        min-height: 38px !important;
         word-break: break-word !important;
-        overflow-wrap: anywhere !important;
         white-space: normal !important;
-        position: static !important;
-        left: auto !important;
     }
 
     .table-scroll table tbody td:last-child,
     .output-table-scroll table tbody td:last-child,
     .sub-output-table-scroll table tbody td:last-child,
-    #tableBody td:last-child,
-    #outputBarcodeTableBody td:last-child,
-    #subOutputBarcodeTableBody td:last-child,
     table:not(.calendar-table) tbody td:last-child {
         border-bottom: none !important;
     }
 
+    /* Display Column Header as key label via attr(data-label) */
     .table-scroll table tbody td[data-label]::before,
     .output-table-scroll table tbody td[data-label]::before,
     .sub-output-table-scroll table tbody td[data-label]::before,
-    #tableBody td[data-label]::before,
-    #outputBarcodeTableBody td[data-label]::before,
-    #subOutputBarcodeTableBody td[data-label]::before,
     table:not(.calendar-table) tbody td[data-label]::before {
         content: attr(data-label);
         display: inline-block !important;
         font-weight: 700 !important;
-        font-size: var(--text-xs) !important;
-        letter-spacing: 0.04em !important;
-        color: var(--ds-accent) !important;
+        font-size: 11px !important;
+        letter-spacing: 0.5px !important;
+        color: #3dd5c0 !important;
         text-transform: uppercase !important;
         text-align: left !important;
-        margin-right: var(--space-3) !important;
+        margin-right: 12px !important;
         flex-shrink: 0 !important;
-        max-width: 45% !important;
+        max-width: 44% !important;
+    }
+
+    /* Empty state handling */
+    table tbody tr:has(.table-empty-state),
+    table tbody tr:has(.recipe-empty-container),
+    tr:has(td:not([data-label])) {
+        border: none !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+    }
+
+    td:not([data-label]) {
+        display: block !important;
+        text-align: center !important;
+        border: none !important;
+        width: 100% !important;
+    }
+
+    /* Disable sticky header and columns in card view */
+    .table-scroll table th,
+    .table-scroll table td,
+    .output-table-scroll table th,
+    .output-table-scroll table td {
+        position: static !important;
+        left: auto !important;
     }
 }
 
-/* 5. Touch Targets >= 44px & Zero Input-Label Overlap Across Viewports */
-.input-box .input,
-.input-wrapper .input,
-.ocr-dropzone,
-.kd-fab-main,
-.kd-speed-dial-action,
-.kd-tab,
-.kd-action-btn,
-.btn-now,
-.help-nav-item {
-    min-height: 44px !important;
-}
+/* 3. Interactive Touch Targets Minimum 44px on Mobile & Tablet */
+@media (max-width: 800px) {
+    .btn-export-excel,
+    #exportExcelBtn,
+    #exportOutputExcelBtn,
+    #exportSubOutputExcelBtn {
+        min-height: 44px !important;
+        height: 44px !important;
+        min-width: 105px !important;
+        width: auto !important;
+        border-radius: 10px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
 
-.input-box .input {
-    padding-bottom: 8px !important;
-}
+    .output-header .close-btn,
+    .sub-output-header .close-btn {
+        width: 44px !important;
+        height: 44px !important;
+        min-width: 44px !important;
+        min-height: 44px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        border-radius: 8px !important;
+    }
 
-.input-box .clear-btn,
-.input-wrapper .clear-btn,
-.clear-btn,
-.barcode-clear-btn,
-.floating-clear-btn {
-    width: 44px !important;
-    height: 44px !important;
-    min-width: 44px !important;
-    min-height: 44px !important;
-    right: 0 !important;
-    background: transparent !important;
-    border: none !important;
-    align-items: center !important;
-    justify-content: center !important;
-}
+    .input-mode-toggle-btn {
+        min-height: 44px !important;
+        height: 44px !important;
+        line-height: 42px !important;
+        border-radius: 22px !important;
+        padding: 0 16px !important;
+        bottom: -22px !important;
+        font-size: 11.5px !important;
+    }
 
-/* Unified Mode Toggle Pill (44px Touch Target Box + 22px Visual Pill via ::before => Zero Overlap on 390/768/1440) */
-.search-section:has(.search-row-switchable) {
-    row-gap: 28px !important;
-    margin-bottom: 18px !important;
-}
+    .search-section:has(.search-row-switchable) {
+        row-gap: 28px !important;
+    }
 
-.input-box.has-value .input {
-    padding-right: 36px !important;
-}
+    .input-box .input,
+    .input-wrapper .input,
+    .ocr-dropzone {
+        min-height: 44px !important;
+        height: 44px !important;
+    }
 
-@media (max-width: 480px) {
-    .search-section .input-switcher-container .input {
-        font-size: 12.5px !important;
-        padding-left: 10px !important;
+    .kd-fab-main {
+        width: 44px !important;
+        height: 44px !important;
+        min-width: 44px !important;
+        min-height: 44px !important;
+    }
+
+    .kd-speed-dial-action {
+        width: 44px !important;
+        height: 44px !important;
+        min-width: 44px !important;
+        min-height: 44px !important;
+    }
+
+    .details-modal-close,
+    .comparison-close-btn,
+    .help-modal-close-btn {
+        width: 44px !important;
+        height: 44px !important;
+        min-width: 44px !important;
+        min-height: 44px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    .kd-tab,
+    .kd-action-btn,
+    .btn-now {
+        min-height: 44px !important;
+        height: 44px !important;
+    }
+
+    .help-nav-item {
+        min-height: 44px !important;
+        height: 44px !important;
     }
 }
 
-.search-section .input-mode-toggle-btn,
-.input-mode-toggle-btn {
-    position: absolute !important;
-    left: 50% !important;
-    transform: translateX(-50%) !important;
-    height: 44px !important;
-    min-height: 44px !important;
-    line-height: 1 !important;
-    min-width: 112px !important;
-    bottom: -31px !important;
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
-    padding: 4px var(--space-3) 0 var(--space-3) !important;
-    color: var(--ds-accent) !important;
-    font-size: var(--text-xs) !important;
-    font-weight: 600 !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: var(--space-1) !important;
-    z-index: 15 !important;
+/* 4. Desktop Layout Preservation (1440px and >= 801px) */
+@media (min-width: 801px) {
+    /* Transparent touch zone safeguard that does NOT modify visual layout */
+    .input-mode-toggle-btn::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        min-width: 44px;
+        min-height: 44px;
+        width: 100%;
+        height: 100%;
+        pointer-events: auto;
+    }
 }
-
-.search-section .input-mode-toggle-btn::before,
-.input-mode-toggle-btn::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 14px;
-    bottom: 8px;
-    background-color: var(--ds-bg-surface) !important;
-    border: 1px solid var(--ds-accent) !important;
-    border-radius: 999px !important;
-    z-index: -1;
-}
-
-.search-section .input-mode-toggle-btn:hover::before,
-.input-mode-toggle-btn:hover::before {
-    background-color: var(--ds-border-surface) !important;
-}
-
 

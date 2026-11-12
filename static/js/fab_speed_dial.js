@@ -873,9 +873,9 @@
 
                 <div class="kd-result-value font-mono" id="valUtc">${escapeHtml(data.utc)}</div>
 
-                <button type="button" class="kd-copy-btn" onclick="copyResultText('valUtc', 'Đã copy UTC time')" title="Copy UTC" aria-label="Copy UTC time">
+                <button type="button" class="kd-copy-btn" onclick="copyResultText('valUtc', 'Đã copy UTC time')" title="Copy UTC">
 
-                    <span class="material-symbols-outlined" aria-hidden="true">content_copy</span>
+                    <span class="material-symbols-outlined">content_copy</span>
 
                 </button>
 
@@ -889,9 +889,9 @@
 
                 <div class="kd-result-value font-mono" id="valLocal">${escapeHtml(data.local)}</div>
 
-                <button type="button" class="kd-copy-btn" onclick="copyResultText('valLocal', 'Đã copy UTC+7 time')" title="Copy UTC+7" aria-label="Copy UTC+7 time">
+                <button type="button" class="kd-copy-btn" onclick="copyResultText('valLocal', 'Đã copy UTC+7 time')" title="Copy UTC+7">
 
-                    <span class="material-symbols-outlined" aria-hidden="true">content_copy</span>
+                    <span class="material-symbols-outlined">content_copy</span>
 
                 </button>
 

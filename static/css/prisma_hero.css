@@ -24,8 +24,8 @@
 
     /* Dynamic Hardware-Accelerated Portal Mask centered at Laptop Screen (52% 51.5%) */
     --reveal-radius: 0%;
-    -webkit-mask-image: #0A0E1A;
-    mask-image: #0A0E1A;
+    -webkit-mask-image: radial-gradient(circle at 52% 51.5%, transparent var(--reveal-radius), #000 calc(var(--reveal-radius) + 0.8%));
+    mask-image: radial-gradient(circle at 52% 51.5%, transparent var(--reveal-radius), #000 calc(var(--reveal-radius) + 0.8%));
 }
 
 .prisma-hero-container.fade-out {
@@ -59,7 +59,7 @@
     pointer-events: none;
     opacity: 0.45;
     mix-blend-mode: overlay;
-    background-image: #0A0E1A;
+    background-image: radial-gradient(rgba(255, 255, 255, 0.4) 1px, transparent 1px);
     background-size: 16px 16px;
     z-index: 2;
 }
@@ -69,7 +69,7 @@
     position: absolute;
     inset: 0;
     pointer-events: none;
-    background: #0A0E1A;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.45) 0%, rgba(0, 0, 0, 0.05) 45%, rgba(0, 0, 0, 0.75) 100%);
     z-index: 3;
 }
 
@@ -150,7 +150,7 @@
 .prisma-progress-bar {
     width: 0%;
     height: 100%;
-    background: #3DD5C0;
+    background: linear-gradient(90deg, #3dd5c0, #E1E0CC);
     border-radius: 9999px;
     box-shadow: 0 0 12px rgba(61, 213, 192, 0.75);
     transition: none !important;

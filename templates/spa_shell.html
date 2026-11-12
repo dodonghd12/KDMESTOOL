@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>{{ page_title }}</title>
 <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/favicon.svg') }}">
     <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
@@ -53,6 +53,8 @@
             transform: translateZ(0);
             contain: strict;
             --reveal-radius: 0%;
+            -webkit-mask-image: radial-gradient(circle at 52% 51.5%, transparent var(--reveal-radius), #000 calc(var(--reveal-radius) + 0.8%));
+            mask-image: radial-gradient(circle at 52% 51.5%, transparent var(--reveal-radius), #000 calc(var(--reveal-radius) + 0.8%));
         }
         .prisma-hero-container.fade-out {
             opacity: 0 !important;
@@ -78,15 +80,17 @@
             position: absolute;
             inset: 0;
             pointer-events: none;
-            opacity: 0.15;
-            background-color: #0A0E1A;
+            opacity: 0.45;
+            mix-blend-mode: overlay;
+            background-image: radial-gradient(rgba(255, 255, 255, 0.4) 1px, transparent 1px);
+            background-size: 16px 16px;
             z-index: 2;
         }
         .prisma-gradient-overlay {
             position: absolute;
             inset: 0;
             pointer-events: none;
-            background-color: rgba(10, 14, 26, 0.55);
+            background: linear-gradient(180deg, rgba(0, 0, 0, 0.45) 0%, rgba(0, 0, 0, 0.05) 45%, rgba(0, 0, 0, 0.75) 100%);
             z-index: 3;
         }
         .prisma-hero-counter-zone {
@@ -157,7 +161,7 @@
         .prisma-progress-bar {
             width: 0%;
             height: 100%;
-            background: #3dd5c0;
+            background: linear-gradient(90deg, #3dd5c0, #E1E0CC);
             border-radius: 9999px;
             box-shadow: 0 0 12px rgba(61, 213, 192, 0.75);
             transition: none !important;
@@ -251,7 +255,7 @@
     <!-- Mobile Top App Bar (Only visible on mobile screens <= 800px) -->
     <header id="mobileHeader" class="mobile-header" role="banner">
         <button type="button" class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Mở menu điều hướng" title="Mở menu">
-            <span class="material-symbols-outlined" aria-hidden="true">menu</span>
+            <span class="material-symbols-outlined">menu</span>
         </button>
         <div class="mobile-header-brand">
             <span class="mobile-logo-text">KDMES TOOL</span>
@@ -260,7 +264,7 @@
         </div>
         <div class="mobile-header-actions">
             <button type="button" class="mobile-action-btn mobile-theme-btn" id="mobileThemeBtn" aria-label="Đổi giao diện Sáng / Tối" title="Giao diện Sáng/Tối">
-                <span class="material-symbols-outlined" id="mobileThemeIcon" aria-hidden="true">dark_mode</span>
+                <span class="material-symbols-outlined" id="mobileThemeIcon">dark_mode</span>
             </button>
         </div>
     </header>

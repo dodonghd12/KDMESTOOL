@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Main</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v={{ version }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/smooth_input.css') }}?v={{ version }}">
@@ -27,19 +27,19 @@
                 <div class="input-switcher-container" id="mainInputSwitcher" data-active-mode="barcode">
                     <!-- 1. Input Barcode (Default Mode) -->
                     <div class="input-box input-switch-item" id="barcodeInputBox" data-mode="barcode">
-                        <input required placeholder=" " type="text" id="barcode" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="input" aria-label="Tem / Barcode">
-                        <label class="user-label" for="barcode">Tem / Barcode</label>
+                        <input required placeholder=" " type="text" id="barcode" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="input">
+                        <label class="user-label">Tem / Barcode</label>
                     </div>
 
                     <!-- 2. Input Feed Record ID -->
                     <div class="input-box input-switch-item" id="feedRecordInputBox" data-mode="feed_record">
-                        <input required placeholder=" " type="text" id="feed_record_id" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="input" aria-label="Lịch sử hao dùng / Feed Record">
-                        <label class="user-label" for="feed_record_id">Lịch sử hao dùng / Feed Record</label>
+                        <input required placeholder=" " type="text" id="feed_record_id" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="input">
+                        <label class="user-label">Lịch sử hao dùng / Feed Record</label>
                     </div>
 
                     <!-- 3. Toggle Button Centered Below Input Bottom Border -->
-                    <button type="button" class="input-mode-toggle-btn" id="toggleInputModeBtn" title="Chuyển sang tìm kiếm theo Lịch sử hao dùng (Feed Record)" aria-label="Đổi chế độ tìm kiếm giữa Tem Barcode và Feed Record">
-                        <span class="material-symbols-outlined toggle-icon" aria-hidden="true">swap_vert</span>
+                    <button type="button" class="input-mode-toggle-btn" id="toggleInputModeBtn" title="Chuyển sang tìm kiếm theo Lịch sử hao dùng (Feed Record)" aria-label="Đổi chế độ tìm kiếm">
+                        <span class="material-symbols-outlined toggle-icon">swap_vert</span>
                         <span class="toggle-mode-text" id="toggleModeLabel">Feed Record</span>
                     </button>
                 </div>
@@ -48,19 +48,19 @@
                 <div class="input-switcher-container" id="recipeInputSwitcher" data-active-mode="recipe">
                     <!-- 1. Input Recipe (Default Mode) -->
                     <div class="input-box input-switch-item" id="recipeInputBox" data-mode="recipe">
-                        <input required placeholder=" " type="text" id="product_id" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="input" aria-label="Quy cách / Recipe">
-                        <label class="user-label" for="product_id">Quy cách / Recipe</label>
+                        <input required placeholder=" " type="text" id="product_id" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="input">
+                        <label class="user-label">Quy cách / Recipe</label>
                     </div>
 
                     <!-- 2. Input Work Order -->
                     <div class="input-box input-switch-item" id="workOrderInputBox" data-mode="work_order">
-                        <input required placeholder=" " type="text" id="work_order" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="input" aria-label="Đơn điều động / Work Order">
-                        <label class="user-label" for="work_order">Đơn điều động / Work Order</label>
+                        <input required placeholder=" " type="text" id="work_order" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="input">
+                        <label class="user-label">Đơn điều động / Work Order</label>
                     </div>
 
                     <!-- 3. Toggle Button Centered Below Input Bottom Border -->
-                    <button type="button" class="input-mode-toggle-btn" id="toggleRecipeModeBtn" title="Chuyển sang tìm kiếm theo Đơn điều động (Work Order)" aria-label="Đổi chế độ tìm kiếm giữa Quy cách Recipe và Work Order">
-                        <span class="material-symbols-outlined toggle-icon" aria-hidden="true">swap_vert</span>
+                    <button type="button" class="input-mode-toggle-btn" id="toggleRecipeModeBtn" title="Chuyển sang tìm kiếm theo Đơn điều động (Work Order)" aria-label="Đổi chế độ tìm kiếm">
+                        <span class="material-symbols-outlined toggle-icon">swap_vert</span>
                         <span class="toggle-mode-text" id="toggleRecipeModeLabel">Work Order</span>
                     </button>
                 </div>
@@ -77,7 +77,7 @@
                     <!-- State 1: Chờ ảnh (Idle) -->
                     <div class="ocr-state ocr-state-idle" id="ocrStateIdle">
                         <div class="ocr-icon-wrap">
-                            <span class="material-symbols-outlined ocr-cloud-icon" aria-hidden="true">document_scanner</span>
+                            <span class="material-symbols-outlined ocr-cloud-icon">document_scanner</span>
                         </div>
                         <div class="ocr-text-wrap">
                             <span class="ocr-title">Image to Text</span>
@@ -89,7 +89,7 @@
                     <div class="ocr-state ocr-state-loading" id="ocrStateLoading" style="display:none;">
                         <div class="ocr-loading-meta">
                             <div class="ocr-loading-badge">
-                                <span class="material-symbols-outlined ocr-spin-icon" aria-hidden="true">progress_activity</span>
+                                <span class="material-symbols-outlined ocr-spin-icon">progress_activity</span>
                             </div>
                             <div class="ocr-loading-info">
                                 <span class="ocr-loading-name" id="ocrLoadingFileName">Đang đọc ảnh...</span>
@@ -124,7 +124,7 @@
                 <!-- Standby guide / empty state before search -->
                 <div class="table-standby-placeholder" id="tableStandbyPlaceholder">
                     <div class="standby-icon-ring">
-                        <span class="material-symbols-outlined standby-icon" aria-hidden="true">qr_code_scanner</span>
+                        <span class="material-symbols-outlined standby-icon">qr_code_scanner</span>
                     </div>
                     <div class="standby-title">Sẵn sàng tra cứu</div>
                     <div class="standby-subtitle">Nhập Tem / Barcode hoặc Quy cách để hiển thị dữ liệu</div>

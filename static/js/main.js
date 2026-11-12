@@ -6856,8 +6856,8 @@ function renderActionsCommitModal(result, activeIndex = 0) {
                             <div class="actions-meta-value">
                                 <code class="commit-sha" title="${escapeHtml(edit.id || '')}">${escapeHtml(edit.short_id || (edit.id ? edit.id.substring(0,8) : 'N/A'))}</code>
                                 ${edit.id ? `
-                                    <button type="button" class="btn-copy-mini" onclick="copyCommitValue('${escapeHtml(edit.id)}', this)" title="Sao chép Full SHA" aria-label="Sao chép Full SHA">
-                                        <span class="material-symbols-outlined" aria-hidden="true">content_copy</span>
+                                    <button type="button" class="btn-copy-mini" onclick="copyCommitValue('${escapeHtml(edit.id)}', this)" title="Sao chép Full SHA">
+                                        <span class="material-symbols-outlined">content_copy</span>
                                     </button>
                                 ` : ''}
                             </div>
@@ -6865,14 +6865,14 @@ function renderActionsCommitModal(result, activeIndex = 0) {
 
                         <div class="actions-meta-cell">
                             <div class="actions-meta-label">
-                                <span class="material-symbols-outlined" aria-hidden="true">fork_left</span>
+                                <span class="material-symbols-outlined">fork_left</span>
                                 <span>Tên nhánh</span>
                             </div>
                             <div class="actions-meta-value">
                                 <code class="branch-name" title="${escapeHtml(edit.source_branch || 'master')}">${escapeHtml(edit.source_branch || 'master')}</code>
                                 ${edit.source_branch ? `
-                                    <button type="button" class="btn-copy-mini" onclick="copyCommitValue('${escapeHtml(edit.source_branch)}', this)" title="Sao chép tên nhánh" aria-label="Sao chép tên nhánh">
-                                        <span class="material-symbols-outlined" aria-hidden="true">content_copy</span>
+                                    <button type="button" class="btn-copy-mini" onclick="copyCommitValue('${escapeHtml(edit.source_branch)}', this)" title="Sao chép tên nhánh">
+                                        <span class="material-symbols-outlined">content_copy</span>
                                     </button>
                                 ` : ''}
                             </div>
@@ -7417,7 +7417,7 @@ function renderYamlWithErrors(content, filePath, errors, productType = '', valid
         drawerHtml = `<div class="yaml-error-drawer" id="yamlErrorDrawer">` +
             `<div class="yaml-drawer-header">` +
                 `<span>⚠️ Danh sách ${errors.length} cảnh báo / lỗi tiềm ẩn:</span>` +
-                `<button class="yaml-drawer-close" onclick="toggleYamlDrawer()" title="Thu gọn danh sách lỗi" aria-label="Thu gọn danh sách lỗi" type="button">✕</button>` +
+                `<button class="yaml-drawer-close" onclick="toggleYamlDrawer()" title="Thu gọn danh sách lỗi" type="button">✕</button>` +
             `</div>` +
             `<div class="yaml-drawer-list">${drawerItems}</div>` +
             `${validKeysHtml}` +
