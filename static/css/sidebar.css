@@ -1792,6 +1792,23 @@ body.theme-light .quick-action-btn:hover {
     box-shadow: none !important;
 }
 
+#kdSpeedDialMenu:not(.open) {
+    display: none !important;
+}
+
+#kdSpeedDialMenu.open {
+    display: flex !important;
+}
+
+.kd-speed-dial-chip,
+.db-env-btn {
+    min-height: 44px !important;
+    min-width: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
 /* Focus-Visible & Reduced Motion in Shell */
 #sidebar a:focus-visible,
 #sidebar button:focus-visible,

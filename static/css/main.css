@@ -14746,8 +14746,12 @@ textarea:focus-visible,
     }
 }
 
-/* 3. Desktop & Tablet Table Styling (>= 768px): Zero Horizontal Scroll */
-@media (min-width: 768px) {
+/* 3. Desktop Table Styling (>= 769px): Preserve Desktop Layout + Zero Horizontal Scroll */
+.table-scroll:has(#tableBody tr) #tableStandbyPlaceholder {
+    display: none !important;
+}
+
+@media (min-width: 769px) {
     .table-container,
     .table-scroll,
     .output-table-scroll,
@@ -14763,7 +14767,7 @@ textarea:focus-visible,
     .sub-output-table-scroll table {
         width: 100% !important;
         max-width: 100% !important;
-        table-layout: fixed !important;
+        table-layout: auto !important;
         border-collapse: collapse !important;
     }
 
@@ -14772,14 +14776,14 @@ textarea:focus-visible,
     .sub-output-table-scroll table th {
         background-color: var(--ds-border-surface) !important;
         color: var(--ds-accent) !important;
-        font-size: 11px !important;
+        font-size: 10.5px !important;
         font-weight: 700 !important;
-        padding: var(--space-2) 6px !important;
+        padding: var(--space-2) 4px !important;
         border: 1px solid var(--ds-border-surface) !important;
         white-space: normal !important;
-        word-break: break-word !important;
-        overflow-wrap: anywhere !important;
-        line-height: 1.3 !important;
+        word-break: normal !important;
+        overflow-wrap: break-word !important;
+        line-height: 1.25 !important;
         position: sticky !important;
         top: 0 !important;
         left: auto !important;
@@ -14787,11 +14791,14 @@ textarea:focus-visible,
 
     .table-scroll table td,
     .output-table-scroll table td,
-    .sub-output-table-scroll table td {
+    .sub-output-table-scroll table td,
+    #tableBody td,
+    #outputBarcodeTableBody td,
+    #subOutputBarcodeTableBody td {
         background-color: var(--ds-bg-surface) !important;
         color: var(--ds-text-primary) !important;
-        font-size: 12px !important;
-        padding: var(--space-2) 6px !important;
+        font-size: 11.5px !important;
+        padding: var(--space-2) 4px !important;
         border-bottom: 1px solid var(--ds-border-surface) !important;
         white-space: normal !important;
         word-break: break-word !important;
@@ -14800,22 +14807,40 @@ textarea:focus-visible,
         position: static !important;
         left: auto !important;
     }
+
+    .table-scroll table td:first-child,
+    .output-table-scroll table td:first-child {
+        min-width: 145px !important;
+        word-break: normal !important;
+        white-space: nowrap !important;
+    }
+
+    .table-scroll table td:nth-child(14),
+    .table-scroll table td:nth-child(15) {
+        max-width: 85px !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+    }
 }
 
-/* 4. Stacked Cards for Data Tables when Screen Width < 768px (Mobile 390px) */
-@media (max-width: 767.98px) {
+/* 4. Stacked Cards for Data Tables on Mobile & Tablet (<= 768px) */
+@media (max-width: 768px) {
     .table-container,
     .table-scroll,
     .output-table-scroll,
     .sub-output-table-scroll {
         overflow-x: hidden !important;
+        width: 100% !important;
         max-width: 100% !important;
         box-sizing: border-box !important;
+        padding: var(--space-2) !important;
     }
 
     .table-scroll table thead,
     .output-table-scroll table thead,
     .sub-output-table-scroll table thead,
+    #tableHead,
     table:not(.calendar-table) thead {
         display: none !important;
     }
@@ -14823,31 +14848,47 @@ textarea:focus-visible,
     .table-scroll table,
     .output-table-scroll table,
     .sub-output-table-scroll table,
+    #outputBarcodeTable,
+    #subOutputBarcodeTable,
     table:not(.calendar-table) {
-        display: block !important;
+        display: flex !important;
+        flex-direction: column !important;
         width: 100% !important;
+        min-width: 100% !important;
         max-width: 100% !important;
     }
 
     .table-scroll table tbody,
     .output-table-scroll table tbody,
     .sub-output-table-scroll table tbody,
+    #tableBody,
+    #outputBarcodeTableBody,
+    #subOutputBarcodeTableBody,
     table:not(.calendar-table) tbody {
         display: flex !important;
         flex-direction: column !important;
         gap: var(--space-3) !important;
         width: 100% !important;
+        min-width: 100% !important;
+        max-width: 100% !important;
         box-sizing: border-box !important;
-        padding: var(--space-2) 0 var(--space-3) 0 !important;
+        padding: var(--space-1) 0 var(--space-2) 0 !important;
     }
 
     .table-scroll table tbody tr:not(.empty-row),
     .output-table-scroll table tbody tr:not(.empty-row),
     .sub-output-table-scroll table tbody tr:not(.empty-row),
+    #tableBody tr:not(.empty-row),
+    #outputBarcodeTableBody tr:not(.empty-row),
+    #subOutputBarcodeTableBody tr:not(.empty-row),
     table:not(.calendar-table) tbody tr:not(.empty-row) {
         display: flex !important;
         flex-direction: column !important;
         width: 100% !important;
+        min-width: 100% !important;
+        max-width: 100% !important;
+        height: auto !important;
+        min-height: 0 !important;
         box-sizing: border-box !important;
         background-color: var(--ds-bg-surface) !important;
         border: 1px solid var(--ds-border-surface) !important;
@@ -14860,6 +14901,9 @@ textarea:focus-visible,
     .table-scroll table tbody td,
     .output-table-scroll table tbody td,
     .sub-output-table-scroll table tbody td,
+    #tableBody td,
+    #outputBarcodeTableBody td,
+    #subOutputBarcodeTableBody td,
     table:not(.calendar-table) tbody td {
         display: flex !important;
         justify-content: space-between !important;
@@ -14869,10 +14913,14 @@ textarea:focus-visible,
         border: none !important;
         border-bottom: 1px solid var(--ds-border-surface) !important;
         width: 100% !important;
+        max-width: 100% !important;
         box-sizing: border-box !important;
         font-size: var(--text-base) !important;
         color: var(--ds-text-primary) !important;
         min-height: 36px !important;
+        height: auto !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
         word-break: break-word !important;
         overflow-wrap: anywhere !important;
         white-space: normal !important;
@@ -14883,6 +14931,9 @@ textarea:focus-visible,
     .table-scroll table tbody td:last-child,
     .output-table-scroll table tbody td:last-child,
     .sub-output-table-scroll table tbody td:last-child,
+    #tableBody td:last-child,
+    #outputBarcodeTableBody td:last-child,
+    #subOutputBarcodeTableBody td:last-child,
     table:not(.calendar-table) tbody td:last-child {
         border-bottom: none !important;
     }
@@ -14890,6 +14941,9 @@ textarea:focus-visible,
     .table-scroll table tbody td[data-label]::before,
     .output-table-scroll table tbody td[data-label]::before,
     .sub-output-table-scroll table tbody td[data-label]::before,
+    #tableBody td[data-label]::before,
+    #outputBarcodeTableBody td[data-label]::before,
+    #subOutputBarcodeTableBody td[data-label]::before,
     table:not(.calendar-table) tbody td[data-label]::before {
         content: attr(data-label);
         display: inline-block !important;
@@ -14918,74 +14972,84 @@ textarea:focus-visible,
     min-height: 44px !important;
 }
 
-/* Mobile & Tablet (<= 800px): Stack toggle buttons cleanly below inputs (Zero Overlap) */
-@media (max-width: 800px) {
-    .search-section:has(.search-row-switchable) {
-        row-gap: var(--space-3) !important;
-        margin-bottom: var(--space-3) !important;
-    }
+.input-box .input {
+    padding-bottom: 8px !important;
+}
 
-    .input-switcher-container {
-        display: flex !important;
-        flex-direction: column !important;
-        gap: var(--space-2) !important;
-    }
+.input-box .clear-btn,
+.input-wrapper .clear-btn,
+.clear-btn,
+.barcode-clear-btn,
+.floating-clear-btn {
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    right: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
 
-    .input-mode-toggle-btn {
-        position: static !important;
-        transform: none !important;
-        width: 100% !important;
-        min-height: 44px !important;
-        height: 44px !important;
-        border-radius: 8px !important;
-        padding: 0 var(--space-3) !important;
-        background-color: var(--ds-border-surface) !important;
-        border: 1px solid var(--ds-accent) !important;
-        color: var(--ds-accent) !important;
-        font-size: var(--text-sm) !important;
-        font-weight: 600 !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        gap: var(--space-1) !important;
-        box-shadow: none !important;
+/* Unified Mode Toggle Pill (44px Touch Target Box + 22px Visual Pill via ::before => Zero Overlap on 390/768/1440) */
+.search-section:has(.search-row-switchable) {
+    row-gap: 28px !important;
+    margin-bottom: 18px !important;
+}
+
+.input-box.has-value .input {
+    padding-right: 36px !important;
+}
+
+@media (max-width: 480px) {
+    .search-section .input-switcher-container .input {
+        font-size: 12.5px !important;
+        padding-left: 10px !important;
     }
 }
 
-/* Desktop (>= 801px): Preserve Exact Desktop Layout while Providing 44px Hit Area */
-@media (min-width: 801px) {
-    .input-mode-toggle-btn {
-        height: 44px !important;
-        min-height: 44px !important;
-        min-width: 110px !important;
-        bottom: -22px !important;
-        background: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
-        padding: 0 var(--space-3) !important;
-        color: var(--ds-accent) !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        z-index: 15 !important;
-    }
+.search-section .input-mode-toggle-btn,
+.input-mode-toggle-btn {
+    position: absolute !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    line-height: 1 !important;
+    min-width: 112px !important;
+    bottom: -31px !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 4px var(--space-3) 0 var(--space-3) !important;
+    color: var(--ds-accent) !important;
+    font-size: var(--text-xs) !important;
+    font-weight: 600 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: var(--space-1) !important;
+    z-index: 15 !important;
+}
 
-    .input-mode-toggle-btn::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        right: 0;
-        top: 10px;
-        bottom: 10px;
-        background-color: var(--ds-bg-surface) !important;
-        border: 1px solid var(--ds-accent) !important;
-        border-radius: 999px !important;
-        z-index: -1;
-    }
+.search-section .input-mode-toggle-btn::before,
+.input-mode-toggle-btn::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 14px;
+    bottom: 8px;
+    background-color: var(--ds-bg-surface) !important;
+    border: 1px solid var(--ds-accent) !important;
+    border-radius: 999px !important;
+    z-index: -1;
+}
 
-    .input-mode-toggle-btn:hover::before {
-        background-color: var(--ds-border-surface) !important;
-    }
+.search-section .input-mode-toggle-btn:hover::before,
+.input-mode-toggle-btn:hover::before {
+    background-color: var(--ds-border-surface) !important;
 }
 
 
