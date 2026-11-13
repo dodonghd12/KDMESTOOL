@@ -115,9 +115,9 @@
     --color-interactive-accent-hover: #34d399;
     --color-interactive-bg-hover: #1E293B;
     --color-interactive-bg-active: #1E293B;
-    --table-row-bg-hover: #1E293B;
-    --table-row-bg-active: #1E293B;
-    --table-row-bg-selected-hover: #1E293B;
+    --table-row-bg-hover: #1A2436;
+    --table-row-bg-active: #0D2826;
+    --table-row-bg-selected-hover: #123835;
     --color-interactive-disabled: var(--slate-600);
     --color-interactive-disabled-bg: rgba(255, 255, 255, 0.05);
 
@@ -1701,7 +1701,8 @@ th {
     text-transform: uppercase;
     color: var(--color-text-accent);
     white-space: nowrap;
-    border-bottom: 2px solid var(--color-border-interactive);
+    border-bottom: 2px solid #0A0E1A !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.45);
     user-select: none;
     transition: background-color 0.15s ease, padding 0.2s ease, font-size 0.2s ease;
     box-sizing: border-box;
@@ -1727,11 +1728,18 @@ tbody tr:hover td {
 
 tbody tr.selected {
     background-color: var(--table-row-bg-active) !important;
-    box-shadow: inset 4px 0 0 0 var(--color-text-accent), inset 0 0 15px var(--color-border-subtle);
 }
 
 tbody tr.selected td {
     background-color: var(--table-row-bg-active) !important;
+    color: #F8FAFC !important;
+    font-weight: 500;
+    border-top: 1px solid #164640 !important;
+    border-bottom: 1px solid #164640 !important;
+}
+
+tbody tr.selected td:first-child {
+    border-left: 3px solid #3DD5C0 !important;
 }
 
 tbody tr.selected:hover {
@@ -1822,6 +1830,7 @@ td {
     left: 0;
     z-index: 35 !important;
     background: var(--color-bg-surface-elevated-solid, #1e293b) !important;
+    border-bottom: 2px solid #0A0E1A !important;
 }
 
 .table-scroll thead th:nth-child(2) {
@@ -1831,6 +1840,7 @@ td {
     z-index: 35 !important;
     background: var(--color-bg-surface-elevated-solid, #1e293b) !important;
     border-right: 2px solid var(--color-border-interactive);
+    border-bottom: 2px solid #0A0E1A !important;
     box-shadow: 4px 0 10px -2px var(--color-shadow-glass, rgba(0, 0, 0, 0.4));
 }
 
@@ -1842,6 +1852,7 @@ td {
     z-index: 35 !important;
     background: var(--color-bg-surface-elevated-solid, #1e293b) !important;
     border-right: 2px solid var(--color-border-interactive);
+    border-bottom: 2px solid #0A0E1A !important;
     box-shadow: 4px 0 10px -2px var(--color-shadow-glass, rgba(0, 0, 0, 0.4));
 }
 
@@ -1853,6 +1864,7 @@ td {
     z-index: 35 !important;
     background: var(--color-bg-surface-elevated-solid, #1e293b) !important;
     border-right: 2px solid var(--color-border-interactive);
+    border-bottom: 2px solid #0A0E1A !important;
     box-shadow: 4px 0 10px -2px var(--color-shadow-glass, rgba(0, 0, 0, 0.4));
 }
 
@@ -1881,6 +1893,17 @@ td {
 #subOutputBarcodeTable tbody tr.selected td:nth-child(1),
 #subOutputBarcodeTable tbody tr.selected td:nth-child(2) {
     background-color: var(--table-row-bg-active) !important;
+    color: #F8FAFC !important;
+    border-top: 1px solid #164640 !important;
+    border-bottom: 1px solid #164640 !important;
+}
+
+.table-scroll tbody tr.selected td:nth-child(1),
+.output-table-scroll tbody tr.selected td:nth-child(1),
+.sub-output-table-scroll tbody tr.selected td:nth-child(1),
+#outputBarcodeTable tbody tr.selected td:nth-child(1),
+#subOutputBarcodeTable tbody tr.selected td:nth-child(1) {
+    border-left: 3px solid #3DD5C0 !important;
 }
 
 .table-scroll tbody tr.selected:hover td:nth-child(1),
@@ -11772,8 +11795,8 @@ body.theme-light .material-transfer-retry-btn.is-success {
         font-weight: 700 !important;
         color: var(--color-text-accent, #3dd5c0) !important;
         background: var(--color-bg-surface-elevated-solid, #1e293b) !important;
-        border-bottom: 2px solid var(--color-border-interactive, rgba(61, 213, 192, 0.35)) !important;
-        box-shadow: 0 1px 0 var(--color-border-interactive, rgba(61, 213, 192, 0.35)) !important;
+        border-bottom: 2px solid #0A0E1A !important;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.45) !important;
         white-space: nowrap !important;
         user-select: none !important;
     }
@@ -11809,6 +11832,45 @@ body.theme-light .material-transfer-retry-btn.is-success {
         max-width: 250px !important;
         overflow: hidden !important;
         text-overflow: ellipsis !important;
+    }
+
+    .table-scroll tbody tr.selected td,
+    .winx-table tbody tr.selected td,
+    .comparison-table tbody tr.selected td,
+    .mes-master-table tbody tr.selected td,
+    #accountTable tbody tr.selected td,
+    #checkAccountTable tbody tr.selected td,
+    #tableBody tr.selected td,
+    #outputBarcodeTable tbody tr.selected td,
+    #subOutputBarcodeTable tbody tr.selected td {
+        background-color: var(--table-row-bg-active) !important;
+        color: #F8FAFC !important;
+        border-top: 1px solid #164640 !important;
+        border-bottom: 1px solid #164640 !important;
+    }
+
+    .table-scroll tbody tr.selected td:first-child,
+    .winx-table tbody tr.selected td:first-child,
+    .comparison-table tbody tr.selected td:first-child,
+    .mes-master-table tbody tr.selected td:first-child,
+    #accountTable tbody tr.selected td:first-child,
+    #checkAccountTable tbody tr.selected td:first-child,
+    #tableBody tr.selected td:first-child,
+    #outputBarcodeTable tbody tr.selected td:first-child,
+    #subOutputBarcodeTable tbody tr.selected td:first-child {
+        border-left: 3px solid #3DD5C0 !important;
+    }
+
+    .table-scroll tbody tr.selected:hover td,
+    .winx-table tbody tr.selected:hover td,
+    .comparison-table tbody tr.selected:hover td,
+    .mes-master-table tbody tr.selected:hover td,
+    #accountTable tbody tr.selected:hover td,
+    #checkAccountTable tbody tr.selected:hover td,
+    #tableBody tr.selected:hover td,
+    #outputBarcodeTable tbody tr.selected:hover td,
+    #subOutputBarcodeTable tbody tr.selected:hover td {
+        background-color: var(--table-row-bg-selected-hover) !important;
     }
 
     /* Standby Placeholder when no search is active */
