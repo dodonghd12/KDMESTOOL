@@ -115,9 +115,9 @@
     --color-interactive-accent-hover: #34d399;
     --color-interactive-bg-hover: #1E293B;
     --color-interactive-bg-active: #1E293B;
-    --table-row-bg-hover: #1A2436;
-    --table-row-bg-active: #0D2826;
-    --table-row-bg-selected-hover: #123835;
+    --table-row-bg-hover: #1E293B;
+    --table-row-bg-active: #0A0E1A;
+    --table-row-bg-selected-hover: #0A0E1A;
     --color-interactive-disabled: var(--slate-600);
     --color-interactive-disabled-bg: rgba(255, 255, 255, 0.05);
 
@@ -1734,12 +1734,16 @@ tbody tr.selected td {
     background-color: var(--table-row-bg-active) !important;
     color: #F8FAFC !important;
     font-weight: 500;
-    border-top: 1px solid #164640 !important;
-    border-bottom: 1px solid #164640 !important;
+    border-top: 1px solid #3DD5C0 !important;
+    border-bottom: 1px solid #3DD5C0 !important;
 }
 
 tbody tr.selected td:first-child {
     border-left: 3px solid #3DD5C0 !important;
+}
+
+tbody tr.selected td:last-child {
+    border-right: 1px solid #3DD5C0 !important;
 }
 
 tbody tr.selected:hover {
@@ -1894,8 +1898,8 @@ td {
 #subOutputBarcodeTable tbody tr.selected td:nth-child(2) {
     background-color: var(--table-row-bg-active) !important;
     color: #F8FAFC !important;
-    border-top: 1px solid #164640 !important;
-    border-bottom: 1px solid #164640 !important;
+    border-top: 1px solid #3DD5C0 !important;
+    border-bottom: 1px solid #3DD5C0 !important;
 }
 
 .table-scroll tbody tr.selected td:nth-child(1),
@@ -11845,8 +11849,8 @@ body.theme-light .material-transfer-retry-btn.is-success {
     #subOutputBarcodeTable tbody tr.selected td {
         background-color: var(--table-row-bg-active) !important;
         color: #F8FAFC !important;
-        border-top: 1px solid #164640 !important;
-        border-bottom: 1px solid #164640 !important;
+        border-top: 1px solid #3DD5C0 !important;
+        border-bottom: 1px solid #3DD5C0 !important;
     }
 
     .table-scroll tbody tr.selected td:first-child,
@@ -11859,6 +11863,18 @@ body.theme-light .material-transfer-retry-btn.is-success {
     #outputBarcodeTable tbody tr.selected td:first-child,
     #subOutputBarcodeTable tbody tr.selected td:first-child {
         border-left: 3px solid #3DD5C0 !important;
+    }
+
+    .table-scroll tbody tr.selected td:last-child,
+    .winx-table tbody tr.selected td:last-child,
+    .comparison-table tbody tr.selected td:last-child,
+    .mes-master-table tbody tr.selected td:last-child,
+    #accountTable tbody tr.selected td:last-child,
+    #checkAccountTable tbody tr.selected td:last-child,
+    #tableBody tr.selected td:last-child,
+    #outputBarcodeTable tbody tr.selected td:last-child,
+    #subOutputBarcodeTable tbody tr.selected td:last-child {
+        border-right: 1px solid #3DD5C0 !important;
     }
 
     .table-scroll tbody tr.selected:hover td,
@@ -14672,6 +14688,22 @@ html, body, .spa-shell-body, .spa-viewport, .container {
     table:not(.calendar-table) tbody tr:active {
         transform: scale(0.99) !important;
         border-color: rgba(61, 213, 192, 0.5) !important;
+    }
+
+    .table-scroll table tbody tr.selected:not(.empty-row),
+    .output-table-scroll table tbody tr.selected:not(.empty-row),
+    .sub-output-table-scroll table tbody tr.selected:not(.empty-row),
+    table:not(.calendar-table) tbody tr.selected:not(.empty-row) {
+        background: #0A0E1A !important;
+        border: 1px solid #3DD5C0 !important;
+        border-left: 4px solid #3DD5C0 !important;
+    }
+
+    .table-scroll table tbody tr.selected:not(.empty-row) td,
+    .output-table-scroll table tbody tr.selected:not(.empty-row) td,
+    .sub-output-table-scroll table tbody tr.selected:not(.empty-row) td,
+    table:not(.calendar-table) tbody tr.selected:not(.empty-row) td {
+        background: transparent !important;
     }
 
     /* Preserve missing collect alert styling on cards */
