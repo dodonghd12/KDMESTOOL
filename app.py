@@ -1019,7 +1019,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.104"
+APP_VERSION = "2.3.105"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -6772,25 +6772,18 @@ def build_reprint_label_pdf_buffer(raw_barcode: str, env: str = None):
         ORDER BY wo.reserved_date DESC NULLS LAST, cr.sequence ASC, cr.created_at DESC NULLS LAST
         LIMIT 1;
     """
-    def _run_query(bc_val):
-        if target_env == 'KV1':
-            with get_pg_kv1_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute(query_mr, (bc_val,))
-                rows = cursor.fetchall()
-                cursor.close()
-                return rows
-        else:
-            with get_pg_prod_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute(query_mr, (bc_val,))
-                rows = cursor.fetchall()
-                cursor.close()
-                return rows
+    def _run_pg_query(sql, params):
+        conn_fn = get_pg_kv1_connection if target_env == 'KV1' else get_pg_prod_connection
+        with conn_fn() as conn:
+            cursor = conn.cursor()
+            cursor.execute(sql, params)
+            rows = cursor.fetchall()
+            cursor.close()
+            return rows
 
-    result = _run_query(barcode)
+    result = _run_pg_query(query_mr, (barcode,))
     if not result and str(barcode).strip() != barcode:
-        result = _run_query(str(barcode).strip())
+        result = _run_pg_query(query_mr, (str(barcode).strip(),))
     if not result:
         raise LookupError(f'Không tìm thấy dữ liệu tem cho barcode: {barcode} trên hệ thống {target_env}')
 
@@ -6849,10 +6842,10 @@ def build_reprint_label_pdf_buffer(raw_barcode: str, env: str = None):
     # 6. Sequence
     sequence = cr_seq if cr_seq is not None else ''
 
-    # 7. Recipe ID & Specs
+    # 7. Recipe ID & Specs (truy vấn đúng DB theo target_env KV1/KV2)
     recipe_id = prod_info.get('recipe_id') or ''
     if not recipe_id and cr_wo:
-        wo_res, _ = execute_pg_select_query(
+        wo_res = _run_pg_query(
             "SELECT recipe_id FROM kvmes.work_order WHERE btrim(id) = btrim(%s) LIMIT 1;",
             (str(cr_wo).strip(),)
         )
@@ -6862,7 +6855,7 @@ def build_reprint_label_pdf_buffer(raw_barcode: str, env: str = None):
     recipe_notes = None
     recipe_ptype = None
     if recipe_id:
-        rec_res, _ = execute_pg_select_query(
+        rec_res = _run_pg_query(
             "SELECT note, product_type FROM kvmes.recipe WHERE id = %s LIMIT 1;",
             (recipe_id,)
         )
@@ -6871,7 +6864,7 @@ def build_reprint_label_pdf_buffer(raw_barcode: str, env: str = None):
             recipe_ptype = rec_res[0][1]
 
     if not recipe_notes and product_id:
-        rec_res, _ = execute_pg_select_query(
+        rec_res = _run_pg_query(
             "SELECT note, product_type FROM kvmes.recipe WHERE product_id = %s ORDER BY released_at DESC LIMIT 1;",
             (product_id,)
         )

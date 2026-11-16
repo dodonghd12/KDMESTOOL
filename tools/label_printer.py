@@ -175,6 +175,18 @@ def parse_recipe_specs(note_list, product_type: str = None, label_config: dict =
     req_labels = active_config.get(clean_pt, [])
 
     if req_labels:
+        alias_map = {
+            'direction1b2b': ['direction', 'direction1b2b', 'direction1b'],
+            'direction': ['direction', 'direction1b2b', 'direction1b'],
+            'colorline': ['colorline', 'color', 'colorline1'],
+            'spraycontent': ['spraycontent', 'spray', 'ptdata'],
+            'ecofriendlyoil': ['ecofriendlyoil', 'oil', 'ecooil'],
+            'productcode': ['productcode', 'itemno', 'mstp'],
+            'tiresize': ['tiresize', 'size', 'spec'],
+            'humpwidth': ['humpwidth'],
+            'totalweight': ['totalweight', 'weight'],
+        }
+        has_recipe_notes = bool(parsed_notes)
         for item in req_labels:
             if len(item) >= 3:
                 req_key, label_vi, resource = item[0], item[1], item[2]
@@ -195,27 +207,21 @@ def parse_recipe_specs(note_list, product_type: str = None, label_config: dict =
                 except (ValueError, TypeError):
                     is_resource_blank = (str(resource).strip() == '2')
 
+            matched = False
             val = ""
-            if not is_resource_blank:
-                if norm_req in parsed_notes:
-                    val = parsed_notes[norm_req][1]
-                else:
-                    alias_map = {
-                        'direction1b2b': ['direction', 'direction1b2b', 'direction1b'],
-                        'direction': ['direction', 'direction1b2b', 'direction1b'],
-                        'colorline': ['colorline', 'color', 'colorline1'],
-                        'spraycontent': ['spraycontent', 'spray', 'ptdata'],
-                        'ecofriendlyoil': ['ecofriendlyoil', 'oil', 'ecooil'],
-                        'productcode': ['productcode', 'product_code', 'item_no', 'mstp'],
-                        'tiresize': ['tiresize', 'tire_size', 'size', 'spec'],
-                        'humpwidth': ['humpwidth', 'hump_width'],
-                        'totalweight': ['totalweight', 'weight']
-                    }
-                    if norm_req in alias_map:
-                        for alt in alias_map[norm_req]:
-                            if alt in parsed_notes:
-                                val = parsed_notes[alt][1]
-                                break
+            if norm_req in parsed_notes:
+                matched = True
+                val = "" if is_resource_blank else parsed_notes[norm_req][1]
+            elif norm_req in alias_map:
+                for alt in alias_map[norm_req]:
+                    if alt in parsed_notes:
+                        matched = True
+                        val = "" if is_resource_blank else parsed_notes[alt][1]
+                        break
+
+            # Chỉ in các thông số thực sự có key trong recipe.note (khi recipe có note)
+            if has_recipe_notes and not matched:
+                continue
 
             # Lấy nhãn tiếng Việt trực tiếp từ database kvmes.material_resource_config
             display_label = label_vi if label_vi else req_key.replace('-', ' ').title()
