@@ -9313,6 +9313,7 @@ async function processOcrImageFile(file, targetInput = null) {
     let rawText = '';
 
     try {
+        const nativeBarcodes = [];
         // Stage 1: Thử giải mã mã vạch trực tiếp bằng native BarcodeDetector API (nếu trình duyệt hỗ trợ)
         if ('BarcodeDetector' in window) {
             try {
@@ -9322,8 +9323,11 @@ async function processOcrImageFile(file, targetInput = null) {
                 });
                 const imgBitmap = await createImageBitmap(file);
                 const barcodes = await detector.detect(imgBitmap);
-                if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
-                    rawText = barcodes[0].rawValue.trim();
+                if (barcodes && barcodes.length > 0) {
+                    barcodes.forEach(b => {
+                        const val = b && b.rawValue ? b.rawValue.trim() : '';
+                        if (val && !nativeBarcodes.includes(val)) nativeBarcodes.push(val);
+                    });
                 }
             } catch (_bcErr) {
                 console.log('[OCR] Native BarcodeDetector skipped, using Deep Learning OCR');
@@ -9331,25 +9335,31 @@ async function processOcrImageFile(file, targetInput = null) {
         }
 
         let detectedLabelData = null;
+        let detectedBarcodes = [...nativeBarcodes];
 
-        // Stage 2: Nếu chưa có barcode, gọi Server-side AI OCR (RapidOCR / PaddleOCR ONNX)
-        if (!rawText) {
-            if (statusEl) statusEl.textContent = 'Đang nhận diện ký tự AI...';
-            const formData = new FormData();
-            formData.append('file', file);
+        // Stage 2: Gọi Server-side AI OCR (RapidOCR + Multi-Barcode Detection)
+        if (statusEl) statusEl.textContent = 'Đang nhận diện ký tự AI...';
+        const formData = new FormData();
+        formData.append('file', file);
 
-            const res = await fetch('/api/ocr/recognize', {
-                method: 'POST',
-                body: formData
-            });
+        const res = await fetch('/api/ocr/recognize', {
+            method: 'POST',
+            body: formData
+        });
 
-            if (res.ok) {
-                const data = await res.json();
-                if (data && data.success) {
-                    rawText = data.text ? data.text.trim() : '';
-                    detectedLabelData = data.label_data || null;
-                }
+        if (res.ok) {
+            const data = await res.json();
+            if (data && data.success) {
+                rawText = data.text ? data.text.trim() : '';
+                detectedLabelData = data.label_data || null;
+                const ocrBarcodes = Array.isArray(data.barcodes)
+                    ? data.barcodes
+                    : (detectedLabelData && Array.isArray(detectedLabelData.barcodes) ? detectedLabelData.barcodes : []);
+                detectedBarcodes = [...new Set([...ocrBarcodes, ...nativeBarcodes].map(s => String(s || '').trim()).filter(Boolean))];
             }
+        }
+        if (!rawText && detectedBarcodes.length > 0) {
+            rawText = detectedBarcodes.join('\n');
         }
 
         // Stage 3: Fallback client-side Tesseract nếu Server không phản hồi
@@ -9402,16 +9412,15 @@ async function processOcrImageFile(file, targetInput = null) {
         const fillTarget = targetInput || (isActiveInput ? activeEl : (barcodeEl || null));
 
         // PHÂN NHÁNH XỬ LÝ SONG SONG:
-        // TRƯỜNG HỢP 1: HÌNH ẢNH TEM BẢNG / NHIỀU CỘT (Mã máy, Mã SP, Lô SX, Số lượng, Barcode...)
+        // TRƯỜNG HỢP 1: HÌNH ẢNH CHỨA NHIỀU BARCODE HOẶC TEM BẢNG / NHIỀU CỘT
+        const hasMultipleBarcodes = detectedBarcodes.length >= 2;
         const isMultiColumnLabel = Boolean(detectedLabelData && (detectedLabelData.is_label || detectedLabelData.barcode));
 
-        if (isMultiColumnLabel) {
+        if (isMultiColumnLabel || hasMultipleBarcodes) {
             const isMaterialTransferPage = window.location.pathname.includes('material-transfer') ||
                 (typeof searchMaterialTransfer === 'function' && typeof formatStatusCell === 'function');
 
-            const infoSummary = `Mã SP: ${detectedLabelData.product_id || ''} | Máy: ${detectedLabelData.station || ''} | Lô: ${detectedLabelData.lot_number || ''} | SL: ${detectedLabelData.quantity || ''} | Barcode: ${detectedLabelData.barcode || ''}`;
-
-            if (isMaterialTransferPage) {
+            if (isMaterialTransferPage && isMultiColumnLabel) {
                 // Trang Tem vận chuyển: Tra cứu barcode từ material_resource rồi hiển thị lượt chuyển
                 try {
                     const mtRes = await fetch('/api/barcodes/material-transfer', {
@@ -9440,26 +9449,36 @@ async function processOcrImageFile(file, targetInput = null) {
                 } catch (err) {
                     console.error('Error querying material transfer by label:', err);
                 }
-            } else {
-                // Trang Main: Tra cứu trực tiếp bảng kvmes.material_resource theo các thuộc tính tem hoặc mã vạch
+            } else if (!isMaterialTransferPage) {
+                // Trang Main: Tra cứu trực tiếp bảng kvmes.material_resource (hỗ trợ cả 1 tem hoặc nhiều barcode)
                 showTableSkeleton(10, 5);
                 try {
+                    const reqPayload = hasMultipleBarcodes
+                        ? { barcodes: detectedBarcodes, label_data: detectedLabelData }
+                        : { label_data: detectedLabelData };
                     const bcRes = await fetch('/api/barcodes', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ label_data: detectedLabelData })
+                        body: JSON.stringify(reqPayload)
                     });
                     const bcData = await bcRes.json();
-                    const resolvedBc = (bcData && bcData.resolved_barcode) 
-                        ? bcData.resolved_barcode 
-                        : (bcData && bcData.result && bcData.result[0] 
-                            ? (Array.isArray(bcData.result[0]) ? bcData.result[0][0] : bcData.result[0].id) 
+                    const resolvedList = (bcData && Array.isArray(bcData.resolved_barcodes) && bcData.resolved_barcodes.length > 0)
+                        ? bcData.resolved_barcodes
+                        : null;
+                    const resolvedBc = (bcData && bcData.resolved_barcode)
+                        ? bcData.resolved_barcode
+                        : (bcData && bcData.result && bcData.result[0]
+                            ? (Array.isArray(bcData.result[0]) ? bcData.result[0][0] : bcData.result[0].id)
                             : (detectedLabelData && detectedLabelData.barcode ? detectedLabelData.barcode : ''));
 
-                    if (resolvedBc && fillTarget) {
-                        fillTarget.value = resolvedBc;
-                    } else if (fillTarget && detectedLabelData.product_id) {
-                        fillTarget.value = detectedLabelData.product_id;
+                    if (fillTarget) {
+                        if (hasMultipleBarcodes) {
+                            fillTarget.value = (resolvedList || detectedBarcodes).join(', ');
+                        } else if (resolvedBc) {
+                            fillTarget.value = resolvedBc;
+                        } else if (detectedLabelData && detectedLabelData.product_id) {
+                            fillTarget.value = detectedLabelData.product_id;
+                        }
                     }
 
                     if (bcData && Array.isArray(bcData.result) && bcData.result.length > 0) {
@@ -9472,9 +9491,16 @@ async function processOcrImageFile(file, targetInput = null) {
                             fillTarget.dispatchEvent(new Event('input', { bubbles: true }));
                         }
                     }
-                    // Ảnh nhiều cột / tem: Không hiển thị kết quả ở ocrResultText, reset dropzone về sẵn sàng
+                    // Reset dropzone về sẵn sàng sau khi điền dữ liệu
                     resetOcrDropzone();
-                    if (bcData && Array.isArray(bcData.result) && bcData.result.length > 0 && resolvedBc) {
+                    if (hasMultipleBarcodes) {
+                        const hitCount = (bcData && Array.isArray(bcData.result)) ? bcData.result.length : 0;
+                        if (hitCount > 0) {
+                            Toast.success('Nhận diện nhiều barcode', `Đã tìm thấy ${hitCount}/${detectedBarcodes.length} barcode trong CSDL`);
+                        } else {
+                            Toast.warning('Không tìm thấy', `Đã quét ${detectedBarcodes.length} barcode nhưng không có dữ liệu khớp trong CSDL`);
+                        }
+                    } else if (bcData && Array.isArray(bcData.result) && bcData.result.length > 0 && resolvedBc) {
                         Toast.success('Nhận diện tem thành công', `Đã tìm thấy mã tem: ${resolvedBc}`);
                     } else if (resolvedBc) {
                         Toast.info('Đã tìm thấy mã vạch', `Mã vạch trên tem: ${resolvedBc}`);

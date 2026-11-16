@@ -1019,7 +1019,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.102"
+APP_VERSION = "2.3.103"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -2278,6 +2278,85 @@ def get_ocr_barcode_variants(kw):
     return list(dict.fromkeys(variants))
 
 
+_MATERIAL_RESOURCE_SELECT = """
+    SELECT id, product_id, quantity, initial_quantity, product_type, 
+           status, expiry_time, 
+           created_at, updated_at, updated_by, created_by, 
+           standing_time, feed_records_id, info, oid,
+           reprint_reason, collected, erp_tire_barcode_synced,
+           COALESCE((SELECT cr.detail->>'quantity' FROM kvmes.collect_record cr WHERE cr.resource_oid = kvmes.material_resource.oid ORDER BY cr.sequence DESC LIMIT 1), kvmes.material_resource.quantity::text) AS collect_quantity
+    FROM kvmes.material_resource
+"""
+
+def _format_material_resource_rows(result, column_names):
+    """Chuẩn hóa timestamp, mảng Postgres và serialize danh sách hàng material_resource."""
+    if not result:
+        return []
+    convert_columns = ["expiry_time", "updated_at", "created_at", "standing_time"]
+    result = convert_timestamp(result, column_names, convert_columns)
+    if 'feed_records_id' in column_names:
+        fr_idx = column_names.index('feed_records_id')
+        result = [
+            tuple(format_pg_array_literal(v) if i == fr_idx else v for i, v in enumerate(row))
+            for row in result
+        ]
+    return [serialize_row(list(row), column_names) for row in result]
+
+def _query_material_resources_by_barcodes(barcode_list):
+    """Truy vấn hàng loạt các barcode (kèm biến thể OCR O<->0, I<->1, S<->5) theo đúng thứ tự đầu vào."""
+    cleaned_inputs = []
+    seen = set()
+    for raw in (barcode_list or []):
+        clean = re.sub(r'[^A-Za-z0-9]', '', str(raw or '').strip()).upper()
+        if len(clean) >= 6 and clean not in seen:
+            seen.add(clean)
+            cleaned_inputs.append(clean)
+
+    if not cleaned_inputs:
+        return [], [], []
+
+    candidate_to_order = {}
+    all_candidates = []
+    for idx, bc in enumerate(cleaned_inputs):
+        for cand in [bc] + get_ocr_barcode_variants(bc):
+            if cand not in candidate_to_order:
+                candidate_to_order[cand] = idx
+                all_candidates.append(cand)
+
+    query = f"{_MATERIAL_RESOURCE_SELECT} WHERE id = ANY(%s) LIMIT 200;"
+    result, column_names = execute_pg_select_query(query, (all_candidates,))
+    if not result:
+        return [], column_names, []
+
+    id_idx = column_names.index('id') if 'id' in column_names else 0
+    result = sorted(result, key=lambda r: candidate_to_order.get(str(r[id_idx] or '').upper(), 999999))
+    resolved_ids = [r[id_idx] for r in result if len(r) > id_idx and r[id_idx]]
+    return _format_material_resource_rows(result, column_names), column_names, resolved_ids
+
+def _extract_multi_barcodes_from_payload(data, label_data, keyword):
+    """Trích xuất danh sách nhiều barcode từ barcodes[], label_data.barcodes[], hoặc keyword nhiều mã."""
+    raw_barcodes = data.get('barcodes')
+    if isinstance(raw_barcodes, list):
+        vals = [str(x).strip() for x in raw_barcodes if str(x or '').strip()]
+        if vals:
+            return vals
+    elif isinstance(raw_barcodes, str) and raw_barcodes.strip():
+        vals = [x.strip() for x in re.split(r'[\s,;]+', raw_barcodes) if len(x.strip()) >= 6]
+        if vals:
+            return vals
+
+    if isinstance(label_data, dict) and isinstance(label_data.get('barcodes'), list):
+        vals = [str(x).strip() for x in label_data['barcodes'] if str(x or '').strip()]
+        if len(vals) >= 2:
+            return vals
+
+    if keyword:
+        tokens = [x.strip() for x in re.split(r'[\s,;]+', keyword) if x.strip()]
+        if len(tokens) >= 2 and all(re.match(r'^[A-Za-z0-9\-_]{8,}$', t) for t in tokens):
+            return tokens
+
+    return []
+
 @app.route('/api/barcodes', methods=['POST'])
 @login_required
 def search_barcode():
@@ -2285,19 +2364,23 @@ def search_barcode():
     keyword = (data.get('keyword') or data.get('barcode') or '').strip()
     label_data = data.get('label_data')
 
+    # 0. Trường hợp truy vấn nhiều barcode từ ảnh OCR hoặc nhập nhiều mã cùng lúc
+    multi_barcodes = _extract_multi_barcodes_from_payload(data, label_data, keyword)
+    if multi_barcodes:
+        serialized_result, column_names, resolved_ids = _query_material_resources_by_barcodes(multi_barcodes)
+        return jsonify({
+            'success': True,
+            'result': serialized_result,
+            'columns': column_names or [],
+            'resolved_barcode': resolved_ids[0] if resolved_ids else None,
+            'resolved_barcodes': resolved_ids
+        })
+
     # 1. Trường hợp truy vấn từ tem nhận diện OCR (Mã máy, Mã SP, Lô SX, Số lượng, Barcode)
     if label_data and (label_data.get('is_label') or any(label_data.get(k) for k in ('station', 'product_id', 'lot_number', 'quantity', 'barcode'))):
         result, column_names = query_material_resource_by_label_fields(label_data)
         if result:
-            convert_columns = ["expiry_time", "updated_at", "created_at", "standing_time"]
-            result = convert_timestamp(result, column_names, convert_columns)
-            if 'feed_records_id' in column_names:
-                fr_idx = column_names.index('feed_records_id')
-                result = [
-                    tuple(format_pg_array_literal(v) if i == fr_idx else v for i, v in enumerate(row))
-                    for row in result
-                ]
-            serialized_result = [serialize_row(list(row), column_names) for row in result]
+            serialized_result = _format_material_resource_rows(result, column_names)
             resolved_bc = result[0][column_names.index('id')] if 'id' in column_names and result else None
             return jsonify({
                 'success': True,
@@ -2317,17 +2400,7 @@ def search_barcode():
     if not keyword:
         return jsonify({'result': [], 'columns': []})
     
-    query = """
-        SELECT id, product_id, quantity, initial_quantity, product_type, 
-               status, expiry_time, 
-               created_at, updated_at, updated_by, created_by, 
-               standing_time, feed_records_id, info, oid,
-               reprint_reason, collected, erp_tire_barcode_synced,
-               COALESCE((SELECT cr.detail->>'quantity' FROM kvmes.collect_record cr WHERE cr.resource_oid = kvmes.material_resource.oid ORDER BY cr.sequence DESC LIMIT 1), kvmes.material_resource.quantity::text) AS collect_quantity
-        FROM kvmes.material_resource
-        WHERE id ILIKE %s
-        LIMIT 100;
-    """
+    query = f"{_MATERIAL_RESOURCE_SELECT} WHERE id ILIKE %s LIMIT 100;"
     result, column_names = execute_pg_select_query(query, (f"%{keyword}%",))
     resolved_id = None
 
@@ -2342,15 +2415,7 @@ def search_barcode():
                 break
 
     if result:
-        convert_columns = ["expiry_time", "updated_at", "created_at", "standing_time"]
-        result = convert_timestamp(result, column_names, convert_columns)
-        if 'feed_records_id' in column_names:
-            fr_idx = column_names.index('feed_records_id')
-            result = [
-                tuple(format_pg_array_literal(v) if i == fr_idx else v for i, v in enumerate(row))
-                for row in result
-            ]
-        serialized_result = [serialize_row(list(row), column_names) for row in result]
+        serialized_result = _format_material_resource_rows(result, column_names)
         return jsonify({
             'success': True,
             'result': serialized_result,
@@ -9508,6 +9573,38 @@ def ocr_warmup():
         return jsonify({'success': True, 'warmed': True}), 200
     return jsonify({'success': False, 'error': err}), 500
 
+def _extract_ocr_barcodes(lines, direct_barcodes=None, fallback_bc=None):
+    """Thu thập toàn bộ mã barcode (material_resource id) riêng biệt từ decode quang học & các dòng OCR."""
+    found = []
+    seen = set()
+
+    def _add(val):
+        clean = re.sub(r'[^A-Za-z0-9]', '', str(val or '')).upper()
+        if len(clean) >= 8 and clean not in seen:
+            seen.add(clean)
+            found.append(clean)
+
+    for db_bc in (direct_barcodes or []):
+        _add(db_bc)
+
+    for line in (lines or []):
+        for tok in re.split(r'[\s,;:|]+', str(line or '')):
+            if not tok:
+                continue
+            # Cắt bỏ trọng lượng đi kèm sau barcode (vd: 'VDB...0.000kg') nhưng giữ nguyên mã có số (vd: '...C318G')
+            trimmed = re.sub(r'\d+\.\d+.*$', '', tok)
+            trimmed = re.sub(r'\s*\d+\s*kg\b.*$', '', trimmed, flags=re.IGNORECASE)
+            clean = re.sub(r'[^A-Za-z0-9]', '', trimmed).upper()
+            if clean.startswith('O') and len(clean) >= 12 and clean[1] in ('D', 'B'):
+                clean = 'V' + clean[1:]
+            if re.match(r'^V[A-Z0-9]{14,24}$', clean) and clean not in seen:
+                seen.add(clean)
+                found.append(clean)
+
+    if fallback_bc:
+        _add(fallback_bc)
+    return found
+
 @app.route('/api/ocr/recognize', methods=['POST'])
 def ocr_recognize():
     engine, init_err = get_rapid_ocr_engine()
@@ -9556,10 +9653,10 @@ def ocr_recognize():
         if max(img.width, img.height) > 1200:
             img.thumbnail((1200, 1200), Image.Resampling.BILINEAR)
 
-        def score_label_candidate(l_data, bc=None):
-            score = 0
-            if bc and len(bc) >= 8:
-                score += 10
+        def score_label_candidate(l_data, direct_bcs=None, found_bcs=None):
+            score = len(found_bcs or []) * 10
+            if direct_bcs:
+                score += len(direct_bcs) * 10
             if not l_data:
                 return score
             if l_data.get('barcode') and len(l_data['barcode']) >= 12 and l_data['barcode'][0].upper() == 'V':
@@ -9591,15 +9688,16 @@ def ocr_recognize():
         best_full_text = ''
         best_lines = []
         best_conf = 0.0
-        best_direct_bc = None
+        best_direct_bcs = []
+        best_barcodes = []
         best_score = -1
 
         for angle in [0, 90, 270]:
             cur_img = img if angle == 0 else img.rotate(angle, expand=True)
             cur_np = np.array(cur_img)
 
-            # Thử đọc trực tiếp barcode 1D/2D bằng zxingcpp / pyzbar
-            direct_bc = None
+            # Thử đọc trực tiếp tất cả barcode 1D/2D bằng zxingcpp / pyzbar
+            direct_bcs = []
             try:
                 import zxingcpp
                 gray = cv2.cvtColor(cur_np, cv2.COLOR_RGB2GRAY) if len(cur_np.shape) == 3 else cur_np
@@ -9607,15 +9705,14 @@ def ocr_recognize():
                     res_zx = zxingcpp.read_barcodes(target_mat)
                     for r in res_zx:
                         t = r.text.strip()
-                        if t and len(t) >= 8:
-                            direct_bc = t
-                            break
-                    if direct_bc:
+                        if t and len(t) >= 8 and t not in direct_bcs:
+                            direct_bcs.append(t)
+                    if direct_bcs:
                         break
             except Exception:
                 pass
 
-            if not direct_bc:
+            if not direct_bcs:
                 try:
                     from pyzbar import pyzbar as pzb
                     gray = cv2.cvtColor(cur_np, cv2.COLOR_RGB2GRAY) if len(cur_np.shape) == 3 else cur_np
@@ -9623,16 +9720,20 @@ def ocr_recognize():
                     if decoded_bcs:
                         for b in decoded_bcs:
                             b_str = b.data.decode('utf-8', errors='ignore').strip()
-                            if b_str and len(b_str) >= 8:
-                                direct_bc = b_str
-                                break
+                            if b_str and len(b_str) >= 8 and b_str not in direct_bcs:
+                                direct_bcs.append(b_str)
                 except Exception:
                     pass
 
             result, elapse = engine(cur_np, use_angle_cls=False)
             full_text, lines, avg_conf, label_data = clean_and_merge_ocr_results(result)
+            found_bcs = _extract_ocr_barcodes(
+                lines,
+                direct_barcodes=direct_bcs,
+                fallback_bc=(label_data.get('barcode') if label_data else None),
+            )
 
-            sc = score_label_candidate(label_data, direct_bc)
+            sc = score_label_candidate(label_data, direct_bcs, found_bcs)
             if sc > best_score:
                 best_score = sc
                 best_angle = angle
@@ -9640,22 +9741,23 @@ def ocr_recognize():
                 best_full_text = full_text
                 best_lines = lines
                 best_conf = avg_conf
-                best_direct_bc = direct_bc
+                best_direct_bcs = direct_bcs
+                best_barcodes = found_bcs
 
-            # Fast exit nếu góc 0 đã có chất lượng tem rất tốt hoặc tìm thấy barcode quang học
-            if angle == 0 and (sc >= 10 or direct_bc):
+            # Fast exit nếu góc 0 đã có chất lượng tem rất tốt hoặc tìm thấy barcode
+            if angle == 0 and (sc >= 10 or direct_bcs or found_bcs):
                 break
 
         elapsed_ms = round((time.perf_counter() - t0) * 1000, 2)
 
-        if best_direct_bc and (not best_label_data or not best_label_data.get('barcode')):
+        if best_direct_bcs and (not best_label_data or not best_label_data.get('barcode')):
             if not best_label_data:
                 best_label_data = {'is_label': True}
-            best_label_data['barcode'] = best_direct_bc
+            best_label_data['barcode'] = best_direct_bcs[0]
             best_label_data['is_label'] = True
 
         # TỰ ĐỘNG TRA CỨU BARCODE TỪ CSDL NẾU CHƯA CÓ MÃ VẠCH (Smart Database Barcode Resolution)
-        if best_label_data and (best_label_data.get('is_label') or best_score >= 4) and (not best_label_data.get('barcode') or len(best_label_data.get('barcode', '')) < 8):
+        if not best_barcodes and best_label_data and (best_label_data.get('is_label') or best_score >= 4) and (not best_label_data.get('barcode') or len(best_label_data.get('barcode', '')) < 8):
             try:
                 mr_res, mr_cols = query_material_resource_by_label_fields(best_label_data)
                 if mr_res and mr_cols and 'id' in mr_cols:
@@ -9664,12 +9766,23 @@ def ocr_recognize():
                         best_label_data['barcode'] = resolved_bc
                         best_label_data['is_label'] = True
                         best_label_data['resolved_from_db'] = True
+                        if resolved_bc not in best_barcodes:
+                            best_barcodes.insert(0, resolved_bc)
                         if not best_full_text:
                             best_full_text = resolved_bc
                         if not best_lines or resolved_bc not in best_lines:
                             best_lines.insert(0, resolved_bc)
             except Exception as _dbe:
                 logger.warning(f"Error resolving barcode from DB in ocr_recognize: {_dbe}")
+
+        if best_barcodes:
+            if not best_label_data:
+                best_label_data = {'is_label': False}
+            best_label_data['barcodes'] = best_barcodes
+            if not best_label_data.get('barcode') and len(best_barcodes) == 1:
+                best_label_data['barcode'] = best_barcodes[0]
+            if len(best_barcodes) >= 2 and not best_label_data.get('is_label'):
+                best_full_text = '\n'.join(best_barcodes)
 
         if best_label_data and best_label_data.get('barcode'):
             bc_val = best_label_data['barcode']
@@ -9680,12 +9793,13 @@ def ocr_recognize():
             elif bc_val not in best_lines:
                 best_lines.insert(0, bc_val)
 
-        if not best_full_text and not best_lines:
+        if not best_full_text and not best_lines and not best_barcodes:
             return jsonify({
                 'success': True,
                 'engine_available': True,
                 'text': '',
                 'lines': [],
+                'barcodes': [],
                 'label_data': {'is_label': False},
                 'message': 'Không tìm thấy ký tự trong hình ảnh',
                 'latency_ms': elapsed_ms
@@ -9696,6 +9810,7 @@ def ocr_recognize():
             'engine_available': True,
             'text': best_full_text,
             'lines': best_lines,
+            'barcodes': best_barcodes,
             'confidence': best_conf,
             'label_data': best_label_data,
             'latency_ms': elapsed_ms
