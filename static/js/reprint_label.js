@@ -43,6 +43,14 @@
         return 'KV2';
     })();
 
+    const currentLogTarget = (function () {
+        if (window.REPRINT_CONFIG?.log_target === 'kv1_106') return 'kv1_106';
+        const ref = document.referrer || '';
+        if (ref.includes('198.1.1.106')) return 'kv1_106';
+        if (isPortalEmbedded() && currentEnv === 'KV1') return 'kv1_106';
+        return 'erp_1033';
+    })();
+
     // Status map
     const STATUS_MAP = {
         0: { text: 'Khởi tạo', cls: 'status-other' },
@@ -659,13 +667,15 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-DB-Env': currentEnv
+                    'X-DB-Env': currentEnv,
+                    'X-Reprint-Log-Target': currentLogTarget
                 },
                 body: JSON.stringify({
                     barcode: barcode,
                     printer_name: selectedPrinter,
                     username: currentUsername,
-                    env: currentEnv
+                    env: currentEnv,
+                    log_target: currentLogTarget
                 })
             });
 

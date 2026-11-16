@@ -28,6 +28,7 @@ from db_connections import (
     get_pg_prod_connection,
     get_pg_dev_connection,
     get_pg_kv1_connection,
+    get_kv1_log_mssql_connection,
     get_current_db_env,
     DatabaseError,
     DatabaseConnectionError,
@@ -1018,7 +1019,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.101"
+APP_VERSION = "2.3.102"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -1404,6 +1405,11 @@ def reprint_label():
 
     referer = request.referrer or request.headers.get('Referer') or ''
     is_portal_embed = ('198.1.1.106' in referer) or ('198.1.9.245:8011' in referer) or (':8011' in referer)
+    portal_arg = (request.args.get('log_target') or request.args.get('portal') or '').strip()
+    if portal_arg == 'kv1_106' or '198.1.1.106' in portal_arg or '198.1.1.106' in referer or (is_portal_embed and active_env == 'KV1'):
+        log_target = 'kv1_106'
+    else:
+        log_target = 'erp_1033'
 
     cups_host = "198.1.1.92" if active_env == 'KV1' else "198.1.10.85"
     cups_server = f"https://{cups_host}:631/printers/"
@@ -1418,8 +1424,10 @@ def reprint_label():
                            active_db_env=active_env,
                            cups_host=cups_host,
                            cups_server=cups_server,
-                           is_portal_embed=is_portal_embed))
+                           is_portal_embed=is_portal_embed,
+                           log_target=log_target))
     resp.set_cookie('kdmes_db_env', active_env, max_age=86400*30, path='/')
+    resp.set_cookie('kdmes_reprint_log_target', log_target, max_age=86400*30, path='/')
     return resp
 
 @app.route('/material-transfer')
@@ -7006,9 +7014,41 @@ def api_reprint_label_pdf():
         return jsonify({'success': False, 'message': f'Lỗi tạo file PDF tem: {str(e)}'}), 500
 
 
-def append_reprint_label_log(ip: str, barcode: str, username: str = None, note: str = "Thành công"):
-    """Ghi log in lại tem trực tiếp vào bảng [erp].[dbo].[InLaiTemKD_Log] trên SQL Server 198.1.10.33."""
+def resolve_reprint_log_target(explicit_target=None) -> str:
+    """Xác định DB lưu log in lại tem: 'kv1_106' (198.1.1.106) hoặc 'erp_1033' (198.1.10.33)."""
+    if explicit_target in ('kv1_106', 'erp_1033'):
+        return explicit_target
     try:
+        from flask import has_request_context
+        if has_request_context():
+            header_tgt = (request.headers.get('X-Reprint-Log-Target') or '').strip()
+            if header_tgt in ('kv1_106', 'erp_1033'):
+                return header_tgt
+            data = request.get_json(silent=True)
+            if isinstance(data, dict):
+                body_tgt = str(data.get('log_target') or '').strip()
+                if body_tgt in ('kv1_106', 'erp_1033'):
+                    return body_tgt
+            q_tgt = (request.args.get('log_target') or '').strip()
+            if q_tgt in ('kv1_106', 'erp_1033'):
+                return q_tgt
+            referer = request.referrer or request.headers.get('Referer') or ''
+            if '198.1.1.106' in referer:
+                return 'kv1_106'
+            if '198.1.9.245:8011' in referer:
+                return 'erp_1033'
+            cookie_tgt = (request.cookies.get('kdmes_reprint_log_target') or '').strip()
+            if cookie_tgt in ('kv1_106', 'erp_1033'):
+                return cookie_tgt
+    except Exception:
+        pass
+    return 'erp_1033'
+
+
+def append_reprint_label_log(ip: str, barcode: str, username: str = None, note: str = "Thành công", log_target: str = None):
+    """Ghi log in lại tem vào InLaiTemKD_Log trên 198.1.1.106/Log_InLaiTem_MESKD (link 1.106:8011) hoặc 198.1.10.33/erp."""
+    try:
+        resolved_target = resolve_reprint_log_target(log_target)
         now_str = datetime.now(VN_TZ).strftime("%Y-%m-%d %H:%M:%S")
         clean_barcode = str(barcode or '').strip()
         clean_user = str(username or 'Unknown').strip()
@@ -7021,7 +7061,8 @@ def append_reprint_label_log(ip: str, barcode: str, username: str = None, note: 
             INSERT INTO [dbo].[InLaiTemKD_Log] ([barcode], [username], [ip], [intime], [note])
             VALUES (?, ?, ?, ?, ?);
         """
-        execute_mssql_dml_query(insert_sql, (clean_barcode, clean_user, clean_ip, now_str, clean_note))
+        conn_factory = get_kv1_log_mssql_connection if resolved_target == 'kv1_106' else None
+        execute_mssql_dml_query(insert_sql, (clean_barcode, clean_user, clean_ip, now_str, clean_note), conn_factory=conn_factory)
     except Exception as e:
         logger.error(f"[REPRINT_LABEL_LOG_ERROR] Lỗi khi ghi log In lại tem vào SQL Server: {e}", exc_info=True)
 
@@ -7029,7 +7070,7 @@ def append_reprint_label_log(ip: str, barcode: str, username: str = None, note: 
 @app.route('/api/time-turner/get-log', methods=['GET', 'POST'])
 @login_required
 def api_time_turner_get_log():
-    """Truy vấn dữ liệu lịch sử In lại tem từ bảng [erp].[dbo].[InLaiTemKD_Log] trên SQL Server 198.1.10.33."""
+    """Truy vấn lịch sử In lại tem từ cả 2 DB: 198.1.1.106 (KV1) và 198.1.10.33 (KV2)."""
     try:
         data = request.get_json(silent=True) or {}
         filter_keyword = str(data.get('barcode') or data.get('keyword') or request.args.get('barcode') or '').strip().lower()
@@ -7045,37 +7086,58 @@ def api_time_turner_get_log():
             FROM [dbo].[InLaiTemKD_Log]
             ORDER BY [id] DESC;
         """
-        rows, cols = execute_mssql_select_query(query)
 
+        def _query_log_source(location_label, conn_factory):
+            rows, _ = execute_mssql_select_query(query, conn_factory=conn_factory)
+            out = []
+            for r in (rows or []):
+                rec_id = r[0]
+                b_code = str(r[1] or '')
+                u_name = str(r[2] or '')
+                c_ip = str(r[3] or '')
+                i_time = str(r[4] or '')
+                c_note = str(r[5] or 'Thành công')
+
+                if filter_keyword:
+                    combined = f"{rec_id} {location_label} {b_code} {c_note} {u_name} {c_ip}".lower()
+                    if filter_keyword not in combined:
+                        continue
+
+                out.append({
+                    'id': rec_id,
+                    'line_no': rec_id,
+                    'location': location_label,
+                    'timestamp': i_time,
+                    'ip': c_ip,
+                    'username': u_name,
+                    'barcode': b_code,
+                    'note': c_note
+                })
+            return out
+
+        sources = [('KV1', get_kv1_log_mssql_connection), ('KV2', None)]
         records = []
-        for r in (rows or []):
-            rec_id = r[0]
-            b_code = str(r[1] or '')
-            u_name = str(r[2] or '')
-            c_ip = str(r[3] or '')
-            i_time = str(r[4] or '')
-            c_note = str(r[5] or 'Thành công')
+        source_errors = []
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            futures = {executor.submit(_query_log_source, loc, cf): loc for loc, cf in sources}
+            for fut in as_completed(futures):
+                loc = futures[fut]
+                try:
+                    records.extend(fut.result())
+                except Exception as src_err:
+                    logger.warning(f"[TIME_TURNER_LOG_WARN] Lỗi đọc log từ {loc}: {src_err}")
+                    source_errors.append(f"{loc}: {src_err}")
 
-            if filter_keyword:
-                combined = f"{rec_id} {b_code} {c_note} {u_name} {c_ip}".lower()
-                if filter_keyword not in combined:
-                    continue
+        if len(source_errors) == len(sources):
+            raise RuntimeError("; ".join(source_errors))
 
-            records.append({
-                'id': rec_id,
-                'line_no': rec_id,
-                'timestamp': i_time,
-                'ip': c_ip,
-                'username': u_name,
-                'barcode': b_code,
-                'note': c_note
-            })
+        records.sort(key=lambda rec: (rec.get('timestamp') or '', int(rec.get('id') or 0)), reverse=True)
 
         return jsonify({
             'success': True,
             'total': len(records),
             'records': records,
-            'columns': ['Thời gian in (UTC+7)', 'IP', 'Người in', 'Barcode', 'Ghi chú']
+            'columns': ['Thời gian in (UTC+7)', 'Location', 'IP', 'Người in', 'Barcode', 'Ghi chú']
         })
     except Exception as e:
         logger.error(f"[TIME_TURNER_LOG_ERROR] Lỗi truy vấn bảng InLaiTemKD_Log: {e}", exc_info=True)

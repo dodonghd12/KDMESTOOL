@@ -12,7 +12,8 @@
             cups_server: "{{ cups_server or 'https://198.1.10.85:631/printers/' }}",
             username: "{{ username or '' }}",
             app_version: "{{ app_version or '2.3.80' }}",
-            is_portal_embed: {{ 'true' if is_portal_embed else 'false' }}
+            is_portal_embed: {{ 'true' if is_portal_embed else 'false' }},
+            log_target: "{{ log_target or 'erp_1033' }}"
         };
     </script>
 

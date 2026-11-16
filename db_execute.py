@@ -157,14 +157,15 @@ def execute_pg_insert_query(table_name, result, column_names):
 # ==============================================================================
 # SQL Server ERP Select Query (198.1.10.33/erp)
 # ==============================================================================
-def execute_mssql_select_query(query, params=()):
+def execute_mssql_select_query(query, params=(), conn_factory=None):
     """
-    Thực thi câu lệnh SELECT trên SQL Server ERP (198.1.10.33/erp).
+    Thực thi câu lệnh SELECT trên SQL Server (mặc định 198.1.10.33/erp).
     Trả về: (result, column_names) với result là list các dòng dữ liệu.
     Ném ngoại lệ: DatabaseConnectionError nếu lỗi kết nối, DatabaseQueryError nếu lỗi cú pháp/truy vấn.
     """
+    factory = conn_factory or get_erp_mssql_connection
     try:
-        with get_erp_mssql_connection() as conn:
+        with factory() as conn:
             cursor = conn.cursor()
             if params:
                 cursor.execute(query, params)
@@ -176,16 +177,17 @@ def execute_mssql_select_query(query, params=()):
             cursor.close()
             return rows, column_names
     except Exception as e:
-        raise _classify_db_exception(e, "SQL Server ERP (198.1.10.33/erp)")
+        raise _classify_db_exception(e, "SQL Server Select")
 
 
 
-def execute_mssql_dml_query(query, params=()):
+def execute_mssql_dml_query(query, params=(), conn_factory=None):
     """
-    Thực thi câu lệnh DML (INSERT, UPDATE, DELETE, DDL) trên SQL Server ERP (198.1.10.33/erp).
+    Thực thi câu lệnh DML (INSERT, UPDATE, DELETE, DDL) trên SQL Server (mặc định 198.1.10.33/erp).
     """
+    factory = conn_factory or get_erp_mssql_connection
     try:
-        with get_erp_mssql_connection() as conn:
+        with factory() as conn:
             cursor = conn.cursor()
             if params:
                 cursor.execute(query, params)
@@ -195,7 +197,7 @@ def execute_mssql_dml_query(query, params=()):
             cursor.close()
             return True
     except Exception as e:
-        raise _classify_db_exception(e, "SQL Server ERP DML (198.1.10.33/erp)")
+        raise _classify_db_exception(e, "SQL Server DML")
 
 def execute_mssql_insert_query(table_name, data):
     """

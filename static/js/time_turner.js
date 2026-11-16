@@ -12,7 +12,7 @@
 
     let allLogRecords = [];
     let currentFilteredRecords = [];
-    const tableColumns = ['Thời gian in (UTC+7)', 'IP', 'Người in', 'Barcode', 'Ghi chú'];
+    const tableColumns = ['Thời gian in (UTC+7)', 'Location', 'IP', 'Người in', 'Barcode', 'Ghi chú'];
     const PAGE_SIZE = 30;
     let currentPage = 1;
     let totalPages = 1;
@@ -163,6 +163,7 @@
         window.getPageExportData = function () {
             const rows = (currentFilteredRecords || []).map((rec) => [
                 rec.timestamp || '',
+                rec.location || '',
                 rec.ip || '',
                 rec.username || '',
                 rec.barcode || '',
@@ -191,11 +192,11 @@
         if (refreshIcon) refreshIcon.classList.add('time-turner-spin');
 
         if (typeof showTableSkeleton === 'function') {
-            showTableSkeleton(5, 5);
+            showTableSkeleton(6, 5);
         } else if (tableBody) {
             tableBody.innerHTML = `
                 <tr>
-                    <td colspan="5" style="text-align: center; padding: 36px 16px; color: var(--color-text-muted, #94a3b8);">
+                    <td colspan="6" style="text-align: center; padding: 36px 16px; color: var(--color-text-muted, #94a3b8);">
                         <span class="material-symbols-outlined time-turner-spin" style="font-size: 28px; vertical-align: middle;">sync</span>
                         <span style="margin-left: 8px;">Đang tải dữ liệu nhật ký in tem...</span>
                     </td>
@@ -254,12 +255,13 @@
             if (!searchVal) return true;
 
             const itemId = String(item.id || item.line_no || '');
+            const itemLocation = (item.location || '').toLowerCase();
             const itemBarcode = (item.barcode || '').toLowerCase();
             const itemIp = (item.ip || '').toLowerCase();
             const itemUser = (item.username || '').toLowerCase();
             const itemTime = (item.timestamp || '').toLowerCase();
             const itemNote = (item.note || '').toLowerCase();
-            const combined = `${itemId} ${itemTime} ${itemIp} ${itemUser} ${itemBarcode} ${itemNote}`;
+            const combined = `${itemId} ${itemLocation} ${itemTime} ${itemIp} ${itemUser} ${itemBarcode} ${itemNote}`;
 
             return combined.includes(searchVal);
         });
@@ -316,6 +318,7 @@
 
         const pageRows = pageRecords.map((item) => [
             item.timestamp || '-',
+            item.location || '-',
             item.ip || 'Unknown',
             item.username || 'Unknown',
             item.barcode || '-',

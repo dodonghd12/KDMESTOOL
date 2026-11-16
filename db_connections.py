@@ -309,9 +309,20 @@ ERP_MSSQL_DB = "erp"
 ERP_MSSQL_USER = "kendakv2"
 ERP_MSSQL_PWD = "kenda123"
 
-def _create_mssql_connection(timeout=8):
+KV1_LOG_MSSQL_HOST = "198.1.1.106"
+KV1_LOG_MSSQL_DB = "Log_InLaiTem_MESKD"
+KV1_LOG_MSSQL_USER = "kenda"
+KV1_LOG_MSSQL_PWD = "kenda123"
+
+def _create_mssql_connection(
+    host=ERP_MSSQL_HOST,
+    database=ERP_MSSQL_DB,
+    user=ERP_MSSQL_USER,
+    password=ERP_MSSQL_PWD,
+    timeout=8,
+):
     """
-    Tạo kết nối tới SQL Server ERP 10.33:
+    Tạo kết nối tới SQL Server:
     1. Thử qua pyodbc với các driver tương thích.
     2. Thử qua adodbapi (SQLOLEDB / MSOLEDBSQL) nếu pyodbc không khả dụng hoặc lỗi.
     """
@@ -322,18 +333,18 @@ def _create_mssql_connection(timeout=8):
         drivers = pyodbc.drivers() if hasattr(pyodbc, 'drivers') else []
         conn_strs = []
         if 'ODBC Driver 18 for SQL Server' in drivers:
-            conn_strs.append(f"DRIVER={{ODBC Driver 18 for SQL Server}};SERVER={ERP_MSSQL_HOST};DATABASE={ERP_MSSQL_DB};UID={ERP_MSSQL_USER};PWD={ERP_MSSQL_PWD};Encrypt=Mandatory;TrustServerCertificate=yes;")
+            conn_strs.append(f"DRIVER={{ODBC Driver 18 for SQL Server}};SERVER={host};DATABASE={database};UID={user};PWD={password};Encrypt=Mandatory;TrustServerCertificate=yes;")
         if 'ODBC Driver 17 for SQL Server' in drivers:
-            conn_strs.append(f"DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={ERP_MSSQL_HOST};DATABASE={ERP_MSSQL_DB};UID={ERP_MSSQL_USER};PWD={ERP_MSSQL_PWD};Encrypt=yes;TrustServerCertificate=yes;")
+            conn_strs.append(f"DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={host};DATABASE={database};UID={user};PWD={password};Encrypt=yes;TrustServerCertificate=yes;")
         for d_ver in ('ODBC Driver 13 for SQL Server', 'ODBC Driver 11 for SQL Server'):
             if d_ver in drivers:
-                conn_strs.append(f"DRIVER={{{d_ver}}};SERVER={ERP_MSSQL_HOST};DATABASE={ERP_MSSQL_DB};UID={ERP_MSSQL_USER};PWD={ERP_MSSQL_PWD};Encrypt=yes;TrustServerCertificate=yes;")
+                conn_strs.append(f"DRIVER={{{d_ver}}};SERVER={host};DATABASE={database};UID={user};PWD={password};Encrypt=yes;TrustServerCertificate=yes;")
         for ncl in ('SQL Server Native Client 11.0', 'SQL Server Native Client 10.0'):
             if ncl in drivers:
-                conn_strs.append(f"DRIVER={{{ncl}}};SERVER={ERP_MSSQL_HOST};DATABASE={ERP_MSSQL_DB};UID={ERP_MSSQL_USER};PWD={ERP_MSSQL_PWD};")
+                conn_strs.append(f"DRIVER={{{ncl}}};SERVER={host};DATABASE={database};UID={user};PWD={password};")
         if 'SQL Server' in drivers or not conn_strs:
-            conn_strs.append(f"DRIVER={{SQL Server}};SERVER={ERP_MSSQL_HOST};DATABASE={ERP_MSSQL_DB};UID={ERP_MSSQL_USER};PWD={ERP_MSSQL_PWD};")
-            conn_strs.append(f"DRIVER={{ODBC Driver 18 for SQL Server}};SERVER={ERP_MSSQL_HOST};DATABASE={ERP_MSSQL_DB};UID={ERP_MSSQL_USER};PWD={ERP_MSSQL_PWD};Encrypt=Mandatory;TrustServerCertificate=yes;")
+            conn_strs.append(f"DRIVER={{SQL Server}};SERVER={host};DATABASE={database};UID={user};PWD={password};")
+            conn_strs.append(f"DRIVER={{ODBC Driver 18 for SQL Server}};SERVER={host};DATABASE={database};UID={user};PWD={password};Encrypt=Mandatory;TrustServerCertificate=yes;")
 
         for c_str in conn_strs:
             try:
@@ -347,9 +358,9 @@ def _create_mssql_connection(timeout=8):
         import importlib
         adodbapi = importlib.import_module("adodbapi")
         providers = [
-            f"Provider=SQLOLEDB;Data Source={ERP_MSSQL_HOST};Initial Catalog={ERP_MSSQL_DB};User ID={ERP_MSSQL_USER};Password={ERP_MSSQL_PWD};",
-            f"Provider=MSOLEDBSQL;Data Source={ERP_MSSQL_HOST};Initial Catalog={ERP_MSSQL_DB};User ID={ERP_MSSQL_USER};Password={ERP_MSSQL_PWD};Trust Server Certificate=True;",
-            f"Provider=MSDASQL;Driver={{SQL Server}};Server={ERP_MSSQL_HOST};Database={ERP_MSSQL_DB};Uid={ERP_MSSQL_USER};Pwd={ERP_MSSQL_PWD};"
+            f"Provider=SQLOLEDB;Data Source={host};Initial Catalog={database};User ID={user};Password={password};",
+            f"Provider=MSOLEDBSQL;Data Source={host};Initial Catalog={database};User ID={user};Password={password};Trust Server Certificate=True;",
+            f"Provider=MSDASQL;Driver={{SQL Server}};Server={host};Database={database};Uid={user};Pwd={password};"
         ]
         for p_str in providers:
             try:
@@ -360,7 +371,7 @@ def _create_mssql_connection(timeout=8):
     except ImportError:
         pass
 
-    raise DatabaseConnectionError(f"Không thể kết nối đến SQL Server ERP ({ERP_MSSQL_HOST}/{ERP_MSSQL_DB}): {last_err}")
+    raise DatabaseConnectionError(f"Không thể kết nối đến SQL Server ({host}/{database}): {last_err}")
 
 @contextmanager
 def get_erp_mssql_connection(timeout=8):
@@ -369,6 +380,24 @@ def get_erp_mssql_connection(timeout=8):
     Tự động thử các driver tương thích trên hệ điều hành và giải phóng kết nối sau khi hoàn tất.
     """
     conn = _create_mssql_connection(timeout=timeout)
+    try:
+        yield conn
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+@contextmanager
+def get_kv1_log_mssql_connection(timeout=8):
+    """Context manager kết nối tới SQL Server Log In Lại Tem KV1 (198.1.1.106/Log_InLaiTem_MESKD)."""
+    conn = _create_mssql_connection(
+        host=KV1_LOG_MSSQL_HOST,
+        database=KV1_LOG_MSSQL_DB,
+        user=KV1_LOG_MSSQL_USER,
+        password=KV1_LOG_MSSQL_PWD,
+        timeout=timeout,
+    )
     try:
         yield conn
     finally:
