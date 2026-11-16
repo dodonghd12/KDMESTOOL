@@ -13,10 +13,12 @@
     let allLogRecords = [];
     let currentFilteredRecords = [];
     const tableColumns = ['Thời gian in (UTC+7)', 'Location', 'IP', 'Người in', 'Barcode', 'Ghi chú'];
+    const LOCATION_OPTIONS = ['KV1', 'KV2'];
     const PAGE_SIZE = 30;
     let currentPage = 1;
     let totalPages = 1;
     let clientSearchDebounceTimer = null;
+    let selectedLocationFilter = '';
     let selectedFromDate = '';
     let selectedToDate = '';
     let flatpickrInstance = null;
@@ -30,6 +32,7 @@
     function initTimeTurner() {
         ensureClientSearchAlwaysEnabled();
         initControls();
+        initLocationDropdown();
         initFlatpickr();
         setupExportHook();
         renderCurrentPage();
@@ -159,6 +162,55 @@
         };
     }
 
+    function initLocationDropdown() {
+        const input = document.getElementById('locationFilter');
+        const dropdown = document.getElementById('location-filter-dropdown');
+        if (!input || !dropdown) return;
+
+        const renderItems = () => {
+            dropdown.innerHTML = '';
+            LOCATION_OPTIONS.forEach((loc) => {
+                const item = document.createElement('div');
+                item.className = 'dropdown-item';
+                if (loc === selectedLocationFilter) item.classList.add('selected');
+                item.textContent = loc;
+                item.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    selectedLocationFilter = loc;
+                    input.value = loc;
+                    input.closest('.input-box')?.classList.add('has-value');
+                    dropdown.classList.remove('show');
+                    input.blur();
+                    applyFilters(true);
+                });
+                dropdown.appendChild(item);
+            });
+        };
+
+        input.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (dropdown.classList.contains('show')) {
+                dropdown.classList.remove('show');
+                return;
+            }
+            renderItems();
+            dropdown.classList.add('show');
+        });
+
+        input.addEventListener('input', () => {
+            selectedLocationFilter = input.value.trim().toUpperCase();
+            input.closest('.input-box')?.classList.toggle('has-value', Boolean(selectedLocationFilter));
+            dropdown.classList.remove('show');
+            applyFilters(true);
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+                dropdown.classList.remove('show');
+            }
+        });
+    }
+
     function setupExportHook() {
         window.getPageExportData = function () {
             const rows = (currentFilteredRecords || []).map((rec) => [
@@ -239,6 +291,14 @@
         const searchVal = (clientSearchInput ? clientSearchInput.value : '').trim().toLowerCase();
 
         currentFilteredRecords = allLogRecords.filter(item => {
+            // Lọc theo Location (KV1 / KV2)
+            if (selectedLocationFilter) {
+                const itemLocation = (item.location || '').trim().toUpperCase();
+                if (itemLocation !== selectedLocationFilter) {
+                    return false;
+                }
+            }
+
             // Lọc theo khoảng ngày từ flatpickr
             if (selectedFromDate && selectedToDate) {
                 const itemDate = (item.timestamp || '').slice(0, 10);

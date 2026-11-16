@@ -28,7 +28,14 @@
                     <span>Refresh</span>
                 </button>
 
-                <!-- 2. dateRange (Sử dụng flatpickr) -->
+                <!-- 2. locationFilter (Dropdown KV1 / KV2) -->
+                <div class="input-box" style="min-width: 150px; max-width: 180px; width: 165px; flex-shrink: 0; position: relative;">
+                    <input placeholder=" " type="text" id="locationFilter" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="input" style="cursor: pointer;" readonly aria-label="Lọc theo Location">
+                    <label class="user-label">Location</label>
+                    <div id="location-filter-dropdown" class="dropdown-list"></div>
+                </div>
+
+                <!-- 3. dateRange (Sử dụng flatpickr) -->
                 <div class="input-box" style="min-width: 240px; max-width: 280px; width: 270px; flex-shrink: 0;">
                     <input required type="text" id="dateRange" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="input" placeholder="Chọn ngày">
                     <input type="hidden" id="fromDate">
