@@ -207,7 +207,7 @@ def validate_actions_yaml_content(content: str, recipe_id: str = '', actual_file
 
     return result
 
-def validate_recipe_yaml_content(content: str, product_type: str = None, label_config_keys: list = None, all_keys_map: dict = None) -> dict:
+def validate_recipe_yaml_content(content: str, product_type: str = None, label_config_keys: list = None, all_keys_map: dict = None, payload_product_type: str = None) -> dict:
     """
     Kiểm tra tính hợp lệ về cú pháp, cấu trúc và thụt lề của file Recipe YAML theo schema KDMES/DUI uploader.
     Phát hiện các lỗi thường gặp:
@@ -352,71 +352,83 @@ def validate_recipe_yaml_content(content: str, product_type: str = None, label_c
                         'message': "controls: Khóa controls không có dữ liệu, bắt buộc phải khai báo là 'controls: []'"
                     })
 
-    # 4. Kiểm tra các giá trị trong steps -> materials: mid bắt buộc có dữ liệu, high/low không được để trống (nhưng có thể là "")
+    # 4. Kiểm tra các giá trị trong steps -> materials (mọi product_type) và controls (khi product_type là GREEN_TIRE)
+    is_green_tire = any(
+        str(pt or '').strip().upper() == 'GREEN_TIRE'
+        for pt in (product_type, payload_product_type)
+    )
     try:
         composed_tree = yaml.compose(content)
         if composed_tree:
-            def walk_materials(node, in_step=False):
-                if isinstance(node, yaml.MappingNode):
-                    for k_node, v_node in node.value:
-                        key = str(k_node.value).strip()
-                        if key in ('steps', 'step'):
-                            walk_materials(v_node, in_step=True)
-                        elif key == 'materials' and in_step:
-                            check_materials_list(v_node)
-                        else:
-                            walk_materials(v_node, in_step=in_step)
-                elif isinstance(node, yaml.SequenceNode):
-                    for item in node.value:
-                        walk_materials(item, in_step=in_step)
-
-            def check_materials_list(materials_seq):
-                if not isinstance(materials_seq, yaml.SequenceNode):
+            def check_step_items_seq(items_seq, is_control=False):
+                if not isinstance(items_seq, yaml.SequenceNode):
                     return
-                for mat in materials_seq.value:
-                    if not isinstance(mat, yaml.MappingNode):
+                for item in items_seq.value:
+                    if not isinstance(item, yaml.MappingNode):
                         continue
-                    mat_name = ''
+                    item_name = ''
                     value_node = None
-                    for m_k, m_v in mat.value:
+                    for m_k, m_v in item.value:
                         k_str = str(m_k.value).strip()
                         if k_str == 'name' and hasattr(m_v, 'value'):
-                            mat_name = str(m_v.value).strip()
+                            item_name = str(m_v.value).strip()
                         elif k_str == 'value' and isinstance(m_v, yaml.MappingNode):
                             value_node = m_v
 
                     if value_node is None:
                         continue
 
-                    val_keys = {}
-                    for vk, vv in value_node.value:
-                        val_keys[str(vk.value).strip()] = (vk, vv)
+                    val_keys = {str(vk.value).strip(): (vk, vv) for vk, vv in value_node.value}
 
-                    # Check mid: bắt buộc có dữ liệu (không được để trống 'mid:', không được để rỗng 'mid: ""')
+                    # Materials bắt buộc có mid; Controls với GREEN_TIRE không được để mid rỗng ("")
                     if 'mid' not in val_keys:
-                        result['errors'].append({
-                            'lineIndex': value_node.start_mark.line,
-                            'line_number': value_node.start_mark.line + 1,
-                            'type': 'material_value_mid_missing',
-                            'message': f"Dòng {value_node.start_mark.line + 1}: Material '{mat_name}' - Mục 'value' thiếu thuộc tính 'mid'. Bắt buộc phải có dữ liệu."
-                        })
-                    else:
-                        k_n, v_n = val_keys['mid']
-                        line_idx = k_n.start_mark.line
-                        is_null = (getattr(v_n, 'tag', '') == 'tag:yaml.org,2002:null')
-                        raw_val = str(getattr(v_n, 'value', '')).strip()
-                        if is_null or raw_val == '':
+                        if not is_control:
+                            result['errors'].append({
+                                'lineIndex': value_node.start_mark.line,
+                                'line_number': value_node.start_mark.line + 1,
+                                'type': 'material_value_mid_missing',
+                                'message': f"Dòng {value_node.start_mark.line + 1}: Material '{item_name}' - Mục 'value' thiếu thuộc tính 'mid'. Bắt buộc phải có dữ liệu."
+                            })
+                        continue
+
+                    k_n, v_n = val_keys['mid']
+                    line_idx = k_n.start_mark.line
+                    is_null = (getattr(v_n, 'tag', '') == 'tag:yaml.org,2002:null')
+                    raw_val = '' if is_null else str(getattr(v_n, 'value', '')).strip()
+                    if raw_val == '':
+                        if is_control:
+                            result['errors'].append({
+                                'lineIndex': line_idx,
+                                'line_number': line_idx + 1,
+                                'type': 'control_value_mid_empty',
+                                'message': f"Dòng {line_idx + 1}: Control '{item_name}' - Mục 'mid' không được để trống ('mid: \"\"') đối với GREEN_TIRE."
+                            })
+                        else:
                             result['errors'].append({
                                 'lineIndex': line_idx,
                                 'line_number': line_idx + 1,
                                 'type': 'material_value_mid_empty',
-                                'message': f"Dòng {line_idx + 1}: Material '{mat_name}' - Mục 'mid' bắt buộc phải có dữ liệu (không được để trống 'mid:' hoặc để rỗng 'mid: ""')."
+                                'message': f"Dòng {line_idx + 1}: Material '{item_name}' - Mục 'mid' bắt buộc phải có dữ liệu (không được để trống 'mid:' hoặc để rỗng 'mid: \"\"')."
                             })
 
-                    # Lưu ý: Mục 'high' và 'low' trong materials được phép để trống ('high: ', 'low: ') hoặc không khai báo
+            def walk_step_nodes(node, in_step=False):
+                if isinstance(node, yaml.MappingNode):
+                    for k_node, v_node in node.value:
+                        key = str(k_node.value).strip()
+                        if key in ('steps', 'step'):
+                            walk_step_nodes(v_node, in_step=True)
+                        elif key == 'materials' and in_step:
+                            check_step_items_seq(v_node, is_control=False)
+                        elif key == 'controls' and is_green_tire:
+                            check_step_items_seq(v_node, is_control=True)
+                        else:
+                            walk_step_nodes(v_node, in_step=in_step)
+                elif isinstance(node, yaml.SequenceNode):
+                    for item in node.value:
+                        walk_step_nodes(item, in_step=in_step)
 
-            walk_materials(composed_tree)
-    except Exception as e:
+            walk_step_nodes(composed_tree)
+    except Exception:
         pass
 
     result['total_errors'] = len(result['errors'])
@@ -1006,7 +1018,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.100"
+APP_VERSION = "2.3.101"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -5797,7 +5809,7 @@ def fetch_yaml_content():
             else:
                 label_keys = []
 
-        validation_res = validate_recipe_yaml_content(content_decoded, actual_product_type, label_keys, keys_map)
+        validation_res = validate_recipe_yaml_content(content_decoded, actual_product_type, label_keys, keys_map, payload_product_type=product_type)
 
         project_web_urls = {
             133: 'https://gitlabce.kenda.com.tw/tc/recipes/building',
