@@ -1796,7 +1796,7 @@ td {
     z-index: 10;
     background-color: var(--color-bg-surface-solid, #0f172a);
     border-right: 2px solid var(--color-border-interactive);
-    box-shadow: 4px 0 10px -2px var(--color-shadow-glass, rgba(0, 0, 0, 0.4));
+    box-shadow: 4px 0 10px -2px rgba(0, 0, 0, 0.4);
     transition: background-color 0.15s ease, color 0.15s ease;
 }
 
@@ -1809,7 +1809,7 @@ td {
     z-index: 10;
     background-color: var(--color-bg-surface-solid, #0f172a);
     border-right: 2px solid var(--color-border-interactive);
-    box-shadow: 4px 0 10px -2px var(--color-shadow-glass, rgba(0, 0, 0, 0.4));
+    box-shadow: 4px 0 10px -2px rgba(0, 0, 0, 0.4);
     transition: background-color 0.15s ease, color 0.15s ease;
 }
 
@@ -1822,7 +1822,7 @@ td {
     z-index: 10;
     background-color: var(--color-bg-surface-solid, #0f172a);
     border-right: 2px solid var(--color-border-interactive);
-    box-shadow: 4px 0 10px -2px var(--color-shadow-glass, rgba(0, 0, 0, 0.4));
+    box-shadow: 4px 0 10px -2px rgba(0, 0, 0, 0.4);
     transition: background-color 0.15s ease, color 0.15s ease;
 }
 
@@ -1848,7 +1848,7 @@ td {
     background: var(--color-bg-surface-elevated-solid, #1e293b) !important;
     border-right: 2px solid var(--color-border-interactive);
     border-bottom: 2px solid #0A0E1A !important;
-    box-shadow: 4px 0 10px -2px var(--color-shadow-glass, rgba(0, 0, 0, 0.4));
+    box-shadow: 4px 0 10px -2px rgba(0, 0, 0, 0.4);
 }
 
 .output-table-scroll thead th:nth-child(2),
@@ -1860,7 +1860,7 @@ td {
     background: var(--color-bg-surface-elevated-solid, #1e293b) !important;
     border-right: 2px solid var(--color-border-interactive);
     border-bottom: 2px solid #0A0E1A !important;
-    box-shadow: 4px 0 10px -2px var(--color-shadow-glass, rgba(0, 0, 0, 0.4));
+    box-shadow: 4px 0 10px -2px rgba(0, 0, 0, 0.4);
 }
 
 .sub-output-table-scroll thead th:nth-child(2),
@@ -1872,7 +1872,7 @@ td {
     background: var(--color-bg-surface-elevated-solid, #1e293b) !important;
     border-right: 2px solid var(--color-border-interactive);
     border-bottom: 2px solid #0A0E1A !important;
-    box-shadow: 4px 0 10px -2px var(--color-shadow-glass, rgba(0, 0, 0, 0.4));
+    box-shadow: 4px 0 10px -2px rgba(0, 0, 0, 0.4);
 }
 
 /* Hover & Selected states for sticky pinned columns (Unified Solid colors with zero delay) */
@@ -1902,7 +1902,7 @@ td {
     background-color: var(--table-row-bg-active) !important;
     color: #F8FAFC !important;
     border-bottom: 1px solid #3DD5C0 !important;
-    box-shadow: inset 0 1px 0 0 #3DD5C0, 4px 0 10px -2px var(--color-shadow-glass, rgba(0, 0, 0, 0.4)) !important;
+    box-shadow: inset 0 1px 0 0 #3DD5C0, 4px 0 10px -2px rgba(0, 0, 0, 0.4) !important;
 }
 
 .table-scroll tbody tr.selected td:nth-child(1),
