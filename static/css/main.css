@@ -3453,6 +3453,11 @@ body.theme-light .empty-state-icon-wrapper::after {
     animation: slideInRight 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.scan-in-station-barcode {
+    flex: 0 0 auto;
+    max-height: 220px;
+}
+
 .output-header {
     flex: 0 0 auto;
     background: var(--color-bg-canvas, #0A0E1A);
@@ -3549,12 +3554,14 @@ body.theme-light .empty-state-icon-wrapper::after {
     border-radius: 8px;
 }
 
+#scanInStationTable,
 #outputBarcodeTable {
     border-collapse: separate;
     border-spacing: 0;
     width: 100%;
 }
 
+#scanInStationTable thead,
 #outputBarcodeTable thead {
     position: sticky;
     top: 0;
@@ -3562,6 +3569,7 @@ body.theme-light .empty-state-icon-wrapper::after {
     background: var(--color-bg-surface-elevated-solid, #1e293b);
 }
 
+#scanInStationTable thead th,
 #outputBarcodeTable thead th {
     position: sticky;
     top: 0;
@@ -3581,6 +3589,7 @@ body.theme-light .empty-state-icon-wrapper::after {
     box-sizing: border-box;
 }
 
+#scanInStationTable tbody td,
 #outputBarcodeTable tbody td {
     padding: var(--table-cell-py) var(--table-cell-px);
     border-bottom: 1px solid var(--color-border-subtle);
@@ -3592,14 +3601,17 @@ body.theme-light .empty-state-icon-wrapper::after {
     background-color: var(--color-bg-surface-solid, #0f172a);
 }
 
+#scanInStationTable tbody tr:hover td,
 #outputBarcodeTable tbody tr:hover td {
     background-color: var(--table-row-bg-hover) !important;
 }
 
+#scanInStationTable tbody tr.selected td,
 #outputBarcodeTable tbody tr.selected td {
     background-color: var(--table-row-bg-active) !important;
 }
 
+#scanInStationTable tbody tr.selected:hover td,
 #outputBarcodeTable tbody tr.selected:hover td {
     background-color: var(--table-row-bg-selected-hover) !important;
 }
@@ -5326,6 +5338,8 @@ body.theme-light .comparison-modal-header {
     border-bottom: 1px solid #cbd5e1;
 }
 
+:root[data-theme="light"] #scanInStationTable thead th,
+body.theme-light #scanInStationTable thead th,
 :root[data-theme="light"] #outputBarcodeTable thead th,
 body.theme-light #outputBarcodeTable thead th,
 :root[data-theme="light"] #subOutputBarcodeTable thead th,

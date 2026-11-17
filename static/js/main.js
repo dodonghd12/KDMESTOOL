@@ -1125,9 +1125,8 @@ function updateTableStickyOffsets() {
                 }
             }
         }
-        // Output Barcode Table
-        const outputTable = document.querySelector('#outputBarcodeTable');
-        if (outputTable) {
+        // Scan-in-Station & Output Barcode Tables
+        document.querySelectorAll('#scanInStationTable, #outputBarcodeTable').forEach(outputTable => {
             const firstTh = outputTable.querySelector('thead th:first-child');
             if (firstTh) {
                 const width = firstTh.getBoundingClientRect().width || firstTh.offsetWidth;
@@ -1139,7 +1138,7 @@ function updateTableStickyOffsets() {
                     }
                 }
             }
-        }
+        });
         // Sub Output Barcode Table
         const subOutputTable = document.querySelector('#subOutputBarcodeTable');
         if (subOutputTable) {
@@ -3134,7 +3133,6 @@ function updateContextMenu() {
         'reprintLabelPdf',
         'inputBarcode',
         'feedRecords',
-        'checkScanBarcodeHistory',
         'checkBarcodeWorkOrder',
         'viewSameMesBarcodes',
         'mesTracking',
@@ -3313,9 +3311,6 @@ function handleContextMenuAction(e) {
             break;
         case 'feedRecords':
             if (typeof openOutputTable === 'function') openOutputTable('feedRecords', rowData);
-            break;
-        case 'checkScanBarcodeHistory':
-            if (typeof openOutputTable === 'function') openOutputTable('scanInStationByBarcode', rowData);
             break;
         case 'checkBarcodeWorkOrder':
             if (typeof openOutputTable === 'function') openOutputTable('workOrderByBarcode', rowData);
@@ -3540,6 +3535,51 @@ function enhanceContextMenu() {
     });
 }
 
+let scanInStationRawData = [];
+let scanInStationColumns = [];
+
+function clearScanInStationTable() {
+    const table = document.getElementById('scanInStationTable');
+    if (table) {
+        const thead = table.querySelector('thead');
+        const tbody = table.querySelector('tbody');
+        if (thead) thead.innerHTML = '';
+        if (tbody) tbody.innerHTML = '';
+    }
+    const count = document.getElementById('scanInStationRowCount');
+    if (count) count.textContent = '0';
+    scanInStationRawData = [];
+    scanInStationColumns = [];
+}
+
+function closeScanInStationWindow() {
+    const container = document.getElementById('scanInStationContainer');
+    clearScanInStationTable();
+    if (container) container.style.display = 'none';
+}
+window.closeScanInStationWindow = closeScanInStationWindow;
+
+function openScanInStationWindow(materialOid, rows, columns) {
+    const container = document.getElementById('scanInStationContainer');
+    if (!container || !Array.isArray(rows) || rows.length === 0) {
+        closeScanInStationWindow();
+        return;
+    }
+    scanInStationRawData = rows;
+    scanInStationColumns = columns || [];
+    const headerEl = document.getElementById('scanInStationHeaderContent');
+    if (headerEl) {
+        headerEl.textContent = `Thông tin nạp tem lên máy (${materialOid})`;
+    }
+    container.style.display = 'flex';
+    renderOutputBarcodeTable(scanInStationRawData, scanInStationColumns, {
+        tableSelector: '#scanInStationTable',
+        rowCountId: 'scanInStationRowCount',
+        footerSelector: '#scanInStationContainer .output-footer',
+        skipOutputCountUpdate: true
+    });
+}
+
 async function showFeedRecords(rowData = null) {
     const dataObj = rowData || selectedRowData;
     const material_oid = dataObj ? dataObj['id'] : null;
@@ -3561,7 +3601,8 @@ async function showFeedRecords(rowData = null) {
 
     feed_records_material_id = material_oid;
 
-    // 1. Mở outputContainer và thiết lập trạng thái giao diện
+    // 1. Mở outputContainer (thứ tự 2) và reset scanInStationContainer (thứ tự 1)
+    closeScanInStationWindow();
     closeSubOutputWindow();
     enterSingleRowMode();
 
@@ -3574,7 +3615,7 @@ async function showFeedRecords(rowData = null) {
     activeSearchContext = 'outputBarcodeByFeedRecords';
     const outputHeaderContentEl = document.getElementById('outputHeaderContent');
     if (outputHeaderContentEl) {
-        outputHeaderContentEl.textContent = `Kiểm tra tiêu thụ tem (${material_oid}) - Sum Consumption: 0`;
+        outputHeaderContentEl.textContent = `Kiểm tra tiêu thụ (${material_oid}) - Sum Consumption: 0`;
     }
 
     showLoading();
@@ -3599,13 +3640,27 @@ async function showFeedRecords(rowData = null) {
         }
 
         if (outputHeaderContentEl) {
-            outputHeaderContentEl.textContent = `Kiểm tra tiêu thụ tem (${material_oid}) - Sum Consumption: ${sumConsumption}`;
+            outputHeaderContentEl.textContent = `Kiểm tra tiêu thụ (${material_oid}) - Sum Consumption: ${sumConsumption}`;
         }
 
+        // Thứ tự 1: Output barcode cho scan-in-station (chỉ hiển thị nếu đang gắn tại trạm/máy, rỗng thì ẩn hoàn toàn)
+        const scanData = (data && data.scan_in_station) ? data.scan_in_station : null;
+        const hasScanInStation = !!(scanData && Array.isArray(scanData.result) && scanData.result.length > 0);
+        if (hasScanInStation) {
+            openScanInStationWindow(material_oid, scanData.result, scanData.columns || []);
+        } else {
+            closeScanInStationWindow();
+        }
+
+        // Thứ tự 2: Output barcode cho check-used-history (rỗng thì hiển thị table-empty-state)
         if (!data || !data.result || data.result.length === 0) {
-            Toast.warning('Không có dữ liệu', 'Barcode chưa quét tem lần nào');
             currentOutputTableType = null;
             renderOutputBarcodeTable([], (data && data.columns) ? data.columns : []);
+            if (hasScanInStation) {
+                Toast.success('Thành công', `Tem đang gắn tại ${scanData.result.length} trạm, chưa có dữ liệu tiêu thụ`);
+            } else {
+                Toast.warning('Không có dữ liệu', 'Barcode chưa quét tem lần nào');
+            }
             return;
         }
 
@@ -3615,19 +3670,20 @@ async function showFeedRecords(rowData = null) {
             currentOutputTableType = 'outputBarcodeByFeedRecords';
             renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
             const hasWO = data.result.some(r => r[0] && r[0] !== '-');
-            const msg = hasWO 
-                ? `Tìm thấy ${data.result.length} đơn điều động tiêu thụ & gắn tem` 
+            const msg = hasWO
+                ? `Tìm thấy ${data.result.length} đơn điều động tiêu thụ & gắn tem`
                 : `Tìm thấy thông tin gắn tem trên trạm (${data.result.length} vị trí)`;
             Toast.success('Thành công', msg);
         } else {
             currentOutputTableType = null;
             renderOutputBarcodeTable([], []);
-            Toast.error('Lỗi', data.message || 'Lỗi khi kiểm tra tiêu thụ tem');
+            Toast.error('Lỗi', data.message || 'Lỗi khi kiểm tra tiêu thụ');
         }
     } catch (err) {
         hideLoading();
+        closeScanInStationWindow();
         if (outputHeaderContentEl) {
-            outputHeaderContentEl.textContent = `Kiểm tra tiêu thụ tem (${material_oid}) - Sum Consumption: 0`;
+            outputHeaderContentEl.textContent = `Kiểm tra tiêu thụ (${material_oid}) - Sum Consumption: 0`;
         }
         renderOutputBarcodeTable([], []);
         Toast.error('Lỗi', err.message || 'Lỗi kết nối');
@@ -7653,8 +7709,11 @@ function openOutputTable(type, rowData = null) {
         selectedRowData = rowData;
     }
 
-    // Tự động đóng và clear subOutputContainer khi outputContainer thay đổi dữ liệu
+    // Tự động đóng và clear subOutputContainer / scanInStationContainer khi outputContainer thay đổi dữ liệu
     closeSubOutputWindow();
+    if (type !== 'feedRecords' && type !== 'outputBarcodeByFeedRecords') {
+        closeScanInStationWindow();
+    }
 
     enterSingleRowMode();
 
@@ -7675,7 +7734,7 @@ function openOutputTable(type, rowData = null) {
         if (outputHeaderContentEl) outputHeaderContentEl.textContent = 'Kiểm tra tem đầu vào';
         fetchInputBarcode(dataObj.id, dataObj.product_type);
     } else if (type === 'feedRecords' || type === 'outputBarcodeByFeedRecords') {
-        if (outputHeaderContentEl) outputHeaderContentEl.textContent = `Kiểm tra tiêu thụ tem (${dataObj.id || ''}) - Sum Consumption: 0`;
+        if (outputHeaderContentEl) outputHeaderContentEl.textContent = `Kiểm tra tiêu thụ (${dataObj.id || ''}) - Sum Consumption: 0`;
         showFeedRecords(dataObj);
     } else if (type === 'workOrderByRecipe') {
         if (outputHeaderContentEl) outputHeaderContentEl.textContent = 'Đơn điều động theo quy cách';
@@ -7691,10 +7750,6 @@ function openOutputTable(type, rowData = null) {
         const barcodeId = dataObj.id || dataObj['Barcode ID'] || dataObj.barcode_id || '';
         if (outputHeaderContentEl) outputHeaderContentEl.textContent = `Danh sách tem cùng MES (${barcodeId})`;
         fetchSameMesBarcodes(barcodeId);
-    } else if (type === 'scanInStationByBarcode') {
-        const barcodeId = dataObj.id || dataObj['Barcode ID'] || dataObj.barcode_id || '';
-        if (outputHeaderContentEl) outputHeaderContentEl.textContent = `Thông tin nạp tem lên máy (${barcodeId})`;
-        fetchScanBarcodeHistoryByBarcode(dataObj);
     } else if (type === 'fetchOriginalInfoByBarcode') {
         if (outputHeaderContentEl) outputHeaderContentEl.textContent = 'Thông tin gốc của barcode';
         fetchOriginalInfoByBarcode(dataObj.id, dataObj.product_type);
@@ -7712,6 +7767,7 @@ function openOutputTable(type, rowData = null) {
 }
 
 function closeShowBarcodeWindow() {
+    closeScanInStationWindow();
     closeSubOutputWindow();
 
     const container = document.getElementById('outputContainer');
@@ -7750,10 +7806,15 @@ function clearOutputBarcodeTable() {
     updateTableStickyOffsets();
 }
 
-function renderOutputBarcodeTable(rows, columns) {
-    const thead = document.querySelector('#outputBarcodeTable thead');
-    const tbody = document.querySelector('#outputBarcodeTable tbody');
-    const rowCount = document.getElementById('outputRowCount');
+function renderOutputBarcodeTable(rows, columns, target = null) {
+    const tableSelector = (target && target.tableSelector) || '#outputBarcodeTable';
+    const rowCountId = (target && target.rowCountId) || 'outputRowCount';
+    const footerSelector = (target && target.footerSelector) || '#outputContainer .output-footer';
+    const skipOutputCountUpdate = !!(target && target.skipOutputCountUpdate);
+
+    const thead = document.querySelector(`${tableSelector} thead`);
+    const tbody = document.querySelector(`${tableSelector} tbody`);
+    const rowCount = document.getElementById(rowCountId);
 
     if (!thead || !tbody) return;
 
@@ -7781,7 +7842,11 @@ function renderOutputBarcodeTable(rows, columns) {
         `;
         emptyTr.appendChild(emptyTd);
         tbody.appendChild(emptyTr);
-        updateOutputVisibleRowCount();
+        if (!skipOutputCountUpdate) updateOutputVisibleRowCount();
+        else {
+            const footerEl = document.querySelector(footerSelector);
+            if (footerEl) footerEl.classList.add('hidden');
+        }
         updateTableStickyOffsets();
         return;
     }
@@ -7899,9 +7964,12 @@ function renderOutputBarcodeTable(rows, columns) {
     const count = rows.length;
     if (rowCount) rowCount.textContent = count;
 
-
-
-    updateOutputVisibleRowCount();
+    if (!skipOutputCountUpdate) {
+        updateOutputVisibleRowCount();
+    } else {
+        const footerEl = document.querySelector(footerSelector);
+        if (footerEl) footerEl.classList.toggle('hidden', count === 0);
+    }
     updateTableStickyOffsets();
 }
 
@@ -8517,7 +8585,7 @@ function updateVisibleRowCount() {
 function updateOutputVisibleRowCount() {
     const tbody = document.getElementById('outputBarcodeTableBody') || document.querySelector('#outputBarcodeTable tbody');
     const rowCount = document.getElementById('outputRowCount');
-    const outputFooter = document.querySelector('.output-footer');
+    const outputFooter = document.querySelector('#outputContainer .output-footer');
 
     if (!tbody || !rowCount) return;
 
@@ -8542,6 +8610,10 @@ document.addEventListener('click', function (e) {
 
     if (buttonId === 'exportOutputExcelBtn') {
         handleExportOutputBarcodeExcel(button);
+    }
+
+    if (buttonId === 'exportScanInStationExcelBtn') {
+        handleExportScanInStationExcel(button);
     }
 
     if (buttonId === 'exportSubOutputExcelBtn') {
@@ -8780,6 +8852,27 @@ function exportOutputBarcodeToExcel() {
         sheetName: 'Barcode_Detail',
         defaultFileName: 'KDMES_TOOL_' + getVietnamTimestamp() + '.xlsx'
     });
+}
+
+async function handleExportScanInStationExcel() {
+    const table = document.getElementById('scanInStationTable');
+    if (!table || !Array.isArray(scanInStationRawData) || scanInStationRawData.length === 0) {
+        Toast.warning('Cảnh báo', 'Không có dữ liệu để xuất file Excel.');
+        return;
+    }
+    const confirmed = await showConfirm(
+        `Bạn có chắc chắn muốn xuất file Excel cho toàn bộ ${scanInStationRawData.length.toLocaleString()} dòng dữ liệu nạp tem?`
+    );
+    if (!confirmed) return;
+
+    exportDatasetToExcel({
+        rows: scanInStationRawData,
+        columns: scanInStationColumns,
+        tableElement: table,
+        sheetName: 'Scan_In_Station',
+        defaultFileName: 'KDMES_TOOL_SCAN_' + getVietnamTimestamp() + '.xlsx'
+    });
+    Toast.success('Thành công', `Xuất file Excel thành công (${scanInStationRawData.length.toLocaleString()} dòng)!`);
 }
 
 async function handleExportSubOutputBarcodeExcel(button = null) {
@@ -9147,45 +9240,6 @@ async function getWorkOrderDetails(rowData = null) {
         }
     } catch (err) {
         Toast.error('Lỗi', err.message || 'Lỗi kết nối khi tải chi tiết đơn điều động');
-    }
-}
-
-async function fetchScanBarcodeHistoryByBarcode(rowData = null) {
-    const dataObj = rowData || selectedRowData;
-    const resource_id = dataObj ? dataObj['id'] : null;
-    if (!resource_id) {
-        Toast.warning('Cảnh báo', 'Chưa chọn hàng dữ liệu.');
-        return;
-    }
-
-    try {
-        const data = await apiFetch('/api/barcodes/scan-in-station', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ resource_id })
-        });
-
-        if (data.success) {
-            if (Array.isArray(data.result) && data.result.length === 0) {
-                currentOutputTableType = null;
-                renderOutputBarcodeTable([], data.columns || []);
-                Toast.info('Thông báo', `Barcode ${resource_id} đang không được nạp vào bất kỳ máy nào`);
-                return;
-            }
-            outputBarcodeRawData = data.result;
-            outputBarcodeColumns = data.columns;
-            currentOutputTableType = null;
-            renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
-            Toast.success('Thành công', `Tải thông tin nạp tem thành công (${data.result.length} dòng)`);
-        } else {
-            currentOutputTableType = null;
-            renderOutputBarcodeTable([], []);
-            Toast.error('Lỗi', data.message || 'Lỗi khi kiểm tra trạm nạp tem');
-        }
-    } catch (err) {
-        currentOutputTableType = null;
-        renderOutputBarcodeTable([], []);
-        Toast.error('Lỗi', err.message || 'Lỗi kết nối khi kiểm tra trạm nạp tem');
     }
 }
 

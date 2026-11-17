@@ -152,6 +152,36 @@
             </div>
         </div>
 
+        <!-- ===== SCAN-IN-STATION OUTPUT CONTAINER (THỨ TỰ 1) ===== -->
+        <div id="scanInStationContainer" class="table-container output-barcode scan-in-station-barcode" role="region" aria-label="Thông tin nạp tem lên máy" style="display: none;">
+            <div class="output-header" id="scanInStationHeader">
+                <span id="scanInStationHeaderContent">Thông tin nạp tem lên máy</span>
+                <button class="close-btn" onclick="closeScanInStationWindow()" aria-label="Đóng bảng thông tin nạp tem" type="button"><svg class="close-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+            </div>
+
+            <div class="output-table-scroll">
+                <table id="scanInStationTable" class="table table-striped">
+                    <thead></thead>
+                    <tbody id="scanInStationTableBody"></tbody>
+                </table>
+            </div>
+            <div class="output-footer">
+                <div class="row-count">Số dòng: <span id="scanInStationRowCount">0</span></div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <button class="btn-export-excel" id="exportScanInStationExcelBtn" aria-label="Xuất dữ liệu nạp tem file Excel">
+                    <div class="btn-export-excel-wrapper">
+                        <div class="text">Xuất Excel</div>
+                        <span class="icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" width="2em" height="2em" preserveAspectRatio="xMidYMid meet" viewBox="0 0 24 24">
+                                <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 0 0 4.561 21h14.878a2 2 0 0 0 1.94-1.515L22 17"></path>
+                            </svg>
+                        </span>
+                    </div>
+                </button>
+                </div>
+            </div>
+        </div>
+
         <!-- ===== OUTPUT BARCODE CONTAINER ===== -->
         <div id="outputContainer" class="table-container output-barcode" role="region" aria-label="Bảng chi tiết tem đầu ra / đầu vào">
             <div class="output-header" id="outputHeader">

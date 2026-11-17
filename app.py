@@ -1019,7 +1019,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.4.10"
+APP_VERSION = "2.4.11"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -2820,14 +2820,11 @@ def search_print_barcode_history_by_station():
             'columns': column_names
         })
  
-@app.route('/api/barcodes/scan-in-station', methods=['POST'])
-@login_required
-def search_scan_barcode_history_by_barcode():
-    
-    resource_id = request.json.get('resource_id', '').strip()
+def query_scan_in_station_by_barcode(cursor, resource_id):
+    """Truy vấn thông tin trạm/máy HIỆN TẠI barcode đang được gắn vào."""
     if not resource_id:
-        return jsonify({'result': [], 'columns': []})
-    
+        return {'result': [], 'columns': []}
+
     query = """
         SELECT *
         FROM (
@@ -2905,22 +2902,14 @@ def search_scan_barcode_history_by_barcode():
         ORDER BY scan_at DESC;
     """
 
-    result, column_names = execute_pg_select_query(query, (resource_id, resource_id))
-    if result:
-        convert_columns = ["scan_at"]
-        result = convert_timestamp(result, column_names, convert_columns)
-        serialized_result = [serialize_row(list(row)) for row in result]
-        return jsonify({
-            'success': True,
-            'result': serialized_result,
-            'columns': column_names
-        })
-    else:
-        return jsonify({
-            'success': True,
-            'result': [],
-            'columns': column_names
-        })
+    cursor.execute(query, (resource_id, resource_id))
+    rows = cursor.fetchall()
+    column_names = [desc[0] for desc in cursor.description] if cursor.description else []
+    if rows:
+        rows = convert_timestamp(rows, column_names, ["scan_at"])
+        serialized_result = [serialize_row(list(row)) for row in rows]
+        return {'result': serialized_result, 'columns': column_names}
+    return {'result': [], 'columns': column_names}
     
 @app.route('/api/barcodes/fetch-work-orders', methods=['POST'])
 @login_required
@@ -3150,6 +3139,8 @@ def get_used_history_by_barcode():
         with get_pg_connection() as conn:
             cursor = conn.cursor()
 
+            scan_in_station_data = query_scan_in_station_by_barcode(cursor, material_oid)
+
             # 0. Query default quantity from kvmes.material_resource as fallback
             cursor.execute("SELECT quantity FROM kvmes.material_resource WHERE id = %s LIMIT 1;", (material_oid,))
             mr_row = cursor.fetchone()
@@ -3299,7 +3290,7 @@ def get_used_history_by_barcode():
 
             # Trường hợp 1: Không có feed_record và cũng không có vị trí Đang gắn nào -> Trả về rỗng
             if not matched_feeds and not bound_sc_sites:
-                return jsonify({'success': True, 'result': [], 'columns': columns, 'sum_consumption': 0})
+                return jsonify({'success': True, 'result': [], 'columns': columns, 'sum_consumption': 0, 'scan_in_station': scan_in_station_data})
 
             # Trường hợp 2: Chưa phát sinh feed_record nhưng ĐANG GẮN vào site_contents -> Hiển thị vị trí Đang gắn
             if not matched_feeds and bound_sc_sites:
@@ -3324,7 +3315,7 @@ def get_used_history_by_barcode():
                         sc_item['bind_by']
                     ]
                     res_rows.append(serialize_row(row))
-                return jsonify({'success': True, 'result': res_rows, 'columns': columns, 'sum_consumption': 0})
+                return jsonify({'success': True, 'result': res_rows, 'columns': columns, 'sum_consumption': 0, 'scan_in_station': scan_in_station_data})
 
             feed_qty_map = {}
             for row in matched_feeds:
@@ -3617,7 +3608,8 @@ def get_used_history_by_barcode():
                 'success': True,
                 'result': result_rows,
                 'columns': columns,
-                'sum_consumption': sum_consumption
+                'sum_consumption': sum_consumption,
+                'scan_in_station': scan_in_station_data
             })
 
     except Exception as e:
