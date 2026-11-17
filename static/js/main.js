@@ -1902,30 +1902,7 @@ function initializeMainEventListeners() {
         });
     }
 
-    // Right-click vào cột đầu tiên (data-full-value) trong .table-container, #outputContainer, #subOutputContainer để copy nhanh
-    document.addEventListener('contextmenu', async (e) => {
-        const td = e.target && e.target.closest ? e.target.closest('td[data-full-value]') : null;
-        if (td && td.cellIndex === 0) {
-            const tr = td.closest('tr');
-            const validRow = tr && !tr.querySelector('.table-empty-state') && !tr.classList.contains('skeleton-row');
-            const validContainer = td.closest('.table-container, #outputContainer, #subOutputContainer, .output-container');
-            if (validRow && validContainer) {
-                const rawVal = String(td.dataset.fullValue ?? td.getAttribute('data-full-value') ?? '').trim();
-                if (rawVal && rawVal !== '-') {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    e.stopImmediatePropagation();
-                    const cm = document.getElementById('contextMenu');
-                    if (cm) cm.style.display = 'none';
-                    const ok = await copyTextToClipboard(rawVal);
-                    if (ok && typeof Toast !== 'undefined' && typeof Toast.success === 'function') {
-                        Toast.success('Đã sao chép', rawVal);
-                    }
-                    return false;
-                }
-            }
-        }
-
+    document.addEventListener('contextmenu', (e) => {
         const subContainer = document.getElementById('subOutputContainer');
         if (subContainer && subContainer.contains(e.target)) {
             e.preventDefault();
@@ -1933,6 +1910,24 @@ function initializeMainEventListeners() {
             return false;
         }
     }, true);
+
+    // Click chuột trái vào vùng data-full-value của cột 1 hoặc cột 2 trong .table-container, #outputContainer, #subOutputContainer để copy nhanh
+    document.addEventListener('click', async (e) => {
+        const td = e.target && e.target.closest ? e.target.closest('td[data-full-value]') : null;
+        if (!td || (td.cellIndex !== 0 && td.cellIndex !== 1)) return;
+        const tr = td.closest('tr');
+        if (!tr || tr.querySelector('.table-empty-state') || tr.classList.contains('skeleton-row')) return;
+        if (!td.closest('.table-container, #outputContainer, #subOutputContainer, .output-container')) return;
+        if (e.target.closest('a, button')) return;
+
+        const rawVal = String(td.dataset.fullValue ?? td.getAttribute('data-full-value') ?? '').trim();
+        if (!rawVal || rawVal === '-') return;
+
+        const ok = await copyTextToClipboard(rawVal);
+        if (ok && typeof Toast !== 'undefined' && typeof Toast.success === 'function') {
+            Toast.success('Đã sao chép', rawVal);
+        }
+    });
 
     // ===== CONTEXT MENU =====
     const contextMenu = document.getElementById('contextMenu');
