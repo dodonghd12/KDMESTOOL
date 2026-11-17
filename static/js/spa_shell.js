@@ -18,7 +18,7 @@
         { path: '/postgres-deleted-data', frameId: 'view-postgres-deleted-data', title: 'Postgres Deleted Data' },
         { path: '/create-kd-account', frameId: 'view-create-kd-account', title: 'Tạo Tài Khoản' },
         { path: '/check-kd-account', frameId: 'view-check-kd-account', title: 'Kiểm Tra Tài Khoản' },
-        { path: '/reparo-spell', frameId: 'view-reparo-spell', title: 'Reparo Spell' },
+        { path: '/manual-data-insertion', frameId: 'view-manual-data-insertion', title: 'Manual Data Insertion' },
         { path: '/bypass', frameId: 'view-bypass', title: 'Bypass' },
         { path: '/printer-setup', frameId: 'view-printer-setup', title: 'Printer Setup' },
         { path: '/reprint-label-log', frameId: 'view-reprint-label-log', title: 'Reprint Label Log' }
@@ -40,7 +40,7 @@
 
     function switchPage(targetPath, pushState = true) {
         const checkNorm = getNormalizedPath(targetPath);
-        if (checkNorm === '/reparo-spell') {
+        if (checkNorm === '/manual-data-insertion') {
             switchPage('/main', pushState);
             return;
         }

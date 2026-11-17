@@ -3455,7 +3455,7 @@ body.theme-light .empty-state-icon-wrapper::after {
 
 .output-header {
     flex: 0 0 auto;
-    background: var(--color-bg-surface-elevated-solid, #1e293b);
+    background: var(--color-bg-canvas, #0A0E1A);
     color: var(--color-text-accent);
     padding: var(--output-header-py, 5px) var(--table-th-px);
     display: flex;
@@ -3466,7 +3466,7 @@ body.theme-light .empty-state-icon-wrapper::after {
     font-weight: 600;
     letter-spacing: 0.6px;
     text-transform: uppercase;
-    border-bottom: 2px solid var(--color-border-interactive);
+    border-bottom: 1px solid rgba(61, 213, 192, 0.25);
     user-select: none;
     box-sizing: border-box;
     transition: padding 0.2s ease, font-size 0.2s ease;
@@ -3576,7 +3576,7 @@ body.theme-light .empty-state-icon-wrapper::after {
     letter-spacing: 0.6px;
     text-transform: uppercase;
     white-space: nowrap;
-    border-bottom: 2px solid var(--color-border-interactive);
+    border-bottom: 2px solid var(--color-bg-canvas, #0A0E1A);
     transition: background-color 0.15s ease, padding 0.2s ease, font-size 0.2s ease;
     box-sizing: border-box;
 }
@@ -3677,7 +3677,7 @@ body.theme-light .empty-state-icon-wrapper::after {
     letter-spacing: 0.6px;
     text-transform: uppercase;
     white-space: nowrap;
-    border-bottom: 2px solid var(--color-border-interactive);
+    border-bottom: 2px solid var(--color-bg-canvas, #0A0E1A);
     transition: background-color 0.15s ease, padding 0.2s ease, font-size 0.2s ease;
     box-sizing: border-box;
 }
@@ -5312,10 +5312,28 @@ a.yaml-path-badge:hover .yaml-link-open-icon {
     padding: 10px 20px;
     min-height: 48px;
     box-sizing: border-box;
-    border-bottom: 1px solid var(--color-border-glass);
-    background: var(--color-bg-surface-elevated);
+    border-bottom: 1px solid rgba(61, 213, 192, 0.25);
+    background: var(--color-bg-canvas, #0A0E1A);
     border-radius: 16px 16px 0 0;
     flex-shrink: 0;
+}
+
+:root[data-theme="light"] .output-header,
+body.theme-light .output-header,
+:root[data-theme="light"] .comparison-modal-header,
+body.theme-light .comparison-modal-header {
+    background: #f1f5f9;
+    border-bottom: 1px solid #cbd5e1;
+}
+
+:root[data-theme="light"] #outputBarcodeTable thead th,
+body.theme-light #outputBarcodeTable thead th,
+:root[data-theme="light"] #subOutputBarcodeTable thead th,
+body.theme-light #subOutputBarcodeTable thead th,
+:root[data-theme="light"] .comparison-table th,
+body.theme-light .comparison-table th {
+    background: #ffffff;
+    border-bottom: 2px solid #cbd5e1;
 }
 
 .comparison-title-wrap {
@@ -5546,7 +5564,7 @@ a.yaml-path-badge:hover .yaml-link-open-icon {
     letter-spacing: 0.5px;
     text-transform: uppercase;
     padding: 12px 16px;
-    border-bottom: 2px solid var(--color-border-interactive);
+    border-bottom: 2px solid var(--color-bg-canvas, #0A0E1A);
     border-right: 1px solid var(--color-border-subtle);
     text-align: left;
 }
@@ -11556,7 +11574,7 @@ body.theme-light .material-transfer-retry-btn.is-success {
         width: 100% !important;
     }
 
-    /* 7. Reparo Spell Mobile Optimization */
+    /* 7. Manual Data Insertion Mobile Optimization */
     .winx-container {
         padding: 6px 8px !important;
         gap: 8px !important;

@@ -1019,7 +1019,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.108"
+APP_VERSION = "2.3.109"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -1466,8 +1466,8 @@ def postgres_deleted_data():
 def bypass():
     return render_page_or_shell('bypass.html', '/bypass', 'Bypass')
 
-@app.route('/reparo-spell')
-def reparo_spell():
+@app.route('/manual-data-insertion')
+def manual_data_insertion():
     return redirect(url_for('main'))
 
 @app.route('/printer-setup')
@@ -7808,9 +7808,9 @@ def get_mes_material_history():
             'data': []
         }), 500
 
-@app.route('/api/reparo-spell/work-order/fetch-collect-records', methods=['POST'])
+@app.route('/api/manual-data-insertion/work-order/fetch-collect-records', methods=['POST'])
 @login_required
-def reparo_spell_fetch_collect_records():
+def manual_data_insertion_fetch_collect_records():
 
     work_order_id = request.json.get('work_order_id', '').strip()
     if not work_order_id:
@@ -7882,9 +7882,9 @@ def reparo_spell_fetch_collect_records():
     except Exception as e:
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
 
-@app.route('/api/reparo-spell/collect-record/material-resource-existed', methods=['POST'])
+@app.route('/api/manual-data-insertion/collect-record/material-resource-existed', methods=['POST'])
 @login_required
-def reparo_spell_check_material_resource_existed():
+def manual_data_insertion_check_material_resource_existed():
 
     data = request.get_json() or {}
     resource_ids = data.get('resource_ids', [])
@@ -7912,9 +7912,9 @@ def reparo_spell_check_material_resource_existed():
     except Exception as e:
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
     
-@app.route('/api/reparo-spell/prepare-insert-data', methods=['POST'])
+@app.route('/api/manual-data-insertion/prepare-insert-data', methods=['POST'])
 @login_required
-def reparo_spell_prepare():
+def manual_data_insertion_prepare():
 
     data          = request.get_json() or {}
     work_order_id = data.get('work_order_id', '').strip()
@@ -8083,9 +8083,9 @@ def reparo_spell_prepare():
     except Exception as e:
         return jsonify({'success': False, 'message': f'Lỗi: {str(e)}'})
 
-@app.route('/api/reparo-spell/insert-material', methods=['POST'])
+@app.route('/api/manual-data-insertion/insert-material', methods=['POST'])
 @login_required
-def reparo_spell_execute():
+def manual_data_insertion_execute():
 
     data        = request.get_json() or {}
 
@@ -8187,9 +8187,9 @@ def reparo_spell_execute():
     except Exception as e:
         return jsonify({'success': False, 'message': f'Lỗi kết nối DB: {str(e)}'})
     
-@app.route('/api/reparo-spell/update-feed-record-material', methods=['POST'])
+@app.route('/api/manual-data-insertion/update-feed-record-material', methods=['POST'])
 @login_required
-def reparo_spell_update():
+def manual_data_insertion_update():
 
     data = request.get_json() or {}
 
@@ -8325,9 +8325,9 @@ def reparo_spell_update():
             'message': f'Lỗi update: {str(e)}'
         })
 
-@app.route('/api/reparo-spell/update-green-tire-quantity', methods=['POST'])
+@app.route('/api/manual-data-insertion/update-green-tire-quantity', methods=['POST'])
 @login_required
-def reparo_spell_update_green_tire_quantity():
+def manual_data_insertion_update_green_tire_quantity():
     API_NAME = 'update-green-tire-quantity'
     try:
         data = request.get_json() or {}
@@ -8441,9 +8441,9 @@ def reparo_spell_update_green_tire_quantity():
             'message': f'{API_NAME} lỗi: {str(e)}'
         })
 
-@app.route('/api/reparo-spell/check-work-orders-bulk', methods=['POST'])
+@app.route('/api/manual-data-insertion/check-work-orders-bulk', methods=['POST'])
 @login_required
-def reparo_spell_check_work_orders_bulk():
+def manual_data_insertion_check_work_orders_bulk():
 
     data = request.get_json() or {}
     work_order_ids = data.get('work_order_ids', [])
@@ -8577,9 +8577,9 @@ def reparo_spell_check_work_orders_bulk():
         }
     })
 
-@app.route('/api/reparo-spell/prepare-material-resource', methods=['POST'])
+@app.route('/api/manual-data-insertion/prepare-material-resource', methods=['POST'])
 @login_required
-def reparo_spell_prepare_material_resource():
+def manual_data_insertion_prepare_material_resource():
 
     data = request.get_json() or {}
     raw_input = data.get('raw_input', '').strip()
@@ -9086,9 +9086,9 @@ def reparo_spell_prepare_material_resource():
     except Exception as e:
         return jsonify({'success': False, 'message': f'Lỗi thực thi: {str(e)}'})
 
-@app.route('/api/reparo-spell/insert-material-resource', methods=['POST'])
+@app.route('/api/manual-data-insertion/insert-material-resource', methods=['POST'])
 @login_required
-def reparo_spell_insert_material_resource():
+def manual_data_insertion_insert_material_resource():
 
     data = request.get_json() or {}
 
@@ -9112,7 +9112,7 @@ def reparo_spell_insert_material_resource():
         id_val = str(row.get('id') or '')
     else:
         # Nếu gọi trực tiếp thì chạy prepare trước
-        prep_res = reparo_spell_prepare_material_resource()
+        prep_res = manual_data_insertion_prepare_material_resource()
         if hasattr(prep_res, 'get_json'):
             prep_data = prep_res.get_json()
         else:
