@@ -1019,7 +1019,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.4.14"
+APP_VERSION = "2.4.15"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -4663,64 +4663,47 @@ def input_data_validation_by_station():
 @app.route('/api/barcodes/get-reprint-list', methods=['POST'])
 @login_required
 def get_reprint_barcode_list():
-
-    from_date = request.json.get('from_date', '').strip()
-    to_date = request.json.get('to_date', '').strip()
+    payload = request.get_json(silent=True) or {}
+    from_date = (payload.get('from_date') or '').strip()
+    to_date = (payload.get('to_date') or '').strip()
 
     if not from_date or not to_date:
         return jsonify({'result': [], 'columns': []})
 
-    url = 'https://198.1.10.85:8810/api/resources/materials'
-    params = {
-        'reprintReason': -1,
-        'createdAfter': from_date,
-        'createdBefore': to_date
-    }
-
     try:
-        response = fetch_mes_api_with_retry('GET', url, params=params)
-        response.raise_for_status()
-        data = response.json()
+        start_dt = datetime.strptime(from_date[:10], '%Y-%m-%d').replace(tzinfo=VN_TZ)
+        end_dt = datetime.strptime(to_date[:10], '%Y-%m-%d').replace(tzinfo=VN_TZ)
+        if end_dt <= start_dt:
+            end_dt = start_dt + timedelta(days=1)
+        start_ns = int(start_dt.timestamp() * 1_000_000_000)
+        end_ns = int(end_dt.timestamp() * 1_000_000_000)
 
-        items = data.get('data', {}).get('items', [])
-        if not items:
-            return jsonify({'result': [], 'columns': []})
+        query = """
+            SELECT
+                oid::text       AS "ID",
+                id              AS "resourceID",
+                quantity        AS "quantity",
+                status          AS "status",
+                reprint_reason  AS "reprintReason",
+                created_at      AS "createdAt",
+                created_by      AS "createdBy",
+                product_type    AS "productType"
+            FROM kvmes.material_resource
+            WHERE reprint_reason IS NOT NULL
+              AND reprint_reason <> 0
+              AND created_at >= %s
+              AND created_at < %s
+            ORDER BY created_at DESC;
+        """
 
-        DISPLAY_COLUMNS = [
-            'ID',
-            'resourceID',
-            'quantity',
-            'status',
-            'reprintReason',
-            'createdAt',
-            'createdBy',
-            'productType'
-        ]
-        
-        DATE_COLUMNS = {
-            'createdAt'
-        }
+        result, columns = execute_pg_select_query(query, (start_ns, end_ns))
+        if not result:
+            return jsonify({'result': [], 'columns': columns or []})
 
-        columns = DISPLAY_COLUMNS
-
-        result = []
-        for item in items:
-            row = []
-            for col in columns:
-                value = item.get(col)
-
-                if col in DATE_COLUMNS and isinstance(value, str):
-                    value = convert_iso_datetime(value)
-                
-                if isinstance(value, (dict, list)):
-                    row.append(json.dumps(value, ensure_ascii=False))
-                else:
-                    row.append(value)
-
-            result.append(row)
-
+        result = convert_timestamp(result, columns, ['createdAt'])
+        serialized_result = [serialize_row(list(row)) for row in result]
         return jsonify({
-            'result': result,
+            'result': serialized_result,
             'columns': columns
         })
 
