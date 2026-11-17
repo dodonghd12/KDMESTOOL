@@ -1019,7 +1019,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.4.15"
+APP_VERSION = "2.4.16"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -9381,15 +9381,31 @@ def _extract_ocr_barcodes(lines, direct_barcodes=None, fallback_bc=None):
         for tok in re.split(r'[\s,;:|]+', str(line or '')):
             if not tok:
                 continue
-            # Cắt bỏ trọng lượng đi kèm sau barcode (vd: 'VDB...0.000kg') nhưng giữ nguyên mã có số (vd: '...C318G')
-            trimmed = re.sub(r'\d+\.\d+.*$', '', tok)
-            trimmed = re.sub(r'\s*\d+\s*kg\b.*$', '', trimmed, flags=re.IGNORECASE)
-            clean = re.sub(r'[^A-Za-z0-9]', '', trimmed).upper()
-            if clean.startswith('O') and len(clean) >= 12 and clean[1] in ('D', 'B'):
-                clean = 'V' + clean[1:]
-            if re.match(r'^V[A-Z0-9]{14,24}$', clean) and clean not in seen:
-                seen.add(clean)
-                found.append(clean)
+            # Tách thêm trường hợp 2 tem dính liền nhau qua hậu tố 'kg' (vd: 'VDB...0.000kgVDB...0.000kg')
+            for sub_tok in re.split(r'(?i)(?<=\dkg)', tok):
+                if not sub_tok:
+                    continue
+                upper_tok = re.sub(r'[^A-Za-z0-9.]', '', sub_tok).upper()
+                if upper_tok.startswith('O') and len(upper_tok) >= 12 and upper_tok[1] in ('D', 'B'):
+                    upper_tok = 'V' + upper_tok[1:]
+
+                # Ưu tiên tách chính xác chuẩn barcode vật tư MES dài 21 ký tự (vd: VDB.../EDB...) khi bị dính liền trọng lượng '0.000kg' / '12.500kg'
+                m_fixed = re.match(r'^([VE]DB[A-Z0-9]{18})(?:\d+\.\d+.*|\d+\s*KG.*)?$', upper_tok)
+                if m_fixed:
+                    _add(m_fixed.group(1))
+                    continue
+
+                # Tránh regex tham lam '\d+\.\d+' ăn mất chữ số cuối của barcode khi trọng lượng '0.000kg' dính sát
+                trimmed = re.sub(r'0\.\d+\s*(?:KG|G|M|PCS)?.*$', '', upper_tok, flags=re.IGNORECASE)
+                if trimmed == upper_tok:
+                    trimmed = re.sub(r'\d+\.\d+.*$', '', upper_tok)
+                trimmed = re.sub(r'\s*\d+\s*kg\b.*$', '', trimmed, flags=re.IGNORECASE)
+                clean = re.sub(r'[^A-Za-z0-9]', '', trimmed).upper()
+                if clean.startswith('O') and len(clean) >= 12 and clean[1] in ('D', 'B'):
+                    clean = 'V' + clean[1:]
+                if re.match(r'^(?:[VE]DB[A-Z0-9]{15,22}|V[A-Z0-9]{14,24})$', clean) and clean not in seen:
+                    seen.add(clean)
+                    found.append(clean)
 
     if fallback_bc:
         _add(fallback_bc)
