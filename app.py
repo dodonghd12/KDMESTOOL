@@ -1019,7 +1019,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.4.18"
+APP_VERSION = "2.4.19"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -2832,40 +2832,30 @@ def query_scan_in_station_by_barcode(cursor, resource_id):
                 SELECT
                     sv.station,
                     sv.name AS site,
+                    top.key AS site_type,
                     sv.updated_at AS scan_at,
-                    COALESCE(NULLIF(TRIM(m.user_id), ''), NULLIF(TRIM(sv.updated_by), ''), '') AS scan_by,
-                    NULLIF(TRIM(m.qty), '')::numeric AS bind_quantity,
-                    m.mat_id AS material_id
+                    COALESCE(NULLIF(TRIM(m->>'user_id'), ''), NULLIF(TRIM(sv.updated_by), ''), '') AS scan_by,
+                    NULLIF(TRIM(m->>'quantity'), '')::numeric AS bind_quantity,
+                    COALESCE(NULLIF(TRIM(m->'material'->>'id'), ''), NULLIF(TRIM(m->>'id'), '')) AS material_id
                 FROM kvmes.site_view sv
-                CROSS JOIN LATERAL (
-                    SELECT
-                        sv.content#>>'{slot,material,user_id}' AS user_id,
-                        sv.content#>>'{slot,material,quantity}' AS qty,
-                        sv.content#>>'{slot,material,material,id}' AS mat_id
-                    WHERE (sv.content#>>'{slot,material,resource_id}') = %s
-
-                    UNION ALL
-
-                    SELECT
-                        COALESCE(c->'material'->>'user_id', c->>'user_id') AS user_id,
-                        COALESCE(c->'material'->>'quantity', c->>'quantity') AS qty,
-                        COALESCE(c->'material'->'material'->>'id', c->'material'->>'id', c->>'id') AS mat_id
-                    FROM jsonb_array_elements(
-                        CASE WHEN jsonb_typeof(sv.content->'container') = 'array' THEN sv.content->'container' ELSE '[]'::jsonb END
-                    ) AS c
-                    WHERE sv.content ? 'container'
-                      AND COALESCE(c->'material'->>'resource_id', c->>'resource_id') = %s
-                ) m
+                CROSS JOIN LATERAL jsonb_each(sv.content) AS top(key, val)
+                CROSS JOIN LATERAL jsonb_path_query(
+                    top.val,
+                    '$.** ? (@.resource_id == $rid)',
+                    jsonb_build_object('rid', %s::text)
+                ) AS m
+                WHERE sv.content IS NOT NULL
+                  AND jsonb_typeof(sv.content) = 'object'
             )
             SELECT DISTINCT ON (ts.station, ts.site)
                 ts.station              AS station,
                 ts.site                 AS site,
+                ts.site_type            AS site_type,
                 ts.scan_at              AS bind_at,
                 ts.scan_by              AS bind_by,
                 ts.bind_quantity        AS bind_quantity,
 
                 TRIM(wo.id)             AS work_order,
-                wo.status               AS work_order_status,
                 wo.reserved_date::text  AS reserved_date,
 
                 rpd.recipe_id
@@ -2898,7 +2888,7 @@ def query_scan_in_station_by_barcode(cursor, resource_id):
         ORDER BY bind_at DESC;
     """
 
-    cursor.execute(query, (resource_id, resource_id))
+    cursor.execute(query, (resource_id,))
     rows = cursor.fetchall()
     column_names = [desc[0] for desc in cursor.description] if cursor.description else []
     if rows:
