@@ -171,9 +171,9 @@ function resetAllFiltersAndTable() {
 }
 
 function initControls() {
-    const refreshBtn = document.getElementById('btnRefresh') || document.getElementById('btnCheckDeletedData');
-    if (refreshBtn) {
-        refreshBtn.addEventListener('click', () => {
+    const loadBtn = document.getElementById('btnLoad') || document.getElementById('btnCheckDeletedData');
+    if (loadBtn) {
+        loadBtn.addEventListener('click', () => {
             resetAllFiltersAndTable();
             fetchDeletedRecordsLog();
             fetchAuditSlotStatus();
@@ -495,9 +495,9 @@ function renderCurrentPage() {
 async function fetchDeletedRecordsLog() {
     hasFetchedData = true;
     hideStandbyPlaceholder();
-    const refreshBtn = document.getElementById('btnRefresh') || document.getElementById('btnCheckDeletedData');
-    if (refreshBtn) {
-        refreshBtn.disabled = true;
+    const loadBtn = document.getElementById('btnLoad') || document.getElementById('btnCheckDeletedData');
+    if (loadBtn) {
+        loadBtn.disabled = true;
     }
 
     if (typeof showTableSkeleton === 'function') {
@@ -571,8 +571,8 @@ async function fetchDeletedRecordsLog() {
         allFetchedRecords = [];
         applyAllFilters(true);
     } finally {
-        if (refreshBtn) {
-            refreshBtn.disabled = false;
+        if (loadBtn) {
+            loadBtn.disabled = false;
         }
         document.body.classList.remove('app-loading-state');
     }

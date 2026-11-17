@@ -171,9 +171,9 @@ function resetAllFiltersAndTable() {
 }
 
 function initControls() {
-    const refreshBtn = document.getElementById('btnRefresh') || document.getElementById('btnCheckDeletedFiles');
-    if (refreshBtn) {
-        refreshBtn.addEventListener('click', () => {
+    const loadBtn = document.getElementById('btnLoad') || document.getElementById('btnCheckDeletedFiles');
+    if (loadBtn) {
+        loadBtn.addEventListener('click', () => {
             resetAllFiltersAndTable();
             fetchDeletedFilesLog();
         });
@@ -481,9 +481,9 @@ function renderCurrentPage() {
 async function fetchDeletedFilesLog() {
     hasFetchedData = true;
     hideStandbyPlaceholder();
-    const refreshBtn = document.getElementById('btnRefresh') || document.getElementById('btnCheckDeletedFiles');
-    if (refreshBtn) {
-        refreshBtn.disabled = true;
+    const loadBtn = document.getElementById('btnLoad') || document.getElementById('btnCheckDeletedFiles');
+    if (loadBtn) {
+        loadBtn.disabled = true;
     }
 
     if (typeof showTableSkeleton === 'function') {
@@ -544,8 +544,8 @@ async function fetchDeletedFilesLog() {
         allFetchedRecords = [];
         applyAllFilters(true);
     } finally {
-        if (refreshBtn) {
-            refreshBtn.disabled = false;
+        if (loadBtn) {
+            loadBtn.disabled = false;
         }
         document.body.classList.remove('app-loading-state');
     }

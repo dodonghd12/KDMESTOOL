@@ -5930,8 +5930,8 @@ body.theme-light .comparison-table th {
     align-items: center;
     padding: 1px 6px;
     border-radius: 4px;
-    background: var(--rose-600, #e11d48);
-    color: var(--color-text-inverse, #ffffff);
+    background: var(--amber-500, #f59e0b);
+    color: #0A0E1A;
     font-size: var(--font-size-xs, 11px);
     font-weight: 700;
     letter-spacing: 0.4px;
@@ -13272,7 +13272,7 @@ body.theme-light .material-transfer-retry-btn.is-success {
         width: 100% !important;
         flex-wrap: wrap !important;
     }
-    .reprint-label-log #btnRefresh {
+    .reprint-label-log #btnLoad {
         height: 38px !important;
         padding: 0 12px !important;
         font-size: 13px !important;

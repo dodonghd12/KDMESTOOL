@@ -138,11 +138,11 @@
     };
 
     function initControls() {
-        const btnRefresh = document.getElementById('btnRefresh');
+        const btnLoad = document.getElementById('btnLoad');
         const clientSearchInput = document.getElementById('clientSearch');
 
-        if (btnRefresh) {
-            btnRefresh.addEventListener('click', () => {
+        if (btnLoad) {
+            btnLoad.addEventListener('click', () => {
                 fetchLogRecords();
             });
         }
@@ -236,12 +236,12 @@
     }
 
     async function fetchLogRecords() {
-        const btnRefresh = document.getElementById('btnRefresh');
-        const refreshIcon = document.getElementById('btnRefreshIcon');
+        const btnLoad = document.getElementById('btnLoad');
+        const loadIcon = document.getElementById('btnLoadIcon');
         const tableBody = document.getElementById('tableBody');
 
-        if (btnRefresh) btnRefresh.disabled = true;
-        if (refreshIcon) refreshIcon.classList.add('reprint-label-log-spin');
+        if (btnLoad) btnLoad.disabled = true;
+        if (loadIcon) loadIcon.classList.add('reprint-label-log-spin');
 
         if (typeof showTableSkeleton === 'function') {
             showTableSkeleton(6, 5);
@@ -278,8 +278,8 @@
                 showToast('Lỗi kết nối máy chủ khi đọc nhật ký in tem', 'error');
             }
         } finally {
-            if (btnRefresh) btnRefresh.disabled = false;
-            if (refreshIcon) refreshIcon.classList.remove('reprint-label-log-spin');
+            if (btnLoad) btnLoad.disabled = false;
+            if (loadIcon) loadIcon.classList.remove('reprint-label-log-spin');
             ensureClientSearchAlwaysEnabled();
             applyFilters(false);
             document.body.classList.remove('app-loading-state');
