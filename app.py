@@ -2828,7 +2828,14 @@ def query_scan_in_station_by_barcode(cursor, resource_id):
     query = """
         SELECT *
         FROM (
-            WITH target_sites AS (
+            WITH matched_sv AS MATERIALIZED (
+                SELECT sv.station, sv.name, sv.updated_at, sv.updated_by, sv.content
+                FROM kvmes.site_view sv
+                WHERE sv.content IS NOT NULL
+                  AND jsonb_typeof(sv.content) = 'object'
+                  AND strpos(sv.content::text, %s) > 0
+            ),
+            target_sites AS (
                 SELECT
                     sv.station,
                     sv.name AS site,
@@ -2837,15 +2844,13 @@ def query_scan_in_station_by_barcode(cursor, resource_id):
                     COALESCE(NULLIF(TRIM(m->>'user_id'), ''), NULLIF(TRIM(sv.updated_by), ''), '') AS scan_by,
                     NULLIF(TRIM(m->>'quantity'), '')::numeric AS bind_quantity,
                     COALESCE(NULLIF(TRIM(m->'material'->>'id'), ''), NULLIF(TRIM(m->>'id'), '')) AS material_id
-                FROM kvmes.site_view sv
+                FROM matched_sv sv
                 CROSS JOIN LATERAL jsonb_each(sv.content) AS top(key, val)
                 CROSS JOIN LATERAL jsonb_path_query(
                     top.val,
                     '$.** ? (@.resource_id == $rid)',
                     jsonb_build_object('rid', %s::text)
                 ) AS m
-                WHERE sv.content IS NOT NULL
-                  AND jsonb_typeof(sv.content) = 'object'
             )
             SELECT DISTINCT ON (ts.station, ts.site)
                 ts.station              AS station,
@@ -2888,7 +2893,7 @@ def query_scan_in_station_by_barcode(cursor, resource_id):
         ORDER BY bind_at DESC;
     """
 
-    cursor.execute(query, (resource_id,))
+    cursor.execute(query, (resource_id, resource_id))
     rows = cursor.fetchall()
     column_names = [desc[0] for desc in cursor.description] if cursor.description else []
     if rows:
