@@ -1019,7 +1019,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.4.6"
+APP_VERSION = "2.4.7"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -2850,12 +2850,12 @@ def search_scan_barcode_history_by_barcode():
                         AND newer.updated_at > sc.updated_at
                   )
             )
-            SELECT DISTINCT ON (rpd.oid)
+            SELECT DISTINCT ON (ts.station, ts.site, rpd.oid)
                 ts.station              AS station,
                 ts.site                 AS site,
                 ts.scan_at              AS scan_at,
 
-                wo.id                   AS work_order_id,
+                TRIM(wo.id)             AS work_order,
                 wo.status               AS work_order_status,
                 wo.reserved_date::text  AS reserved_date,
 
@@ -2865,7 +2865,8 @@ def search_scan_barcode_history_by_barcode():
             FROM target_sites ts
             JOIN kvmes.work_order wo
                 ON wo.station = ts.station
-               AND wo.status <> 3
+               AND wo.status IN (0, 1, 5)
+               AND COALESCE((wo.information->>'abnormality')::int, 0) = 0
             JOIN kvmes.recipe_process_definition rpd
                 ON rpd.recipe_id = wo.recipe_id
             WHERE jsonb_path_exists(
@@ -2874,7 +2875,16 @@ def search_scan_barcode_history_by_barcode():
                 jsonb_build_object('station', ts.station, 'mat_id', ts.material_id, 'site', ts.site)
             )
             ORDER BY
+                ts.station,
+                ts.site,
                 rpd.oid,
+                CASE wo.status
+                    WHEN 1 THEN 1
+                    WHEN 0 THEN 2
+                    WHEN 5 THEN 3
+                    ELSE 4
+                END ASC,
+                wo.reserved_date DESC,
                 wo.updated_at DESC,
                 ts.scan_at DESC
         ) sub
