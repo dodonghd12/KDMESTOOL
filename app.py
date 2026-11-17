@@ -1019,7 +1019,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.4.16"
+APP_VERSION = "2.4.17"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -2834,12 +2834,11 @@ def query_scan_in_station_by_barcode(cursor, resource_id):
                     sv.name AS site,
                     sv.updated_at AS scan_at,
                     COALESCE(NULLIF(TRIM(m.user_id), ''), NULLIF(TRIM(sv.updated_by), ''), '') AS scan_by,
-                    COALESCE(NULLIF(TRIM(m.qty), '')::numeric, mr.quantity) AS bind_quantity,
+                    NULLIF(TRIM(m.qty), '')::numeric AS bind_quantity,
                     m.mat_id AS material_id
                 FROM kvmes.site_view sv
                 CROSS JOIN LATERAL (
                     SELECT
-                        sv.content#>>'{slot,material,resource_id}' AS res_id,
                         sv.content#>>'{slot,material,user_id}' AS user_id,
                         sv.content#>>'{slot,material,quantity}' AS qty,
                         sv.content#>>'{slot,material,material,id}' AS mat_id
@@ -2848,7 +2847,6 @@ def query_scan_in_station_by_barcode(cursor, resource_id):
                     UNION ALL
 
                     SELECT
-                        COALESCE(c->'material'->>'resource_id', c->>'resource_id') AS res_id,
                         COALESCE(c->'material'->>'user_id', c->>'user_id') AS user_id,
                         COALESCE(c->'material'->>'quantity', c->>'quantity') AS qty,
                         COALESCE(c->'material'->'material'->>'id', c->'material'->>'id', c->>'id') AS mat_id
@@ -2858,8 +2856,6 @@ def query_scan_in_station_by_barcode(cursor, resource_id):
                     WHERE sv.content ? 'container'
                       AND COALESCE(c->'material'->>'resource_id', c->>'resource_id') = %s
                 ) m
-                LEFT JOIN kvmes.material_resource mr
-                  ON mr.id = m.res_id
             )
             SELECT DISTINCT ON (ts.station, ts.site)
                 ts.station              AS station,
