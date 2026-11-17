@@ -3270,7 +3270,7 @@ body.theme-light .empty-state-icon-wrapper::after {
 .context-menu-item:hover,
 .context-menu-item.focused {
     background: var(--color-interactive-bg-hover);
-    color: var(--color-text-inverse);
+    color: var(--color-text-primary);
     padding-left: 19px;
 }
 
@@ -3301,7 +3301,7 @@ body.theme-light .empty-state-icon-wrapper::after {
 
 .context-menu-item:hover .context-menu-arrow,
 .context-menu-item.focused .context-menu-arrow {
-    color: var(--color-text-inverse) !important;
+    color: var(--color-text-primary) !important;
     transform: translateX(3px) !important;
 }
 
@@ -3374,7 +3374,7 @@ body.theme-light .empty-state-icon-wrapper::after {
 .context-submenu-item:hover,
 .context-submenu-item.focused {
     background: var(--color-interactive-bg-hover, rgba(255, 255, 255, 0.08));
-    color: var(--color-text-inverse, #ffffff);
+    color: var(--color-text-primary);
     padding-left: 17px;
 }
 
