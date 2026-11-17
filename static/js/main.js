@@ -3315,7 +3315,7 @@ function handleContextMenuAction(e) {
             if (typeof openOutputTable === 'function') openOutputTable('feedRecords', rowData);
             break;
         case 'checkScanBarcodeHistory':
-            if (typeof fetchScanBarcodeHistoryByBarcode === 'function') fetchScanBarcodeHistoryByBarcode(rowData);
+            if (typeof openOutputTable === 'function') openOutputTable('scanInStationByBarcode', rowData);
             break;
         case 'checkBarcodeWorkOrder':
             if (typeof openOutputTable === 'function') openOutputTable('workOrderByBarcode', rowData);
@@ -7691,6 +7691,10 @@ function openOutputTable(type, rowData = null) {
         const barcodeId = dataObj.id || dataObj['Barcode ID'] || dataObj.barcode_id || '';
         if (outputHeaderContentEl) outputHeaderContentEl.textContent = `Danh sách tem cùng MES (${barcodeId})`;
         fetchSameMesBarcodes(barcodeId);
+    } else if (type === 'scanInStationByBarcode') {
+        const barcodeId = dataObj.id || dataObj['Barcode ID'] || dataObj.barcode_id || '';
+        if (outputHeaderContentEl) outputHeaderContentEl.textContent = `Thông tin nạp tem lên máy (${barcodeId})`;
+        fetchScanBarcodeHistoryByBarcode(dataObj);
     } else if (type === 'fetchOriginalInfoByBarcode') {
         if (outputHeaderContentEl) outputHeaderContentEl.textContent = 'Thông tin gốc của barcode';
         fetchOriginalInfoByBarcode(dataObj.id, dataObj.product_type);
@@ -9163,15 +9167,24 @@ async function fetchScanBarcodeHistoryByBarcode(rowData = null) {
 
         if (data.success) {
             if (Array.isArray(data.result) && data.result.length === 0) {
+                currentOutputTableType = null;
+                renderOutputBarcodeTable([], data.columns || []);
                 Toast.info('Thông báo', `Barcode ${resource_id} đang không được nạp vào bất kỳ máy nào`);
                 return;
             }
-            setTableData(data.result, data.columns, null);
+            outputBarcodeRawData = data.result;
+            outputBarcodeColumns = data.columns;
+            currentOutputTableType = null;
+            renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
             Toast.success('Thành công', `Tải thông tin nạp tem thành công (${data.result.length} dòng)`);
         } else {
+            currentOutputTableType = null;
+            renderOutputBarcodeTable([], []);
             Toast.error('Lỗi', data.message || 'Lỗi khi kiểm tra trạm nạp tem');
         }
     } catch (err) {
+        currentOutputTableType = null;
+        renderOutputBarcodeTable([], []);
         Toast.error('Lỗi', err.message || 'Lỗi kết nối khi kiểm tra trạm nạp tem');
     }
 }
