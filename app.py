@@ -1019,7 +1019,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.4.20"
+APP_VERSION = "2.4.21"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -2028,8 +2028,7 @@ _MATERIAL_RESOURCE_COLS = """
     oid,
     reprint_reason,
     collected,
-    erp_tire_barcode_synced,
-    COALESCE((SELECT cr.detail->>'quantity' FROM kvmes.collect_record cr WHERE cr.resource_oid = kvmes.material_resource.oid ORDER BY cr.sequence DESC LIMIT 1), kvmes.material_resource.quantity::text) AS collect_quantity
+    erp_tire_barcode_synced
 """
 _MATERIAL_RESOURCE_SELECT = f"SELECT {_MATERIAL_RESOURCE_COLS} FROM kvmes.material_resource"
 
@@ -2299,7 +2298,7 @@ def get_ocr_barcode_variants(kw):
     return list(dict.fromkeys(variants))
 
 
-# Sử dụng _MATERIAL_RESOURCE_SELECT định nghĩa ở trên cho /api/barcodes (gồm recipe_id và collect_quantity)
+# Sử dụng _MATERIAL_RESOURCE_SELECT định nghĩa ở trên cho /api/barcodes (gồm recipe_id)
 
 def _format_material_resource_rows(result, column_names):
     """Chuẩn hóa timestamp, mảng Postgres và serialize danh sách hàng material_resource."""
