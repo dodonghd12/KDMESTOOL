@@ -1019,7 +1019,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.4.7"
+APP_VERSION = "2.4.8"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -2836,10 +2836,14 @@ def search_scan_barcode_history_by_barcode():
                     sc.station,
                     sc.name AS site,
                     sc.updated_at AS scan_at,
+                    COALESCE(NULLIF(TRIM(sc.content#>>'{slot,material,user_id}'), ''), NULLIF(TRIM(sc.updated_by), ''), '') AS scan_by,
+                    COALESCE(NULLIF(TRIM(sc.content#>>'{slot,material,quantity}'), '')::numeric, mr.quantity) AS bind_quantity,
                     sc.content->'slot'->'material'->'material'->>'id' AS material_id
                 FROM kvmes.site_contents sc
                 JOIN kvmes.site s 
                   ON s.station = sc.station AND s.name = sc.name AND s.index = sc.index
+                LEFT JOIN kvmes.material_resource mr
+                  ON mr.id = (sc.content->'slot'->'material'->>'resource_id')
                 WHERE (sc.content->'slot'->'material'->>'resource_id') = %s
                   AND NOT EXISTS (
                       SELECT 1 
@@ -2854,14 +2858,14 @@ def search_scan_barcode_history_by_barcode():
                 ts.station              AS station,
                 ts.site                 AS site,
                 ts.scan_at              AS scan_at,
+                ts.scan_by              AS scan_by,
+                ts.bind_quantity        AS bind_quantity,
 
                 TRIM(wo.id)             AS work_order,
                 wo.status               AS work_order_status,
                 wo.reserved_date::text  AS reserved_date,
 
-                rpd.recipe_id,
-                rpd.product_id,
-                rpd.product_type
+                rpd.recipe_id
             FROM target_sites ts
             JOIN kvmes.work_order wo
                 ON wo.station = ts.station
