@@ -5391,6 +5391,18 @@ body.theme-light .comparison-table th {
     font-weight: 700;
 }
 
+.comparison-meta-link {
+    cursor: pointer;
+    transition: background-color 0.16s ease, border-color 0.16s ease;
+}
+
+.comparison-meta-link:hover,
+.comparison-meta-link:focus-visible {
+    outline: none;
+    border-color: var(--color-border-focus, #3DD5C0);
+    background: rgba(61, 213, 192, 0.14);
+}
+
 .comparison-meta-tag .material-symbols-outlined {
     font-size: 14px;
     color: var(--color-text-accent);

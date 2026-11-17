@@ -1679,6 +1679,31 @@ function switchRecipeMode(targetMode, focus = true) {
 }
 window.switchRecipeMode = switchRecipeMode;
 
+function applyMainPrefill(field, value) {
+    const val = String(value || '').trim().toUpperCase();
+    if (!val || val === '--') return false;
+
+    const targetId = (field === 'work_order') ? 'work_order' : (field === 'product_id' ? 'product_id' : null);
+    if (!targetId) return false;
+
+    if (typeof switchRecipeMode === 'function') {
+        switchRecipeMode(field === 'work_order' ? 'work_order' : 'recipe', false);
+    }
+
+    const input = document.getElementById(targetId);
+    if (!input) return false;
+
+    if (input.readOnly && input.dataset.autofillGuarded) {
+        input.readOnly = false;
+    }
+    input.value = val;
+    input.closest('.input-box')?.classList.add('has-value');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    try { input.focus(); } catch (e) {}
+    return true;
+}
+window.applyMainPrefill = applyMainPrefill;
+
 function initMainInputSwitcher() {
     // 1. Barcode ⇋ Feed Record Switcher
     const barcodeToggleBtn = document.getElementById('toggleInputModeBtn');
@@ -1802,6 +1827,20 @@ function initializeMainEventListeners() {
                 clearTable();
             }
         });
+    }
+
+    // Apply pending cross-page prefill if navigated from Kiểm tra cấp liệu modal tags
+    if (document.getElementById('recipeInputSwitcher')) {
+        try {
+            const rawPrefill = sessionStorage.getItem('kdmes_main_prefill');
+            if (rawPrefill) {
+                sessionStorage.removeItem('kdmes_main_prefill');
+                const parsed = JSON.parse(rawPrefill);
+                if (parsed && parsed.field && parsed.value) {
+                    applyMainPrefill(parsed.field, parsed.value);
+                }
+            }
+        } catch (e) {}
     }
 
     // ===== MODAL CLOSE BUTTONS =====

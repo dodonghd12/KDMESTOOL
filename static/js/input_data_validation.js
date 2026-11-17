@@ -23,8 +23,50 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     });
 
+    // Click vào Mã MES (modalWorkOrderId) hoặc Recipe (modalRecipeId) để chuyển về Main và điền vào ô tìm kiếm tương ứng
+    const bindMetaTagJump = (tagId, valueId, targetField) => {
+        const tagEl = document.getElementById(tagId);
+        if (!tagEl) return;
+        const triggerJump = () => {
+            const valEl = document.getElementById(valueId);
+            navigateToMainWithField(targetField, valEl ? valEl.textContent : '');
+        };
+        tagEl.addEventListener('click', triggerJump);
+        tagEl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                triggerJump();
+            }
+        });
+    };
+    bindMetaTagJump('modalWorkOrderTag', 'modalWorkOrderId', 'work_order');
+    bindMetaTagJump('modalRecipeTag', 'modalRecipeId', 'product_id');
 
 });
+
+function navigateToMainWithField(field, rawValue) {
+    const val = String(rawValue || '').trim();
+    if (!val || val === '--') return;
+
+    const topWin = (window.top && window.top !== window) ? window.top : null;
+    const mainFrame = topWin ? topWin.document.getElementById('view-main') : null;
+    const mainWin = mainFrame ? mainFrame.contentWindow : null;
+
+    try {
+        sessionStorage.setItem('kdmes_main_prefill', JSON.stringify({ field, value: val }));
+    } catch (e) {}
+
+    if (topWin && topWin.spaNavigator && typeof topWin.spaNavigator.switchTo === 'function') {
+        topWin.spaNavigator.switchTo('/main', true);
+        if (mainWin && typeof mainWin.applyMainPrefill === 'function') {
+            try { sessionStorage.removeItem('kdmes_main_prefill'); } catch (e) {}
+            mainWin.applyMainPrefill(field, val);
+        }
+        return;
+    }
+
+    window.location.href = '/main';
+}
 
 function initializeInputDataValidationEventListeners() {
     document.addEventListener('sidebar:about', () => {
