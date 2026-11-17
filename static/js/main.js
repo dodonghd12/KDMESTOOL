@@ -3537,6 +3537,7 @@ function enhanceContextMenu() {
 
 let scanInStationRawData = [];
 let scanInStationColumns = [];
+let filteredScanInStationData = [];
 
 function clearScanInStationTable() {
     const table = document.getElementById('scanInStationTable');
@@ -3550,12 +3551,14 @@ function clearScanInStationTable() {
     if (count) count.textContent = '0';
     scanInStationRawData = [];
     scanInStationColumns = [];
+    filteredScanInStationData = [];
 }
 
 function closeScanInStationWindow() {
     const container = document.getElementById('scanInStationContainer');
     clearScanInStationTable();
     if (container) container.style.display = 'none';
+    if (typeof updateClientSearchFocusRing === 'function') updateClientSearchFocusRing();
 }
 window.closeScanInStationWindow = closeScanInStationWindow;
 
@@ -3567,11 +3570,13 @@ function openScanInStationWindow(materialOid, rows, columns) {
     }
     scanInStationRawData = rows;
     scanInStationColumns = columns || [];
+    filteredScanInStationData = rows;
     const headerEl = document.getElementById('scanInStationHeaderContent');
     if (headerEl) {
         headerEl.textContent = `Thông tin nạp tem lên máy (${materialOid})`;
     }
     container.style.display = 'flex';
+    if (typeof updateClientSearchFocusRing === 'function') updateClientSearchFocusRing();
     renderOutputBarcodeTable(scanInStationRawData, scanInStationColumns, {
         tableSelector: '#scanInStationTable',
         rowCountId: 'scanInStationRowCount',
@@ -3667,6 +3672,7 @@ async function showFeedRecords(rowData = null) {
         if (data.success) {
             outputBarcodeRawData = data.result;
             outputBarcodeColumns = data.columns;
+            filteredOutputBarcodeData = data.result;
             currentOutputTableType = 'outputBarcodeByFeedRecords';
             renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
             const hasWO = data.result.some(r => r[0] && r[0] !== '-');
@@ -7627,6 +7633,17 @@ window.jumpToYamlLine = function(lineIdx) {
     el.classList.add('yaml-line-pulse');
 };
 
+function filterRowArray(rows, keyword) {
+    if (!keyword || !Array.isArray(rows)) return rows || [];
+    return rows.filter(row =>
+        row.some(val =>
+            val !== null &&
+            val !== undefined &&
+            String(val).toLowerCase().includes(keyword)
+        )
+    );
+}
+
 function filterClientResult(keyword) {
     if (typeof window.customClientSearchHandler === 'function') {
         window.customClientSearchHandler(keyword);
@@ -7639,9 +7656,13 @@ function filterClientResult(keyword) {
         return;
     }
 
+    const scanInStationContainer = document.getElementById('scanInStationContainer');
     const outputContainer = document.getElementById('outputContainer');
-    if (outputContainer && outputContainer.style.display === 'flex') {
-        filterOutputBarcode(keyword);
+    const isScanVisible = !!(scanInStationContainer && scanInStationContainer.style.display === 'flex');
+    const isOutputVisible = !!(outputContainer && outputContainer.style.display === 'flex');
+    if (isScanVisible || isOutputVisible) {
+        if (isScanVisible) filterScanInStationBarcode(keyword);
+        if (isOutputVisible) filterOutputBarcode(keyword);
         return;
     }
 
@@ -7666,40 +7687,25 @@ function filterClientResult(keyword) {
     displayTable(filtered, rawTableColumns);
 }
 
+function filterScanInStationBarcode(keyword) {
+    const filtered = filterRowArray(scanInStationRawData, keyword);
+    filteredScanInStationData = filtered;
+    renderOutputBarcodeTable(filtered, scanInStationColumns, {
+        tableSelector: '#scanInStationTable',
+        rowCountId: 'scanInStationRowCount',
+        footerSelector: '#scanInStationContainer .output-footer',
+        skipOutputCountUpdate: true
+    });
+}
+
 function filterOutputBarcode(keyword) {
-    if (!keyword) {
-        filteredOutputBarcodeData = outputBarcodeRawData;
-        renderOutputBarcodeTable(outputBarcodeRawData, outputBarcodeColumns);
-        return;
-    }
-
-    const filtered = outputBarcodeRawData.filter(row =>
-        row.some(val =>
-            val !== null &&
-            val !== undefined &&
-            String(val).toLowerCase().includes(keyword)
-        )
-    );
-
+    const filtered = filterRowArray(outputBarcodeRawData, keyword);
     filteredOutputBarcodeData = filtered;
     renderOutputBarcodeTable(filtered, outputBarcodeColumns);
 }
 
 function filterSubOutputBarcode(keyword) {
-    if (!keyword) {
-        filteredSubOutputBarcodeData = subOutputRawData;
-        renderSubOutputBarcodeTable(subOutputRawData, subOutputColumns);
-        return;
-    }
-
-    const filtered = subOutputRawData.filter(row =>
-        row.some(val =>
-            val !== null &&
-            val !== undefined &&
-            String(val).toLowerCase().includes(keyword)
-        )
-    );
-
+    const filtered = filterRowArray(subOutputRawData, keyword);
     filteredSubOutputBarcodeData = filtered;
     renderSubOutputBarcodeTable(filtered, subOutputColumns);
 }
@@ -8285,21 +8291,32 @@ document.addEventListener('touchcancel', clearBadgeHold);
  * 2. outputContainer (nếu đang hiển thị 'flex')
  * 3. Main table container (.table-container:not(.output-barcode) hoặc .table-container)
  */
-function getClientSearchTargetContainer() {
+function getClientSearchTargetContainers() {
     const subOutputContainer = document.getElementById('subOutputContainer');
     if (subOutputContainer && subOutputContainer.style.display === 'flex') {
-        return subOutputContainer;
+        return [subOutputContainer];
+    }
+    const targets = [];
+    const scanInStationContainer = document.getElementById('scanInStationContainer');
+    if (scanInStationContainer && scanInStationContainer.style.display === 'flex') {
+        targets.push(scanInStationContainer);
     }
     const outputContainer = document.getElementById('outputContainer');
     if (outputContainer && outputContainer.style.display === 'flex') {
-        return outputContainer;
+        targets.push(outputContainer);
     }
-    return document.querySelector('.table-container:not(.output-barcode)') || document.querySelector('.table-container');
+    if (targets.length > 0) return targets;
+    const main = document.querySelector('.table-container:not(.output-barcode)') || document.querySelector('.table-container');
+    return main ? [main] : [];
+}
+
+function getClientSearchTargetContainer() {
+    return getClientSearchTargetContainers()[0] || null;
 }
 window.getClientSearchTargetContainer = getClientSearchTargetContainer;
 
 /**
- * Cập nhật focus ring nhẹ lên container mà clientSearch đang nhắm tới
+ * Cập nhật focus ring nhẹ lên các container mà clientSearch đang nhắm tới
  * @param {boolean|null} isFocused - Trạng thái focus (nếu null, tự đọc từ document.activeElement)
  */
 function updateClientSearchFocusRing(isFocused = null) {
@@ -8313,10 +8330,9 @@ function updateClientSearchFocusRing(isFocused = null) {
 
     if (!focused || (searchInput && searchInput.disabled)) return;
 
-    const target = getClientSearchTargetContainer();
-    if (target) {
+    getClientSearchTargetContainers().forEach(target => {
         target.classList.add('search-target-focused');
-    }
+    });
 }
 window.updateClientSearchFocusRing = updateClientSearchFocusRing;
 
@@ -8856,23 +8872,28 @@ function exportOutputBarcodeToExcel() {
 
 async function handleExportScanInStationExcel() {
     const table = document.getElementById('scanInStationTable');
-    if (!table || !Array.isArray(scanInStationRawData) || scanInStationRawData.length === 0) {
+    if (!table) return;
+    const dataRows = (Array.isArray(filteredScanInStationData) && filteredScanInStationData.length > 0)
+        ? filteredScanInStationData
+        : scanInStationRawData;
+    const domRows = table.querySelectorAll('tbody tr:not(.table-empty-state)');
+    if (!Array.isArray(dataRows) || dataRows.length === 0 || domRows.length === 0) {
         Toast.warning('Cảnh báo', 'Không có dữ liệu để xuất file Excel.');
         return;
     }
     const confirmed = await showConfirm(
-        `Bạn có chắc chắn muốn xuất file Excel cho toàn bộ ${scanInStationRawData.length.toLocaleString()} dòng dữ liệu nạp tem?`
+        `Bạn có chắc chắn muốn xuất file Excel cho toàn bộ ${dataRows.length.toLocaleString()} dòng dữ liệu nạp tem?`
     );
     if (!confirmed) return;
 
     exportDatasetToExcel({
-        rows: scanInStationRawData,
+        rows: dataRows,
         columns: scanInStationColumns,
         tableElement: table,
         sheetName: 'Scan_In_Station',
         defaultFileName: 'KDMES_TOOL_SCAN_' + getVietnamTimestamp() + '.xlsx'
     });
-    Toast.success('Thành công', `Xuất file Excel thành công (${scanInStationRawData.length.toLocaleString()} dòng)!`);
+    Toast.success('Thành công', `Xuất file Excel thành công (${dataRows.length.toLocaleString()} dòng)!`);
 }
 
 async function handleExportSubOutputBarcodeExcel(button = null) {
