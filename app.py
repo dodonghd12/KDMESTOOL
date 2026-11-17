@@ -1019,7 +1019,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.4.3"
+APP_VERSION = "2.4.4"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -2009,6 +2009,31 @@ def get_product_id_search_variants(pid):
     return variants
 
 
+_MATERIAL_RESOURCE_COLS = """
+    id,
+    COALESCE(NULLIF(info->>'recipe_id', ''), NULLIF(info->'production_info'->>'recipe_id', ''), '') AS recipe_id,
+    product_id,
+    quantity,
+    initial_quantity,
+    product_type,
+    status,
+    expiry_time,
+    created_at,
+    created_by,
+    updated_at,
+    updated_by,
+    standing_time,
+    feed_records_id,
+    info,
+    oid,
+    reprint_reason,
+    collected,
+    erp_tire_barcode_synced,
+    COALESCE((SELECT cr.detail->>'quantity' FROM kvmes.collect_record cr WHERE cr.resource_oid = kvmes.material_resource.oid ORDER BY cr.sequence DESC LIMIT 1), kvmes.material_resource.quantity::text) AS collect_quantity
+"""
+_MATERIAL_RESOURCE_SELECT = f"SELECT {_MATERIAL_RESOURCE_COLS} FROM kvmes.material_resource"
+
+
 def query_material_resource_by_label_fields(label_data, query_fn=None):
     if query_fn is None:
         query_fn = execute_pg_select_query
@@ -2033,11 +2058,7 @@ def query_material_resource_by_label_fields(label_data, query_fn=None):
     exp_time_str = (label_data.get('expiry_time') or '').strip()
     barcode = (label_data.get('barcode') or '').strip()
 
-    base_cols = """id, product_id, quantity, initial_quantity, product_type, 
-                   status, expiry_time, 
-                   created_at, updated_at, updated_by, created_by, 
-                   standing_time, feed_records_id, info, oid,
-                   reprint_reason, collected, erp_tire_barcode_synced"""
+    base_cols = _MATERIAL_RESOURCE_COLS
 
     # 1. Ưu tiên 0: Tra cứu trực tiếp theo mã barcode nhận diện được trên tem
     if barcode and len(barcode) >= 8:
@@ -2278,15 +2299,7 @@ def get_ocr_barcode_variants(kw):
     return list(dict.fromkeys(variants))
 
 
-_MATERIAL_RESOURCE_SELECT = """
-    SELECT id, product_id, quantity, initial_quantity, product_type, 
-           status, expiry_time, 
-           created_at, updated_at, updated_by, created_by, 
-           standing_time, feed_records_id, info, oid,
-           reprint_reason, collected, erp_tire_barcode_synced,
-           COALESCE((SELECT cr.detail->>'quantity' FROM kvmes.collect_record cr WHERE cr.resource_oid = kvmes.material_resource.oid ORDER BY cr.sequence DESC LIMIT 1), kvmes.material_resource.quantity::text) AS collect_quantity
-    FROM kvmes.material_resource
-"""
+# Sử dụng _MATERIAL_RESOURCE_SELECT định nghĩa ở trên cho /api/barcodes (gồm recipe_id và collect_quantity)
 
 def _format_material_resource_rows(result, column_names):
     """Chuẩn hóa timestamp, mảng Postgres và serialize danh sách hàng material_resource."""

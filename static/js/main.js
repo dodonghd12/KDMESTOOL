@@ -1902,7 +1902,30 @@ function initializeMainEventListeners() {
         });
     }
 
-    document.addEventListener('contextmenu', (e) => {
+    // Right-click vào cột đầu tiên (data-full-value) trong .table-container, #outputContainer, #subOutputContainer để copy nhanh
+    document.addEventListener('contextmenu', async (e) => {
+        const td = e.target && e.target.closest ? e.target.closest('td[data-full-value]') : null;
+        if (td && td.cellIndex === 0) {
+            const tr = td.closest('tr');
+            const validRow = tr && !tr.querySelector('.table-empty-state') && !tr.classList.contains('skeleton-row');
+            const validContainer = td.closest('.table-container, #outputContainer, #subOutputContainer, .output-container');
+            if (validRow && validContainer) {
+                const rawVal = String(td.dataset.fullValue ?? td.getAttribute('data-full-value') ?? '').trim();
+                if (rawVal && rawVal !== '-') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                    const cm = document.getElementById('contextMenu');
+                    if (cm) cm.style.display = 'none';
+                    const ok = await copyTextToClipboard(rawVal);
+                    if (ok && typeof Toast !== 'undefined' && typeof Toast.success === 'function') {
+                        Toast.success('Đã sao chép', rawVal);
+                    }
+                    return false;
+                }
+            }
+        }
+
         const subContainer = document.getElementById('subOutputContainer');
         if (subContainer && subContainer.contains(e.target)) {
             e.preventDefault();
