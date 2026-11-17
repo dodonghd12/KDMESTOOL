@@ -1039,9 +1039,9 @@ span.flatpickr-weekday {
 }
 
 .flatpickr-calendar.hasTime.noCalendar .flatpickr-time {
-    height: 44px !important;
-    max-height: 44px !important;
-    line-height: 44px !important;
+    height: 38px !important;
+    max-height: 38px !important;
+    line-height: 38px !important;
     border: none !important;
     background: transparent !important;
     display: flex !important;
@@ -1057,6 +1057,9 @@ span.flatpickr-weekday {
 }
 
 .flatpickr-time .numInputWrapper {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
     height: 38px !important;
     background: var(--color-bg-input, rgba(15, 23, 42, 0.95)) !important;
     border: 1px solid var(--color-border-interactive, rgba(61, 213, 192, 0.3)) !important;
@@ -1071,15 +1074,24 @@ span.flatpickr-weekday {
     box-shadow: 0 0 10px rgba(61, 213, 192, 0.3) !important;
 }
 
-.flatpickr-time input.numInput {
+.flatpickr-time input.numInput,
+.flatpickr-time input.flatpickr-hour,
+.flatpickr-time input.flatpickr-minute,
+.flatpickr-time input.flatpickr-second {
     background: transparent !important;
     color: #f8fafc !important;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
-    font-size: 15px !important;
-    font-weight: 700 !important;
+    font-family: var(--font-stack) !important;
+    font-variant-numeric: tabular-nums !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    width: 100% !important;
+    height: 38px !important;
+    line-height: 38px !important;
+    display: block !important;
     text-align: center !important;
     border: none !important;
     outline: none !important;
+    margin: 0 !important;
     padding: 0 !important;
 }
 
@@ -1091,8 +1103,11 @@ span.flatpickr-weekday {
 
 .flatpickr-time .flatpickr-time-separator {
     color: var(--color-text-accent, #3dd5c0) !important;
-    font-weight: 800 !important;
-    font-size: 16px !important;
+    font-family: var(--font-stack) !important;
+    font-weight: 700 !important;
+    font-size: 15px !important;
+    height: 38px !important;
+    line-height: 38px !important;
     width: 10px !important;
     display: flex !important;
     align-items: center !important;
@@ -11109,12 +11124,12 @@ body.theme-light .material-transfer-retry-btn.is-success {
         display: none !important;
     }
 
-    /* 5. Avada Kedavra Mobile Layout:
+    /* 5. Bypass Mobile Layout:
        Hàng 1: [Kích hoạt] (50%) + [Trạng thái: Strict Mode] (50%)
        Hàng 2: [root@198.1.10.8 <-> 10.85] + [🔄]
        Hàng 3: [Tìm kiếm...] (Full width 100%)
     */
-    .avada-kedavra-controls-row {
+    .bypass-controls-row {
         display: flex !important;
         flex-direction: row !important;
         flex-wrap: wrap !important;
@@ -11124,7 +11139,7 @@ body.theme-light .material-transfer-retry-btn.is-success {
     }
 
     /* Hàng 1 */
-    .avada-kedavra-controls-row .btn-avada-kedavra-toggle {
+    .bypass-controls-row .btn-bypass-toggle {
         order: 1 !important;
         flex: 1 1 calc(50% - 4px) !important;
         width: calc(50% - 4px) !important;
@@ -11135,7 +11150,7 @@ body.theme-light .material-transfer-retry-btn.is-success {
         box-sizing: border-box !important;
     }
 
-    .avada-kedavra-controls-row .avada-kedavra-status-pill {
+    .bypass-controls-row .bypass-status-pill {
         order: 2 !important;
         flex: 1 1 calc(50% - 4px) !important;
         width: calc(50% - 4px) !important;
@@ -11148,7 +11163,7 @@ body.theme-light .material-transfer-retry-btn.is-success {
     }
 
     /* Hàng 2 */
-    .avada-kedavra-controls-row .avada-kedavra-meta-badge {
+    .bypass-controls-row .bypass-meta-badge {
         order: 3 !important;
         flex: 1 1 calc(100% - 46px) !important;
         width: calc(100% - 46px) !important;
@@ -11161,14 +11176,14 @@ body.theme-light .material-transfer-retry-btn.is-success {
         box-sizing: border-box !important;
     }
 
-    .avada-kedavra-controls-row .avada-kedavra-meta-badge #currentServerLabel {
+    .bypass-controls-row .bypass-meta-badge #currentServerLabel {
         font-size: 12px !important;
         white-space: nowrap !important;
         overflow: hidden !important;
         text-overflow: ellipsis !important;
     }
 
-    .avada-kedavra-controls-row .avada-kedavra-meta-badge #btnToggleServer {
+    .bypass-controls-row .bypass-meta-badge #btnToggleServer {
         height: 24px !important;
         padding: 0 6px !important;
         font-size: 11px !important;
@@ -11176,7 +11191,7 @@ body.theme-light .material-transfer-retry-btn.is-success {
         margin-left: auto !important;
     }
 
-    .avada-kedavra-controls-row .btn-refresh-compact {
+    .bypass-controls-row .btn-refresh-compact {
         order: 4 !important;
         flex: 0 0 38px !important;
         width: 38px !important;
@@ -11186,13 +11201,13 @@ body.theme-light .material-transfer-retry-btn.is-success {
         border-radius: 8px !important;
     }
 
-    .avada-kedavra-controls-row .avada-kedavra-step-badge {
+    .bypass-controls-row .bypass-step-badge {
         order: 6 !important;
         flex: 1 1 100% !important;
         width: 100% !important;
     }
 
-    .switching-spell-controls-row {
+    .printer-setup-controls-row {
         display: flex !important;
         flex-direction: row !important;
         flex-wrap: wrap !important;
@@ -11217,7 +11232,7 @@ body.theme-light .material-transfer-retry-btn.is-success {
         text-overflow: ellipsis !important;
     }
 
-    .switching-spell-controls-row .btn-refresh-compact {
+    .printer-setup-controls-row .btn-refresh-compact {
         flex: 0 0 34px !important;
         width: 34px !important;
         height: 34px !important;
@@ -11225,13 +11240,13 @@ body.theme-light .material-transfer-retry-btn.is-success {
         justify-content: center !important;
     }
 
-    /* Switching Spell controls row */
-    .switching-spell-controls-row .folder-select-box {
+    /* Printer Setup controls row */
+    .printer-setup-controls-row .folder-select-box {
         flex: 1 1 100% !important;
         width: 100% !important;
     }
 
-    .switching-spell-controls-row .folder-dropdown-wrapper {
+    .printer-setup-controls-row .folder-dropdown-wrapper {
         width: 100% !important;
         height: 38px !important;
         padding: 0 32px 0 12px !important;
@@ -11241,7 +11256,7 @@ body.theme-light .material-transfer-retry-btn.is-success {
         box-sizing: border-box !important;
     }
 
-    .switching-spell-controls-row .folder-select {
+    .printer-setup-controls-row .folder-select {
         flex: 1 1 auto !important;
         width: 100% !important;
         height: 38px !important;
@@ -11253,32 +11268,32 @@ body.theme-light .material-transfer-retry-btn.is-success {
         white-space: nowrap !important;
     }
 
-    .switching-spell-controls-row .folder-dropdown-wrapper .folder-icon {
+    .printer-setup-controls-row .folder-dropdown-wrapper .folder-icon {
         font-size: 18px !important;
         margin-right: 8px !important;
         flex-shrink: 0 !important;
         position: static !important;
     }
 
-    .switching-spell-controls-row .folder-dropdown-wrapper .dropdown-arrow {
+    .printer-setup-controls-row .folder-dropdown-wrapper .dropdown-arrow {
         font-size: 20px !important;
         right: 8px !important;
     }
 
-    .avada-kedavra-hero-right {
+    .bypass-hero-right {
         order: 5 !important;
         flex: 1 1 100% !important;
         width: 100% !important;
         margin-left: 0 !important;
     }
 
-    .avada-kedavra-search-wrapper {
+    .bypass-search-wrapper {
         width: 100% !important;
         max-width: 100% !important;
         min-width: 0 !important;
     }
 
-    .avada-kedavra-search-wrapper .input {
+    .bypass-search-wrapper .input {
         width: 100% !important;
         height: 38px !important;
         font-size: 13.5px !important;
@@ -13206,8 +13221,8 @@ body.theme-light .material-transfer-retry-btn.is-success {
 }
 
 
-/* ===== TIME TURNER MODULE STYLES (CONSOLIDATED FROM TEMPLATE) ===== */
-.time-turner-spin {
+/* ===== REPRINT LABEL LOG MODULE STYLES (CONSOLIDATED FROM TEMPLATE) ===== */
+.reprint-label-log-spin {
     animation: ttSpin 1s linear infinite;
 }
 @keyframes ttSpin {
@@ -13223,15 +13238,15 @@ body.theme-light .material-transfer-retry-btn.is-success {
 }
 
 @media (max-width: 768px) {
-    body.time-turner .container {
+    body.reprint-label-log .container {
         padding: 8px !important;
         gap: 8px !important;
     }
-    .time-turner .search-section {
+    .reprint-label-log .search-section {
         margin-bottom: 8px !important;
         width: 100% !important;
     }
-    .time-turner .search-row {
+    .reprint-label-log .search-row {
         display: flex !important;
         flex-direction: row !important;
         align-items: center !important;
@@ -13239,27 +13254,27 @@ body.theme-light .material-transfer-retry-btn.is-success {
         width: 100% !important;
         flex-wrap: wrap !important;
     }
-    .time-turner #btnRefresh {
+    .reprint-label-log #btnRefresh {
         height: 38px !important;
         padding: 0 12px !important;
         font-size: 13px !important;
         flex: 0 0 auto !important;
         border-radius: 8px !important;
     }
-    .time-turner .search-row > .input-box {
+    .reprint-label-log .search-row > .input-box {
         flex: 1 1 140px !important;
         min-width: 140px !important;
         max-width: 100% !important;
         height: 38px !important;
         margin: 0 !important;
     }
-    .time-turner .search-row > .input-box .input {
+    .reprint-label-log .search-row > .input-box .input {
         height: 38px !important;
         font-size: 13px !important;
         padding: 0 10px !important;
         border-radius: 8px !important;
     }
-    .time-turner .search-row > .input-wrapper {
+    .reprint-label-log .search-row > .input-wrapper {
         flex: 1 1 100% !important;
         min-width: 0 !important;
         max-width: 100% !important;
@@ -13267,24 +13282,24 @@ body.theme-light .material-transfer-retry-btn.is-success {
         height: 38px !important;
         margin: 0 !important;
     }
-    .time-turner .search-row > .input-wrapper .input {
+    .reprint-label-log .search-row > .input-wrapper .input {
         height: 38px !important;
         font-size: 14px !important;
         padding: 0 12px !important;
         border-radius: 8px !important;
         width: 100% !important;
     }
-    .time-turner .table-container {
+    .reprint-label-log .table-container {
         border-radius: 10px !important;
         margin-bottom: 0 !important;
     }
-    .time-turner .table-scroll table th,
-    .time-turner .table-scroll table td {
+    .reprint-label-log .table-scroll table th,
+    .reprint-label-log .table-scroll table td {
         padding: 8px 10px !important;
         font-size: 12.5px !important;
         white-space: nowrap !important;
     }
-    .time-turner .table-footer:not(.hidden) {
+    .reprint-label-log .table-footer:not(.hidden) {
         padding: 6px 8px !important;
         min-height: 38px !important;
         display: flex !important;
@@ -13293,23 +13308,23 @@ body.theme-light .material-transfer-retry-btn.is-success {
         gap: 6px !important;
         flex-wrap: wrap !important;
     }
-    .time-turner .table-footer-left .row-count {
+    .reprint-label-log .table-footer-left .row-count {
         font-size: 11.5px !important;
         padding: 2px 6px !important;
     }
-    .time-turner .btn-export-excel {
+    .reprint-label-log .btn-export-excel {
         height: 28px !important;
         padding: 0 8px !important;
         font-size: 11.5px !important;
     }
-    .time-turner .btn-export-excel svg {
+    .reprint-label-log .btn-export-excel svg {
         width: 1.2em !important;
         height: 1.2em !important;
     }
-    .time-turner .pagination-nav {
+    .reprint-label-log .pagination-nav {
         gap: 2px !important;
     }
-    .time-turner .pagination-nav button {
+    .reprint-label-log .pagination-nav button {
         min-width: 28px !important;
         height: 28px !important;
         font-size: 12px !important;
@@ -13994,17 +14009,15 @@ body.is-spa-frame .kd-fab-container {
     border: 1px solid rgba(255, 255, 255, 0.08) !important;
     border-radius: 10px !important;
     padding: 12px 16px !important;
-    cursor: pointer !important;
-    user-select: none !important;
+    cursor: default !important;
+    user-select: text !important;
     box-sizing: border-box !important;
-    transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    transition: background-color 0.18s ease, border-color 0.18s ease !important;
 }
 
 .kd-product-type-card:hover {
-    background: rgba(30, 41, 59, 0.92) !important;
-    border-color: var(--color-border-interactive, rgba(61, 213, 192, 0.45)) !important;
-    transform: translateY(-2px) !important;
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35) !important;
+    background: rgba(30, 41, 59, 0.78) !important;
+    border-color: rgba(255, 255, 255, 0.16) !important;
 }
 
 .kd-code-pill {

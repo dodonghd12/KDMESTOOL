@@ -4,11 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Switching Spell</title>
+    <title>Printer Setup</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v={{ version }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/smooth_input.css') }}?v={{ version }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/avada_kedavra.css') }}?v={{ version }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/switching_spell.css') }}?v={{ version }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bypass.css') }}?v={{ version }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/printer_setup.css') }}?v={{ version }}">
 
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/favicon.svg') }}">
     <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
@@ -19,15 +19,15 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/material-symbols/material-symbols.css') }}">
 </head>
 
-<body class="switching-spell-page {% if is_frame %}is-spa-frame{% endif %} app-loading-state">
+<body class="printer-setup-page {% if is_frame %}is-spa-frame{% endif %} app-loading-state">
     {% if not is_frame %}{% include "components/sidebar.html" %}{% endif %}
 
     <div class="container" autocomplete="off">
         
         <!-- ── Top Action Controls Bar ── -->
-        <div class="avada-kedavra-controls-row switching-spell-controls-row">
+        <div class="bypass-controls-row printer-setup-controls-row">
             <!-- 1. Meta Badge: Server Connection Status (Static 198.1.10.85) -->
-            <div class="avada-kedavra-meta-badge static-server-badge" id="avadaKedavraMetaBadge" title="Máy chủ đích: 198.1.10.85">
+            <div class="bypass-meta-badge static-server-badge" id="bypassMetaBadge" title="Máy chủ đích: 198.1.10.85">
                 <span class="material-symbols-outlined meta-dns-icon">dns</span>
                 <span id="currentServerLabel">root@198.1.10.85</span>
             </div>
@@ -73,26 +73,26 @@
             </div>
 
             <!-- 4. Container Status Badge (Live Step) -->
-            <div class="avada-kedavra-step-badge" id="containerStatusBadge" style="display: none;">
+            <div class="bypass-step-badge" id="containerStatusBadge" style="display: none;">
                 <span class="material-symbols-outlined step-badge-icon" id="stepBadgeIcon">sync</span>
                 <span id="containerStatusText">Kết nối root@198.1.10.85</span>
             </div>
 
             <!-- 5. Hero Right (Nút Open yaml File bên trái và clientSearch bên phải, toàn bộ căn lề phải) -->
-            <div class="avada-kedavra-hero-right switching-spell-hero-right">
+            <div class="bypass-hero-right printer-setup-hero-right">
                 <button type="button" id="btnOpenPrintersYaml" class="winx-btn btn-open-yaml-file" title="Xem nội dung printers-manager.yaml" aria-label="Open yaml File">
                     <span class="material-symbols-outlined">description</span>
                     <span>Open yaml File</span>
                 </button>
-                <div class="input-wrapper avada-kedavra-search-wrapper switching-spell-search-wrapper">
+                <div class="input-wrapper bypass-search-wrapper printer-setup-search-wrapper">
                     <input placeholder="Tìm kiếm..." class="input" id="clientSearch" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text" aria-label="Tìm kiếm trạm hoặc máy in" disabled>
                 </div>
             </div>
         </div>
 
         <!-- ── Table Container ── -->
-        <div class="table-container" id="switchingSpellTableContainer">
-            <div class="table-scroll switching-spell-table-scroll">
+        <div class="table-container" id="printerSetupTableContainer">
+            <div class="table-scroll printer-setup-table-scroll">
                 <!-- Standby guide / empty state before selection -->
                 <div class="table-standby-placeholder" id="tableStandbyPlaceholder">
                     <div class="standby-icon-ring">
@@ -101,7 +101,7 @@
                     <div class="standby-title">Sẵn sàng cấu hình máy in</div>
                     <div class="standby-subtitle">Vui lòng chọn thư mục cấu hình máy in (KV2) để bắt đầu</div>
                 </div>
-                <table id="switchingSpellTable" style="display: none;">
+                <table id="printerSetupTable" style="display: none;">
                     <thead id="tableHead">
                         <tr>
                             <th style="width: 50px; text-align: center;">#</th>
@@ -174,7 +174,7 @@
     <script src="{{ url_for('static', filename='js/smooth_input.js') }}?v={{ version }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}?v={{ version }}"></script>
     <script src="{{ url_for('static', filename='js/sidebar.js') }}?v={{ version }}"></script>
-    <script src="{{ url_for('static', filename='js/switching_spell.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/printer_setup.js') }}?v={{ version }}"></script>
 </body>
 
 </html>

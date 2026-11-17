@@ -78,7 +78,7 @@
 
         if (path.includes('material-transfer')) {
             return 'helpPaneTransfer';
-        } else if (path.includes('validate-scan-barcode')) {
+        } else if (path.includes('input-data-validation')) {
             return 'helpPaneValidate';
         } else if (path.includes('reprint')) {
             return 'helpPaneReprint';
@@ -98,7 +98,7 @@
             return 'helpPaneMesync';
         } else if (path.includes('station-configuration')) {
             return 'helpPaneStation';
-        } else if (path.includes('switching-spell') || path.includes('avada-kedavra') || path.includes('time-turner') || path.includes('reparo-spell')) {
+        } else if (path.includes('printer-setup') || path.includes('bypass') || path.includes('reprint-label-log') || path.includes('reparo-spell')) {
             return 'helpPaneElderWand';
         } else {
             return 'helpPaneMain';

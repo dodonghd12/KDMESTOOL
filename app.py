@@ -1019,7 +1019,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.3.107"
+APP_VERSION = "2.3.108"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -1371,9 +1371,9 @@ def render_page_or_shell(template_name, page_path, page_title="KDMES TOOL"):
 def main():
     return render_page_or_shell('main.html', '/main', 'Main')
 
-@app.route('/validate-scan-barcode')
-def validate_scan_barcode():
-    return render_page_or_shell('validate_scan_barcode.html', '/validate-scan-barcode', 'Kiểm tra cấp liệu')
+@app.route('/input-data-validation')
+def input_data_validation():
+    return render_page_or_shell('input_data_validation.html', '/input-data-validation', 'Kiểm tra cấp liệu')
 
 @app.route('/scan-barcode-history')
 def scan_barcode_history():
@@ -1462,21 +1462,21 @@ def gitlab_deleted_files():
 def postgres_deleted_data():
     return render_page_or_shell('postgres_deleted_data.html', '/postgres-deleted-data', 'Postgres Deleted Data')
 
-@app.route('/avada-kedavra')
-def avada_kedavra():
-    return render_page_or_shell('avada_kedavra.html', '/avada-kedavra', 'Avada Kedavra')
+@app.route('/bypass')
+def bypass():
+    return render_page_or_shell('bypass.html', '/bypass', 'Bypass')
 
 @app.route('/reparo-spell')
 def reparo_spell():
     return redirect(url_for('main'))
 
-@app.route('/switching-spell')
-def switching_spell():
-    return render_page_or_shell('switching_spell.html', '/switching-spell', 'Switching Spell')
+@app.route('/printer-setup')
+def printer_setup():
+    return render_page_or_shell('printer_setup.html', '/printer-setup', 'Printer Setup')
 
-@app.route('/time-turner')
-def time_turner():
-    return render_page_or_shell('time_turner.html', '/time-turner', 'Time Turner')
+@app.route('/reprint-label-log')
+def reprint_label_log():
+    return render_page_or_shell('reprint_label_log.html', '/reprint-label-log', 'Reprint Label Log')
 
 @app.route('/create-kd-account')
 def create_kd_account():
@@ -4555,9 +4555,9 @@ def check_work_orders_errors():
         })
 
 
-@app.route('/api/stations/validate-scan-barcode', methods=['POST'])
+@app.route('/api/stations/input-data-validation', methods=['POST'])
 @login_required
-def validate_scan_barcode_by_station():
+def input_data_validation_by_station():
     
     recipe_id = request.json.get('recipe_id', '').strip()
     station = request.json.get('station', '').strip()
@@ -7125,9 +7125,9 @@ def append_reprint_label_log(ip: str, barcode: str, username: str = None, note: 
         logger.error(f"[REPRINT_LABEL_LOG_ERROR] Lỗi khi ghi log In lại tem vào SQL Server: {e}", exc_info=True)
 
 
-@app.route('/api/time-turner/get-log', methods=['GET', 'POST'])
+@app.route('/api/reprint-label-log/get-log', methods=['GET', 'POST'])
 @login_required
-def api_time_turner_get_log():
+def api_reprint_label_log_get_log():
     """Truy vấn lịch sử In lại tem từ cả 2 DB: 198.1.1.106 (KV1) và 198.1.10.33 (KV2)."""
     try:
         data = request.get_json(silent=True) or {}
@@ -7183,7 +7183,7 @@ def api_time_turner_get_log():
                 try:
                     records.extend(fut.result())
                 except Exception as src_err:
-                    logger.warning(f"[TIME_TURNER_LOG_WARN] Lỗi đọc log từ {loc}: {src_err}")
+                    logger.warning(f"[REPRINT_LABEL_LOG_LOG_WARN] Lỗi đọc log từ {loc}: {src_err}")
                     source_errors.append(f"{loc}: {src_err}")
 
         if len(source_errors) == len(sources):
@@ -7198,7 +7198,7 @@ def api_time_turner_get_log():
             'columns': ['Thời gian in (UTC+7)', 'Location', 'IP', 'Người in', 'Barcode', 'Ghi chú']
         })
     except Exception as e:
-        logger.error(f"[TIME_TURNER_LOG_ERROR] Lỗi truy vấn bảng InLaiTemKD_Log: {e}", exc_info=True)
+        logger.error(f"[REPRINT_LABEL_LOG_LOG_ERROR] Lỗi truy vấn bảng InLaiTemKD_Log: {e}", exc_info=True)
         return jsonify({
             'success': False,
             'message': f"Lỗi đọc dữ liệu nhật ký in tem: {str(e)}",
@@ -10326,10 +10326,10 @@ def api_update_kd_accounts():
 
 
 # ==============================================================================
-# 🔮 AVADA KEDAVRA - MES REMOTE TOGGLE & AUDIT LOG CONTROLLER
+# 🔮 BYPASS - MES REMOTE TOGGLE & AUDIT LOG CONTROLLER
 # Hỗ trợ đa máy chủ: 198.1.10.8 và 198.1.10.85
 # ==============================================================================
-AVADA_KEDAVRA_SERVERS = {
+BYPASS_SERVERS = {
     "198.1.10.8": {
         "host": "198.1.10.8",
         "port": 22,
@@ -10351,26 +10351,26 @@ AVADA_KEDAVRA_SERVERS = {
         "restart_cmd": "cd /srv/go/service/mes && ./restart",
     }
 }
-DEFAULT_AVADA_KEDAVRA_SERVER = "198.1.10.85"
-AVADA_KEDAVRA_SSH_HOST = DEFAULT_AVADA_KEDAVRA_SERVER
-AVADA_KEDAVRA_LOG_FILE_PATH = r"\\198.1.10.2\Vitinh\Thu\QUAN TRONG KHONG XOA\log_avada_kedavra.txt"
+DEFAULT_BYPASS_SERVER = "198.1.10.85"
+BYPASS_SSH_HOST = DEFAULT_BYPASS_SERVER
+BYPASS_LOG_FILE_PATH = r"\\198.1.10.2\Vitinh\Thu\QUAN TRONG KHONG XOA\__KEEP_LOG_BYPASS_TXT__"
 
-def normalize_avada_kedavra_server(server_ip: str = None) -> str:
+def normalize_bypass_server(server_ip: str = None) -> str:
     """Chuẩn hóa địa chỉ máy chủ đích (hỗ trợ '198.1.10.8' và '198.1.10.85')."""
     if not server_ip:
-        return DEFAULT_AVADA_KEDAVRA_SERVER
+        return DEFAULT_BYPASS_SERVER
     s = str(server_ip).strip()
-    if s in AVADA_KEDAVRA_SERVERS:
+    if s in BYPASS_SERVERS:
         return s
     if s.endswith('.85') or s == '85' or s == '10.85':
         return '198.1.10.85'
     if s.endswith('.8') or s == '8' or s == '10.8':
         return '198.1.10.8'
-    return DEFAULT_AVADA_KEDAVRA_SERVER
+    return DEFAULT_BYPASS_SERVER
 
-def get_avada_kedavra_server_config(server_ip: str = None) -> dict:
-    norm = normalize_avada_kedavra_server(server_ip)
-    return AVADA_KEDAVRA_SERVERS.get(norm, AVADA_KEDAVRA_SERVERS[DEFAULT_AVADA_KEDAVRA_SERVER])
+def get_bypass_server_config(server_ip: str = None) -> dict:
+    norm = normalize_bypass_server(server_ip)
+    return BYPASS_SERVERS.get(norm, BYPASS_SERVERS[DEFAULT_BYPASS_SERVER])
 
 def get_plink_binary_path():
     """Tìm đường dẫn thực thi plink.exe hoặc ssh."""
@@ -10385,9 +10385,9 @@ def get_plink_binary_path():
             return p
     return "plink.exe"
 
-def run_avada_kedavra_ssh_cmd(cmd_str: str, server_ip: str = None, timeout: int = 40):
+def run_bypass_ssh_cmd(cmd_str: str, server_ip: str = None, timeout: int = 40):
     """Thực thi SSH command sử dụng paramiko (từ ocr_libs) hoặc fallback plink.exe trên máy chủ chỉ định."""
-    cfg = get_avada_kedavra_server_config(server_ip)
+    cfg = get_bypass_server_config(server_ip)
     target_host = cfg["host"]
     target_port = cfg["port"]
     target_user = cfg["user"]
@@ -10439,9 +10439,9 @@ def run_avada_kedavra_ssh_cmd(cmd_str: str, server_ip: str = None, timeout: int 
             return proc.stdout, proc.stderr
         raise paramiko_err
 
-def run_avada_kedavra_ssh_write(content_str: str, remote_path: str, server_ip: str = None, timeout: int = 30):
+def run_bypass_ssh_write(content_str: str, remote_path: str, server_ip: str = None, timeout: int = 30):
     """Ghi nội dung file lên máy chủ từ xa qua SSH stdin hoặc SFTP."""
-    cfg = get_avada_kedavra_server_config(server_ip)
+    cfg = get_bypass_server_config(server_ip)
     target_host = cfg["host"]
     target_port = cfg["port"]
     target_user = cfg["user"]
@@ -10494,12 +10494,12 @@ def run_avada_kedavra_ssh_write(content_str: str, remote_path: str, server_ip: s
             return proc.stdout, proc.stderr
         raise paramiko_err
 
-def append_avada_kedavra_log_lines(ip: str, note_lines: list, server: str = None):
+def append_bypass_log_lines(ip: str, note_lines: list, server: str = None):
     """Ghi đúng 5 dòng log kèm Máy chủ (Server), IP và thời gian (UTC+7) vào file log trên ổ mạng."""
     try:
-        target_server = normalize_avada_kedavra_server(server)
+        target_server = normalize_bypass_server(server)
         now_str = datetime.now(VN_TZ).strftime("%Y-%m-%d %H:%M:%S")
-        target_file = AVADA_KEDAVRA_LOG_FILE_PATH
+        target_file = BYPASS_LOG_FILE_PATH
         dir_path = os.path.dirname(target_file)
         if dir_path and not os.path.exists(dir_path):
             os.makedirs(dir_path, exist_ok=True)
@@ -10508,16 +10508,16 @@ def append_avada_kedavra_log_lines(ip: str, note_lines: list, server: str = None
             for note in note_lines:
                 f.write(f"{now_str} | {target_server} | {ip or 'Unknown'} | {note}\n")
     except Exception as e:
-        app.logger.error(f"[AVADA_KEDAVRA_LOG_ERROR] Lỗi khi ghi file log Avada Kedavra: {e}", exc_info=True)
+        app.logger.error(f"[BYPASS_LOG_ERROR] Lỗi khi ghi file log Bypass: {e}", exc_info=True)
 
-def read_avada_kedavra_logs(limit: int = 1000):
-    """Đọc lịch sử log Avada Kedavra từ file trên ổ mạng, trả về newest-first."""
+def read_bypass_logs(limit: int = 1000):
+    """Đọc lịch sử log Bypass từ file trên ổ mạng, trả về newest-first."""
     logs = []
     lines = []
     try:
-        if os.path.exists(AVADA_KEDAVRA_LOG_FILE_PATH):
+        if os.path.exists(BYPASS_LOG_FILE_PATH):
             try:
-                with open(AVADA_KEDAVRA_LOG_FILE_PATH, 'r', encoding='utf-8') as f:
+                with open(BYPASS_LOG_FILE_PATH, 'r', encoding='utf-8') as f:
                     lines.extend(f.readlines())
             except Exception:
                 pass
@@ -10537,26 +10537,26 @@ def read_avada_kedavra_logs(limit: int = 1000):
             elif len(parts) == 3:
                 logs.append({
                     'time': parts[0],
-                    'server': DEFAULT_AVADA_KEDAVRA_SERVER,
+                    'server': DEFAULT_BYPASS_SERVER,
                     'ip': parts[1],
                     'note': parts[2]
                 })
             elif len(parts) == 2:
                 logs.append({
                     'time': parts[0],
-                    'server': DEFAULT_AVADA_KEDAVRA_SERVER,
+                    'server': DEFAULT_BYPASS_SERVER,
                     'ip': '',
                     'note': parts[1]
                 })
             else:
                 logs.append({
                     'time': '',
-                    'server': DEFAULT_AVADA_KEDAVRA_SERVER,
+                    'server': DEFAULT_BYPASS_SERVER,
                     'ip': '',
                     'note': line
                 })
     except Exception as e:
-        app.logger.error(f"[READ_AVADA_KEDAVRA_LOGS_ERROR] Lỗi khi đọc file log: {e}", exc_info=True)
+        app.logger.error(f"[READ_BYPASS_LOGS_ERROR] Lỗi khi đọc file log: {e}", exc_info=True)
         
     logs.reverse()
     if limit and len(logs) > limit:
@@ -10565,16 +10565,16 @@ def read_avada_kedavra_logs(limit: int = 1000):
         item['stt'] = idx
     return logs
 
-def check_remote_avada_kedavra_status(server_ip: str = None):
+def check_remote_bypass_status(server_ip: str = None):
     """Kiểm tra trạng thái máy chủ chỉ định (198.1.10.8 hoặc 198.1.10.85), file compose và container mes."""
-    cfg = get_avada_kedavra_server_config(server_ip)
+    cfg = get_bypass_server_config(server_ip)
     target_host = cfg["host"]
     compose_file = cfg["compose_file"]
     cmd_timeout = 3 if (target_host == "198.1.10.8" or server_ip == "198.1.10.8") else 8
 
     try:
         # 1. Đọc file docker-compose.yml
-        out, _ = run_avada_kedavra_ssh_cmd(f"cat {compose_file}", server_ip=target_host, timeout=cmd_timeout)
+        out, _ = run_bypass_ssh_cmd(f"cat {compose_file}", server_ip=target_host, timeout=cmd_timeout)
         is_active = False
         strict_mode_line = ""
         for line in out.splitlines():
@@ -10587,7 +10587,7 @@ def check_remote_avada_kedavra_status(server_ip: str = None):
                 break
 
         # 2. Lấy thông tin container mes
-        ps_out, _ = run_avada_kedavra_ssh_cmd(
+        ps_out, _ = run_bypass_ssh_cmd(
             'docker ps --filter "name=mes" --format "{{.ID}}\t{{.Image}}\t{{.Status}}\t{{.Names}}"',
             server_ip=target_host,
             timeout=cmd_timeout
@@ -10624,9 +10624,9 @@ def check_remote_avada_kedavra_status(server_ip: str = None):
             'message': f'Lỗi kiểm tra SSH ({target_host}): {str(e)}'
         }
 
-def toggle_remote_avada_kedavra(target_action: str, client_ip: str, server_ip: str = None):
-    """Thực hiện bật/tắt Avada Kedavra trên máy chủ chỉ định và ghi 5 dòng log."""
-    cfg = get_avada_kedavra_server_config(server_ip)
+def toggle_remote_bypass(target_action: str, client_ip: str, server_ip: str = None):
+    """Thực hiện bật/tắt Bypass trên máy chủ chỉ định và ghi 5 dòng log."""
+    cfg = get_bypass_server_config(server_ip)
     target_host = cfg["host"]
     compose_file = cfg["compose_file"]
     restart_cmd = cfg["restart_cmd"]
@@ -10639,12 +10639,12 @@ def toggle_remote_avada_kedavra(target_action: str, client_ip: str, server_ip: s
     
     # 2. Dòng 2: Kết nối SSH root@<target_host>
     try:
-        run_avada_kedavra_ssh_cmd("echo ping", server_ip=target_host, timeout=8)
+        run_bypass_ssh_cmd("echo ping", server_ip=target_host, timeout=8)
         logs_generated.append(f"Kết nối thành công tới root@{target_host}")
     except Exception as e:
         err_msg = f"Lỗi kết nối tới root@{target_host}: {str(e)}"
         logs_generated.append(err_msg)
-        append_avada_kedavra_log_lines(client_ip, logs_generated, server=target_host)
+        append_bypass_log_lines(client_ip, logs_generated, server=target_host)
         return {
             'success': False,
             'server': target_host,
@@ -10654,7 +10654,7 @@ def toggle_remote_avada_kedavra(target_action: str, client_ip: str, server_ip: s
 
     # 3. Dòng 3: Đọc, sửa và lưu file docker-compose.yml
     try:
-        out, _ = run_avada_kedavra_ssh_cmd(f"cat {compose_file}", server_ip=target_host, timeout=10)
+        out, _ = run_bypass_ssh_cmd(f"cat {compose_file}", server_ip=target_host, timeout=10)
         lines = out.splitlines()
         modified_lines = []
         found_target = False
@@ -10674,12 +10674,12 @@ def toggle_remote_avada_kedavra(target_action: str, client_ip: str, server_ip: s
             raise Exception("Không tìm thấy dòng --strict-mode trong docker-compose.yml")
 
         new_content = '\n'.join(modified_lines) + '\n'
-        run_avada_kedavra_ssh_write(new_content, compose_file, server_ip=target_host, timeout=15)
+        run_bypass_ssh_write(new_content, compose_file, server_ip=target_host, timeout=15)
         logs_generated.append("Sửa file và lưu file thành công")
     except Exception as e:
         err_msg = f"Sửa file và lưu file lỗi: {str(e)}"
         logs_generated.append(err_msg)
-        append_avada_kedavra_log_lines(client_ip, logs_generated, server=target_host)
+        append_bypass_log_lines(client_ip, logs_generated, server=target_host)
         return {
             'success': False,
             'server': target_host,
@@ -10689,7 +10689,7 @@ def toggle_remote_avada_kedavra(target_action: str, client_ip: str, server_ip: s
 
     # 4. Dòng 4: Chạy ./restart và parse output
     try:
-        out, err = run_avada_kedavra_ssh_cmd(restart_cmd, server_ip=target_host, timeout=60)
+        out, err = run_bypass_ssh_cmd(restart_cmd, server_ip=target_host, timeout=60)
         combined = (out + "\n" + err).strip()
         
         # Hỗ trợ cả Docker Compose v1 ("Removing mes ... done") và v2 ("Container mes Removed")
@@ -10714,7 +10714,7 @@ def toggle_remote_avada_kedavra(target_action: str, client_ip: str, server_ip: s
     except Exception as e:
         err_msg = f"Lỗi thực thi restart: {str(e)}"
         logs_generated.append(err_msg)
-        append_avada_kedavra_log_lines(client_ip, logs_generated, server=target_host)
+        append_bypass_log_lines(client_ip, logs_generated, server=target_host)
         return {
             'success': False,
             'server': target_host,
@@ -10724,7 +10724,7 @@ def toggle_remote_avada_kedavra(target_action: str, client_ip: str, server_ip: s
 
     # 5. Dòng 5: Check docker ps của container mes
     try:
-        ps_out, _ = run_avada_kedavra_ssh_cmd(
+        ps_out, _ = run_bypass_ssh_cmd(
             'docker ps --filter "name=mes" --format "{{.ID}}\t{{.Image}}\t{{.Status}}\t{{.Names}}"',
             server_ip=target_host,
             timeout=10
@@ -10746,26 +10746,26 @@ def toggle_remote_avada_kedavra(target_action: str, client_ip: str, server_ip: s
         logs_generated.append(f"Kiểm tra docker ps lỗi: {str(e)}")
 
     # Ghi log 5 dòng vào file kèm server
-    append_avada_kedavra_log_lines(client_ip, logs_generated, server=target_host)
+    append_bypass_log_lines(client_ip, logs_generated, server=target_host)
 
     new_is_active = (target_action == 'activate')
     return {
         'success': True,
         'server': target_host,
         'is_active': new_is_active,
-        'message': f'Đã {"kích hoạt" if new_is_active else "ngưng kích hoạt"} Avada Kedavra trên máy chủ {target_host} thành công',
+        'message': f'Đã {"kích hoạt" if new_is_active else "ngưng kích hoạt"} Bypass trên máy chủ {target_host} thành công',
         'logs': logs_generated
     }
 
-@app.route('/api/avada-kedavra/compose-content', methods=['GET'])
-def api_avada_kedavra_compose_content():
+@app.route('/api/bypass/compose-content', methods=['GET'])
+def api_bypass_compose_content():
     """Lấy nội dung file docker-compose.yml của máy chủ chỉ định (198.1.10.85 hoặc 198.1.10.8)."""
     try:
-        server_ip = request.args.get('server', DEFAULT_AVADA_KEDAVRA_SERVER)
-        cfg = get_avada_kedavra_server_config(server_ip)
+        server_ip = request.args.get('server', DEFAULT_BYPASS_SERVER)
+        cfg = get_bypass_server_config(server_ip)
         target_host = cfg["host"]
         compose_file = cfg["compose_file"]
-        out, _ = run_avada_kedavra_ssh_cmd(f"cat {compose_file}", server_ip=target_host, timeout=10)
+        out, _ = run_bypass_ssh_cmd(f"cat {compose_file}", server_ip=target_host, timeout=10)
         if not out.strip():
             return jsonify({
                 'success': False,
@@ -10785,13 +10785,13 @@ def api_avada_kedavra_compose_content():
         }), 500
 
 
-@app.route('/api/avada-kedavra/status', methods=['GET'])
-def api_avada_kedavra_status():
-    """Lấy trạng thái hiện tại của Avada Kedavra và các dòng log gần nhất."""
+@app.route('/api/bypass/status', methods=['GET'])
+def api_bypass_status():
+    """Lấy trạng thái hiện tại của Bypass và các dòng log gần nhất."""
     try:
-        server_ip = request.args.get('server', DEFAULT_AVADA_KEDAVRA_SERVER)
-        status_info = check_remote_avada_kedavra_status(server_ip)
-        logs = read_avada_kedavra_logs(limit=200)
+        server_ip = request.args.get('server', DEFAULT_BYPASS_SERVER)
+        status_info = check_remote_bypass_status(server_ip)
+        logs = read_bypass_logs(limit=200)
         return jsonify({
             'success': True,
             'server': status_info.get('server', server_ip),
@@ -10799,19 +10799,19 @@ def api_avada_kedavra_status():
             'logs': logs
         })
     except Exception as e:
-        app.logger.error(f"Lỗi API avada-kedavra/status: {e}", exc_info=True)
+        app.logger.error(f"Lỗi API bypass/status: {e}", exc_info=True)
         return jsonify({
             'success': False,
             'message': f'Lỗi kiểm tra trạng thái: {str(e)}'
         }), 500
 
-@app.route('/api/avada-kedavra/toggle', methods=['POST'])
-def api_avada_kedavra_toggle():
-    """Kích hoạt hoặc ngưng kích hoạt Avada Kedavra."""
+@app.route('/api/bypass/toggle', methods=['POST'])
+def api_bypass_toggle():
+    """Kích hoạt hoặc ngưng kích hoạt Bypass."""
     try:
         data = request.get_json(silent=True) or {}
         action = data.get('action')
-        server_ip = data.get('server', DEFAULT_AVADA_KEDAVRA_SERVER)
+        server_ip = data.get('server', DEFAULT_BYPASS_SERVER)
         if action not in ['activate', 'deactivate']:
             return jsonify({
                 'success': False,
@@ -10819,32 +10819,32 @@ def api_avada_kedavra_toggle():
             }), 400
 
         user_ip = get_client_ip()
-        result = toggle_remote_avada_kedavra(action, user_ip, server_ip=server_ip)
+        result = toggle_remote_bypass(action, user_ip, server_ip=server_ip)
         
         # Đọc lại toàn bộ log sau khi cập nhật
-        all_logs = read_avada_kedavra_logs(limit=200)
+        all_logs = read_bypass_logs(limit=200)
         result['all_logs'] = all_logs
         
         status_code = 200 if result.get('success') else 500
         return jsonify(result), status_code
     except Exception as e:
-        app.logger.error(f"Lỗi API avada-kedavra/toggle: {e}", exc_info=True)
+        app.logger.error(f"Lỗi API bypass/toggle: {e}", exc_info=True)
         return jsonify({
             'success': False,
-            'message': f'Lỗi hệ thống khi thao tác Avada Kedavra: {str(e)}'
+            'message': f'Lỗi hệ thống khi thao tác Bypass: {str(e)}'
         }), 500
 
-@app.route('/api/avada-kedavra/logs', methods=['GET'])
-def api_avada_kedavra_logs():
-    """Tải toàn bộ danh sách lịch sử log Avada Kedavra."""
+@app.route('/api/bypass/logs', methods=['GET'])
+def api_bypass_logs():
+    """Tải toàn bộ danh sách lịch sử log Bypass."""
     try:
-        logs = read_avada_kedavra_logs(limit=1000)
+        logs = read_bypass_logs(limit=1000)
         return jsonify({
             'success': True,
             'logs': logs
         })
     except Exception as e:
-        app.logger.error(f"Lỗi API avada-kedavra/logs: {e}", exc_info=True)
+        app.logger.error(f"Lỗi API bypass/logs: {e}", exc_info=True)
         return jsonify({
             'success': False,
             'message': f'Lỗi tải log: {str(e)}'
@@ -10889,7 +10889,7 @@ def fetch_remote_printers_manager(folder: str, server_ip: str = None) -> dict:
             'message': f'Thư mục không hợp lệ: {clean_folder}. Các mục hợp lệ: {", ".join(allowed_folders)}'
         }
 
-    target_server = normalize_avada_kedavra_server(server_ip or DEFAULT_AVADA_KEDAVRA_SERVER)
+    target_server = normalize_bypass_server(server_ip or DEFAULT_BYPASS_SERVER)
     base_printers_dir = f"/srv/go/service/mesage/KV2/{clean_folder}/assets/services/printers"
     yaml_path = f"{base_printers_dir}/printers-manager.yaml"
     cmd = (
@@ -10898,7 +10898,7 @@ def fetch_remote_printers_manager(folder: str, server_ip: str = None) -> dict:
         f"elif [ -f '{base_printers_dir}/printers-manager.yml' ]; then echo '__PATH__:{base_printers_dir}/printers-manager.yml'; cat '{base_printers_dir}/printers-manager.yml'; "
         f"else echo '__FILE_NOT_FOUND__'; fi"
     )
-    out, err = run_avada_kedavra_ssh_cmd(cmd, server_ip=target_server, timeout=15)
+    out, err = run_bypass_ssh_cmd(cmd, server_ip=target_server, timeout=15)
 
     if '__FILE_NOT_FOUND__' not in out and out.strip():
         # Trích xuất đường dẫn thực tế nếu có
@@ -10976,17 +10976,17 @@ def fetch_remote_printers_manager(folder: str, server_ip: str = None) -> dict:
         'server': target_server
     }
 
-@app.route('/api/switching-spell/printers', methods=['GET', 'POST'])
-def api_switching_spell_printers():
+@app.route('/api/printer-setup/printers', methods=['GET', 'POST'])
+def api_printer_setup_printers():
     """Lấy danh sách cấu hình máy in và công đoạn từ printers-manager.yaml."""
     try:
         if request.method == 'POST':
             data = request.get_json(silent=True) or {}
             folder = data.get('folder') or data.get('item')
-            server_ip = data.get('server', DEFAULT_AVADA_KEDAVRA_SERVER)
+            server_ip = data.get('server', DEFAULT_BYPASS_SERVER)
         else:
             folder = request.args.get('folder') or request.args.get('item')
-            server_ip = request.args.get('server', DEFAULT_AVADA_KEDAVRA_SERVER)
+            server_ip = request.args.get('server', DEFAULT_BYPASS_SERVER)
 
         if not folder:
             return jsonify({'success': False, 'message': 'Thiếu tham số thư mục máy in (folder/item)'}), 400
@@ -10995,7 +10995,7 @@ def api_switching_spell_printers():
         status_code = 200 if res.get('success') else 500
         return jsonify(res), status_code
     except Exception as e:
-        app.logger.error(f"Lỗi API /api/switching-spell/printers: {e}", exc_info=True)
+        app.logger.error(f"Lỗi API /api/printer-setup/printers: {e}", exc_info=True)
         return jsonify({'success': False, 'message': f'Lỗi hệ thống: {str(e)}'}), 500
 
 
@@ -11137,7 +11137,7 @@ def save_remote_printers_manager(folder: str, updated_groups: list, server_ip: s
             'message': 'Dữ liệu cấu hình groups không hợp lệ (yêu cầu dạng mảng/list)'
         }
 
-    target_server = normalize_avada_kedavra_server(server_ip or DEFAULT_AVADA_KEDAVRA_SERVER)
+    target_server = normalize_bypass_server(server_ip or DEFAULT_BYPASS_SERVER)
     yaml_path = f"/srv/go/service/mesage/KV2/{clean_folder}/assets/services/printers/printers-manager.yaml"
 
     fetch_res = fetch_remote_printers_manager(clean_folder, server_ip=target_server)
@@ -11160,14 +11160,14 @@ def save_remote_printers_manager(folder: str, updated_groups: list, server_ip: s
 
     try:
         backup_cmd = f"test -f '{yaml_path}' && cp '{yaml_path}' '{yaml_path}.bak' || true"
-        run_avada_kedavra_ssh_cmd(backup_cmd, server_ip=target_server, timeout=10)
+        run_bypass_ssh_cmd(backup_cmd, server_ip=target_server, timeout=10)
     except Exception as bak_err:
         app.logger.warning(f"Không thể tạo file backup YAML: {bak_err}")
 
     try:
-        run_avada_kedavra_ssh_write(new_yaml_content, yaml_path, server_ip=target_server, timeout=20)
+        run_bypass_ssh_write(new_yaml_content, yaml_path, server_ip=target_server, timeout=20)
         # Giữ đồng bộ cả printers-manager.yaml1 nếu có tồn tại trên server
-        run_avada_kedavra_ssh_cmd(f"test -f '{yaml_path}1' && cp -p '{yaml_path}' '{yaml_path}1' || true", server_ip=target_server, timeout=10)
+        run_bypass_ssh_cmd(f"test -f '{yaml_path}1' && cp -p '{yaml_path}' '{yaml_path}1' || true", server_ip=target_server, timeout=10)
     except Exception as write_err:
         app.logger.error(f"Lỗi ghi file YAML lên server {target_server}: {write_err}", exc_info=True)
         return {
@@ -11183,7 +11183,7 @@ def save_remote_printers_manager(folder: str, updated_groups: list, server_ip: s
     out_restart = ""
     err_restart = ""
     try:
-        out_restart, err_restart = run_avada_kedavra_ssh_cmd(restart_cmd, server_ip=target_server, timeout=60)
+        out_restart, err_restart = run_bypass_ssh_cmd(restart_cmd, server_ip=target_server, timeout=60)
     except Exception as restart_exc:
         app.logger.error(f"Lỗi chạy ./restart trong {service_dir}: {restart_exc}", exc_info=True)
         return {
@@ -11206,9 +11206,9 @@ def save_remote_printers_manager(folder: str, updated_groups: list, server_ip: s
     container_status = "N/A"
 
     format_ps_cmd = f"docker ps --filter name=^{container_name}$ --format '{{{{.ID}}}}\t{{{{.Image}}}}\t{{{{.Status}}}}\t{{{{.Names}}}}'"
-    out_format_ps, _ = run_avada_kedavra_ssh_cmd(format_ps_cmd, server_ip=target_server, timeout=15)
+    out_format_ps, _ = run_bypass_ssh_cmd(format_ps_cmd, server_ip=target_server, timeout=15)
     ps_cmd = f"docker ps --filter name={container_name}"
-    out_ps, _ = run_avada_kedavra_ssh_cmd(ps_cmd, server_ip=target_server, timeout=15)
+    out_ps, _ = run_bypass_ssh_cmd(ps_cmd, server_ip=target_server, timeout=15)
 
     for line in (out_format_ps or '').strip().splitlines():
         parts = line.split('\t')
@@ -11222,8 +11222,8 @@ def save_remote_printers_manager(folder: str, updated_groups: list, server_ip: s
 
     if not is_running:
         time.sleep(2.0)
-        out_format_ps, _ = run_avada_kedavra_ssh_cmd(format_ps_cmd, server_ip=target_server, timeout=15)
-        out_ps, _ = run_avada_kedavra_ssh_cmd(ps_cmd, server_ip=target_server, timeout=15)
+        out_format_ps, _ = run_bypass_ssh_cmd(format_ps_cmd, server_ip=target_server, timeout=15)
+        out_ps, _ = run_bypass_ssh_cmd(ps_cmd, server_ip=target_server, timeout=15)
         for line in (out_format_ps or '').strip().splitlines():
             parts = line.split('\t')
             if len(parts) >= 3 and parts[0]:
@@ -11234,8 +11234,8 @@ def save_remote_printers_manager(folder: str, updated_groups: list, server_ip: s
         is_running = bool(container_status != 'N/A' and ('Up' in container_status or 'running' in container_status.lower()))
 
     if not is_running:
-        out_format_ps_a, _ = run_avada_kedavra_ssh_cmd(f"docker ps -a --filter name=^{container_name}$ --format '{{{{.ID}}}}\t{{{{.Image}}}}\t{{{{.Status}}}}\t{{{{.Names}}}}'", server_ip=target_server, timeout=10)
-        out_ps, _ = run_avada_kedavra_ssh_cmd(f"docker ps -a --filter name={container_name}", server_ip=target_server, timeout=10)
+        out_format_ps_a, _ = run_bypass_ssh_cmd(f"docker ps -a --filter name=^{container_name}$ --format '{{{{.ID}}}}\t{{{{.Image}}}}\t{{{{.Status}}}}\t{{{{.Names}}}}'", server_ip=target_server, timeout=10)
+        out_ps, _ = run_bypass_ssh_cmd(f"docker ps -a --filter name={container_name}", server_ip=target_server, timeout=10)
         for line in (out_format_ps_a or '').strip().splitlines():
             parts = line.split('\t')
             if len(parts) >= 3 and parts[0]:
@@ -11265,7 +11265,7 @@ def save_remote_printers_manager(folder: str, updated_groups: list, server_ip: s
     else:
         started_str = f"Container {container_name} Started"
 
-    # 8. Ghi 4 dòng log chuẩn format Avada Kedavra
+    # 8. Ghi 4 dòng log chuẩn format Bypass
     from flask import has_request_context
     user_ip = client_ip or (get_client_ip() if has_request_context() else '198.1.10.72')
     note_lines = [
@@ -11274,7 +11274,7 @@ def save_remote_printers_manager(folder: str, updated_groups: list, server_ip: s
         f"{removed_str} | {started_str}",
         f"Image: {container_image} | Container ID: {container_id} | Status: {simple_status}"
     ]
-    append_avada_kedavra_log_lines(user_ip, note_lines, server=target_server)
+    append_bypass_log_lines(user_ip, note_lines, server=target_server)
 
     return {
         'success': True,
@@ -11295,14 +11295,14 @@ def save_remote_printers_manager(folder: str, updated_groups: list, server_ip: s
     }
 
 
-@app.route('/api/switching-spell/save-printers', methods=['POST'])
-def api_switching_spell_save_printers():
+@app.route('/api/printer-setup/save-printers', methods=['POST'])
+def api_printer_setup_save_printers():
     """Lưu cấu hình máy in và công đoạn vào printers-manager.yaml trên server MES."""
     try:
         data = request.get_json(silent=True) or {}
         folder = data.get('folder') or data.get('item')
         groups = data.get('groups')
-        server_ip = data.get('server', DEFAULT_AVADA_KEDAVRA_SERVER)
+        server_ip = data.get('server', DEFAULT_BYPASS_SERVER)
         client_ip = get_client_ip()
 
         if not folder:
@@ -11314,12 +11314,12 @@ def api_switching_spell_save_printers():
         status_code = 200 if res.get('success') else 500
         return jsonify(res), status_code
     except Exception as e:
-        app.logger.error(f"Lỗi API /api/switching-spell/save-printers: {e}", exc_info=True)
+        app.logger.error(f"Lỗi API /api/printer-setup/save-printers: {e}", exc_info=True)
         return jsonify({'success': False, 'message': f'Lỗi hệ thống: {str(e)}'}), 500
 
 
-@app.route('/api/switching-spell/available-stations', methods=['GET'])
-def api_switching_spell_available_stations():
+@app.route('/api/printer-setup/available-stations', methods=['GET'])
+def api_printer_setup_available_stations():
     """Lấy danh sách các station từ kvmes.station theo thư mục được chọn."""
     try:
         folder = (request.args.get('folder') or request.args.get('item') or '').strip().lower()
@@ -11350,7 +11350,7 @@ def api_switching_spell_available_stations():
             'count': len(stations)
         })
     except Exception as e:
-        app.logger.error(f"Lỗi API /api/switching-spell/available-stations: {e}", exc_info=True)
+        app.logger.error(f"Lỗi API /api/printer-setup/available-stations: {e}", exc_info=True)
         return jsonify({
             'success': False,
             'message': f'Lỗi truy vấn danh sách station: {str(e)}',
@@ -11441,8 +11441,8 @@ def fetch_cups_printers_list(folder: str = None, env: str = None) -> list:
     return printers
 
 
-@app.route('/api/switching-spell/available-printers', methods=['GET'])
-def api_switching_spell_available_printers():
+@app.route('/api/printer-setup/available-printers', methods=['GET'])
+def api_printer_setup_available_printers():
     """Lấy danh sách các máy in từ CUPS 2.4.7 theo môi trường KV1 hoặc KV2."""
     try:
         folder = (request.args.get('folder') or request.args.get('item') or '').strip().lower()
@@ -11456,7 +11456,7 @@ def api_switching_spell_available_printers():
             'count': len(printers)
         })
     except Exception as e:
-        app.logger.error(f"Lỗi API /api/switching-spell/available-printers: {e}", exc_info=True)
+        app.logger.error(f"Lỗi API /api/printer-setup/available-printers: {e}", exc_info=True)
         return jsonify({
             'success': False,
             'message': f'Lỗi truy vấn danh sách máy in CUPS: {str(e)}',

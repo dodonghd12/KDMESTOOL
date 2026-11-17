@@ -283,7 +283,7 @@
     }
 
     /* ══════════════════════════════════════════════════════════════════════
-       3. LOAD PRINTERS FROM CUPS 2.4.7 (/api/switching-spell/available-printers)
+       3. LOAD PRINTERS FROM CUPS 2.4.7 (/api/printer-setup/available-printers)
        Format: [queue_name] — [description]
        Default: Empty (""), forcing user to select a printer
        ══════════════════════════════════════════════════════════════════════ */
@@ -294,7 +294,7 @@
         }
 
         try {
-            const resp = await fetch(`/api/switching-spell/available-printers?env=${encodeURIComponent(currentEnv)}`, {
+            const resp = await fetch(`/api/printer-setup/available-printers?env=${encodeURIComponent(currentEnv)}`, {
                 headers: { 'X-DB-Env': currentEnv }
             });
             const data = await resp.json();

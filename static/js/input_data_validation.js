@@ -2,13 +2,14 @@ let stations = [];
 let currentDepartmentOid = null;
 let departmentSearchTimeout = null;
 let stationSearchTimeout = null;
+let isSelectingDepartment = false;
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', async function() {
     if (typeof getDepartments === 'function') {
         departments = await getDepartments();
     }
-    initializeValidateScanBarcodeEventListeners();
+    initializeInputDataValidationEventListeners();
 
     // Initialize: disable station on load
     document.getElementById('station').disabled = true;
@@ -25,7 +26,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
 });
 
-function initializeValidateScanBarcodeEventListeners() {
+function initializeInputDataValidationEventListeners() {
     document.addEventListener('sidebar:about', () => {
         showAbout();
     });
@@ -35,6 +36,9 @@ function initializeValidateScanBarcodeEventListeners() {
     departmentInput.addEventListener('click', () => {
         departmentInput.value = '';
         departmentInput.closest('.input-box')?.classList.remove('has-value');
+        if (departmentInput.readOnly && departmentInput.dataset.autofillGuarded) {
+            departmentInput.readOnly = false;
+        }
         departmentInput.focus();
 
         const stationInput = document.getElementById('station');
@@ -93,7 +97,9 @@ function initializeValidateScanBarcodeEventListeners() {
     departmentInput.addEventListener('blur', () => {
         setTimeout(() => {
             hideDepartmentDropdown();
-            checkAndLoadStations();
+            if (!isSelectingDepartment && document.activeElement !== document.getElementById('station')) {
+                checkAndLoadStations();
+            }
         }, 200);
     });
 
@@ -166,8 +172,8 @@ function initializeValidateScanBarcodeEventListeners() {
     document.getElementById('tableBody').addEventListener('click', handleRowClick);
     document.getElementById('tableBody').addEventListener('contextmenu', handleContextMenu);
 
-    // Context menu item for validate_scan_barcode
-    const validateMenuItem = document.querySelector('.context-menu-item[data-action="validate_scan_barcode"]');
+    // Context menu item for input_data_validation
+    const validateMenuItem = document.querySelector('.context-menu-item[data-action="input_data_validation"]');
     if (validateMenuItem) {
         validateMenuItem.addEventListener('click', (e) => {
             if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
@@ -193,12 +199,13 @@ function showDepartmentDropdown(items) {
         item.dataset.value = deptId;
         item.addEventListener('mousedown', async (e) => {
             e.preventDefault();
+            isSelectingDepartment = true;
+            clearTimeout(departmentSearchTimeout);
             const input = document.getElementById('department');
             input.value = deptId;
             input.closest('.input-box')?.classList.add('has-value');
             currentDepartmentOid = dept.id;
             hideDepartmentDropdown();
-            input.blur();
 
             const stationInput = document.getElementById('station');
             stationInput.value = '';
@@ -207,9 +214,18 @@ function showDepartmentDropdown(items) {
             hideStationDropdown();
             clearTable();
 
-            // Load stations when department is selected
-            await loadStations(currentDepartmentOid);
-            stationInput.disabled = false;
+            try {
+                // Load stations when department is selected
+                await loadStations(currentDepartmentOid);
+            } finally {
+                stationInput.disabled = false;
+                if (stationInput.readOnly && stationInput.dataset.autofillGuarded) {
+                    stationInput.readOnly = false;
+                }
+                stationInput.focus();
+                showStationDropdown(stations);
+                isSelectingDepartment = false;
+            }
         });
         dropdown.appendChild(item);
     });
@@ -584,7 +600,7 @@ function handleContextMenu(e) {
     } else {
         const contextMenu = document.getElementById('contextMenu');
         if (contextMenu) {
-            const item = contextMenu.querySelector('[data-action="validate_scan_barcode"]');
+            const item = contextMenu.querySelector('[data-action="input_data_validation"]');
             if (item) item.style.display = 'flex';
             contextMenu.style.display = 'block';
             contextMenu.style.left = ((e && e.pageX) || 10) + 'px';
@@ -605,13 +621,13 @@ function handleContextMenuAction(e) {
 
     if (!action) return;
 
-    if (action === 'validate_scan_barcode') {
-        validateScanBarcode();
+    if (action === 'input_data_validation') {
+        inputDataValidation();
     }
 }
 window.handleContextMenuAction = handleContextMenuAction;
 
-async function validateScanBarcode() {
+async function inputDataValidation() {
     let rowData = selectedRowData;
     if (!rowData && selectedRow) {
         handleRowClick({ target: selectedRow });
@@ -627,7 +643,7 @@ async function validateScanBarcode() {
     }
 
     try {
-        const response = await fetch('/api/stations/validate-scan-barcode', {
+        const response = await fetch('/api/stations/input-data-validation', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({recipe_id: recipeId, station: station})

@@ -1535,12 +1535,12 @@ try {
 } catch (e) {}
 
 /**
- * Shared Global Avada Kedavra Server Status Cache & Single-Flight Request Deduplicator
+ * Shared Global Bypass Server Status Cache & Single-Flight Request Deduplicator
  * @param {string} serverIp - '198.1.10.8' hoặc '198.1.10.85'
  * @param {boolean} forceRefresh - Bỏ qua cache và gửi request mới
  * @param {number} ttlMs - Thời gian sống của cache (mặc định 60,000ms = 60s)
  */
-async function getAvadaKedavraServerStatus(serverIp, forceRefresh = false, ttlMs = 60000) {
+async function getBypassServerStatus(serverIp, forceRefresh = false, ttlMs = 60000) {
     const sIp = String(serverIp || '198.1.10.85').trim();
     let topWin = window;
     try {
@@ -1568,7 +1568,7 @@ async function getAvadaKedavraServerStatus(serverIp, forceRefresh = false, ttlMs
     // 3. Khởi tạo request duy nhất cho serverIp chỉ định
     topWin.__kd_ak_server_status_promises[sIp] = (async () => {
         try {
-            const res = await fetch(`/api/avada-kedavra/status?server=${encodeURIComponent(sIp)}`);
+            const res = await fetch(`/api/bypass/status?server=${encodeURIComponent(sIp)}`);
             let data = null;
             try {
                 data = await res.json();
@@ -1601,9 +1601,9 @@ async function getAvadaKedavraServerStatus(serverIp, forceRefresh = false, ttlMs
     return await topWin.__kd_ak_server_status_promises[sIp];
 }
 
-window.getAvadaKedavraServerStatus = getAvadaKedavraServerStatus;
+window.getBypassServerStatus = getBypassServerStatus;
 try {
-    if (window.top) window.top.getAvadaKedavraServerStatus = getAvadaKedavraServerStatus;
+    if (window.top) window.top.getBypassServerStatus = getBypassServerStatus;
 } catch (e) {}
 
 async function checkAuth() {
@@ -2461,9 +2461,9 @@ function isContextMenuAllowedOnCurrentPage() {
     }
 
     // 1. Only allow on Validate Scan Barcode page
-    const isValidatePage = document.body.classList.contains('validate-scan-barcode') || 
-                           document.body.classList.contains('validate-scan-barcode-page') ||
-                           window.location.pathname.includes('validate-scan-barcode');
+    const isValidatePage = document.body.classList.contains('input-data-validation') || 
+                           document.body.classList.contains('input-data-validation-page') ||
+                           window.location.pathname.includes('input-data-validation');
     if (isValidatePage) return 'validate';
 
     // 2. Only allow on Main page
@@ -2492,7 +2492,7 @@ function initUniversalTableTouchGestures() {
     document.addEventListener('dblclick', (e) => {
         const tr = e.target.closest(tableRowSelector);
         if (!tr || tr.querySelector('.table-empty-state') || tr.classList.contains('skeleton-row')) return;
-        if (document.body.classList.contains('switching-spell-page')) return;
+        if (document.body.classList.contains('printer-setup-page')) return;
 
         // Sub output container -> showSubOutputDetails
         const subContainer = document.getElementById('subOutputContainer');
@@ -2829,7 +2829,7 @@ function handleOutputRowClick(e) {
 function handleRowDoubleClick(e) {
     const row = e.target.closest('tr');
     if (!row || row.querySelector('.table-empty-state') || row.classList.contains('skeleton-row')) return;
-    if (document.body.classList.contains('switching-spell-page')) return;
+    if (document.body.classList.contains('printer-setup-page')) return;
 
     handleRowClick(e);
     showDetails();
@@ -3066,8 +3066,8 @@ function updateContextMenu() {
     }
 
     if (pageMenuType === 'validate') {
-        setMenuItemsVisibility(['validate_scan_barcode']);
-        return ['validate_scan_barcode'];
+        setMenuItemsVisibility(['input_data_validation']);
+        return ['input_data_validation'];
     }
 
     const isRecipeYaml = (currentTableType === 'recipe' && Array.isArray(rawTableColumns) && rawTableColumns.includes('Tên file') && rawTableColumns.includes('Đường dẫn'));
@@ -3244,9 +3244,9 @@ function handleContextMenuAction(e) {
     }
 
     switch (action) {
-        case 'validate_scan_barcode':
-            if (typeof validateScanBarcode === 'function') {
-                validateScanBarcode();
+        case 'input_data_validation':
+            if (typeof inputDataValidation === 'function') {
+                inputDataValidation();
             }
             break;
 
@@ -4104,7 +4104,7 @@ async function getAvailableCupsPrinters() {
         return _cupsPrintersCache.printers;
     }
     try {
-        const resp = await fetch('/api/switching-spell/available-printers');
+        const resp = await fetch('/api/printer-setup/available-printers');
         if (resp.ok) {
             const data = await resp.json();
             if (data && Array.isArray(data.printers)) {
@@ -6180,7 +6180,7 @@ async function fetchCommitGitlabByRecipe(recipeId = null, productType = null) {
 
 /**
  * Mở modal chi tiết và hiển thị nội dung YAML/YML chuẩn format code highlight
- * Dùng chung cho: Avada Kedavra (docker-compose.yml), Switching Spell (printers-manager.yaml), Recipe YAML...
+ * Dùng chung cho: Bypass (docker-compose.yml), Printer Setup (printers-manager.yaml), Recipe YAML...
  */
 function openYamlViewerModal(title, content, filePath = '', showToolbar = false) {
     const modal = document.getElementById('detailsModal');

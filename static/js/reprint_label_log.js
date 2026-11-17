@@ -1,6 +1,6 @@
 /**
  * ==============================================================================
- * KDMES TOOL — TIME TURNER CONTROLLER
+ * KDMES TOOL — REPRINT LABEL LOG CONTROLLER
  * Quản lý & Hiển thị Nhật ký in lại tem (reprint_label_log.txt)
  * Hiển thị bảng dạng chuẩn đồng bộ hoàn toàn với Postgres Deleted Data
  * Hỗ trợ Phân trang (30 dòng/trang), Tìm kiếm toàn cục, Xuất Excel
@@ -24,12 +24,12 @@
     let flatpickrInstance = null;
 
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initTimeTurner);
+        document.addEventListener('DOMContentLoaded', initReprintLabelLog);
     } else {
-        initTimeTurner();
+        initReprintLabelLog();
     }
 
-    function initTimeTurner() {
+    function initReprintLabelLog() {
         ensureClientSearchAlwaysEnabled();
         initControls();
         initLocationDropdown();
@@ -132,7 +132,7 @@
         } catch (e) {}
     }
 
-    // Ghi đè hàm updateClientSearchState của main.js cho trang Time Turner để không bao giờ disable ô tìm kiếm
+    // Ghi đè hàm updateClientSearchState của main.js cho trang Reprint Label Log để không bao giờ disable ô tìm kiếm
     window.updateClientSearchState = function () {
         ensureClientSearchAlwaysEnabled();
     };
@@ -229,7 +229,7 @@
             return {
                 rows: rows,
                 columns: tableColumns,
-                filename: `Time_Turner_Reprint_Log_${nowStr}.xlsx`,
+                filename: `Reprint_Label_Log_${nowStr}.xlsx`,
                 sheetName: 'Reprint_Log'
             };
         };
@@ -241,7 +241,7 @@
         const tableBody = document.getElementById('tableBody');
 
         if (btnRefresh) btnRefresh.disabled = true;
-        if (refreshIcon) refreshIcon.classList.add('time-turner-spin');
+        if (refreshIcon) refreshIcon.classList.add('reprint-label-log-spin');
 
         if (typeof showTableSkeleton === 'function') {
             showTableSkeleton(6, 5);
@@ -249,7 +249,7 @@
             tableBody.innerHTML = `
                 <tr>
                     <td colspan="6" style="text-align: center; padding: 36px 16px; color: var(--color-text-muted, #94a3b8);">
-                        <span class="material-symbols-outlined time-turner-spin" style="font-size: 28px; vertical-align: middle;">sync</span>
+                        <span class="material-symbols-outlined reprint-label-log-spin" style="font-size: 28px; vertical-align: middle;">sync</span>
                         <span style="margin-left: 8px;">Đang tải dữ liệu nhật ký in tem...</span>
                     </td>
                 </tr>
@@ -257,7 +257,7 @@
         }
 
         try {
-            const res = await fetch('/api/time-turner/get-log', {
+            const res = await fetch('/api/reprint-label-log/get-log', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({})
@@ -272,14 +272,14 @@
                 if (typeof showToast === 'function') showToast(errMsg, 'error');
             }
         } catch (err) {
-            console.error('[TimeTurner] Fetch log error:', err);
+            console.error('[ReprintLabelLog] Fetch log error:', err);
             allLogRecords = [];
             if (typeof showToast === 'function') {
                 showToast('Lỗi kết nối máy chủ khi đọc nhật ký in tem', 'error');
             }
         } finally {
             if (btnRefresh) btnRefresh.disabled = false;
-            if (refreshIcon) refreshIcon.classList.remove('time-turner-spin');
+            if (refreshIcon) refreshIcon.classList.remove('reprint-label-log-spin');
             ensureClientSearchAlwaysEnabled();
             applyFilters(false);
             document.body.classList.remove('app-loading-state');

@@ -1,14 +1,14 @@
 /* ==============================================================================
-   🔮 SWITCHING SPELL - STYLESHEET
+   🔮 PRINTER SETUP - STYLESHEET
    Clean Minimalist Cyberpunk Aesthetics for Printer Configuration
    ============================================================================== */
 
-.switching-spell-page {
+.printer-setup-page {
     background-color: var(--color-bg-canvas);
     color: var(--color-text-primary);
 }
 
-.switching-spell-controls-row {
+.printer-setup-controls-row {
     display: flex;
     align-items: center;
     gap: 12px;
@@ -18,7 +18,7 @@
     padding: 2px 0 0 0;
 }
 
-.switching-spell-hero-right {
+.printer-setup-hero-right {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -26,14 +26,14 @@
     margin-left: auto;
 }
 
-.switching-spell-search-wrapper {
+.printer-setup-search-wrapper {
     width: 200px !important;
     min-width: 160px !important;
     max-width: 240px !important;
     flex: 0 0 auto !important;
 }
 
-.switching-spell-search-wrapper .input {
+.printer-setup-search-wrapper .input {
     height: 40px;
     font-size: 13px;
     cursor: text !important;
@@ -41,10 +41,10 @@
     pointer-events: auto !important;
 }
 
-.switching-spell-page .switching-spell-search-wrapper .input:focus,
-.switching-spell-page .switching-spell-search-wrapper .input:focus-visible,
-.switching-spell-page .input:focus,
-.switching-spell-page .input:focus-visible {
+.printer-setup-page .printer-setup-search-wrapper .input:focus,
+.printer-setup-page .printer-setup-search-wrapper .input:focus-visible,
+.printer-setup-page .input:focus,
+.printer-setup-page .input:focus-visible {
     border-color: transparent !important;
     background: var(--color-bg-input) !important;
     box-shadow: none !important;
@@ -83,8 +83,8 @@
     box-shadow: 0 2px 10px rgba(56, 189, 248, 0.12);
 }
 
-.switching-spell-page .folder-dropdown-wrapper:focus-within,
-.switching-spell-page .folder-dropdown-wrapper:focus,
+.printer-setup-page .folder-dropdown-wrapper:focus-within,
+.printer-setup-page .folder-dropdown-wrapper:focus,
 .folder-dropdown-wrapper.is-open {
     border-color: #38bdf8 !important;
     background: rgba(15, 23, 42, 0.95) !important;
@@ -276,19 +276,19 @@
     color: #64748b;
 }
 
-/* ── TABLE OVERRIDE & RESET FOR SWITCHING SPELL ── */
-.table-scroll.switching-spell-table-scroll td,
-.table-scroll.switching-spell-table-scroll th,
-.switching-spell-table-scroll table td,
-.switching-spell-table-scroll table th {
+/* ── TABLE OVERRIDE & RESET FOR PRINTER SETUP ── */
+.table-scroll.printer-setup-table-scroll td,
+.table-scroll.printer-setup-table-scroll th,
+.printer-setup-table-scroll table td,
+.printer-setup-table-scroll table th {
     position: static !important;
     left: auto !important;
     box-shadow: none !important;
     border-right: none !important;
 }
 
-.table-scroll.switching-spell-table-scroll thead th,
-.switching-spell-table-scroll table thead th {
+.table-scroll.printer-setup-table-scroll thead th,
+.printer-setup-table-scroll table thead th {
     position: sticky !important;
     top: 0 !important;
     left: auto !important;
@@ -299,13 +299,13 @@
 }
 
 /* ── TABLE & CELLS STYLING ── */
-.switching-spell-table-scroll table {
+.printer-setup-table-scroll table {
     width: 100%;
     table-layout: auto;
     border-collapse: collapse;
 }
 
-.switching-spell-table-scroll table th {
+.printer-setup-table-scroll table th {
     font-size: var(--table-header-font-size, 11.5px);
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -315,28 +315,28 @@
     line-height: var(--table-line-height, 1.3);
 }
 
-.switching-spell-table-scroll table td {
+.printer-setup-table-scroll table td {
     padding: var(--table-td-py, 6px) var(--table-td-px, 14px) !important;
     vertical-align: middle;
 }
 
-.switching-spell-table-scroll table th:nth-child(1),
-.switching-spell-table-scroll table td:nth-child(1) {
+.printer-setup-table-scroll table th:nth-child(1),
+.printer-setup-table-scroll table td:nth-child(1) {
     width: 50px !important;
     min-width: 50px !important;
     max-width: 60px !important;
     text-align: center;
 }
 
-.switching-spell-table-scroll table th:nth-child(2),
-.switching-spell-table-scroll table td:nth-child(2) {
+.printer-setup-table-scroll table th:nth-child(2),
+.printer-setup-table-scroll table td:nth-child(2) {
     white-space: normal !important;
     word-break: break-word;
     text-align: left;
 }
 
-.switching-spell-table-scroll table th:nth-child(3),
-.switching-spell-table-scroll table td:nth-child(3) {
+.printer-setup-table-scroll table th:nth-child(3),
+.printer-setup-table-scroll table td:nth-child(3) {
     white-space: nowrap !important;
     width: 280px !important;
     min-width: 240px !important;
@@ -507,7 +507,7 @@
 }
 
 /* Empty State */
-.switching-spell-empty-state {
+.printer-setup-empty-state {
     text-align: center;
     padding: 60px 20px !important;
 }
@@ -552,7 +552,7 @@
 }
 
 /* Footer layout: row-count and stationCountBadge side by side */
-.switching-spell-page .table-footer {
+.printer-setup-page .table-footer {
     display: flex;
     align-items: center;
     justify-content: flex-start;
@@ -562,7 +562,7 @@
     box-sizing: border-box;
 }
 
-.switching-spell-page .row-count {
+.printer-setup-page .row-count {
     display: inline-flex;
     align-items: center;
     font-size: 12px;
@@ -600,8 +600,8 @@ body.theme-light .folder-dropdown-wrapper:hover {
     box-shadow: 0 2px 8px rgba(2, 132, 199, 0.12);
 }
 
-:root[data-theme="light"] .switching-spell-page .folder-dropdown-wrapper:focus-within,
-body.theme-light .switching-spell-page .folder-dropdown-wrapper:focus-within {
+:root[data-theme="light"] .printer-setup-page .folder-dropdown-wrapper:focus-within,
+body.theme-light .printer-setup-page .folder-dropdown-wrapper:focus-within {
     border-color: #0284c7 !important;
     background: #ffffff !important;
     box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.2), 0 2px 8px rgba(0, 0, 0, 0.08) !important;
@@ -1024,14 +1024,14 @@ body.theme-light .btn-remove-station:hover {
 }
 
 /* ── FOOTER ACTIONS (UNDO & SAVE HOLD) ── */
-.switching-spell-page .table-footer-actions {
+.printer-setup-page .table-footer-actions {
     margin-left: auto;
     display: inline-flex;
     align-items: center;
     gap: 8px;
 }
 
-.switching-spell-page .btn-undo-changes {
+.printer-setup-page .btn-undo-changes {
     height: 24px;
     padding: 0 10px;
     font-size: 11.5px;
@@ -1049,14 +1049,14 @@ body.theme-light .btn-remove-station:hover {
     user-select: none;
 }
 
-.switching-spell-page .btn-undo-changes:hover {
+.printer-setup-page .btn-undo-changes:hover {
     background: #e11d48;
     border-color: rgba(244, 63, 94, 0.7);
     color: #fff;
     box-shadow: 0 3px 8px rgba(239, 68, 68, 0.35);
 }
 
-.switching-spell-page .btn-save-hold {
+.printer-setup-page .btn-save-hold {
     height: 24px;
     padding: 0 12px;
     font-size: 11.5px;
@@ -1076,14 +1076,14 @@ body.theme-light .btn-remove-station:hover {
     box-shadow: 0 2px 6px rgba(16, 185, 129, 0.25);
 }
 
-.switching-spell-page .btn-save-hold:hover {
+.printer-setup-page .btn-save-hold:hover {
     background: #3DD5C0;
     border-color: rgba(16, 185, 129, 0.7);
     color: #fff;
     box-shadow: 0 3px 8px rgba(16, 185, 129, 0.35);
 }
 
-.switching-spell-page .save-progress-bar {
+.printer-setup-page .save-progress-bar {
     position: absolute;
     left: 0;
     top: 0;
@@ -1094,7 +1094,7 @@ body.theme-light .btn-remove-station:hover {
     transition: width 0.05s linear;
 }
 
-.switching-spell-page .btn-save-hold.is-saving {
+.printer-setup-page .btn-save-hold.is-saving {
     opacity: 0.7;
     cursor: wait !important;
     pointer-events: none !important;

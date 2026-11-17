@@ -452,7 +452,7 @@
 
         container.innerHTML = filtered.map(item => `
 
-            <div class="kd-product-type-card" role="button" tabindex="0" data-code="${escapeHtml(item.id)}" data-label="${escapeHtml(item.label)}" title="Click để sao chép ${escapeHtml(item.label)}">
+            <div class="kd-product-type-card" data-code="${escapeHtml(item.id)}" data-label="${escapeHtml(item.label)}">
                 <div class="kd-card-badge-wrap">
                     <span class="kd-code-pill">${escapeHtml(item.code)}</span>
                 </div>
@@ -463,22 +463,6 @@
             </div>
 
         `).join('');
-
-
-
-        // Bind copy click
-
-        container.querySelectorAll('.kd-product-type-card').forEach(card => {
-
-            card.addEventListener('click', () => {
-
-                const label = card.dataset.label;
-
-                copyToClipboard(label, `Đã sao chép: ${label}`);
-
-            });
-
-        });
 
     }
 

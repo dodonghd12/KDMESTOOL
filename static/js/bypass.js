@@ -1,6 +1,6 @@
 /**
  * ==============================================================================
- * KDMES TOOL — AVADA KEDAVRA CONTROLLER
+ * KDMES TOOL — BYPASS CONTROLLER
  * Quản lý Bật/Tắt chế độ Strict Mode của MES từ xa (198.1.10.8) & Lưu Audit Log
  * ==============================================================================
  */
@@ -10,9 +10,9 @@
     const HOLD_DURATION_MS = 3000;
     let holdStartTime = null;
     let holdAnimFrame = null;
-    let isAvadaKedavraActive = false;
+    let isBypassActive = false;
     let isLoading = false;
-    let currentServer = (localStorage.getItem('ak_selected_server') === '198.1.10.8') ? '198.1.10.8' : '198.1.10.85';
+    let currentServer = (localStorage.getItem('bypass_selected_server') === '198.1.10.8') ? '198.1.10.8' : '198.1.10.85';
     let allLogs = [];
     let filteredLogs = [];
     let currentPage = 1;
@@ -20,19 +20,19 @@
     let stepTimers = [];
     let hideBadgeTimeout = null;
 
-    document.addEventListener('DOMContentLoaded', initializeAvadaKedavra);
+    document.addEventListener('DOMContentLoaded', initializeBypass);
 
-    function initializeAvadaKedavra() {
+    function initializeBypass() {
         const refreshBtn = document.getElementById('btnRefreshLogs');
         const searchInput = document.getElementById('clientSearch');
         const toggleServerBtn = document.getElementById('btnToggleServer');
-        const serverBadge = document.getElementById('avadaKedavraMetaBadge');
+        const serverBadge = document.getElementById('bypassMetaBadge');
 
         // Khởi tạo nhãn máy chủ ban đầu
         updateServerBadgeUI(currentServer);
 
         // Khởi tạo nút bấm giữ 3 giây (Hold 3s)
-        initAvadaHoldButton();
+        initBypassHoldButton();
 
         // Đảm bảo clientSearch luôn luôn enable, không bị main.js vô hiệu hóa
         ensureClientSearchEnabled();
@@ -53,8 +53,8 @@
                     r.note || '--'
                 ]),
                 columns: ['Máy chủ', 'Địa chỉ IP', 'Thời gian (UTC+7)', 'Ghi chú'],
-                filename: 'KDMES_Avada_Kedavra_Log_' + (typeof getVietnamTimestamp === 'function' ? getVietnamTimestamp() : new Date().toISOString().slice(0, 10)) + '.xlsx',
-                sheetName: 'Avada_Kedavra_Log'
+                filename: 'KDMES_Bypass_Log_' + (typeof getVietnamTimestamp === 'function' ? getVietnamTimestamp() : new Date().toISOString().slice(0, 10)) + '.xlsx',
+                sheetName: 'Bypass_Log'
             };
         };
 
@@ -99,7 +99,7 @@
                 btnOpenComposeYaml.disabled = true;
 
                 try {
-                    const res = await fetch(`/api/avada-kedavra/compose-content?server=${encodeURIComponent(targetServer)}`);
+                    const res = await fetch(`/api/bypass/compose-content?server=${encodeURIComponent(targetServer)}`);
                     const data = await res.json();
                     if (!data || !data.success) {
                         Toast.error('Lỗi', data?.message || 'Không thể tải docker-compose.yml');
@@ -136,7 +136,7 @@
         const labelEl = document.getElementById('currentServerLabel');
         const btnTextEl = document.getElementById('btnToggleServerText');
         const btnEl = document.getElementById('btnToggleServer');
-        const serverBadge = document.getElementById('avadaKedavraMetaBadge');
+        const serverBadge = document.getElementById('bypassMetaBadge');
 
         if (labelEl) {
             labelEl.textContent = `root@${server}`;
@@ -164,7 +164,7 @@
         if (isLoading) return;
 
         currentServer = (currentServer === '198.1.10.8') ? '198.1.10.85' : '198.1.10.8';
-        localStorage.setItem('ak_selected_server', currentServer);
+        localStorage.setItem('bypass_selected_server', currentServer);
         updateServerBadgeUI(currentServer);
 
         // Nạp lại trạng thái máy chủ mới với thông báo toast
@@ -182,10 +182,10 @@
         }
 
         try {
-            const fetchFn = (window.top && window.top.getAvadaKedavraServerStatus)
-                || window.getAvadaKedavraServerStatus
+            const fetchFn = (window.top && window.top.getBypassServerStatus)
+                || window.getBypassServerStatus
                 || (async (server, force) => {
-                    const res = await fetch(`/api/avada-kedavra/status?server=${encodeURIComponent(server)}`);
+                    const res = await fetch(`/api/bypass/status?server=${encodeURIComponent(server)}`);
                     return await res.json();
                 });
 
@@ -194,8 +194,8 @@
 
             if (data.success) {
                 const status = data.status || {};
-                isAvadaKedavraActive = !!status.is_active;
-                updateStatusUI(isAvadaKedavraActive);
+                isBypassActive = !!status.is_active;
+                updateStatusUI(isBypassActive);
 
                 try {
                     const topWin = (window.parent && window.parent !== window) ? window.parent : window;
@@ -229,7 +229,7 @@
                 }
             }
         } catch (err) {
-            console.error('[AVADA_KEDAVRA] Lỗi khi tải trạng thái:', err);
+            console.error('[BYPASS] Lỗi khi tải trạng thái:', err);
             if (showToast || isSwitchingServer) {
                 showStepBadge(`Lỗi kết nối root@${currentServer}`, 'error', 'error');
                 hideStepBadgeAfterDelay(5000);
@@ -248,9 +248,9 @@
      * - Trạng thái: Hắc ám -> Button: Ngưng kích hoạt
      */
     function updateStatusUI(isActive) {
-        const btn = document.getElementById('btnAvadaKedavraToggle') || document.getElementById('btnDarkMagicToggle');
-        const btnText = document.getElementById('avadaKedavraBtnText') || document.getElementById('darkMagicBtnText');
-        const statusPill = document.getElementById('avadaKedavraStatusPill') || document.getElementById('darkMagicStatusPill');
+        const btn = document.getElementById('btnBypassToggle') || document.getElementById('btnDarkMagicToggle');
+        const btnText = document.getElementById('bypassBtnText') || document.getElementById('darkMagicBtnText');
+        const statusPill = document.getElementById('bypassStatusPill') || document.getElementById('darkMagicStatusPill');
         const statusText = document.getElementById('statusText');
 
         if (btn) {
@@ -330,9 +330,9 @@
      * Khởi tạo nút bấm giữ 3 giây (Hold 3s) để kích hoạt / ngưng kích hoạt
      * Tương tự cơ chế của btnSaveHold, không hiển thị confirmation modal
      */
-    function initAvadaHoldButton() {
-        const btn = document.getElementById('btnAvadaKedavraToggle') || document.getElementById('btnDarkMagicToggle');
-        const progressBar = document.getElementById('avadaHoldProgressBar');
+    function initBypassHoldButton() {
+        const btn = document.getElementById('btnBypassToggle') || document.getElementById('btnDarkMagicToggle');
+        const progressBar = document.getElementById('bypassHoldProgressBar');
         if (!btn || !progressBar) return;
 
         function startHold(e) {
@@ -349,7 +349,7 @@
 
                 if (elapsed >= HOLD_DURATION_MS) {
                     cancelHold();
-                    executeToggleAvadaKedavra();
+                    executeToggleBypass();
                 } else {
                     holdAnimFrame = requestAnimationFrame(updateProgress);
                 }
@@ -379,10 +379,10 @@
     /**
      * Thực thi Kích hoạt / Ngưng kích hoạt sau khi giữ đủ 3 giây
      */
-    async function executeToggleAvadaKedavra() {
+    async function executeToggleBypass() {
         if (isLoading) return;
 
-        const targetAction = isAvadaKedavraActive ? 'deactivate' : 'activate';
+        const targetAction = isBypassActive ? 'deactivate' : 'activate';
         const actionLabel = (targetAction === 'activate') ? 'kích hoạt' : 'ngưng kích hoạt';
 
         // Bắt đầu thực thi trực tiếp, không qua customModal
@@ -412,7 +412,7 @@
         }, 8500));
 
         try {
-            const res = await fetch('/api/avada-kedavra/toggle', {
+            const res = await fetch('/api/bypass/toggle', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: targetAction, server: currentServer })
@@ -422,7 +422,7 @@
             clearStepTimers();
 
             if (data.success) {
-                isAvadaKedavraActive = !!data.is_active;
+                isBypassActive = !!data.is_active;
 
                 // Xóa cache trạng thái trên window.top để lần kiểm tra sau lấy dữ liệu mới
                 try {
@@ -433,7 +433,7 @@
                 } catch (e) {}
 
                 // Cập nhật giao diện Trạng thái & Button
-                updateStatusUI(isAvadaKedavraActive);
+                updateStatusUI(isBypassActive);
 
                 // Hiển thị bước cuối cùng thành công
                 showStepBadge(`mes (${currentServer}): Up (Hoàn tất)`, 'check_circle', 'success');
@@ -467,7 +467,7 @@
 
         } catch (err) {
             clearStepTimers();
-            console.error('[AVADA_KEDAVRA] Lỗi thực thi toggle:', err);
+            console.error('[BYPASS] Lỗi thực thi toggle:', err);
             showStepBadge(`Lỗi: ${err.message || 'Lỗi kết nối'}`, 'error', 'error');
             hideStepBadgeAfterDelay(5000);
 
@@ -486,9 +486,9 @@
      */
     function setLoadingState(loading, targetAction) {
         isLoading = loading;
-        const btn = document.getElementById('btnAvadaKedavraToggle') || document.getElementById('btnDarkMagicToggle');
-        const btnText = document.getElementById('avadaKedavraBtnText') || document.getElementById('darkMagicBtnText');
-        const progressBar = document.getElementById('avadaHoldProgressBar');
+        const btn = document.getElementById('btnBypassToggle') || document.getElementById('btnDarkMagicToggle');
+        const btnText = document.getElementById('bypassBtnText') || document.getElementById('darkMagicBtnText');
+        const progressBar = document.getElementById('bypassHoldProgressBar');
 
         if (progressBar) {
             progressBar.style.width = '0%';
@@ -503,7 +503,7 @@
             } else {
                 btn.classList.remove('is-loading');
                 if (btnText) {
-                    btnText.textContent = isAvadaKedavraActive ? 'Ngưng kích hoạt' : 'Kích hoạt';
+                    btnText.textContent = isBypassActive ? 'Ngưng kích hoạt' : 'Kích hoạt';
                 }
             }
         }

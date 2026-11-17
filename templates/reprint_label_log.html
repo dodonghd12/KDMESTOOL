@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Time Turner | Nhật Ký In Lại Tem</title>
+    <title>Reprint Label Log | Nhật Ký In Lại Tem</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v={{ version }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/smooth_input.css') }}?v={{ version }}">
 
@@ -16,7 +16,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/flatpickr/flatpickr.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/material-symbols/material-symbols.css') }}">
 </head>
-<body class="time-turner {% if is_frame %}is-spa-frame{% endif %} app-loading-state">
+<body class="reprint-label-log {% if is_frame %}is-spa-frame{% endif %} app-loading-state">
     {% if not is_frame %}{% include "components/sidebar.html" %}{% endif %}
 
     <div class="container" autocomplete="off">
@@ -84,6 +84,6 @@
     <script src="{{ url_for('static', filename='vendor/xlsx/xlsx.full.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/smooth_input.js') }}?v={{ version }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}?v={{ version }}"></script>
-    <script src="{{ url_for('static', filename='js/time_turner.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/reprint_label_log.js') }}?v={{ version }}"></script>
 </body>
 </html>

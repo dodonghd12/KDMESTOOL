@@ -70,7 +70,7 @@
         }
     </style>
 </head>
-<body class="validate-scan-barcode validate-scan-barcode-page {% if is_frame %}is-spa-frame{% endif %} app-loading-state">
+<body class="input-data-validation input-data-validation-page {% if is_frame %}is-spa-frame{% endif %} app-loading-state">
     {% if not is_frame %}{% include "components/sidebar.html" %}{% endif %}
     <!-- <canvas id="starfield"></canvas> -->
     <div class="container">
@@ -178,6 +178,6 @@
     <script src="{{ url_for('static', filename='vendor/xlsx/xlsx.full.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/smooth_input.js') }}?v={{ version }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}?v={{ version }}"></script>
-    <script src="{{ url_for('static', filename='js/validate_scan_barcode.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/input_data_validation.js') }}?v={{ version }}"></script>
 </body>
 </html>

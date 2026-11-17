@@ -1,6 +1,6 @@
 /**
  * ==============================================================================
- * KDMES TOOL — SWITCHING SPELL CONTROLLER
+ * KDMES TOOL — PRINTER SETUP CONTROLLER
  * Quản lý & tra cứu cấu hình máy in MES từ xa (printers-manager.yaml trên 10.85)
  * ==============================================================================
  */
@@ -27,8 +27,8 @@
 
     function hideStandbyPlaceholder() {
         const ph = document.getElementById('tableStandbyPlaceholder');
-        const tbl = document.getElementById('switchingSpellTable');
-        const tableContainer = document.getElementById('switchingSpellTableContainer') || document.querySelector('.table-container');
+        const tbl = document.getElementById('printerSetupTable');
+        const tableContainer = document.getElementById('printerSetupTableContainer') || document.querySelector('.table-container');
         if (ph) {
             ph.classList.add('has-data');
             ph.style.display = 'none';
@@ -44,9 +44,9 @@
 
     function showStandbyPlaceholder() {
         const ph = document.getElementById('tableStandbyPlaceholder');
-        const tbl = document.getElementById('switchingSpellTable');
+        const tbl = document.getElementById('printerSetupTable');
         const footer = document.getElementById('tableFooter');
-        const tableContainer = document.getElementById('switchingSpellTableContainer') || document.querySelector('.table-container');
+        const tableContainer = document.getElementById('printerSetupTableContainer') || document.querySelector('.table-container');
         if (ph) {
             ph.classList.remove('has-data');
             ph.style.display = '';
@@ -62,9 +62,9 @@
             tableContainer.style.display = '';
         }
     }
-    document.addEventListener('DOMContentLoaded', initializeSwitchingSpell);
+    document.addEventListener('DOMContentLoaded', initializePrinterSetup);
 
-    function initializeSwitchingSpell() {
+    function initializePrinterSetup() {
         const refreshBtn = document.getElementById('btnRefreshLogs');
         const folderSelect = document.getElementById('folderSelect');
         const searchInput = document.getElementById('clientSearch');
@@ -100,7 +100,7 @@
                         it.classList.toggle('is-selected', it.dataset.value === selectedFolder);
                     });
                 }
-                const tableContainer = document.getElementById('switchingSpellTableContainer') || document.querySelector('.table-container');
+                const tableContainer = document.getElementById('printerSetupTableContainer') || document.querySelector('.table-container');
                 if (selectedFolder) {
                     hideStandbyPlaceholder();
                     fetchPrintersConfig(selectedFolder);
@@ -242,7 +242,7 @@
                 btnOpenPrintersYaml.disabled = true;
 
                 try {
-                    const res = await apiFetch('/api/switching-spell/printers', {
+                    const res = await apiFetch('/api/printer-setup/printers', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ folder, server: currentServer }),
@@ -307,7 +307,7 @@
         initUndoButton();
         initSaveHoldButton();
 
-        // 8. Tự động kiểm tra trạng thái máy chủ (tận dụng cache từ Avada Kedavra nếu có)
+        // 8. Tự động kiểm tra trạng thái máy chủ (tận dụng cache từ Bypass nếu có)
         checkServerStatus(false);
     }
 
@@ -328,10 +328,10 @@
         showStepBadge(`Đang kiểm tra root@${currentServer}...`, 'dns', 'progress');
 
         try {
-            const fetchFn = (window.top && window.top.getAvadaKedavraServerStatus)
-                || window.getAvadaKedavraServerStatus
+            const fetchFn = (window.top && window.top.getBypassServerStatus)
+                || window.getBypassServerStatus
                 || (async (server, force) => {
-                    const res = await fetch(`/api/avada-kedavra/status?server=${encodeURIComponent(server)}`);
+                    const res = await fetch(`/api/bypass/status?server=${encodeURIComponent(server)}`);
                     return await res.json();
                 });
 
@@ -345,7 +345,7 @@
                 hideStepBadgeAfterDelay(5000);
             }
         } catch (err) {
-            console.error('[SWITCHING_SPELL] Lỗi kiểm tra máy chủ:', err);
+            console.error('[PRINTER_SETUP] Lỗi kiểm tra máy chủ:', err);
             showStepBadge(`Lỗi kết nối root@${currentServer}`, 'error', 'error');
             hideStepBadgeAfterDelay(5000);
         }
@@ -365,7 +365,7 @@
         closePrinterFloatingDropdown();
 
         try {
-            const res = await fetch(`/api/switching-spell/printers?folder=${encodeURIComponent(folder)}&server=${encodeURIComponent(currentServer)}`);
+            const res = await fetch(`/api/printer-setup/printers?folder=${encodeURIComponent(folder)}&server=${encodeURIComponent(currentServer)}`);
             const data = await res.json();
 
             if (data.success) {
@@ -403,7 +403,7 @@
                 }
             }
         } catch (err) {
-            console.error('[SWITCHING_SPELL] Lỗi nạp cấu hình máy in:', err);
+            console.error('[PRINTER_SETUP] Lỗi nạp cấu hình máy in:', err);
             currentGroups = [];
             originalGroups = [];
             newlyAddedStations.clear();
@@ -444,7 +444,7 @@
         if (!groups || groups.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="3" class="switching-spell-empty-state">
+                    <td colspan="3" class="printer-setup-empty-state">
                         <div class="empty-placeholder-box">
                             <span class="material-symbols-outlined empty-icon">search_off</span>
                             <span class="empty-title">Không có dữ liệu máy in phù hợp</span>
@@ -796,8 +796,8 @@
 
         try {
             const url = targetFolder 
-                ? `/api/switching-spell/available-stations?folder=${encodeURIComponent(targetFolder)}`
-                : '/api/switching-spell/available-stations';
+                ? `/api/printer-setup/available-stations?folder=${encodeURIComponent(targetFolder)}`
+                : '/api/printer-setup/available-stations';
             const res = await fetch(url);
             const data = await res.json();
             if (data.success && Array.isArray(data.stations)) {
@@ -813,7 +813,7 @@
                 }
             }
         } catch (err) {
-            console.error('[SWITCHING_SPELL] Lỗi tải stations:', err);
+            console.error('[PRINTER_SETUP] Lỗi tải stations:', err);
             if (listEl) {
                 listEl.innerHTML = `
                     <div style="padding: 16px; text-align: center; color: #fb7185; font-size: 12px;">
@@ -1091,8 +1091,8 @@
 
         try {
             const url = targetFolder 
-                ? `/api/switching-spell/available-printers?folder=${encodeURIComponent(targetFolder)}`
-                : '/api/switching-spell/available-printers';
+                ? `/api/printer-setup/available-printers?folder=${encodeURIComponent(targetFolder)}`
+                : '/api/printer-setup/available-printers';
             const res = await fetch(url);
             const data = await res.json();
             if (data.success && Array.isArray(data.printers)) {
@@ -1108,7 +1108,7 @@
                 }
             }
         } catch (err) {
-            console.error('[SWITCHING_SPELL] Lỗi tải printers:', err);
+            console.error('[PRINTER_SETUP] Lỗi tải printers:', err);
             if (listEl) {
                 listEl.innerHTML = `
                     <div style="padding: 16px; text-align: center; color: #fb7185; font-size: 12px;">
@@ -1374,7 +1374,7 @@
                 server: currentServer || '198.1.10.85'
             };
 
-            const res = await fetch('/api/switching-spell/save-printers', {
+            const res = await fetch('/api/printer-setup/save-printers', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1411,7 +1411,7 @@
                 }
 
                 if (data.docker_ps) {
-                    console.log(`[SWITCHING_SPELL] Trạng thái docker ps (${cName}):\n`, data.docker_ps);
+                    console.log(`[PRINTER_SETUP] Trạng thái docker ps (${cName}):\n`, data.docker_ps);
                     const badge = document.getElementById('containerStatusBadge');
                     if (badge) badge.title = data.docker_ps;
                 }
@@ -1422,7 +1422,7 @@
                 showStepBadge(`Lỗi lưu file (${selectedFolder})`, 'error', 'error');
             }
         } catch (err) {
-            console.error('[SWITCHING_SPELL] Lỗi khi lưu cấu hình:', err);
+            console.error('[PRINTER_SETUP] Lỗi khi lưu cấu hình:', err);
             if (typeof Toast !== 'undefined' && Toast.error) {
                 Toast.error('Lỗi kết nối', 'Không thể gửi yêu cầu lưu cấu hình tới server');
             }
@@ -1448,7 +1448,7 @@
 
         tbody.innerHTML = `
             <tr>
-                <td colspan="3" class="switching-spell-empty-state">
+                <td colspan="3" class="printer-setup-empty-state">
                     <div class="empty-placeholder-box">
                         <span class="material-symbols-outlined empty-icon" style="animation: akStepSpin 1s infinite linear;">progress_activity</span>
                         <span class="empty-title">Đang đọc printers-manager.yaml (${escapeHtml(folder)})...</span>
@@ -1470,7 +1470,7 @@
 
         tbody.innerHTML = `
             <tr>
-                <td colspan="3" class="switching-spell-empty-state">
+                <td colspan="3" class="printer-setup-empty-state">
                     <div class="empty-placeholder-box">
                         <span class="material-symbols-outlined empty-icon" style="color: #f43f5e;">error</span>
                         <span class="empty-title" style="color: #fb7185;">Không thể tải cấu hình</span>

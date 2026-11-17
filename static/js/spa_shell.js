@@ -6,7 +6,7 @@
         { path: '/main', frameId: 'view-main', title: 'Main' },
         { path: '/scan-barcode-history', frameId: 'view-scan-barcode-history', title: 'Lịch sử quét tem theo Máy' },
         { path: '/print-barcode-history', frameId: 'view-print-barcode-history', title: 'Lịch sử in tem theo Máy' },
-        { path: '/validate-scan-barcode', frameId: 'view-validate-scan-barcode', title: 'Kiểm tra cấp liệu' },
+        { path: '/input-data-validation', frameId: 'view-input-data-validation', title: 'Kiểm tra cấp liệu' },
         { path: '/reprint', frameId: 'view-reprint', title: 'Truy vấn in bù' },
         { path: '/material-transfer', frameId: 'view-material-transfer', title: 'Tem vận chuyển' },
         { path: '/substitutions', frameId: 'view-substitutions', title: 'NVL thay thế' },
@@ -19,9 +19,9 @@
         { path: '/create-kd-account', frameId: 'view-create-kd-account', title: 'Tạo Tài Khoản' },
         { path: '/check-kd-account', frameId: 'view-check-kd-account', title: 'Kiểm Tra Tài Khoản' },
         { path: '/reparo-spell', frameId: 'view-reparo-spell', title: 'Reparo Spell' },
-        { path: '/avada-kedavra', frameId: 'view-avada-kedavra', title: 'Avada Kedavra' },
-        { path: '/switching-spell', frameId: 'view-switching-spell', title: 'Switching Spell' },
-        { path: '/time-turner', frameId: 'view-time-turner', title: 'Time Turner' }
+        { path: '/bypass', frameId: 'view-bypass', title: 'Bypass' },
+        { path: '/printer-setup', frameId: 'view-printer-setup', title: 'Printer Setup' },
+        { path: '/reprint-label-log', frameId: 'view-reprint-label-log', title: 'Reprint Label Log' }
     ];
 
     let currentRoutePath = null;

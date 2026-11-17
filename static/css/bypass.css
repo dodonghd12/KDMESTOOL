@@ -1,15 +1,15 @@
 /* ==============================================================================
-   🔮 AVADA KEDAVRA - STYLESHEET
+   🔮 BYPASS - STYLESHEET
    Clean Minimalist Cyberpunk Aesthetics
    ============================================================================== */
 
-.avada-kedavra-page {
+.bypass-page {
     background-color: var(--color-bg-canvas);
     color: var(--color-text-primary);
 }
 
 /* ── TOP ACTION CONTROLS ROW (Nằm trực tiếp trên container, không có khung hero card) ── */
-.avada-kedavra-controls-row {
+.bypass-controls-row {
     display: flex;
     align-items: center;
     gap: 12px;
@@ -19,7 +19,7 @@
     padding: 2px 0 0 0;
 }
 
-.avada-kedavra-hero-right {
+.bypass-hero-right {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -27,7 +27,7 @@
     margin-left: auto;
 }
 
-/* ── OPEN YAML / YML FILE BUTTON (AVADA KEDAVRA & SWITCHING SPELL) ── */
+/* ── OPEN YAML / YML FILE BUTTON (BYPASS & PRINTER SETUP) ── */
 .btn-open-yaml-file {
     height: 40px;
     padding: 0 14px;
@@ -77,7 +77,7 @@
 }
 
 /* ── PRIMARY ACTION TOGGLE BUTTON ── */
-.btn-avada-kedavra-toggle {
+.btn-bypass-toggle {
     position: relative;
     overflow: hidden;
     display: inline-flex;
@@ -99,7 +99,7 @@
     flex-shrink: 0;
 }
 
-.avada-hold-progress-bar {
+.bypass-hold-progress-bar {
     position: absolute;
     left: 0;
     top: 0;
@@ -112,13 +112,13 @@
 }
 
 /* Inactive State: "Kích hoạt" */
-.btn-avada-kedavra-toggle.is-inactive {
+.btn-bypass-toggle.is-inactive {
     background: #e11d48;
     border-color: rgba(244, 63, 94, 0.4);
     color: #fda4af;
 }
 
-.btn-avada-kedavra-toggle.is-inactive:hover {
+.btn-bypass-toggle.is-inactive:hover {
     background: #e11d48;
     border-color: var(--rose-500);
     color: #ffffff;
@@ -126,26 +126,26 @@
     box-shadow: 0 4px 18px rgba(244, 63, 94, 0.35);
 }
 
-.btn-avada-kedavra-toggle.is-inactive:active {
+.btn-bypass-toggle.is-inactive:active {
     transform: translateY(1px);
 }
 
 /* Active State: "Đang kích hoạt" */
-.btn-avada-kedavra-toggle.is-active {
+.btn-bypass-toggle.is-active {
     background: #e11d48;
     border-color: #f43f5e;
     color: #ffffff;
     box-shadow: 0 0 20px rgba(225, 29, 72, 0.55), inset 0 1px 1px rgba(255, 255, 255, 0.25);
-    animation: avadaKedavraActivePulse 2.2s infinite ease-in-out;
+    animation: bypassActivePulse 2.2s infinite ease-in-out;
 }
 
-.btn-avada-kedavra-toggle.is-active:hover {
+.btn-bypass-toggle.is-active:hover {
     background: #e11d48;
     box-shadow: 0 0 28px rgba(225, 29, 72, 0.75);
     transform: translateY(-1px);
 }
 
-@keyframes avadaKedavraActivePulse {
+@keyframes bypassActivePulse {
     0% {
         box-shadow: 0 0 12px rgba(225, 29, 72, 0.4);
     }
@@ -157,14 +157,14 @@
     }
 }
 
-.btn-avada-kedavra-toggle.is-loading {
+.btn-bypass-toggle.is-loading {
     opacity: 0.65;
     pointer-events: none;
     cursor: wait;
 }
 
 /* ── STATUS PILL & META BADGES ── */
-.avada-kedavra-status-pill {
+.bypass-status-pill {
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -180,43 +180,43 @@
     flex-shrink: 0;
 }
 
-.avada-kedavra-status-pill .status-indicator-dot {
+.bypass-status-pill .status-indicator-dot {
     width: 8.5px;
     height: 8.5px;
     border-radius: 50%;
     flex-shrink: 0;
 }
 
-.avada-kedavra-status-pill.status-active {
+.bypass-status-pill.status-active {
     background: rgba(225, 29, 72, 0.12);
     border-color: rgba(225, 29, 72, 0.35);
     color: #fb7185;
 }
 
-.avada-kedavra-status-pill.status-active .status-indicator-dot {
+.bypass-status-pill.status-active .status-indicator-dot {
     background: #f43f5e;
     box-shadow: 0 0 8px #f43f5e;
 }
 
-.avada-kedavra-status-pill.status-inactive {
+.bypass-status-pill.status-inactive {
     background: rgba(16, 185, 129, 0.1);
     border-color: rgba(16, 185, 129, 0.3);
     color: #34d399;
 }
 
-.avada-kedavra-status-pill.status-inactive .status-indicator-dot {
+.bypass-status-pill.status-inactive .status-indicator-dot {
     background: #10b981;
     box-shadow: 0 0 8px #10b981;
 }
 
-.avada-kedavra-search-wrapper {
+.bypass-search-wrapper {
     width: 200px;
     min-width: 160px;
     max-width: 240px;
     flex: 0 0 auto;
 }
 
-.avada-kedavra-search-wrapper .input {
+.bypass-search-wrapper .input {
     height: 40px;
     font-size: 13px;
     cursor: text !important;
@@ -224,14 +224,14 @@
     pointer-events: auto !important;
 }
 
-.avada-kedavra-search-wrapper .input:disabled {
+.bypass-search-wrapper .input:disabled {
     opacity: 1 !important;
     cursor: text !important;
     pointer-events: auto !important;
     background: transparent !important;
 }
 
-.avada-kedavra-step-badge {
+.bypass-step-badge {
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -248,47 +248,47 @@
     flex-shrink: 0;
 }
 
-.avada-kedavra-step-badge .step-badge-icon {
+.bypass-step-badge .step-badge-icon {
     font-size: 17px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
 }
 
-.avada-kedavra-step-badge.is-step-progress,
-.avada-kedavra-step-badge.is-step-info {
+.bypass-step-badge.is-step-progress,
+.bypass-step-badge.is-step-info {
     background: rgba(14, 165, 233, 0.12);
     border-color: rgba(14, 165, 233, 0.4);
     color: #38bdf8;
 }
 
-.avada-kedavra-step-badge.is-step-progress .step-badge-icon {
+.bypass-step-badge.is-step-progress .step-badge-icon {
     color: #38bdf8;
     animation: akStepSpin 1.2s infinite linear;
 }
 
-.avada-kedavra-step-badge.is-step-success {
+.bypass-step-badge.is-step-success {
     background: rgba(16, 185, 129, 0.14);
     border-color: rgba(16, 185, 129, 0.45);
     color: #34d399;
     box-shadow: 0 0 14px rgba(16, 185, 129, 0.2);
 }
 
-.avada-kedavra-step-badge.is-step-success .step-badge-icon {
+.bypass-step-badge.is-step-success .step-badge-icon {
     color: #10b981;
 }
 
-.avada-kedavra-step-badge.is-step-error {
+.bypass-step-badge.is-step-error {
     background: rgba(244, 63, 94, 0.15);
     border-color: rgba(244, 63, 94, 0.45);
     color: #fb7185;
 }
 
-.avada-kedavra-step-badge.is-step-error .step-badge-icon {
+.bypass-step-badge.is-step-error .step-badge-icon {
     color: #f43f5e;
 }
 
-.avada-kedavra-step-badge.fade-out {
+.bypass-step-badge.fade-out {
     opacity: 0 !important;
     transform: translateY(-2px);
     pointer-events: none;
@@ -299,7 +299,7 @@
     to { transform: rotate(360deg); }
 }
 
-.avada-kedavra-meta-badge {
+.bypass-meta-badge {
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -317,13 +317,13 @@
     transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.avada-kedavra-meta-badge:hover {
+.bypass-meta-badge:hover {
     background: rgba(16, 185, 129, 0.15);
     border-color: rgba(16, 185, 129, 0.6);
     box-shadow: 0 0 16px rgba(16, 185, 129, 0.3);
 }
 
-.avada-kedavra-meta-badge .material-symbols-outlined {
+.bypass-meta-badge .material-symbols-outlined {
     font-size: 18px;
     color: #10b981;
 }
@@ -377,7 +377,7 @@
 }
 
 /* ── SERVER SWITCH TOGGLE BUTTON (Kiểu dáng .input-mode-toggle-btn từ page main) ── */
-.avada-kedavra-meta-badge .input-mode-toggle-btn,
+.bypass-meta-badge .input-mode-toggle-btn,
 .btn-server-switch {
     position: relative !important;
     left: auto !important;
@@ -408,7 +408,7 @@
     margin-left: 6px !important;
 }
 
-.avada-kedavra-meta-badge .input-mode-toggle-btn:hover,
+.bypass-meta-badge .input-mode-toggle-btn:hover,
 .btn-server-switch:hover {
     color: var(--color-text-accent) !important;
     border-color: var(--color-border-focus) !important;
@@ -417,12 +417,12 @@
     transform: translateY(-1px) scale(1.04) !important;
 }
 
-.avada-kedavra-meta-badge .input-mode-toggle-btn:active,
+.bypass-meta-badge .input-mode-toggle-btn:active,
 .btn-server-switch:active {
     transform: translateY(0) scale(0.95) !important;
 }
 
-.avada-kedavra-meta-badge .input-mode-toggle-btn .toggle-icon,
+.bypass-meta-badge .input-mode-toggle-btn .toggle-icon,
 .btn-server-switch .toggle-icon {
     font-size: 13px !important;
     width: 13px !important;
@@ -434,55 +434,55 @@
     transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.22s ease !important;
 }
 
-.avada-kedavra-meta-badge .input-mode-toggle-btn:hover .toggle-icon,
+.bypass-meta-badge .input-mode-toggle-btn:hover .toggle-icon,
 .btn-server-switch:hover .toggle-icon {
     transform: rotate(180deg) !important;
     color: var(--cyan-300, #67e8f9) !important;
 }
 
 /* Khi đang kết nối 10.85 -> icon chuyển sang purple như mode work_order ở main */
-.avada-kedavra-meta-badge[data-active-server="10.85"] .input-mode-toggle-btn .toggle-icon,
-.avada-kedavra-meta-badge[data-active-server="10.85"] .btn-server-switch .toggle-icon {
+.bypass-meta-badge[data-active-server="10.85"] .input-mode-toggle-btn .toggle-icon,
+.bypass-meta-badge[data-active-server="10.85"] .btn-server-switch .toggle-icon {
     transform: rotate(180deg);
     color: var(--purple-400, #c084fc) !important;
 }
 
-.avada-kedavra-meta-badge[data-active-server="10.85"] .input-mode-toggle-btn,
-.avada-kedavra-meta-badge[data-active-server="10.85"] .btn-server-switch {
+.bypass-meta-badge[data-active-server="10.85"] .input-mode-toggle-btn,
+.bypass-meta-badge[data-active-server="10.85"] .btn-server-switch {
     border-color: rgba(192, 132, 252, 0.4) !important;
 }
 
-.avada-kedavra-meta-badge[data-active-server="10.85"] .input-mode-toggle-btn:hover,
-.avada-kedavra-meta-badge[data-active-server="10.85"] .btn-server-switch:hover {
+.bypass-meta-badge[data-active-server="10.85"] .input-mode-toggle-btn:hover,
+.bypass-meta-badge[data-active-server="10.85"] .btn-server-switch:hover {
     border-color: #c084fc !important;
     box-shadow: 0 0 12px rgba(192, 132, 252, 0.45), 0 4px 14px rgba(0, 0, 0, 0.45) !important;
     color: #c084fc !important;
 }
 
-/* ── TABLE OVERRIDE & RESET FOR AVADA KEDAVRA ── */
-.table-scroll.avada-kedavra-table-scroll td,
-.table-scroll.avada-kedavra-table-scroll th {
+/* ── TABLE OVERRIDE & RESET FOR BYPASS ── */
+.table-scroll.bypass-table-scroll td,
+.table-scroll.bypass-table-scroll th {
     position: static !important;
     left: auto !important;
     box-shadow: none !important;
     border-right: none !important;
 }
 
-.table-scroll.avada-kedavra-table-scroll thead th {
+.table-scroll.bypass-table-scroll thead th {
     position: sticky !important;
     top: 0 !important;
     z-index: 10 !important;
     background: var(--color-bg-surface-elevated-solid, #1e293b) !important;
 }
 
-.table-scroll.avada-kedavra-table-scroll table {
+.table-scroll.bypass-table-scroll table {
     width: 100%;
     table-layout: auto;
     border-collapse: separate;
     border-spacing: 0;
 }
 
-.table-scroll.avada-kedavra-table-scroll td {
+.table-scroll.bypass-table-scroll td {
     padding: 10px 16px;
     font-size: 13.5px;
     line-height: 1.5;
@@ -493,7 +493,7 @@
     word-break: break-word;
 }
 
-.table-scroll.avada-kedavra-table-scroll tbody tr:hover td {
+.table-scroll.bypass-table-scroll tbody tr:hover td {
     background-color: var(--table-row-bg-hover, rgba(13, 148, 136, 0.12)) !important;
     color: var(--color-text-primary);
 }

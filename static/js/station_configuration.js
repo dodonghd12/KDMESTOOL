@@ -3,6 +3,7 @@ let currentDepartmentOid = null;
 let lastSearchedStation = '';
 let departmentSearchTimeout = null;
 let stationSearchTimeout = null;
+let isSelectingDepartment = false;
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', async function() {
@@ -33,6 +34,9 @@ function initializeValidateScanBarcodeEventListeners() {
     departmentInput.addEventListener('click', () => {
         departmentInput.value = '';
         departmentInput.closest('.input-box')?.classList.remove('has-value');
+        if (departmentInput.readOnly && departmentInput.dataset.autofillGuarded) {
+            departmentInput.readOnly = false;
+        }
         departmentInput.focus();
 
         const stationInput = document.getElementById('station');
@@ -92,7 +96,9 @@ function initializeValidateScanBarcodeEventListeners() {
     departmentInput.addEventListener('blur', () => {
         setTimeout(() => {
             hideDepartmentDropdown();
-            checkAndLoadStations();
+            if (!isSelectingDepartment && document.activeElement !== document.getElementById('station')) {
+                checkAndLoadStations();
+            }
         }, 200);
     });
     
@@ -189,12 +195,13 @@ function showDepartmentDropdown(items) {
         item.dataset.value = deptId;
         item.addEventListener('mousedown', async (e) => {
             e.preventDefault();
+            isSelectingDepartment = true;
+            clearTimeout(departmentSearchTimeout);
             const input = document.getElementById('department');
             input.value = deptId;
             input.closest('.input-box')?.classList.add('has-value');
             currentDepartmentOid = dept.id;
             hideDepartmentDropdown();
-            input.blur();
 
             const stationInput = document.getElementById('station');
             stationInput.value = '';
@@ -203,9 +210,18 @@ function showDepartmentDropdown(items) {
             hideStationDropdown();
             clearTable();
 
-            // Load stations when department is selected
-            await loadStations(currentDepartmentOid);
-            stationInput.disabled = false;
+            try {
+                // Load stations when department is selected
+                await loadStations(currentDepartmentOid);
+            } finally {
+                stationInput.disabled = false;
+                if (stationInput.readOnly && stationInput.dataset.autofillGuarded) {
+                    stationInput.readOnly = false;
+                }
+                stationInput.focus();
+                showStationDropdown(stations);
+                isSelectingDepartment = false;
+            }
         });
         dropdown.appendChild(item);
     });
