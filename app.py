@@ -1019,7 +1019,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.4.9"
+APP_VERSION = "2.4.10"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -2864,7 +2864,7 @@ def search_scan_barcode_history_by_barcode():
                 LEFT JOIN kvmes.material_resource mr
                   ON mr.id = m.res_id
             )
-            SELECT DISTINCT ON (ts.station, ts.site, rpd.oid)
+            SELECT DISTINCT ON (ts.station, ts.site)
                 ts.station              AS station,
                 ts.site                 AS site,
                 ts.scan_at              AS scan_at,
@@ -2891,7 +2891,7 @@ def search_scan_barcode_history_by_barcode():
             ORDER BY
                 ts.station,
                 ts.site,
-                rpd.oid,
+                CASE WHEN wo.reserved_date >= (CURRENT_DATE - INTERVAL '14 days') THEN 0 ELSE 1 END ASC,
                 CASE wo.status
                     WHEN 1 THEN 1
                     WHEN 0 THEN 2
