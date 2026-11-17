@@ -3150,7 +3150,8 @@ function updateContextMenu() {
             'COMPOUNDING_INGREDIENT',
             'RUBBER',
             'ACCELERATOR_INGREDIENT',
-            'RETURN_COMPOUND'
+            'RETURN_COMPOUND',
+            'REINFORCING_AGENT'
         ];
         if (EXCLUDED_REPRINT_PRODUCT_TYPES.includes(prodType)) {
             barcodeActions = barcodeActions.filter(action => action !== 'reprintLabelPdf');
