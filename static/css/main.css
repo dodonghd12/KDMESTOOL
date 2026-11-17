@@ -6776,7 +6776,13 @@ body.theme-light .dropzone-success-tag {
     border-color: var(--color-border-focus);
     box-shadow: var(--color-border-glow), 0 4px 16px var(--color-shadow-glass);
     transform: translateY(-2px);
-    color: var(--color-text-inverse);
+    color: var(--color-text-accent);
+}
+
+:root[data-theme="light"] .winx-btn-primary:hover:not(:disabled),
+body.theme-light .winx-btn-primary:hover:not(:disabled) {
+    background: var(--color-interactive-primary-hover);
+    color: #ffffff;
 }
 
 .winx-btn-ghost {
@@ -13258,9 +13264,11 @@ body.theme-light .material-transfer-retry-btn.is-success {
 }
 
 
-/* ===== REPRINT LABEL LOG MODULE STYLES (CONSOLIDATED FROM TEMPLATE) ===== */
-.reprint-label-log-spin {
-    animation: ttSpin 1s linear infinite;
+/* ===== REPRINT LABEL LOG & LOAD BUTTON SPIN STYLES ===== */
+.reprint-label-log-spin,
+.btn-load-spin {
+    animation: spin 1s linear infinite !important;
+    display: inline-block !important;
 }
 @keyframes ttSpin {
     100% { transform: rotate(360deg); }

@@ -482,8 +482,12 @@ async function fetchDeletedFilesLog() {
     hasFetchedData = true;
     hideStandbyPlaceholder();
     const loadBtn = document.getElementById('btnLoad') || document.getElementById('btnCheckDeletedFiles');
+    const loadIcon = document.getElementById('btnLoadIcon');
     if (loadBtn) {
         loadBtn.disabled = true;
+    }
+    if (loadIcon) {
+        loadIcon.classList.add('btn-load-spin');
     }
 
     if (typeof showTableSkeleton === 'function') {
@@ -546,6 +550,9 @@ async function fetchDeletedFilesLog() {
     } finally {
         if (loadBtn) {
             loadBtn.disabled = false;
+        }
+        if (loadIcon) {
+            loadIcon.classList.remove('btn-load-spin');
         }
         document.body.classList.remove('app-loading-state');
     }
