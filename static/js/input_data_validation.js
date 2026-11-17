@@ -808,7 +808,7 @@ function displayComparison(result, recipeId, station, workOrderId) {
     let html = '<table class="comparison-table">';
     html += '<thead><tr>';
     html += '<th style="width: 20%;">Site (Trạm)</th>';
-    html += '<th style="width: 22%;">Quy Cách YAML</th>';
+    html += '<th style="width: 22%;">Tiêu Chuẩn YAML</th>';
     html += '<th style="width: 44%;">Tem Đầu Vào</th>';
     html += '<th style="width: 14%; text-align: center;">Trạng thái</th>';
     html += '</tr></thead>';
@@ -888,14 +888,8 @@ function displayComparison(result, recipeId, station, workOrderId) {
                 const countBadge = rowCount > 1
                     ? `<span class="badge-tag-site-count" title="Trạm dạng CONTAINER: Có ${rowCount} tem quét vào"><span class="material-symbols-outlined count-icon">layers</span> ${rowCount} tem</span>`
                     : '';
-                let siteStateClass = '';
-                if (group.items.some(it => !it._isValid && (!it._hasBarcode || !it._isMatch))) {
-                    siteStateClass = ' site-mismatch';
-                } else if (group.items.some(it => !it._isValid && it._isExpired)) {
-                    siteStateClass = ' site-expired';
-                } else if (group.items.some(it => !it._isValid && it._isEmptyQuantity)) {
-                    siteStateClass = ' site-empty-qty';
-                }
+                const isSiteGroupValid = group.items.every(it => it._isValid);
+                const siteStateClass = isSiteGroupValid ? ' side-ok' : ' side-ng';
                 html += `<td class="site-cell${siteStateClass}"${rowspanAttr}>`;
                 html += `<div class="site-title-row">`;
                 html += `<span class="site-name"><strong>${escapeHtml(group.site || '')}</strong></span>`;
@@ -971,20 +965,12 @@ function displayComparison(result, recipeId, station, workOrderId) {
 
 
 
-            // 4. Status
+            // 4. Status (chỉ 2 trạng thái OK xanh lá / NG đỏ)
             html += '<td class="status-cell" style="text-align: center;">';
-            if (!item._hasBarcode) {
-                html += '<span class="status-pill status-missing"><span class="material-symbols-outlined">qr_code_scanner</span> CHƯA QUÉT</span>';
-            } else if (!item._isMatch) {
-                html += '<span class="status-pill status-mismatch"><span class="material-symbols-outlined">close</span> SAI QUY CÁCH</span>';
-            } else if (item._isExpired && item._isEmptyQuantity) {
-                html += '<span class="status-pill status-expired"><span class="material-symbols-outlined">schedule</span> HẾT HẠN & SL</span>';
-            } else if (item._isExpired) {
-                html += '<span class="status-pill status-expired"><span class="material-symbols-outlined">schedule</span> HẾT HẠN</span>';
-            } else if (item._isEmptyQuantity) {
-                html += '<span class="status-pill status-empty-qty"><span class="material-symbols-outlined">production_quantity_limits</span> HẾT SỐ LƯỢNG</span>';
-            } else {
+            if (item._isValid) {
                 html += '<span class="status-pill status-match"><span class="material-symbols-outlined">check</span> OK</span>';
+            } else {
+                html += '<span class="status-pill status-mismatch"><span class="material-symbols-outlined">close</span> NG</span>';
             }
             html += '</td>';
 

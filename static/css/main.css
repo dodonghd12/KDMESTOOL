@@ -5635,19 +5635,12 @@ body.theme-light .comparison-table th {
     vertical-align: middle;
 }
 
-.comparison-row.row-mismatch > td.site-cell,
-.comparison-table td.site-cell.site-mismatch {
-    border-left: 4px solid var(--rose-500);
+.comparison-table td.site-cell.side-ok {
+    border-left: 4px solid var(--emerald-500, #10b981);
 }
 
-.comparison-row.row-expired > td.site-cell,
-.comparison-table td.site-cell.site-expired {
-    border-left: 4px solid var(--amber-500);
-}
-
-.comparison-row.row-empty-quantity > td.site-cell,
-.comparison-table td.site-cell.site-empty-qty {
-    border-left: 4px solid var(--purple-500);
+.comparison-table td.site-cell.side-ng {
+    border-left: 4px solid var(--rose-500, #f43f5e);
 }
 
 .comparison-table .material-cell {
