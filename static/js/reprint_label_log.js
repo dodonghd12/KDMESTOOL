@@ -22,11 +22,36 @@
     let selectedFromDate = '';
     let selectedToDate = '';
     let flatpickrInstance = null;
+    let hasFetchedData = false;
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initReprintLabelLog);
     } else {
         initReprintLabelLog();
+    }
+
+    function showStandbyPlaceholder() {
+        const ph = document.getElementById('tableStandbyPlaceholder');
+        const tbl = document.getElementById('reprintLogTable') || document.querySelector('.table-container table');
+        const footer = document.querySelector('.table-footer');
+        const paginationNav = document.getElementById('paginationNav');
+        if (ph) {
+            ph.classList.remove('has-data');
+            ph.style.display = '';
+        }
+        if (tbl) tbl.style.display = 'none';
+        if (footer) footer.classList.add('hidden');
+        if (paginationNav) paginationNav.innerHTML = '';
+    }
+
+    function hideStandbyPlaceholder() {
+        const ph = document.getElementById('tableStandbyPlaceholder');
+        const tbl = document.getElementById('reprintLogTable') || document.querySelector('.table-container table');
+        if (ph) {
+            ph.classList.add('has-data');
+            ph.style.display = 'none';
+        }
+        if (tbl) tbl.style.display = '';
     }
 
     function initReprintLabelLog() {
@@ -35,7 +60,7 @@
         initLocationDropdown();
         initFlatpickr();
         setupExportHook();
-        renderCurrentPage();
+        showStandbyPlaceholder();
     }
 
     function initFlatpickr() {
@@ -243,6 +268,7 @@
         if (btnLoad) btnLoad.disabled = true;
         if (loadIcon) loadIcon.classList.add('reprint-label-log-spin');
 
+        hideStandbyPlaceholder();
         if (typeof showTableSkeleton === 'function') {
             showTableSkeleton(6, 5);
         } else if (tableBody) {
@@ -266,14 +292,17 @@
             const data = await res.json();
             if (data && data.success) {
                 allLogRecords = Array.isArray(data.records) ? data.records : [];
+                hasFetchedData = allLogRecords.length > 0;
             } else {
                 allLogRecords = [];
+                hasFetchedData = false;
                 const errMsg = (data && data.message) || 'Không thể đọc file log';
                 if (typeof showToast === 'function') showToast(errMsg, 'error');
             }
         } catch (err) {
             console.error('[ReprintLabelLog] Fetch log error:', err);
             allLogRecords = [];
+            hasFetchedData = false;
             if (typeof showToast === 'function') {
                 showToast('Lỗi kết nối máy chủ khi đọc nhật ký in tem', 'error');
             }
@@ -350,6 +379,15 @@
         const rowCount = document.getElementById('rowCount');
         const tableFooter = document.querySelector('.table-footer');
         const paginationNav = document.getElementById('paginationNav');
+
+        if (!hasFetchedData || allLogRecords.length === 0) {
+            if (rowCount) rowCount.textContent = '0';
+            showStandbyPlaceholder();
+            ensureClientSearchAlwaysEnabled();
+            return;
+        }
+
+        hideStandbyPlaceholder();
 
         const totalRecords = currentFilteredRecords.length;
         if (rowCount) {

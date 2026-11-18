@@ -19,6 +19,31 @@
     let totalPages = 1;
     let stepTimers = [];
     let hideBadgeTimeout = null;
+    let hasFetchedLogs = false;
+
+    function showStandbyPlaceholder() {
+        const ph = document.getElementById('tableStandbyPlaceholder');
+        const tbl = document.getElementById('bypassLogTable') || document.querySelector('.table-container table');
+        const footer = document.querySelector('.table-footer');
+        const paginationNav = document.getElementById('paginationNav');
+        if (ph) {
+            ph.classList.remove('has-data');
+            ph.style.display = '';
+        }
+        if (tbl) tbl.style.display = 'none';
+        if (footer) footer.classList.add('hidden');
+        if (paginationNav) paginationNav.innerHTML = '';
+    }
+
+    function hideStandbyPlaceholder() {
+        const ph = document.getElementById('tableStandbyPlaceholder');
+        const tbl = document.getElementById('bypassLogTable') || document.querySelector('.table-container table');
+        if (ph) {
+            ph.classList.add('has-data');
+            ph.style.display = 'none';
+        }
+        if (tbl) tbl.style.display = '';
+    }
 
     document.addEventListener('DOMContentLoaded', initializeBypass);
 
@@ -204,6 +229,7 @@
                 } catch (e) {}
 
                 allLogs = data.logs || [];
+                hasFetchedLogs = allLogs.length > 0;
                 applyClientSearch(document.getElementById('clientSearch')?.value || '');
 
                 if (showToast || isSwitchingServer) {
@@ -220,6 +246,7 @@
                     }
                 }
             } else {
+                if (!hasFetchedLogs || allLogs.length === 0) showStandbyPlaceholder();
                 if (showToast || isSwitchingServer) {
                     showStepBadge(`Lỗi kiểm tra root@${currentServer}`, 'error', 'error');
                     hideStepBadgeAfterDelay(5000);
@@ -566,6 +593,18 @@
      * Hiển thị dữ liệu của trang hiện tại và cập nhật thanh phân trang
      */
     function renderCurrentPage() {
+        const rowCountEl = document.getElementById('rowCount');
+        const tableFooter = document.querySelector('.table-footer');
+        const paginationNav = document.getElementById('paginationNav');
+
+        if (!hasFetchedLogs || allLogs.length === 0) {
+            if (rowCountEl) rowCountEl.textContent = '0';
+            showStandbyPlaceholder();
+            return;
+        }
+
+        hideStandbyPlaceholder();
+
         const page0 = Math.max(0, currentPage - 1);
         const startIdx = page0 * PAGE_SIZE;
         const endIdx = startIdx + PAGE_SIZE;
@@ -573,12 +612,10 @@
 
         renderTable(pageRows);
 
-        const rowCountEl = document.getElementById('rowCount');
         if (rowCountEl) {
             rowCountEl.textContent = filteredLogs.length.toLocaleString();
         }
 
-        const tableFooter = document.querySelector('.table-footer');
         if (tableFooter) {
             if (filteredLogs.length > 0) {
                 tableFooter.classList.remove('hidden');
@@ -587,7 +624,6 @@
             }
         }
 
-        const paginationNav = document.getElementById('paginationNav');
         if (paginationNav && typeof renderShadcnPagination === 'function') {
             renderShadcnPagination(paginationNav, currentPage, totalPages, (newPage) => {
                 currentPage = clampPage(newPage, totalPages);
