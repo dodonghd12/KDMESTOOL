@@ -268,14 +268,39 @@
         const btnLoad = document.getElementById('btnLoad');
         if (btnLoad) btnLoad.addEventListener('click', scanResetRows);
 
-        const searchEl = document.getElementById('clientSearch');
-        if (searchEl) {
-            searchEl.addEventListener('input', () => {
-                clearTimeout(searchDebounceTimer);
-                searchDebounceTimer = setTimeout(() => applyFilters(), 150);
+        // main.js initClientSearch() already invokes customClientSearchHandler on #clientSearch input
+        window.customClientSearchHandler = () => {
+            clearTimeout(searchDebounceTimer);
+            searchDebounceTimer = setTimeout(() => applyFilters(), 80);
+        };
+
+        const tbody = document.getElementById('tableBody');
+        if (tbody) {
+            tbody.addEventListener('change', e => {
+                const target = e.target;
+                if (!target) return;
+                if (target.classList.contains('srr-row-cb')) {
+                    const k = target.dataset.key;
+                    if (target.checked) selectedKeys.add(k);
+                    else selectedKeys.delete(k);
+                    updateSelectionUI();
+                    syncSelectAllCheckbox();
+                } else if (target.classList.contains('srr-qty-input')) {
+                    const val = Number(target.value);
+                    if (Number.isFinite(val) && val >= 0) {
+                        editedQtyMap.set(target.dataset.key, Math.round(val * 1e6) / 1e6);
+                    }
+                }
+            });
+            tbody.addEventListener('input', e => {
+                const target = e.target;
+                if (!target || !target.classList.contains('srr-qty-input')) return;
+                const val = Number(target.value);
+                if (Number.isFinite(val) && val >= 0) {
+                    editedQtyMap.set(target.dataset.key, Math.round(val * 1e6) / 1e6);
+                }
             });
         }
-        window.customClientSearchHandler = () => applyFilters();
     }
 
     async function scanResetRows() {
@@ -335,6 +360,11 @@
                     flag_summary: m.flag_summary || 'An toàn',
                 };
                 rowObj._key = makeRowKey(rowObj);
+                rowObj._date = String(rowObj.error_time || '').slice(0, 10);
+                rowObj._hay = `${rowObj.barcode} ${rowObj.station} ${rowObj.site} ${rowObj.error_time} ${rowObj.status} ${rowObj.flag_summary}`.toLowerCase();
+                rowObj._tr = null;
+                rowObj._cb = null;
+                rowObj._visible = true;
                 return rowObj;
             });
 
@@ -343,6 +373,7 @@
             editedQtyMap.clear();
 
             renderTableHeader();
+            renderTable();
             if (standby) standby.style.display = 'none';
             if (table) table.style.display = 'table';
             if (footer) footer.classList.remove('hidden');
@@ -385,32 +416,52 @@
                     if (!r.oid) return;
                     if (selectAllRows.checked) selectedKeys.add(r._key);
                     else selectedKeys.delete(r._key);
+                    if (r._cb) r._cb.checked = selectAllRows.checked;
                 });
-                renderTable();
                 updateSelectionUI();
             });
         }
     }
 
+    function syncSelectAllCheckbox() {
+        const selectAll = document.getElementById('selectAllRows');
+        if (!selectAll) return;
+        const selectable = filteredRows.filter(r => r.oid);
+        selectAll.checked = selectable.length > 0 && selectable.every(r => selectedKeys.has(r._key));
+    }
+
     function applyFilters() {
         const kw = (document.getElementById('clientSearch')?.value || '').trim().toLowerCase();
-        filteredRows = allRows.filter(r => {
-            if (selectedFromDate && selectedToDate) {
-                const rowDate = String(r.error_time || '').slice(0, 10);
-                if (!rowDate || rowDate === '-' || rowDate < selectedFromDate || rowDate > selectedToDate) {
-                    return false;
+        const hasDateFilter = Boolean(selectedFromDate && selectedToDate);
+        const nextFiltered = [];
+
+        for (let i = 0; i < allRows.length; i++) {
+            const r = allRows[i];
+            let matched = true;
+            if (hasDateFilter) {
+                if (!r._date || r._date === '-' || r._date < selectedFromDate || r._date > selectedToDate) {
+                    matched = false;
                 }
             }
-            if (activeStationFilter && r.station !== activeStationFilter) return false;
-            if (activeStatusFilter && r.status !== activeStatusFilter) return false;
-            if (kw) {
-                const hay = `${r.barcode} ${r.station} ${r.site} ${r.error_time} ${r.status} ${r.flag_summary}`.toLowerCase();
-                if (!hay.includes(kw)) return false;
-            }
-            return true;
-        });
+            if (matched && activeStationFilter && r.station !== activeStationFilter) matched = false;
+            if (matched && activeStatusFilter && r.status !== activeStatusFilter) matched = false;
+            if (matched && kw && !r._hay.includes(kw)) matched = false;
 
-        renderTable();
+            if (r._tr && r._visible !== matched) {
+                r._tr.style.display = matched ? '' : 'none';
+                r._visible = matched;
+            }
+            if (matched) nextFiltered.push(r);
+        }
+
+        filteredRows = nextFiltered;
+        const rowCountEl = document.getElementById('rowCount');
+        if (rowCountEl) rowCountEl.textContent = filteredRows.length;
+
+        const emptyRow = document.getElementById('srrEmptyRow');
+        if (emptyRow) emptyRow.style.display = filteredRows.length === 0 ? '' : 'none';
+
+        syncSelectAllCheckbox();
         updateSelectionUI();
     }
 
@@ -423,23 +474,10 @@
         const tbody = document.getElementById('tableBody');
         const rowCountEl = document.getElementById('rowCount');
         if (!tbody) return;
-        if (rowCountEl) rowCountEl.textContent = filteredRows.length;
+        if (rowCountEl) rowCountEl.textContent = allRows.length;
 
         const colSpan = 1 + Math.max(1, tableColumns.length);
-        if (filteredRows.length === 0) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="${colSpan}" style="text-align: center; padding: 40px; color: var(--color-text-muted, #94a3b8);">
-                        Không có dòng dữ liệu nào phù hợp bộ lọc hiện tại.
-                    </td>
-                </tr>
-            `;
-            const selectAll = document.getElementById('selectAllRows');
-            if (selectAll) selectAll.checked = false;
-            return;
-        }
-
-        tbody.innerHTML = filteredRows.map(r => {
+        const rowsHtml = allRows.map(r => {
             const checked = selectedKeys.has(r._key) ? 'checked' : '';
             const disabled = !r.oid ? 'disabled' : '';
             const statusCls = r.risk_level === 'SAFE' ? 'srr-status-safe' : 'srr-status-warn';
@@ -461,7 +499,7 @@
                 if (colName === 'recovery_qty') {
                     return `
                         <td class="srr-num">
-                            <input type="number" step="any" min="0" class="srr-qty-input" data-key="${escapeHtml(r._key)}" value="${escapeHtml(targetQty)}" ${disabled}>
+                            <input type="number" step="any" min="0" data-no-smooth-caret class="srr-qty-input" data-key="${escapeHtml(r._key)}" value="${escapeHtml(targetQty)}" ${disabled}>
                         </td>
                     `;
                 }
@@ -484,31 +522,22 @@
             `;
         }).join('');
 
-        tbody.querySelectorAll('.srr-row-cb').forEach(cb => {
-            cb.addEventListener('change', () => {
-                const k = cb.dataset.key;
-                if (cb.checked) selectedKeys.add(k);
-                else selectedKeys.delete(k);
-                updateSelectionUI();
-            });
-        });
+        const emptyDisplay = allRows.length === 0 ? '' : ' style="display: none;"';
+        tbody.innerHTML = rowsHtml + `
+            <tr id="srrEmptyRow"${emptyDisplay}>
+                <td colspan="${colSpan}" style="text-align: center; padding: 40px; color: var(--color-text-muted, #94a3b8);">
+                    Không có dòng dữ liệu nào phù hợp bộ lọc hiện tại.
+                </td>
+            </tr>
+        `;
 
-        tbody.querySelectorAll('.srr-qty-input').forEach(inp => {
-            const syncQty = () => {
-                const k = inp.dataset.key;
-                const val = Number(inp.value);
-                if (Number.isFinite(val) && val >= 0) {
-                    editedQtyMap.set(k, Math.round(val * 1e6) / 1e6);
-                }
-            };
-            inp.addEventListener('input', syncQty);
-            inp.addEventListener('change', syncQty);
-        });
-
-        const selectAll = document.getElementById('selectAllRows');
-        if (selectAll) {
-            const selectable = filteredRows.filter(r => r.oid);
-            selectAll.checked = selectable.length > 0 && selectable.every(r => selectedKeys.has(r._key));
+        const trEls = tbody.children;
+        for (let i = 0; i < allRows.length; i++) {
+            const tr = trEls[i];
+            if (!tr || tr.id === 'srrEmptyRow') continue;
+            allRows[i]._tr = tr;
+            allRows[i]._cb = tr.querySelector('.srr-row-cb');
+            allRows[i]._visible = true;
         }
     }
 

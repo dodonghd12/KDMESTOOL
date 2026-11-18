@@ -1019,7 +1019,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.4.32"
+APP_VERSION = "2.4.33"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
