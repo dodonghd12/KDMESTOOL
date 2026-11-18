@@ -252,6 +252,22 @@
             });
         }
         window.customClientSearchHandler = () => applyFilters();
+
+        const tbody = document.getElementById('tableBody');
+        if (tbody) {
+            tbody.addEventListener('contextmenu', async e => {
+                const td = e.target && e.target.closest ? e.target.closest('td[data-col="barcode"]') : null;
+                if (!td) return;
+                e.preventDefault();
+                e.stopPropagation();
+                const val = String(td.dataset.fullValue || td.textContent || '').trim();
+                if (!val || val === '-') return;
+                const ok = typeof copyTextToClipboard === 'function' ? await copyTextToClipboard(val) : false;
+                if (ok && typeof Toast !== 'undefined') {
+                    Toast.success('Đã sao chép', val);
+                }
+            }, true);
+        }
     }
 
     async function scanResetRows() {
@@ -287,7 +303,7 @@
             const iStation = idx('station');
             const iSite = idx('site');
             const iErrTime = idx('error_time (UTC+7)');
-            const iQty = idx('quantity');
+            const iQty = idx('qty');
             const iWipedQty = idx('qty_in_site');
             const iRecQty = idx('recovery_qty');
             const iInitQty = idx('initial_qty');
@@ -301,7 +317,7 @@
                     station: cells[iStation] ?? '',
                     site: cells[iSite] ?? '',
                     error_time: cells[iErrTime] ?? '-',
-                    quantity: cells[iQty] ?? 0,
+                    qty: cells[iQty] ?? 0,
                     qty_in_site: cells[iWipedQty] ?? 0,
                     recovery_qty: cells[iRecQty] ?? 0,
                     initial_qty: cells[iInitQty],
@@ -342,7 +358,7 @@
     function renderTableHeader() {
         const thead = document.getElementById('tableHead');
         if (!thead) return;
-        const rightCols = new Set(['quantity', 'qty_in_site', 'recovery_qty', 'initial_qty']);
+        const rightCols = new Set(['qty', 'qty_in_site', 'recovery_qty', 'initial_qty']);
         const thCols = tableColumns.map(col => {
             const alignStyle = rightCols.has(col) ? ' style="text-align: right;"' : '';
             return `<th${alignStyle}>${escapeHtml(col)}</th>`;
@@ -419,7 +435,11 @@
 
             const cellsHtml = tableColumns.map((colName, idx) => {
                 const val = r.cells[idx];
-                if (colName === 'quantity' || colName === 'initial_qty') {
+                if (colName === 'barcode') {
+                    const cleanBc = escapeHtml(val == null ? '-' : val);
+                    return `<td data-col="barcode" data-full-value="${cleanBc}" title="Click chuột phải để sao chép barcode">${cleanBc}</td>`;
+                }
+                if (colName === 'qty' || colName === 'initial_qty') {
                     return `<td class="srr-num">${formatNum(val)}</td>`;
                 }
                 if (colName === 'qty_in_site') {
@@ -564,7 +584,7 @@
                 station: r.station,
                 site_name: r.site,
                 reset_ts: r.reset_ts,
-                expected_qty: r.quantity,
+                expected_qty: r.qty,
                 new_qty: getTargetQty(r)
             });
         });
@@ -627,7 +647,7 @@
     async function loadRecoveryHistory() {
         const tbody = document.getElementById('srrHistoryBody');
         if (!tbody) return;
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 24px;">Đang tải lịch sử...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 24px;">Đang tải lịch sử...</td></tr>';
 
         try {
             const res = await fetch('/api/site-reset-recovery/history');
@@ -635,56 +655,31 @@
             if (!res.ok || !data.success) throw new Error((data && data.message) || 'Lỗi tải lịch sử');
             const recs = data.records || [];
             if (recs.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 28px; color: var(--color-text-muted);">Chưa có đợt khôi phục nào.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 28px; color: var(--color-text-muted);">Chưa có đợt khôi phục nào.</td></tr>';
                 return;
             }
-            tbody.innerHTML = recs.map(rec => `
+            tbody.innerHTML = recs.map(rec => {
+                const barcodes = Array.isArray(rec.barcodes)
+                    ? rec.barcodes
+                    : (Array.isArray(rec.entries) ? rec.entries.map(e => e.barcode).filter(Boolean) : []);
+                const barcodeJson = `"barcode" : {${barcodes.join(', ')}}`;
+                return `
                 <tr>
-                    <td>${escapeHtml(rec.recovery_id)}</td>
                     <td>${escapeHtml(rec.timestamp_vn)}</td>
                     <td>${escapeHtml(rec.env || 'KV2')}</td>
                     <td class="srr-num">${escapeHtml(rec.count)}</td>
+                    <td class="srr-history-barcodes">${escapeHtml(barcodeJson)}</td>
                     <td>${escapeHtml(rec.operator_user)} (${escapeHtml(rec.operator_ip)})</td>
                     <td>
                         ${rec.rolled_back
                             ? `<span class="srr-status-warn">Đã hoàn tác (${escapeHtml(rec.rollback_at || '')})</span>`
                             : `<span class="srr-status-safe">Đang áp dụng</span>`}
                     </td>
-                    <td style="text-align: center;">
-                        ${rec.rolled_back
-                            ? '-'
-                            : `<button type="button" class="srr-btn-sm is-danger btn-srr-rollback" data-id="${escapeHtml(rec.recovery_id)}">Hoàn tác</button>`}
-                    </td>
                 </tr>
-            `).join('');
-
-            tbody.querySelectorAll('.btn-srr-rollback').forEach(b => {
-                b.addEventListener('click', async () => {
-                    const id = b.dataset.id;
-                    const ok = typeof showConfirm === 'function'
-                        ? await showConfirm(`Xác nhận hoàn tác đợt <strong>${escapeHtml(id)}</strong> về giá trị trước khi khôi phục?`, 'Xác nhận hoàn tác')
-                        : true;
-                    if (!ok) return;
-                    b.disabled = true;
-                    try {
-                        const rRes = await fetch('/api/site-reset-recovery/rollback', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ recovery_id: id })
-                        });
-                        const rData = await rRes.json();
-                        if (!rRes.ok || !rData.success) throw new Error(rData.message || 'Lỗi hoàn tác');
-                        if (typeof Toast !== 'undefined') Toast.success('Hoàn tác thành công', rData.message);
-                        await loadRecoveryHistory();
-                        if (allRows.length > 0) await scanResetRows();
-                    } catch (err) {
-                        if (typeof Toast !== 'undefined') Toast.error('Lỗi hoàn tác', err.message);
-                        b.disabled = false;
-                    }
-                });
-            });
+                `;
+            }).join('');
         } catch (err) {
-            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 24px; color: #f87171;">${escapeHtml(err.message)}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 24px; color: #f87171;">${escapeHtml(err.message)}</td></tr>`;
         }
     }
 })();

@@ -2549,7 +2549,7 @@ function initUniversalTableTouchGestures() {
     document.addEventListener('dblclick', (e) => {
         const tr = e.target.closest(tableRowSelector);
         if (!tr || tr.querySelector('.table-empty-state') || tr.classList.contains('skeleton-row')) return;
-        if (document.body.classList.contains('printer-setup-page')) return;
+        if (document.body.classList.contains('printer-setup-page') || document.body.classList.contains('site-reset-recovery-page')) return;
 
         // Sub output container -> showSubOutputDetails
         const subContainer = document.getElementById('subOutputContainer');

@@ -1019,7 +1019,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.4.25"
+APP_VERSION = "2.4.26"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -11528,7 +11528,7 @@ def api_site_reset_recovery_scan():
         stations_set = set()
         columns = [
             'barcode',
-            'quantity',
+            'qty',
             'qty_in_site',
             'recovery_qty',
             'initial_qty',
@@ -11736,6 +11736,7 @@ def api_site_reset_recovery_restore():
             'mode': 'quantity',
             'note': note or f"Hoàn trả quantity cho {len(log_entries)} barcode",
             'count': len(log_entries),
+            'barcodes': [e['barcode'] for e in log_entries],
             'rolled_back': False,
             'entries': log_entries,
         }

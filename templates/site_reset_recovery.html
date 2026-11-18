@@ -111,10 +111,20 @@
             outline: none;
         }
 
-        .site-reset-recovery-page .srr-qty-input:hover,
-        .site-reset-recovery-page .srr-qty-input:focus {
-            border-color: #38bdf8;
-            box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25);
+        .site-reset-recovery-page .srr-qty-input:hover {
+            border-color: rgba(61, 213, 192, 0.7);
+        }
+
+        .site-reset-recovery-page .srr-qty-input:focus,
+        .site-reset-recovery-page .srr-qty-input:focus-visible {
+            outline: none !important;
+            outline-offset: 0 !important;
+            box-shadow: none !important;
+            border-color: #3dd5c0 !important;
+        }
+
+        .site-reset-recovery-page td[data-col="barcode"] {
+            cursor: pointer;
         }
 
         :root[data-theme="light"] .site-reset-recovery-page .srr-qty-input,
@@ -168,8 +178,8 @@
         }
 
         .srr-history-card {
-            width: min(1040px, 96vw);
-            max-height: 84vh;
+            width: min(1400px, 96vw);
+            max-height: 86vh;
             display: flex;
             flex-direction: column;
             border-radius: 14px;
@@ -194,9 +204,29 @@
         }
 
         .srr-history-body {
-            overflow: auto;
+            overflow-y: auto;
+            overflow-x: hidden;
             padding: 14px 18px;
             flex: 1;
+        }
+
+        .srr-history-body table {
+            width: 100%;
+            table-layout: auto;
+            border-collapse: collapse;
+        }
+
+        .srr-history-body th,
+        .srr-history-body td {
+            padding: 10px 12px;
+            white-space: nowrap;
+        }
+
+        .srr-history-body td.srr-history-barcodes {
+            white-space: normal;
+            word-break: break-word;
+            min-width: 280px;
+            max-width: 560px;
         }
 
         .srr-btn-sm {
@@ -314,7 +344,7 @@
             <div class="srr-history-header">
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <span class="material-symbols-outlined" style="color: #38bdf8;">history</span>
-                    <h3 id="srrHistoryTitle" style="margin: 0; font-size: 16px;">Lịch sử Khôi phục &amp; Hoàn tác (Rollback)</h3>
+                    <h3 id="srrHistoryTitle" style="margin: 0; font-size: 16px;">Lịch sử Khôi phục</h3>
                 </div>
                 <button type="button" id="btnCloseHistoryModal" class="srr-btn-sm">
                     <span class="material-symbols-outlined" style="font-size: 16px;">close</span>
@@ -322,16 +352,15 @@
                 </button>
             </div>
             <div class="srr-history-body">
-                <table style="width: 100%; border-collapse: collapse;">
+                <table>
                     <thead>
                         <tr>
-                            <th>Mã đợt</th>
                             <th>Thời gian (UTC+7)</th>
                             <th>Env</th>
-                            <th>Số mục</th>
+                            <th style="text-align: right;">Số mục</th>
+                            <th>Barcode</th>
                             <th>Người thao tác</th>
                             <th>Trạng thái</th>
-                            <th style="text-align: center;">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody id="srrHistoryBody"></tbody>
