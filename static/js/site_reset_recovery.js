@@ -284,15 +284,13 @@
 
             const idx = name => tableColumns.indexOf(name);
             const iBarcode = idx('barcode');
-            const iProdId = idx('product_id');
-            const iProdType = idx('product_type');
             const iStation = idx('station');
             const iSite = idx('site');
             const iErrTime = idx('error_time (UTC+7)');
             const iQty = idx('quantity');
-            const iWipedQty = idx('quantity_site_content');
-            const iRecQty = idx('recovery_quantity');
-            const iInitQty = idx('initial_quantity');
+            const iWipedQty = idx('qty_in_site');
+            const iRecQty = idx('recovery_qty');
+            const iInitQty = idx('initial_qty');
             const iStatus = idx('status');
 
             allRows = rawResult.map((cells, rIdx) => {
@@ -300,15 +298,13 @@
                 const rowObj = {
                     cells,
                     barcode: cells[iBarcode] ?? '',
-                    product_id: cells[iProdId] ?? '-',
-                    product_type: cells[iProdType] ?? '-',
                     station: cells[iStation] ?? '',
                     site: cells[iSite] ?? '',
                     error_time: cells[iErrTime] ?? '-',
                     quantity: cells[iQty] ?? 0,
-                    quantity_site_content: cells[iWipedQty] ?? 0,
-                    recovery_quantity: cells[iRecQty] ?? 0,
-                    initial_quantity: cells[iInitQty],
+                    qty_in_site: cells[iWipedQty] ?? 0,
+                    recovery_qty: cells[iRecQty] ?? 0,
+                    initial_qty: cells[iInitQty],
                     status: cells[iStatus] ?? 'An toàn',
                     oid: m.oid || null,
                     reset_ts: m.reset_ts || '',
@@ -346,7 +342,7 @@
     function renderTableHeader() {
         const thead = document.getElementById('tableHead');
         if (!thead) return;
-        const rightCols = new Set(['quantity', 'quantity_site_content', 'recovery_quantity', 'initial_quantity']);
+        const rightCols = new Set(['quantity', 'qty_in_site', 'recovery_qty', 'initial_qty']);
         const thCols = tableColumns.map(col => {
             const alignStyle = rightCols.has(col) ? ' style="text-align: right;"' : '';
             return `<th${alignStyle}>${escapeHtml(col)}</th>`;
@@ -380,7 +376,7 @@
             if (activeStationFilter && r.station !== activeStationFilter) return false;
             if (activeStatusFilter && r.status !== activeStatusFilter) return false;
             if (kw) {
-                const hay = `${r.barcode} ${r.product_id} ${r.product_type} ${r.station} ${r.site} ${r.status} ${r.flag_summary}`.toLowerCase();
+                const hay = `${r.barcode} ${r.station} ${r.site} ${r.error_time} ${r.status} ${r.flag_summary}`.toLowerCase();
                 if (!hay.includes(kw)) return false;
             }
             return true;
@@ -392,7 +388,7 @@
 
     function getTargetQty(row) {
         if (editedQtyMap.has(row._key)) return editedQtyMap.get(row._key);
-        return row.recovery_quantity;
+        return row.recovery_qty;
     }
 
     function renderTable() {
@@ -423,14 +419,14 @@
 
             const cellsHtml = tableColumns.map((colName, idx) => {
                 const val = r.cells[idx];
-                if (colName === 'quantity' || colName === 'initial_quantity') {
+                if (colName === 'quantity' || colName === 'initial_qty') {
                     return `<td class="srr-num">${formatNum(val)}</td>`;
                 }
-                if (colName === 'quantity_site_content') {
+                if (colName === 'qty_in_site') {
                     const mult = r.item_count > 1 ? ` (×${r.item_count})` : '';
                     return `<td class="srr-num">${formatNum(val)}${mult}</td>`;
                 }
-                if (colName === 'recovery_quantity') {
+                if (colName === 'recovery_qty') {
                     return `
                         <td class="srr-num">
                             <input type="number" step="any" min="0" class="srr-qty-input" data-key="${escapeHtml(r._key)}" value="${escapeHtml(targetQty)}" ${disabled}>
@@ -466,13 +462,15 @@
         });
 
         tbody.querySelectorAll('.srr-qty-input').forEach(inp => {
-            inp.addEventListener('change', () => {
+            const syncQty = () => {
                 const k = inp.dataset.key;
                 const val = Number(inp.value);
                 if (Number.isFinite(val) && val >= 0) {
                     editedQtyMap.set(k, Math.round(val * 1e6) / 1e6);
                 }
-            });
+            };
+            inp.addEventListener('input', syncQty);
+            inp.addEventListener('change', syncQty);
         });
 
         const selectAll = document.getElementById('selectAllRows');

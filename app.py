@@ -1019,7 +1019,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.4.24"
+APP_VERSION = "2.4.25"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -11528,15 +11528,13 @@ def api_site_reset_recovery_scan():
         stations_set = set()
         columns = [
             'barcode',
-            'product_id',
-            'product_type',
+            'quantity',
+            'qty_in_site',
+            'recovery_qty',
+            'initial_qty',
             'station',
             'site',
             'error_time (UTC+7)',
-            'quantity',
-            'quantity_site_content',
-            'recovery_quantity',
-            'initial_quantity',
             'status',
         ]
         result = []
@@ -11583,15 +11581,13 @@ def api_site_reset_recovery_scan():
 
             result.append([
                 rid,
-                mr_prod_id or c_prod_id or '-',
-                mr_prod_type or c_prod_type or '-',
-                st,
-                sname,
-                _ns_to_vn_str(reset_ts_int),
                 mr_qty,
                 wiped_qty,
                 proposed_qty,
                 initial_qty,
+                st,
+                sname,
+                _ns_to_vn_str(reset_ts_int),
                 status_text,
             ])
             meta.append({
