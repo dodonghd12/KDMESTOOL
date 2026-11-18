@@ -134,9 +134,16 @@
             justify-content: center;
             cursor: pointer;
             border-radius: 3px;
-            opacity: 0.85;
+            opacity: 0;
+            pointer-events: none;
             transition: background-color 0.15s ease, opacity 0.15s ease;
             user-select: none;
+        }
+
+        .site-reset-recovery-page .srr-qty-wrap:hover .srr-spin,
+        .site-reset-recovery-page .srr-qty-wrap:focus-within .srr-spin {
+            opacity: 0.85;
+            pointer-events: auto;
         }
 
         .site-reset-recovery-page .srr-spin-up { top: 2px; }
@@ -156,7 +163,8 @@
             border-top: 4.5px solid var(--color-text-accent, #3dd5c0);
         }
 
-        .site-reset-recovery-page .srr-spin:hover {
+        .site-reset-recovery-page .srr-qty-wrap:hover .srr-spin:hover,
+        .site-reset-recovery-page .srr-qty-wrap:focus-within .srr-spin:hover {
             background: rgba(61, 213, 192, 0.16);
             opacity: 1;
         }
@@ -170,8 +178,8 @@
         }
 
         .site-reset-recovery-page .srr-qty-input:disabled ~ .srr-spin {
-            opacity: 0.35;
-            pointer-events: none;
+            opacity: 0 !important;
+            pointer-events: none !important;
         }
 
         :root[data-theme="light"] .site-reset-recovery-page .srr-spin:hover,
@@ -408,7 +416,7 @@
                         <span class="material-symbols-outlined standby-icon">restore_page</span>
                     </div>
                     <div class="standby-title">Sẵn sàng quét tem mất quantity do Uploader Reset</div>
-                    <div class="standby-subtitle">Bấm nút "Load" để tìm các barcode có quantity = 0 bị SiteService.Upsert (updated_by = '') xóa trắng</div>
+                    <div class="standby-subtitle">Bấm nút "Load" để tìm các barcode có quantity = 0 bị SiteService.Upsert (mcom) xóa trắng</div>
                 </div>
 
                 <table id="recoveryTable" style="display: none;">
