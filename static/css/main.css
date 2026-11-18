@@ -6828,6 +6828,11 @@ body.theme-light .winx-btn-primary:hover:not(:disabled) {
     color: #ffffff;
 }
 
+#btnLoad,
+#btnLoad:hover:not(:disabled) {
+    color: #ffffff;
+}
+
 .winx-btn-ghost {
     background: var(--color-interactive-bg-hover);
     border: 1px solid var(--color-border-interactive);

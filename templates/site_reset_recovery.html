@@ -77,7 +77,6 @@
 
         .site-reset-recovery-page .srr-num {
             text-align: right;
-            font-variant-numeric: tabular-nums;
         }
 
         .site-reset-recovery-page .srr-status-safe {
@@ -270,7 +269,7 @@
                 <!-- 1. btnLoad -->
                 <button type="button" id="btnLoad" class="winx-btn winx-btn-primary btn-refresh" style="height: 42px; padding: 0 20px; font-size: 14px; font-weight: 700; letter-spacing: 0.4px; flex-shrink: 0;" aria-label="Quét dữ liệu tem bị uploader reset">
                     <span class="material-symbols-outlined" id="btnLoadIcon" style="font-size: 20px !important;">sync</span>
-                    <span>Scan</span>
+                    <span>Load</span>
                 </button>
 
                 <!-- 2. Date Range -->
@@ -314,7 +313,7 @@
                         <span class="material-symbols-outlined standby-icon">restore_page</span>
                     </div>
                     <div class="standby-title">Sẵn sàng quét tem mất quantity do Uploader Reset</div>
-                    <div class="standby-subtitle">Bấm nút "Scan" để tìm các barcode có quantity = 0 bị SiteService.Upsert (updated_by = '') xóa trắng</div>
+                    <div class="standby-subtitle">Bấm nút "Load" để tìm các barcode có quantity = 0 bị SiteService.Upsert (updated_by = '') xóa trắng</div>
                 </div>
 
                 <table id="recoveryTable" style="display: none;">
