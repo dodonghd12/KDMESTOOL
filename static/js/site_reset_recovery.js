@@ -305,6 +305,13 @@
             searchDebounceTimer = setTimeout(() => applyFilters(), 80);
         };
 
+        const syncQty = inp => {
+            const val = Number(inp.value);
+            if (Number.isFinite(val) && val >= 0) {
+                editedQtyMap.set(inp.dataset.key, Math.round(val * 1e6) / 1e6);
+            }
+        };
+
         const tbody = document.getElementById('tableBody');
         if (tbody) {
             tbody.addEventListener('change', e => {
@@ -317,19 +324,26 @@
                     updateSelectionUI();
                     syncSelectAllCheckbox();
                 } else if (target.classList.contains('srr-qty-input')) {
-                    const val = Number(target.value);
-                    if (Number.isFinite(val) && val >= 0) {
-                        editedQtyMap.set(target.dataset.key, Math.round(val * 1e6) / 1e6);
-                    }
+                    syncQty(target);
                 }
             });
             tbody.addEventListener('input', e => {
-                const target = e.target;
-                if (!target || !target.classList.contains('srr-qty-input')) return;
-                const val = Number(target.value);
-                if (Number.isFinite(val) && val >= 0) {
-                    editedQtyMap.set(target.dataset.key, Math.round(val * 1e6) / 1e6);
-                }
+                if (e.target && e.target.classList.contains('srr-qty-input')) syncQty(e.target);
+            });
+            tbody.addEventListener('mousedown', e => {
+                if (e.target && e.target.classList.contains('srr-spin')) e.preventDefault();
+            });
+            tbody.addEventListener('click', e => {
+                const spin = e.target && e.target.closest ? e.target.closest('.srr-spin') : null;
+                if (!spin) return;
+                const inp = spin.parentElement?.querySelector('.srr-qty-input');
+                if (!inp || inp.disabled) return;
+                const delta = spin.classList.contains('srr-spin-up') ? 1 : -1;
+                const cur = Number(inp.value);
+                const next = Math.max(0, Math.round(((Number.isFinite(cur) ? cur : 0) + delta) * 1e6) / 1e6);
+                inp.value = next;
+                syncQty(inp);
+                inp.focus();
             });
         }
     }
@@ -533,15 +547,18 @@
                 if (colName === 'recovery_qty') {
                     return `
                         <td class="srr-num">
-                            <input type="number" step="any" min="0" data-no-smooth-caret class="srr-qty-input" data-key="${escapeHtml(r._key)}" value="${escapeHtml(targetQty)}" ${disabled}>
+                            <div class="srr-qty-wrap">
+                                <input type="number" step="any" min="0" data-no-smooth-caret class="srr-qty-input" data-key="${escapeHtml(r._key)}" value="${escapeHtml(targetQty)}" ${disabled}>
+                                <span class="srr-spin srr-spin-up" title="Tăng 1" aria-hidden="true"></span>
+                                <span class="srr-spin srr-spin-down" title="Giảm 1" aria-hidden="true"></span>
+                            </div>
                         </td>
                     `;
                 }
                 if (colName === 'status') {
-                    const detail = (r.flag_summary && r.flag_summary !== 'OK')
-                        ? `<span class="srr-flag-detail">(${escapeHtml(r.flag_summary)})</span>`
-                        : '';
-                    return `<td><span class="${statusCls}">${escapeHtml(val)}</span>${detail}</td>`;
+                    const isWarn = r.risk_level !== 'SAFE' && r.flag_summary && r.flag_summary !== 'OK';
+                    const titleAttr = isWarn ? ` title="${escapeHtml(r.flag_summary)}"` : '';
+                    return `<td><span class="${statusCls}"${titleAttr}>${escapeHtml(val)}</span></td>`;
                 }
                 return `<td>${escapeHtml(val == null ? '-' : val)}</td>`;
             }).join('');
