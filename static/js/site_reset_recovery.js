@@ -10,8 +10,8 @@
     const HOLD_DURATION_MS = 3000;
     const STATUS_OPTIONS = [
         { value: '', label: 'Tất cả' },
-        { value: 'An toàn', label: 'An toàn' },
-        { value: 'Cảnh báo', label: 'Cảnh báo' }
+        { value: 'OK', label: 'OK' },
+        { value: 'Warning', label: 'Warning' }
     ];
 
     let tableColumns = [];
@@ -385,13 +385,13 @@
                     qty_in_site: cells[iWipedQty] ?? 0,
                     recovery_qty: cells[iRecQty] ?? 0,
                     initial_qty: cells[iInitQty],
-                    status: cells[iStatus] ?? 'An toàn',
+                    status: cells[iStatus] ?? 'OK',
                     oid: m.oid || null,
                     reset_ts: m.reset_ts || '',
                     site_index: m.site_index || 0,
                     item_count: m.item_count || 1,
                     risk_level: m.risk_level || 'SAFE',
-                    flag_summary: m.flag_summary || 'An toàn',
+                    flag_summary: m.flag_summary || 'OK',
                 };
                 rowObj._key = makeRowKey(rowObj);
                 rowObj._date = String(rowObj.error_time || '').slice(0, 10);
@@ -538,7 +538,7 @@
                     `;
                 }
                 if (colName === 'status') {
-                    const detail = (r.flag_summary && r.flag_summary !== 'An toàn')
+                    const detail = (r.flag_summary && r.flag_summary !== 'OK')
                         ? `<span class="srr-flag-detail">(${escapeHtml(r.flag_summary)})</span>`
                         : '';
                     return `<td><span class="${statusCls}">${escapeHtml(val)}</span>${detail}</td>`;

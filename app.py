@@ -1019,7 +1019,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.4.34"
+APP_VERSION = "2.4.35"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -11580,7 +11580,7 @@ def api_site_reset_recovery_scan():
                 flag_details.append(f"Sau khôi phục ({proposed_qty:g}) > initial ({initial_qty:g})")
 
             risk_level = 'WARN' if flags else 'SAFE'
-            status_text = 'Cảnh báo' if flags else 'An toàn'
+            status_text = 'Warning' if flags else 'OK'
 
             result.append([
                 rid,
@@ -11599,7 +11599,7 @@ def api_site_reset_recovery_scan():
                 'site_index': int(sidx or 0),
                 'item_count': int(item_count or 1),
                 'risk_level': risk_level,
-                'flag_summary': ' | '.join(flag_details) if flag_details else 'An toàn',
+                'flag_summary': ' | '.join(flag_details) if flag_details else 'OK',
             })
 
         return jsonify({

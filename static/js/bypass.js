@@ -358,22 +358,26 @@
             holdAnimFrame = requestAnimationFrame(updateProgress);
         }
 
-        function cancelHold() {
+        function cancelHold(showShortToast = false) {
+            const wasHolding = Boolean(holdStartTime);
             if (holdAnimFrame) {
                 cancelAnimationFrame(holdAnimFrame);
                 holdAnimFrame = null;
             }
             holdStartTime = null;
             if (progressBar) progressBar.style.width = '0%';
+            if (showShortToast && wasHolding && typeof Toast !== 'undefined') {
+                Toast.info('Chưa đủ 3 giây', 'Vui lòng nhấn và giữ nút đủ 3 giây để thực hiện.');
+            }
         }
 
         btn.addEventListener('mousedown', startHold);
         btn.addEventListener('touchstart', startHold, { passive: false });
 
-        btn.addEventListener('mouseup', cancelHold);
-        btn.addEventListener('mouseleave', cancelHold);
-        btn.addEventListener('touchend', cancelHold);
-        btn.addEventListener('touchcancel', cancelHold);
+        btn.addEventListener('mouseup', () => cancelHold(true));
+        btn.addEventListener('mouseleave', () => cancelHold(false));
+        btn.addEventListener('touchend', () => cancelHold(true));
+        btn.addEventListener('touchcancel', () => cancelHold(false));
     }
 
     /**

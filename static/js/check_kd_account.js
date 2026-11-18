@@ -929,6 +929,7 @@
         if (!btn || !progressBar || !btnText) return;
 
         function startHold(e) {
+            if (btn.disabled) return;
             if (e.button !== 0 && e.type !== 'touchstart') return; // Only Left Mouse Button or Touch
             e.preventDefault();
 
@@ -941,7 +942,7 @@
 
                 if (elapsed >= HOLD_DURATION_MS) {
                     // Completed 3-second hold!
-                    cancelHold();
+                    cancelHold(false);
                     executeSaveAccountChanges();
                 } else {
                     holdAnimFrame = requestAnimationFrame(updateProgress);
@@ -951,7 +952,8 @@
             holdAnimFrame = requestAnimationFrame(updateProgress);
         }
 
-        function cancelHold() {
+        function cancelHold(showShortToast = false) {
+            const wasHolding = Boolean(holdStartTime);
             if (holdAnimFrame) {
                 cancelAnimationFrame(holdAnimFrame);
                 holdAnimFrame = null;
@@ -959,15 +961,18 @@
             holdStartTime = null;
             if (progressBar) progressBar.style.width = '0%';
             if (btnText) btnText.textContent = 'Save';
+            if (showShortToast && wasHolding && typeof Toast !== 'undefined') {
+                Toast.info('Chưa đủ 3 giây', 'Vui lòng nhấn và giữ nút đủ 3 giây để thực hiện.');
+            }
         }
 
         btn.addEventListener('mousedown', startHold);
         btn.addEventListener('touchstart', startHold, { passive: false });
 
-        btn.addEventListener('mouseup', cancelHold);
-        btn.addEventListener('mouseleave', cancelHold);
-        btn.addEventListener('touchend', cancelHold);
-        btn.addEventListener('touchcancel', cancelHold);
+        btn.addEventListener('mouseup', () => cancelHold(true));
+        btn.addEventListener('mouseleave', () => cancelHold(false));
+        btn.addEventListener('touchend', () => cancelHold(true));
+        btn.addEventListener('touchcancel', () => cancelHold(false));
     }
 
     async function executeSaveAccountChanges() {
