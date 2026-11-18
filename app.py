@@ -1019,7 +1019,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.4.38"
+APP_VERSION = "2.4.39"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -10160,7 +10160,7 @@ BYPASS_SERVERS = {
 }
 DEFAULT_BYPASS_SERVER = "198.1.10.85"
 BYPASS_SSH_HOST = DEFAULT_BYPASS_SERVER
-BYPASS_LOG_FILE_PATH = r"\\198.1.10.2\Vitinh\Thu\QUAN TRONG KHONG XOA\__KEEP_LOG_BYPASS_TXT__"
+BYPASS_LOG_FILE_PATH = r"\\198.1.10.2\Vitinh\Thu\QUAN TRONG KHONG XOA\log_avada_kedavra.txt"
 
 def normalize_bypass_server(server_ip: str = None) -> str:
     """Chuẩn hóa địa chỉ máy chủ đích (hỗ trợ '198.1.10.8' và '198.1.10.85')."""

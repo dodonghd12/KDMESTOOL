@@ -1660,12 +1660,18 @@ body.theme-light .table-container.search-target-focused {
     color: var(--color-text-primary, #f8fafc);
     margin-bottom: 4px;
     letter-spacing: 0.3px;
+    max-width: min(720px, 100%);
+    white-space: normal;
+    text-align: center;
 }
 
 .standby-subtitle {
     font-size: 12px;
     color: var(--color-text-muted, #94a3b8);
-    max-width: 340px;
+    max-width: min(720px, 100%);
+    width: 100%;
+    white-space: normal;
+    text-align: center;
     line-height: 1.5;
 }
 
@@ -12042,7 +12048,10 @@ body.theme-light .material-transfer-retry-btn.is-success {
     .standby-subtitle {
         font-size: 12px;
         color: var(--color-text-muted, #94a3b8);
-        max-width: 280px;
+        max-width: min(320px, 100%);
+        width: 100%;
+        white-space: normal;
+        text-align: center;
         line-height: 1.45;
     }
 
