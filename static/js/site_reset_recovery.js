@@ -1,33 +1,19 @@
 /**
  * ==============================================================================
  * KDMES TOOL — SITE RESET RECOVERY CONTROLLER
- * Tìm kiếm và khôi phục số lượng cho tem bị mất quantity do Uploader SiteService.Upsert
+ * Tìm kiếm và trả lại quantity cho các barcode có quantity = 0 bị Uploader reset
  * ==============================================================================
  */
 (function () {
     'use strict';
 
-    const PAGE_SIZE = 50;
     const HOLD_DURATION_MS = 3000;
-
-    const STATUS_OPTIONS = [
-        { value: 'zero', label: 'Mất hết (Qty = 0)' },
-        { value: 'partial', label: 'Partial (Qty > 0)' },
-        { value: 'negative', label: 'Âm (Qty < 0)' },
-        { value: 'safe_only', label: 'Chỉ dòng An toàn' },
-        { value: 'warn_only', label: 'Cần kiểm tra (Cảnh báo)' },
-        { value: 'all', label: 'Tất cả' }
-    ];
 
     let allRows = [];
     let filteredRows = [];
     let allStations = [];
-    let currentPage = 1;
-    let totalPages = 1;
     let selectedKeys = new Set();
     let editedQtyMap = new Map();
-    let restoreMode = 'quantity'; // 'quantity' | 'container'
-    let activeStatusFilter = 'zero';
     let activeStationFilter = '';
     let selectedFromDate = '';
     let selectedToDate = '';
@@ -47,14 +33,11 @@
 
     function init() {
         ensureClientSearchAlwaysEnabled();
-        initDefaultDateRange();
         initFlatpickr();
-        initStatusDropdown();
         initStationDropdown();
         initControls();
         initHoldRestoreButton();
         initHistoryModal();
-        setupExportHook();
         document.body.classList.remove('app-loading-state');
     }
 
@@ -102,30 +85,20 @@
         };
     }
 
-    function initDefaultDateRange() {
-        const today = new Date();
-        const past = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-        selectedFromDate = formatDateStr(past);
-        selectedToDate = formatDateStr(today);
-        const fromEl = document.getElementById('fromDate');
-        const toEl = document.getElementById('toDate');
-        const dateEl = document.getElementById('dateRange');
-        if (fromEl) fromEl.value = selectedFromDate;
-        if (toEl) toEl.value = selectedToDate;
-        if (dateEl) dateEl.value = `${selectedFromDate}     ${selectedToDate}`;
-    }
-
     function initFlatpickr() {
         const dateInput = document.getElementById('dateRange');
         const fromEl = document.getElementById('fromDate');
         const toEl = document.getElementById('toDate');
         if (!dateInput || typeof flatpickr === 'undefined') return;
 
+        if (fromEl) fromEl.value = '';
+        if (toEl) toEl.value = '';
+        dateInput.value = '';
+
         flatpickrInstance = flatpickr(dateInput, {
             mode: 'range',
             dateFormat: 'Y-m-d',
             maxDate: 'today',
-            defaultDate: [selectedFromDate, selectedToDate],
             allowInput: false,
             clickOpens: true,
             locale: {
@@ -162,26 +135,45 @@
                 }
             }
         });
+
+        dateInput.addEventListener('click', () => {
+            if (dateInput.value && flatpickrInstance) {
+                flatpickrInstance.clear();
+                selectedFromDate = '';
+                selectedToDate = '';
+                if (fromEl) fromEl.value = '';
+                if (toEl) toEl.value = '';
+                dateInput.value = '';
+            }
+        });
     }
 
-    function bindDropdown(inputId, dropdownId, getItems, onSelect) {
-        const input = document.getElementById(inputId);
-        const dropdown = document.getElementById(dropdownId);
+    function initStationDropdown() {
+        const input = document.getElementById('stationFilter');
+        const dropdown = document.getElementById('station-filter-dropdown');
         if (!input || !dropdown) return;
+
+        input.value = 'Tất cả Station';
+        input.closest('.input-box')?.classList.add('has-value');
 
         const render = () => {
             dropdown.innerHTML = '';
-            const items = getItems();
-            items.forEach(opt => {
+            const list = [{ value: '', label: 'Tất cả Station' }].concat(
+                allStations.map(st => ({ value: st, label: st }))
+            );
+            list.forEach(opt => {
                 const div = document.createElement('div');
                 div.className = 'dropdown-item';
-                if (opt.selected) div.classList.add('selected');
+                if (opt.value === activeStationFilter) div.classList.add('selected');
                 div.textContent = opt.label;
                 div.addEventListener('mousedown', e => {
                     e.preventDefault();
+                    activeStationFilter = opt.value;
+                    input.value = opt.label;
+                    input.closest('.input-box')?.classList.add('has-value');
                     dropdown.classList.remove('show');
                     input.blur();
-                    onSelect(opt);
+                    applyFilters();
                 });
                 dropdown.appendChild(div);
             });
@@ -205,64 +197,6 @@
         });
     }
 
-    function initStatusDropdown() {
-        const input = document.getElementById('statusFilter');
-        const def = STATUS_OPTIONS.find(o => o.value === activeStatusFilter);
-        if (input && def) {
-            input.value = def.label;
-            input.closest('.input-box')?.classList.add('has-value');
-        }
-
-        bindDropdown(
-            'statusFilter',
-            'status-filter-dropdown',
-            () => STATUS_OPTIONS.map(o => ({ ...o, selected: o.value === activeStatusFilter })),
-            opt => {
-                activeStatusFilter = opt.value;
-                if (input) {
-                    input.value = opt.label;
-                    input.closest('.input-box')?.classList.add('has-value');
-                }
-                syncQuickFilterPills();
-                applyFilters(true);
-            }
-        );
-    }
-
-    function initStationDropdown() {
-        const input = document.getElementById('stationFilter');
-        if (input) {
-            input.value = 'Tất cả Station';
-            input.closest('.input-box')?.classList.add('has-value');
-        }
-
-        bindDropdown(
-            'stationFilter',
-            'station-filter-dropdown',
-            () => {
-                const list = [{ value: '', label: 'Tất cả Station', selected: activeStationFilter === '' }];
-                allStations.forEach(st => {
-                    list.push({ value: st, label: st, selected: activeStationFilter === st });
-                });
-                return list;
-            },
-            opt => {
-                activeStationFilter = opt.value;
-                if (input) {
-                    input.value = opt.label;
-                    input.closest('.input-box')?.classList.add('has-value');
-                }
-                applyFilters(true);
-            }
-        );
-    }
-
-    function syncQuickFilterPills() {
-        document.querySelectorAll('.srr-pill[data-quick-filter]').forEach(pill => {
-            pill.classList.toggle('is-active', pill.dataset.quickFilter === activeStatusFilter);
-        });
-    }
-
     function initControls() {
         const btnLoad = document.getElementById('btnLoad');
         if (btnLoad) btnLoad.addEventListener('click', scanResetRows);
@@ -271,77 +205,23 @@
         if (searchEl) {
             searchEl.addEventListener('input', () => {
                 clearTimeout(searchDebounceTimer);
-                searchDebounceTimer = setTimeout(() => applyFilters(true), 150);
+                searchDebounceTimer = setTimeout(() => applyFilters(), 150);
             });
         }
-        window.customClientSearchHandler = () => applyFilters(true);
+        window.customClientSearchHandler = () => applyFilters();
 
-        document.querySelectorAll('.srr-pill[data-quick-filter]').forEach(pill => {
-            pill.addEventListener('click', () => {
-                activeStatusFilter = pill.dataset.quickFilter;
-                const statusInput = document.getElementById('statusFilter');
-                const matched = STATUS_OPTIONS.find(o => o.value === activeStatusFilter);
-                if (statusInput && matched) statusInput.value = matched.label;
-                syncQuickFilterPills();
-                applyFilters(true);
-            });
-        });
-
-        const selectAllPage = document.getElementById('selectAllPage');
-        if (selectAllPage) {
-            selectAllPage.addEventListener('change', () => {
-                const start = (currentPage - 1) * PAGE_SIZE;
-                const pageItems = filteredRows.slice(start, start + PAGE_SIZE);
-                pageItems.forEach(r => {
-                    if (!r.oid && restoreMode === 'quantity') return;
-                    if (selectAllPage.checked) selectedKeys.add(r._key);
+        const selectAllRows = document.getElementById('selectAllRows');
+        if (selectAllRows) {
+            selectAllRows.addEventListener('change', () => {
+                filteredRows.forEach(r => {
+                    if (!r.oid) return;
+                    if (selectAllRows.checked) selectedKeys.add(r._key);
                     else selectedKeys.delete(r._key);
                 });
-                renderTablePage();
+                renderTable();
                 updateSelectionUI();
             });
         }
-
-        const btnSelectSafe = document.getElementById('btnSelectSafe');
-        if (btnSelectSafe) {
-            btnSelectSafe.addEventListener('click', () => {
-                let added = 0;
-                const seenOids = new Set();
-                filteredRows.forEach(r => {
-                    if (r.risk_level === 'SAFE' && r.oid) {
-                        if (restoreMode === 'quantity') {
-                            if (seenOids.has(r.oid)) return;
-                            seenOids.add(r.oid);
-                        }
-                        selectedKeys.add(r._key);
-                        added++;
-                    }
-                });
-                renderTablePage();
-                updateSelectionUI();
-                if (typeof Toast !== 'undefined') {
-                    Toast.info('Chọn tự động', `Đã chọn ${added} dòng An toàn.`);
-                }
-            });
-        }
-
-        const btnClearSel = document.getElementById('btnClearSelection');
-        if (btnClearSel) {
-            btnClearSel.addEventListener('click', () => {
-                selectedKeys.clear();
-                renderTablePage();
-                updateSelectionUI();
-            });
-        }
-
-        document.querySelectorAll('.srr-mode-btn[data-mode]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                restoreMode = btn.dataset.mode;
-                document.querySelectorAll('.srr-mode-btn').forEach(b => b.classList.toggle('active', b === btn));
-                renderTablePage();
-                updateSelectionUI();
-            });
-        });
     }
 
     async function scanResetRows() {
@@ -360,8 +240,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     from_date: selectedFromDate,
-                    to_date: selectedToDate,
-                    status_filter: 'all'
+                    to_date: selectedToDate
                 })
             });
             const data = await res.json();
@@ -374,17 +253,13 @@
             selectedKeys.clear();
             editedQtyMap.clear();
 
-            updateSummaryBar(data.summary || {});
             if (standby) standby.style.display = 'none';
             if (table) table.style.display = 'table';
             if (footer) footer.classList.remove('hidden');
 
-            const sumBar = document.getElementById('srrSummaryBar');
-            if (sumBar) sumBar.style.display = 'flex';
-
-            applyFilters(true);
+            applyFilters();
             if (typeof Toast !== 'undefined') {
-                Toast.success('Quét hoàn tất', `Phát hiện ${allRows.length} tem bị reset trong khoảng thời gian đã chọn.`);
+                Toast.success('Quét hoàn tất', `Tìm thấy ${allRows.length} barcode có quantity = 0 bị uploader reset.`);
             }
         } catch (err) {
             console.error('[SiteResetRecovery] Scan error:', err);
@@ -395,29 +270,10 @@
         }
     }
 
-    function updateSummaryBar(sum) {
-        const set = (id, v) => {
-            const el = document.getElementById(id);
-            if (el) el.textContent = v ?? 0;
-        };
-        set('sumTotal', sum.total || 0);
-        set('sumZero', sum.zero_count || 0);
-        set('sumPartial', sum.partial_count || 0);
-        set('sumNegative', sum.negative_count || 0);
-        set('sumSafe', sum.safe_count || 0);
-        set('sumWarn', sum.warn_count || 0);
-    }
-
-    function applyFilters(resetPage = true) {
+    function applyFilters() {
         const kw = (document.getElementById('clientSearch')?.value || '').trim().toLowerCase();
         filteredRows = allRows.filter(r => {
             if (activeStationFilter && r.station !== activeStationFilter) return false;
-            if (activeStatusFilter === 'zero' && r.qty_status !== 'zero') return false;
-            if (activeStatusFilter === 'partial' && r.qty_status !== 'partial') return false;
-            if (activeStatusFilter === 'negative' && r.qty_status !== 'negative') return false;
-            if (activeStatusFilter === 'safe_only' && r.risk_level !== 'SAFE') return false;
-            if (activeStatusFilter === 'warn_only' && r.risk_level !== 'WARN') return false;
-
             if (kw) {
                 const hay = `${r.barcode} ${r.product_id} ${r.product_type} ${r.station} ${r.site_name} ${r.flag_summary}`.toLowerCase();
                 if (!hay.includes(kw)) return false;
@@ -425,11 +281,7 @@
             return true;
         });
 
-        totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
-        if (resetPage || currentPage > totalPages) currentPage = 1;
-
-        renderTablePage();
-        renderPagination();
+        renderTable();
         updateSelectionUI();
     }
 
@@ -438,7 +290,7 @@
         return row.proposed_qty;
     }
 
-    function renderTablePage() {
+    function renderTable() {
         const tbody = document.getElementById('tableBody');
         const rowCountEl = document.getElementById('rowCount');
         if (!tbody) return;
@@ -452,22 +304,17 @@
                     </td>
                 </tr>
             `;
-            const selectAll = document.getElementById('selectAllPage');
+            const selectAll = document.getElementById('selectAllRows');
             if (selectAll) selectAll.checked = false;
             return;
         }
 
-        const start = (currentPage - 1) * PAGE_SIZE;
-        const pageItems = filteredRows.slice(start, start + PAGE_SIZE);
-
-        tbody.innerHTML = pageItems.map((r, i) => {
-            const idx = start + i + 1;
+        tbody.innerHTML = filteredRows.map((r, i) => {
+            const idx = i + 1;
             const checked = selectedKeys.has(r._key) ? 'checked' : '';
-            const disabled = (!r.oid && restoreMode === 'quantity') ? 'disabled' : '';
-            const badgeCls = r.risk_level === 'SAFE'
-                ? 'srr-badge-safe'
-                : (r.risk_level === 'PARTIAL' ? 'srr-badge-partial' : 'srr-badge-warn');
-            const badgeTxt = r.risk_level === 'SAFE' ? 'An toàn' : (r.risk_level === 'PARTIAL' ? 'Partial' : 'Cảnh báo');
+            const disabled = !r.oid ? 'disabled' : '';
+            const badgeCls = r.risk_level === 'SAFE' ? 'srr-badge-safe' : 'srr-badge-warn';
+            const badgeTxt = r.risk_level === 'SAFE' ? 'An toàn' : 'Cảnh báo';
             const targetQty = getTargetQty(r);
 
             return `
@@ -485,9 +332,7 @@
                     <td class="srr-num">${formatNum(r.mr_qty)}</td>
                     <td class="srr-num">${formatNum(r.wiped_qty)}${r.item_count > 1 ? ` <small>(×${r.item_count})</small>` : ''}</td>
                     <td class="srr-num">
-                        ${restoreMode === 'quantity'
-                            ? `<input type="number" step="any" min="0" class="srr-qty-input" data-key="${escapeHtml(r._key)}" value="${escapeHtml(targetQty)}" ${disabled}>`
-                            : `<span style="color: var(--color-text-muted); font-size: 11.5px;">Giữ nguyên (Site)</span>`}
+                        <input type="number" step="any" min="0" class="srr-qty-input" data-key="${escapeHtml(r._key)}" value="${escapeHtml(targetQty)}" ${disabled}>
                     </td>
                     <td class="srr-num">${formatNum(r.initial_qty)}</td>
                     <td>
@@ -517,42 +362,11 @@
             });
         });
 
-        const selectAll = document.getElementById('selectAllPage');
+        const selectAll = document.getElementById('selectAllRows');
         if (selectAll) {
-            const selectable = pageItems.filter(r => r.oid || restoreMode !== 'quantity');
+            const selectable = filteredRows.filter(r => r.oid);
             selectAll.checked = selectable.length > 0 && selectable.every(r => selectedKeys.has(r._key));
         }
-    }
-
-    function renderPagination() {
-        const nav = document.getElementById('paginationNav');
-        if (!nav) return;
-        if (totalPages <= 1) {
-            nav.innerHTML = '';
-            return;
-        }
-        const mkBtn = (label, page, disabled, active) =>
-            `<button type="button" class="page-btn ${active ? 'active' : ''}" ${disabled ? 'disabled' : ''} data-page="${page}">${label}</button>`;
-
-        let html = mkBtn('‹', Math.max(1, currentPage - 1), currentPage <= 1, false);
-        const startP = Math.max(1, currentPage - 2);
-        const endP = Math.min(totalPages, currentPage + 2);
-        for (let p = startP; p <= endP; p++) {
-            html += mkBtn(String(p), p, false, p === currentPage);
-        }
-        html += mkBtn('›', Math.min(totalPages, currentPage + 1), currentPage >= totalPages, false);
-        nav.innerHTML = html;
-
-        nav.querySelectorAll('button[data-page]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const p = Number(btn.dataset.page);
-                if (p && p !== currentPage) {
-                    currentPage = p;
-                    renderTablePage();
-                    renderPagination();
-                }
-            });
-        });
     }
 
     function updateSelectionUI() {
@@ -563,9 +377,7 @@
         if (countEl) countEl.textContent = count;
         if (holdBtn) holdBtn.disabled = count === 0 || isRestoring;
         if (holdTxt && !isRestoring) {
-            holdTxt.textContent = restoreMode === 'quantity'
-                ? `Giữ 3s Trả Qty (${count})`
-                : `Giữ 3s Khôi phục Site (${count})`;
+            holdTxt.textContent = `Execute (${count})`;
         }
     }
 
@@ -606,7 +418,7 @@
             if (e && e.type === 'mousedown' && e.button !== 0) return;
             holdCompleted = false;
             holdStartTime = performance.now();
-            if (txt) txt.textContent = 'Đang giữ để xác nhận...';
+            if (txt) txt.textContent = 'On Hold for Execution';
             holdAnimFrame = requestAnimationFrame(tick);
         };
 
@@ -614,7 +426,7 @@
             if (holdStartTime && !holdCompleted) {
                 cancelHold();
                 if (typeof Toast !== 'undefined') {
-                    Toast.info('Chưa đủ 3 giây', 'Vui lòng bấm và giữ nút đủ 3 giây để thực hiện khôi phục.');
+                    Toast.info('Chưa đủ 3 giây', 'Vui lòng nhấn và giữ nút đủ 3 giây để thực hiện khôi phục.');
                 }
             }
         };
@@ -640,9 +452,7 @@
                 barcode: r.barcode,
                 station: r.station,
                 site_name: r.site_name,
-                site_index: r.site_index,
                 reset_ts: r.reset_ts,
-                prev_ts: r.prev_ts,
                 expected_qty: r.mr_qty,
                 new_qty: getTargetQty(r)
             });
@@ -655,13 +465,13 @@
         const holdTxt = document.getElementById('restoreHoldText');
         const bar = document.getElementById('restoreHoldProgressBar');
         if (holdBtn) holdBtn.disabled = true;
-        if (holdTxt) holdTxt.textContent = 'Đang xử lý...';
+        if (holdTxt) holdTxt.textContent = 'Executing...';
 
         try {
             const res = await fetch('/api/site-reset-recovery/restore', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ mode: restoreMode, items })
+                body: JSON.stringify({ items })
             });
             const data = await res.json();
             if (!res.ok || !data.success) {
@@ -706,7 +516,7 @@
     async function loadRecoveryHistory() {
         const tbody = document.getElementById('srrHistoryBody');
         if (!tbody) return;
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 24px;">Đang tải lịch sử...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 24px;">Đang tải lịch sử...</td></tr>';
 
         try {
             const res = await fetch('/api/site-reset-recovery/history');
@@ -714,7 +524,7 @@
             if (!res.ok || !data.success) throw new Error((data && data.message) || 'Lỗi tải lịch sử');
             const recs = data.records || [];
             if (recs.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 28px; color: var(--color-text-muted);">Chưa có đợt khôi phục nào.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 28px; color: var(--color-text-muted);">Chưa có đợt khôi phục nào.</td></tr>';
                 return;
             }
             tbody.innerHTML = recs.map(rec => `
@@ -722,7 +532,6 @@
                     <td class="srr-mono">${escapeHtml(rec.recovery_id)}</td>
                     <td class="srr-mono">${escapeHtml(rec.timestamp_vn)}</td>
                     <td>${escapeHtml(rec.env || 'KV2')}</td>
-                    <td>${escapeHtml(rec.mode === 'container' ? 'Site Contents' : 'MR Quantity')}</td>
                     <td class="srr-num">${escapeHtml(rec.count)}</td>
                     <td>${escapeHtml(rec.operator_user)} (${escapeHtml(rec.operator_ip)})</td>
                     <td>
@@ -764,40 +573,7 @@
                 });
             });
         } catch (err) {
-            tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding: 24px; color: #f87171;">${escapeHtml(err.message)}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 24px; color: #f87171;">${escapeHtml(err.message)}</td></tr>`;
         }
-    }
-
-    function setupExportHook() {
-        window.getPageExportData = function () {
-            const columns = [
-                'Barcode', 'Product ID', 'Loại NVL', 'Station', 'Site',
-                'Thời điểm Reset (UTC+7)', 'MR Qty Hiện tại', 'Wiped Qty (Container)',
-                'Qty Sau Khôi Phục', 'Initial Qty', 'Trạng thái', 'Chi tiết cảnh báo'
-            ];
-            const rows = (filteredRows || []).map(r => [
-                r.barcode,
-                r.product_id,
-                r.product_type,
-                r.station,
-                r.site_name,
-                r.reset_time_vn,
-                r.mr_qty,
-                r.wiped_qty,
-                getTargetQty(r),
-                r.initial_qty,
-                r.risk_level,
-                r.flag_summary
-            ]);
-            const nowStr = typeof getVietnamTimestamp === 'function'
-                ? getVietnamTimestamp()
-                : new Date().toISOString().slice(0, 10);
-            return {
-                rows,
-                columns,
-                filename: `Site_Reset_Recovery_${nowStr}.xlsx`,
-                sheetName: 'Site_Reset_Recovery'
-            };
-        };
     }
 })();

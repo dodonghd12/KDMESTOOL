@@ -964,24 +964,44 @@ span.flatpickr-weekday {
     font-weight: 700 !important;
 }
 
-/* Continuous Range Selection - Seamless Uniform Banner with No Overlapping Shadow Blocks */
+/* Continuous Range Selection - Seamless High-Contrast Banner */
 .flatpickr-day.inRange,
 .flatpickr-day.prevMonthDay.inRange,
 .flatpickr-day.nextMonthDay.inRange,
 .flatpickr-day.today.inRange,
 .flatpickr-day.prevMonthDay.today.inRange,
 .flatpickr-day.nextMonthDay.today.inRange {
-    background: var(--color-bg-surface-glass) !important;
-    color: var(--color-text-inverse) !important;
-    border-color: transparent !important;
+    background: rgba(61, 213, 192, 0.18) !important;
+    color: var(--color-text-primary) !important;
+    border-top: 1px solid rgba(61, 213, 192, 0.35) !important;
+    border-bottom: 1px solid rgba(61, 213, 192, 0.35) !important;
+    border-left-color: transparent !important;
+    border-right-color: transparent !important;
     border-radius: 0 !important;
     box-shadow: none !important;
 }
 
-.flatpickr-day.inRange:hover {
-    background: var(--color-interactive-bg-active) !important;
-    color: var(--color-text-inverse) !important;
-    border-color: transparent !important;
+.flatpickr-day.inRange:hover,
+.flatpickr-day.prevMonthDay.inRange:hover,
+.flatpickr-day.nextMonthDay.inRange:hover {
+    background: rgba(61, 213, 192, 0.3) !important;
+    color: var(--color-text-primary) !important;
+    border-top-color: rgba(61, 213, 192, 0.55) !important;
+    border-bottom-color: rgba(61, 213, 192, 0.55) !important;
+}
+
+:root[data-theme="light"] .flatpickr-day.inRange,
+:root[data-theme="light"] .flatpickr-day.prevMonthDay.inRange,
+:root[data-theme="light"] .flatpickr-day.nextMonthDay.inRange,
+:root[data-theme="light"] .flatpickr-day.today.inRange,
+body.theme-light .flatpickr-day.inRange,
+body.theme-light .flatpickr-day.prevMonthDay.inRange,
+body.theme-light .flatpickr-day.nextMonthDay.inRange,
+body.theme-light .flatpickr-day.today.inRange {
+    background: rgba(13, 148, 136, 0.14) !important;
+    color: #0f172a !important;
+    border-top: 1px solid rgba(13, 148, 136, 0.32) !important;
+    border-bottom: 1px solid rgba(13, 148, 136, 0.32) !important;
 }
 
 .flatpickr-day.selected,
@@ -2205,6 +2225,29 @@ td {
     border-color: var(--color-border-focus);
     box-shadow: 0 4px 14px var(--color-border-glow);
     transform: translateY(-1px);
+    color: var(--color-text-accent);
+}
+
+.btn-export-excel:hover .btn-export-excel-wrapper,
+.btn-export-excel:hover .text,
+.btn-export-excel:hover .icon {
+    color: var(--color-text-accent);
+}
+
+:root[data-theme="light"] .btn-export-excel:hover,
+body.theme-light .btn-export-excel:hover {
+    background: var(--color-interactive-primary-hover);
+    border-color: var(--color-interactive-primary-active);
+    color: #ffffff;
+}
+
+:root[data-theme="light"] .btn-export-excel:hover .btn-export-excel-wrapper,
+:root[data-theme="light"] .btn-export-excel:hover .text,
+:root[data-theme="light"] .btn-export-excel:hover .icon,
+body.theme-light .btn-export-excel:hover .btn-export-excel-wrapper,
+body.theme-light .btn-export-excel:hover .text,
+body.theme-light .btn-export-excel:hover .icon {
+    color: #ffffff;
 }
 
 .btn-export-excel:hover .text {

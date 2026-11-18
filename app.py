@@ -1019,7 +1019,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.4.22"
+APP_VERSION = "2.4.23"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -11396,7 +11396,6 @@ def api_site_reset_recovery_scan():
     from_date = (data.get('from_date') or '').strip()
     to_date = (data.get('to_date') or '').strip()
     station_filter = (data.get('station') or '').strip()
-    status_filter = (data.get('status_filter') or 'zero').strip().lower()
 
     start_ns, end_ns = _parse_recovery_date_range_ns(from_date, to_date)
     active_env = (get_current_db_env() or 'KV2').strip().upper()
@@ -11473,7 +11472,9 @@ def api_site_reset_recovery_scan():
             mr.updated_by AS mr_updated_by,
             mr.feed_records_id AS mr_feed_records_id
         FROM extracted e
-        LEFT JOIN kvmes.material_resource mr ON mr.id = e.resource_id
+        JOIN kvmes.material_resource mr ON mr.id = e.resource_id
+        WHERE mr.quantity = 0
+          AND e.wiped_qty > 0
         ORDER BY e.reset_ts DESC, e.station ASC, e.site_name ASC, e.resource_id ASC;
     """
 
@@ -11509,15 +11510,7 @@ def api_site_reset_recovery_scan():
                     if r_id:
                         active_map.setdefault(r_id, []).append(f"{st} ({sname})")
 
-                # Collect feed_record timestamps in one PK batch for rows having feed_records_id
-                feed_id_set = set()
-                for row in raw_rows:
-                    fids = row[19]
-                    if fids:
-                        for fid in fids:
-                            if fid:
-                                feed_id_set.add(fid)
-
+                feed_id_set = {fid for row in raw_rows if row[19] for fid in row[19] if fid}
                 feed_time_ns_map = {}
                 if feed_id_set:
                     cur.execute(
@@ -11527,23 +11520,13 @@ def api_site_reset_recovery_scan():
                     for fid, fts in cur.fetchall():
                         feed_time_ns_map[fid] = int(fts or 0)
 
-        # Count occurrences of each resource_id across wiped sites
         barcode_site_counts = {}
         for row in raw_rows:
             rid = row[6]
             barcode_site_counts[rid] = barcode_site_counts.get(rid, 0) + 1
 
         stations_set = set()
-        summary = {
-            'total': 0,
-            'zero_count': 0,
-            'partial_count': 0,
-            'negative_count': 0,
-            'missing_count': 0,
-            'safe_count': 0,
-            'warn_count': 0,
-        }
-        filtered_items = []
+        items = []
 
         for row in raw_rows:
             (
@@ -11555,33 +11538,14 @@ def api_site_reset_recovery_scan():
 
             stations_set.add(st)
             wiped_qty = round(float(wiped_qty_raw or 0), 6)
-            mr_qty = round(float(mr_qty_raw), 6) if mr_qty_raw is not None else None
+            mr_qty = 0.0
             initial_qty = round(float(mr_init_raw), 6) if mr_init_raw is not None else None
             reset_ts_int = int(reset_ts)
             mr_upd_int = int(mr_updated_at) if mr_updated_at is not None else 0
-
-            if mr_oid is None or mr_qty is None:
-                qty_status = 'missing'
-                summary['missing_count'] += 1
-                proposed_qty = wiped_qty
-            elif mr_qty == 0:
-                qty_status = 'zero'
-                summary['zero_count'] += 1
-                proposed_qty = wiped_qty
-            elif mr_qty > 0:
-                qty_status = 'partial'
-                summary['partial_count'] += 1
-                proposed_qty = round(mr_qty + wiped_qty, 6)
-            else:
-                qty_status = 'negative'
-                summary['negative_count'] += 1
-                proposed_qty = round(mr_qty + wiped_qty, 6)
+            proposed_qty = wiped_qty
 
             flags = []
             flag_details = []
-            if qty_status == 'missing':
-                flags.append('missing_mr')
-                flag_details.append('Không tìm thấy trong material_resource')
             if rid in active_map:
                 flags.append('in_other_site')
                 flag_details.append(f"Đang gắn tại: {', '.join(active_map[rid][:2])}")
@@ -11600,21 +11564,9 @@ def api_site_reset_recovery_scan():
                 flags.append('exceeds_initial')
                 flag_details.append(f"Sau khôi phục ({proposed_qty:g}) > initial ({initial_qty:g})")
 
-            if flags or qty_status in ('negative', 'missing'):
-                risk_level = 'WARN'
-                summary['warn_count'] += 1
-            elif qty_status == 'zero':
-                risk_level = 'SAFE'
-                summary['safe_count'] += 1
-            else:
-                risk_level = 'PARTIAL'
+            risk_level = 'WARN' if flags else 'SAFE'
 
-            summary['total'] += 1
-
-            if status_filter != 'all' and qty_status != status_filter:
-                continue
-
-            filtered_items.append({
+            items.append({
                 'oid': mr_oid,
                 'barcode': rid,
                 'product_id': mr_prod_id or c_prod_id or '-',
@@ -11635,18 +11587,16 @@ def api_site_reset_recovery_scan():
                 'mr_status': mr_status,
                 'mr_updated_vn': _ns_to_vn_str(mr_upd_int) if mr_upd_int else '-',
                 'mr_updated_by': mr_updated_by or '-',
-                'qty_status': qty_status,
                 'risk_level': risk_level,
                 'flags': flags,
-                'flag_summary': ' | '.join(flag_details) if flag_details else ('Cộng phần bị mất' if qty_status == 'partial' else 'An toàn'),
+                'flag_summary': ' | '.join(flag_details) if flag_details else 'An toàn',
             })
 
         return jsonify({
             'success': True,
             'env': active_env,
-            'rows': filtered_items,
+            'rows': items,
             'stations': sorted(stations_set),
-            'summary': summary,
         })
     except Exception as e:
         app.logger.error(f"Lỗi API /api/site-reset-recovery/scan: {e}", exc_info=True)
@@ -11657,16 +11607,13 @@ def api_site_reset_recovery_scan():
 @login_required
 def api_site_reset_recovery_restore():
     data = request.get_json(silent=True) or {}
-    mode = (data.get('mode') or 'quantity').strip().lower()
     items = data.get('items') or []
     note = (data.get('note') or '').strip()
 
-    if mode not in ('quantity', 'container'):
-        return jsonify({'success': False, 'message': 'Chế độ khôi phục không hợp lệ'}), 400
     if not isinstance(items, list) or len(items) == 0:
         return jsonify({'success': False, 'message': 'Chưa chọn dòng nào để khôi phục'}), 400
-    if len(items) > 1000:
-        return jsonify({'success': False, 'message': 'Tối đa 1000 dòng mỗi đợt khôi phục'}), 400
+    if len(items) > 5000:
+        return jsonify({'success': False, 'message': 'Tối đa 5000 dòng mỗi đợt khôi phục'}), 400
 
     active_env = (get_current_db_env() or 'KV2').strip().upper()
     operator_user = session.get('user_id') or DEFAULT_MES_USER or 'kdmes_recovery'
@@ -11678,173 +11625,95 @@ def api_site_reset_recovery_restore():
 
     try:
         log_entries = []
+        seen_oids = set()
+        validated = []
+        for it in items:
+            oid = str(it.get('oid') or '').strip()
+            barcode = str(it.get('barcode') or '').strip()
+            if not oid or not barcode:
+                return jsonify({'success': False, 'message': f'Thiếu OID/Barcode cho dòng {barcode or "?"}'}), 400
+            if oid in seen_oids:
+                return jsonify({
+                    'success': False,
+                    'message': f'Barcode {barcode} đang được chọn lặp >1 lần trong cùng đợt khôi phục. Vui lòng giữ 1 dòng duy nhất hoặc chỉnh tay số lượng.'
+                }), 400
+            seen_oids.add(oid)
+            try:
+                expected_qty = float(it.get('expected_qty'))
+                new_qty = float(it.get('new_qty'))
+            except (TypeError, ValueError):
+                return jsonify({'success': False, 'message': f'Số lượng không hợp lệ cho {barcode}'}), 400
+            if new_qty < 0 or new_qty > 1e9:
+                return jsonify({'success': False, 'message': f'Số lượng sau khôi phục không hợp lệ cho {barcode}: {new_qty}'}), 400
+            validated.append({
+                'oid': oid,
+                'barcode': barcode,
+                'expected_qty': expected_qty,
+                'new_qty': round(new_qty, 6),
+                'station': it.get('station', ''),
+                'site_name': it.get('site_name', ''),
+                'reset_ts': str(it.get('reset_ts') or ''),
+            })
+
         with get_pg_connection() as conn:
             with conn.cursor() as cur:
-                if mode == 'quantity':
-                    seen_oids = set()
-                    validated = []
-                    for it in items:
-                        oid = str(it.get('oid') or '').strip()
-                        barcode = str(it.get('barcode') or '').strip()
-                        if not oid or not barcode:
-                            return jsonify({'success': False, 'message': f'Thiếu OID/Barcode cho dòng {barcode or "?"}'}), 400
-                        if oid in seen_oids:
-                            return jsonify({
-                                'success': False,
-                                'message': f'Barcode {barcode} đang được chọn lặp >1 lần trong cùng đợt khôi phục. Vui lòng giữ 1 dòng duy nhất hoặc chỉnh tay số lượng.'
-                            }), 400
-                        seen_oids.add(oid)
-                        try:
-                            expected_qty = float(it.get('expected_qty'))
-                            new_qty = float(it.get('new_qty'))
-                        except (TypeError, ValueError):
-                            return jsonify({'success': False, 'message': f'Số lượng không hợp lệ cho {barcode}'}), 400
-                        if new_qty < 0 or new_qty > 1e9:
-                            return jsonify({'success': False, 'message': f'Số lượng sau khôi phục không hợp lệ cho {barcode}: {new_qty}'}), 400
-                        validated.append({
-                            'oid': oid,
-                            'barcode': barcode,
-                            'expected_qty': expected_qty,
-                            'new_qty': round(new_qty, 6),
-                            'station': it.get('station', ''),
-                            'site_name': it.get('site_name', ''),
-                            'reset_ts': str(it.get('reset_ts') or ''),
-                        })
-
-                    oid_list = [v['oid'] for v in validated]
-                    cur.execute(
-                        "SELECT oid::text, id, quantity, updated_at, updated_by FROM kvmes.material_resource WHERE oid = ANY(%s::uuid[]) FOR UPDATE;",
-                        (oid_list,)
-                    )
-                    locked_map = {
-                        r[0]: {
-                            'id': r[1],
-                            'quantity': float(r[2]) if r[2] is not None else 0.0,
-                            'updated_at': int(r[3] or 0),
-                            'updated_by': r[4] or ''
-                        }
-                        for r in cur.fetchall()
+                oid_list = [v['oid'] for v in validated]
+                cur.execute(
+                    "SELECT oid::text, id, quantity, updated_at, updated_by FROM kvmes.material_resource WHERE oid = ANY(%s::uuid[]) FOR UPDATE;",
+                    (oid_list,)
+                )
+                locked_map = {
+                    r[0]: {
+                        'id': r[1],
+                        'quantity': float(r[2]) if r[2] is not None else 0.0,
+                        'updated_at': int(r[3] or 0),
+                        'updated_by': r[4] or ''
                     }
+                    for r in cur.fetchall()
+                }
 
-                    conflicts = []
-                    for v in validated:
-                        db_row = locked_map.get(v['oid'])
-                        if not db_row:
-                            conflicts.append(f"{v['barcode']}: không tìm thấy trong material_resource")
-                        elif abs(db_row['quantity'] - v['expected_qty']) > 1e-4:
-                            conflicts.append(
-                                f"{v['barcode']}: MR quantity đã thay đổi ({db_row['quantity']:g} != {v['expected_qty']:g})"
-                            )
-                    if conflicts:
-                        conn.rollback()
-                        return jsonify({
-                            'success': False,
-                            'message': 'Phát hiện dữ liệu đã thay đổi trước khi xác nhận, vui lòng Load lại:\n- ' + '\n- '.join(conflicts[:10])
-                        }), 409
-
-                    for idx, v in enumerate(validated):
-                        db_row = locked_map[v['oid']]
-                        item_ns = now_ns + idx
-                        cur.execute(
-                            """
-                            UPDATE kvmes.material_resource
-                            SET quantity = %s,
-                                updated_at = %s,
-                                updated_by = %s
-                            WHERE oid = %s::uuid;
-                            """,
-                            (v['new_qty'], item_ns, actor_tag, v['oid'])
+                conflicts = []
+                for v in validated:
+                    db_row = locked_map.get(v['oid'])
+                    if not db_row:
+                        conflicts.append(f"{v['barcode']}: không tìm thấy trong material_resource")
+                    elif abs(db_row['quantity'] - v['expected_qty']) > 1e-4:
+                        conflicts.append(
+                            f"{v['barcode']}: MR quantity đã thay đổi ({db_row['quantity']:g} != {v['expected_qty']:g})"
                         )
-                        log_entries.append({
-                            'oid': v['oid'],
-                            'barcode': v['barcode'],
-                            'station': v['station'],
-                            'site_name': v['site_name'],
-                            'reset_ts': v['reset_ts'],
-                            'before_qty': db_row['quantity'],
-                            'after_qty': v['new_qty'],
-                            'before_updated_at': db_row['updated_at'],
-                            'before_updated_by': db_row['updated_by'],
-                            'after_updated_at': item_ns,
-                            'after_updated_by': actor_tag,
-                        })
+                if conflicts:
+                    conn.rollback()
+                    return jsonify({
+                        'success': False,
+                        'message': 'Phát hiện dữ liệu đã thay đổi trước khi xác nhận, vui lòng Scan lại:\n- ' + '\n- '.join(conflicts[:10])
+                    }), 409
 
-                else:
-                    # mode == 'container': khôi phục site_contents trước khi bị uploader reset
-                    seen_sites = set()
-                    site_targets = []
-                    for it in items:
-                        st = str(it.get('station') or '').strip()
-                        sname = str(it.get('site_name') or '').strip()
-                        sidx = int(it.get('site_index') or 0)
-                        reset_ts = str(it.get('reset_ts') or '').strip()
-                        prev_ts = str(it.get('prev_ts') or '').strip()
-                        if not st or sname is None or not reset_ts or not prev_ts:
-                            return jsonify({'success': False, 'message': 'Thiếu thông tin site/timestamp để khôi phục container'}), 400
-                        site_key = (st, sname, sidx)
-                        if site_key in seen_sites:
-                            continue
-                        seen_sites.add(site_key)
-                        site_targets.append((st, sname, sidx, int(reset_ts), int(prev_ts)))
-
-                    conflicts = []
-                    to_insert = []
-                    for st, sname, sidx, reset_ts_int, prev_ts_int in site_targets:
-                        cur.execute(
-                            """
-                            SELECT updated_at, content
-                            FROM kvmes.site_contents
-                            WHERE station = %s AND name = %s AND index = %s
-                            ORDER BY updated_at DESC
-                            LIMIT 1;
-                            """,
-                            (st, sname, sidx)
-                        )
-                        latest = cur.fetchone()
-                        if not latest or int(latest[0]) != reset_ts_int or latest[1] != {'container': []}:
-                            conflicts.append(f"{st} / {sname}: site_contents đã thay đổi sau reset")
-                            continue
-
-                        cur.execute(
-                            """
-                            SELECT content
-                            FROM kvmes.site_contents
-                            WHERE station = %s AND name = %s AND index = %s AND updated_at = %s
-                            LIMIT 1;
-                            """,
-                            (st, sname, sidx, prev_ts_int)
-                        )
-                        prev_row = cur.fetchone()
-                        if not prev_row or not prev_row[0]:
-                            conflicts.append(f"{st} / {sname}: không tìm thấy content tại ts {prev_ts_int}")
-                            continue
-                        to_insert.append((st, sname, sidx, reset_ts_int, prev_ts_int, prev_row[0]))
-
-                    if conflicts:
-                        conn.rollback()
-                        return jsonify({
-                            'success': False,
-                            'message': 'Phát hiện site đã thay đổi trước khi xác nhận:\n- ' + '\n- '.join(conflicts[:10])
-                        }), 409
-
-                    for idx, (st, sname, sidx, reset_ts_int, prev_ts_int, prev_content) in enumerate(to_insert):
-                        item_ns = now_ns + idx
-                        cur.execute(
-                            """
-                            INSERT INTO kvmes.site_contents (name, index, station, content, updated_at, updated_by)
-                            VALUES (%s, %s, %s, %s::jsonb, %s, %s);
-                            """,
-                            (sname, sidx, st, json.dumps(prev_content, ensure_ascii=False), item_ns, actor_tag)
-                        )
-                        log_entries.append({
-                            'station': st,
-                            'site_name': sname,
-                            'site_index': sidx,
-                            'reset_ts': reset_ts_int,
-                            'restored_from_ts': prev_ts_int,
-                            'inserted_updated_at': item_ns,
-                            'inserted_updated_by': actor_tag,
-                        })
+                for idx, v in enumerate(validated):
+                    db_row = locked_map[v['oid']]
+                    item_ns = now_ns + idx
+                    cur.execute(
+                        """
+                        UPDATE kvmes.material_resource
+                        SET quantity = %s,
+                            updated_at = %s,
+                            updated_by = %s
+                        WHERE oid = %s::uuid;
+                        """,
+                        (v['new_qty'], item_ns, actor_tag, v['oid'])
+                    )
+                    log_entries.append({
+                        'oid': v['oid'],
+                        'barcode': v['barcode'],
+                        'station': v['station'],
+                        'site_name': v['site_name'],
+                        'reset_ts': v['reset_ts'],
+                        'before_qty': db_row['quantity'],
+                        'after_qty': v['new_qty'],
+                        'before_updated_at': db_row['updated_at'],
+                        'before_updated_by': db_row['updated_by'],
+                        'after_updated_at': item_ns,
+                        'after_updated_by': actor_tag,
+                    })
 
             conn.commit()
 
@@ -11855,8 +11724,8 @@ def api_site_reset_recovery_restore():
             'env': active_env,
             'operator_user': operator_user,
             'operator_ip': operator_ip,
-            'mode': mode,
-            'note': note or f"Khôi phục {len(log_entries)} mục ({mode})",
+            'mode': 'quantity',
+            'note': note or f"Hoàn trả quantity cho {len(log_entries)} barcode",
             'count': len(log_entries),
             'rolled_back': False,
             'entries': log_entries,
@@ -11867,8 +11736,7 @@ def api_site_reset_recovery_restore():
             'success': True,
             'recovery_id': recovery_id,
             'count': len(log_entries),
-            'mode': mode,
-            'message': f"Đã khôi phục thành công {len(log_entries)} mục ({'Material Resource Quantity' if mode == 'quantity' else 'Container Site Contents'})."
+            'message': f"Đã khôi phục thành công quantity cho {len(log_entries)} barcode."
         })
     except Exception as e:
         app.logger.error(f"Lỗi API /api/site-reset-recovery/restore: {e}", exc_info=True)
@@ -11914,80 +11782,44 @@ def api_site_reset_recovery_rollback():
             'message': f"Đợt này thuộc môi trường {target.get('env')}, hiện đang kết nối {active_env}"
         }), 409
 
-    mode = target.get('mode')
     entries = target.get('entries') or []
     operator_user = session.get('user_id') or DEFAULT_MES_USER or 'kdmes_recovery'
-    now_ns = time.time_ns()
     now_vn = datetime.now(VN_TZ).strftime("%Y-%m-%d %H:%M:%S")
 
     try:
         with get_pg_connection() as conn:
             with conn.cursor() as cur:
-                if mode == 'quantity':
-                    oids = [e['oid'] for e in entries if e.get('oid')]
+                oids = [e['oid'] for e in entries if e.get('oid')]
+                cur.execute(
+                    "SELECT oid::text, quantity FROM kvmes.material_resource WHERE oid = ANY(%s::uuid[]) FOR UPDATE;",
+                    (oids,)
+                )
+                curr_map = {r[0]: float(r[1]) if r[1] is not None else 0.0 for r in cur.fetchall()}
+                conflicts = []
+                for e in entries:
+                    curr_q = curr_map.get(e['oid'])
+                    if curr_q is None:
+                        conflicts.append(f"{e.get('barcode')}: không còn tồn tại")
+                    elif abs(curr_q - float(e['after_qty'])) > 1e-4:
+                        conflicts.append(f"{e.get('barcode')}: quantity hiện tại ({curr_q:g}) khác ({float(e['after_qty']):g})")
+                if conflicts:
+                    conn.rollback()
+                    return jsonify({
+                        'success': False,
+                        'message': 'Không thể hoàn tác vì dữ liệu đã thay đổi:\n- ' + '\n- '.join(conflicts[:10])
+                    }), 409
+
+                for e in entries:
                     cur.execute(
-                        "SELECT oid::text, quantity FROM kvmes.material_resource WHERE oid = ANY(%s::uuid[]) FOR UPDATE;",
-                        (oids,)
+                        """
+                        UPDATE kvmes.material_resource
+                        SET quantity = %s,
+                            updated_at = %s,
+                            updated_by = %s
+                        WHERE oid = %s::uuid;
+                        """,
+                        (e['before_qty'], e['before_updated_at'], e['before_updated_by'], e['oid'])
                     )
-                    curr_map = {r[0]: float(r[1]) if r[1] is not None else 0.0 for r in cur.fetchall()}
-                    conflicts = []
-                    for e in entries:
-                        curr_q = curr_map.get(e['oid'])
-                        if curr_q is None:
-                            conflicts.append(f"{e.get('barcode')}: không còn tồn tại")
-                        elif abs(curr_q - float(e['after_qty'])) > 1e-4:
-                            conflicts.append(f"{e.get('barcode')}: quantity hiện tại ({curr_q:g}) khác ({float(e['after_qty']):g})")
-                    if conflicts:
-                        conn.rollback()
-                        return jsonify({
-                            'success': False,
-                            'message': 'Không thể hoàn tác vì dữ liệu đã thay đổi:\n- ' + '\n- '.join(conflicts[:10])
-                        }), 409
-
-                    for e in entries:
-                        cur.execute(
-                            """
-                            UPDATE kvmes.material_resource
-                            SET quantity = %s,
-                                updated_at = %s,
-                                updated_by = %s
-                            WHERE oid = %s::uuid;
-                            """,
-                            (e['before_qty'], e['before_updated_at'], e['before_updated_by'], e['oid'])
-                        )
-                elif mode == 'container':
-                    conflicts = []
-                    for e in entries:
-                        cur.execute(
-                            """
-                            SELECT updated_at
-                            FROM kvmes.site_contents
-                            WHERE station = %s AND name = %s AND index = %s
-                            ORDER BY updated_at DESC
-                            LIMIT 1;
-                            """,
-                            (e['station'], e['site_name'], int(e.get('site_index') or 0))
-                        )
-                        latest = cur.fetchone()
-                        if not latest or int(latest[0]) != int(e['inserted_updated_at']):
-                            conflicts.append(f"{e['station']} / {e['site_name']}: site đã có cập nhật mới hơn")
-                    if conflicts:
-                        conn.rollback()
-                        return jsonify({
-                            'success': False,
-                            'message': 'Không thể hoàn tác container vì site đã thay đổi:\n- ' + '\n- '.join(conflicts[:10])
-                        }), 409
-
-                    for idx, e in enumerate(entries):
-                        cur.execute(
-                            """
-                            INSERT INTO kvmes.site_contents (name, index, station, content, updated_at, updated_by)
-                            VALUES (%s, %s, %s, '{"container": []}'::jsonb, %s, %s);
-                            """,
-                            (e['site_name'], int(e.get('site_index') or 0), e['station'], now_ns + idx, f"kdmes_rollback:{operator_user}")
-                        )
-                else:
-                    return jsonify({'success': False, 'message': f'Mode không hỗ trợ hoàn tác: {mode}'}), 400
             conn.commit()
 
         _mark_recovery_rolled_back(recovery_id, {'rollback_at': now_vn, 'rollback_by': operator_user})
