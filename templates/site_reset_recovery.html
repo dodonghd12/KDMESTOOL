@@ -204,8 +204,18 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 14px 18px;
+            padding: 6px 14px;
+            min-height: 42px;
+            box-sizing: border-box;
             border-bottom: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.1));
+        }
+
+        #srrHistoryBody tr[data-history-idx] {
+            cursor: pointer;
+        }
+
+        #srrHistoryBody tr[data-history-idx]:hover td {
+            background-color: var(--table-row-bg-hover, rgba(255, 255, 255, 0.04));
         }
 
         .srr-history-body {
@@ -348,12 +358,14 @@
         <div class="srr-history-card">
             <div class="srr-history-header">
                 <div style="display: flex; align-items: center; gap: 8px;">
-                    <span class="material-symbols-outlined" style="color: #38bdf8;">history</span>
-                    <h3 id="srrHistoryTitle" style="margin: 0; font-size: 16px;">Lịch sử Khôi phục</h3>
+                    <span class="material-symbols-outlined" style="color: #38bdf8; font-size: 18px;">history</span>
+                    <h3 id="srrHistoryTitle" style="margin: 0; font-size: 14px;">Lịch sử Khôi phục</h3>
                 </div>
-                <button type="button" id="btnCloseHistoryModal" class="srr-btn-sm">
-                    <span class="material-symbols-outlined" style="font-size: 16px;">close</span>
-                    <span>Đóng</span>
+                <button type="button" id="btnCloseHistoryModal" class="details-modal-close" title="Đóng" aria-label="Đóng hộp thoại lịch sử khôi phục">
+                    <svg class="close-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
                 </button>
             </div>
             <div class="srr-history-body">

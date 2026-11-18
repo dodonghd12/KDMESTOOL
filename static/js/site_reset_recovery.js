@@ -26,6 +26,7 @@
     let selectedToDate = '';
     let flatpickrInstance = null;
     let searchDebounceTimer = null;
+    let historyRecords = [];
 
     let holdStartTime = null;
     let holdAnimFrame = null;
@@ -86,6 +87,36 @@
         if (flatpickrInstance) {
             flatpickrInstance.set('clickOpens', flag);
             if (!flag) flatpickrInstance.close();
+        }
+    }
+
+    function resetFilterControls() {
+        selectedFromDate = '';
+        selectedToDate = '';
+        activeStationFilter = '';
+        activeStatusFilter = '';
+        if (searchDebounceTimer) {
+            clearTimeout(searchDebounceTimer);
+            searchDebounceTimer = null;
+        }
+        if (flatpickrInstance) {
+            flatpickrInstance.clear();
+            flatpickrInstance.close();
+        }
+        ['fromDate', 'toDate'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+        document.querySelectorAll('.dropdown-list.show').forEach(d => d.classList.remove('show'));
+        ['dateRange', 'stationFilter', 'statusFilter', 'clientSearch'].forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.value = '';
+            el.closest('.input-box, .input-wrapper')?.classList.remove('has-value');
+            el.blur();
+        });
+        if (typeof updateClientSearchFocusRing === 'function') {
+            updateClientSearchFocusRing(false);
         }
     }
 
@@ -309,6 +340,9 @@
         const standby = document.getElementById('tableStandbyPlaceholder');
         const table = document.getElementById('recoveryTable');
         const footer = document.getElementById('tableFooter');
+
+        resetFilterControls();
+        setFilterControlsEnabled(false);
 
         if (btnLoad) btnLoad.disabled = true;
         if (loadIcon) loadIcon.classList.add('reprint-label-log-spin');
@@ -683,11 +717,23 @@
                 if (e.target === modal) modal.classList.remove('show');
             });
         }
+        const historyBody = document.getElementById('srrHistoryBody');
+        if (historyBody) {
+            historyBody.addEventListener('dblclick', e => {
+                const tr = e.target && e.target.closest ? e.target.closest('tr[data-history-idx]') : null;
+                if (!tr) return;
+                const rec = historyRecords[Number(tr.dataset.historyIdx)];
+                if (rec && typeof showDetailsModal === 'function') {
+                    showDetailsModal(rec);
+                }
+            });
+        }
     }
 
     async function loadRecoveryHistory() {
         const tbody = document.getElementById('srrHistoryBody');
         if (!tbody) return;
+        historyRecords = [];
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 24px;">Đang tải lịch sử...</td></tr>';
 
         try {
@@ -695,17 +741,18 @@
             const data = await res.json();
             if (!res.ok || !data.success) throw new Error((data && data.message) || 'Lỗi tải lịch sử');
             const recs = data.records || [];
+            historyRecords = recs;
             if (recs.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 28px; color: var(--color-text-muted);">Chưa có đợt khôi phục nào.</td></tr>';
                 return;
             }
-            tbody.innerHTML = recs.map(rec => {
+            tbody.innerHTML = recs.map((rec, idx) => {
                 const barcodes = Array.isArray(rec.barcodes)
                     ? rec.barcodes
                     : (Array.isArray(rec.entries) ? rec.entries.map(e => e.barcode).filter(Boolean) : []);
                 const barcodeJson = `"barcode" : {${barcodes.join(', ')}}`;
                 return `
-                <tr>
+                <tr data-history-idx="${idx}" title="Double-click để xem chi tiết">
                     <td>${escapeHtml(rec.timestamp_vn)}</td>
                     <td>${escapeHtml(rec.env || 'KV2')}</td>
                     <td class="srr-num">${escapeHtml(rec.count)}</td>
