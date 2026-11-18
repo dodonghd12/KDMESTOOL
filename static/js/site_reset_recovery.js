@@ -252,22 +252,6 @@
             });
         }
         window.customClientSearchHandler = () => applyFilters();
-
-        const tbody = document.getElementById('tableBody');
-        if (tbody) {
-            tbody.addEventListener('contextmenu', async e => {
-                const td = e.target && e.target.closest ? e.target.closest('td[data-col="barcode"]') : null;
-                if (!td) return;
-                e.preventDefault();
-                e.stopPropagation();
-                const val = String(td.dataset.fullValue || td.textContent || '').trim();
-                if (!val || val === '-') return;
-                const ok = typeof copyTextToClipboard === 'function' ? await copyTextToClipboard(val) : false;
-                if (ok && typeof Toast !== 'undefined') {
-                    Toast.success('Đã sao chép', val);
-                }
-            }, true);
-        }
     }
 
     async function scanResetRows() {
@@ -437,7 +421,7 @@
                 const val = r.cells[idx];
                 if (colName === 'barcode') {
                     const cleanBc = escapeHtml(val == null ? '-' : val);
-                    return `<td data-col="barcode" data-full-value="${cleanBc}" title="Click chuột phải để sao chép barcode">${cleanBc}</td>`;
+                    return `<td data-col="barcode" data-full-value="${cleanBc}" title="Click chuột trái để sao chép barcode">${cleanBc}</td>`;
                 }
                 if (colName === 'qty' || colName === 'initial_qty') {
                     return `<td class="srr-num">${formatNum(val)}</td>`;
