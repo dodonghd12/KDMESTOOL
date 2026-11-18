@@ -1019,7 +1019,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.4.29"
+APP_VERSION = "2.4.30"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -11400,33 +11400,36 @@ def api_site_reset_recovery_scan():
     start_ns, end_ns = _parse_recovery_date_range_ns(from_date, to_date)
     active_env = (get_current_db_env() or 'KV2').strip().upper()
 
-    station_clause = "AND sv.station = %s" if station_filter else ""
+    station_clause = "AND s.station = %s" if station_filter else ""
     scan_sql = f"""
         WITH affected_sites AS (
             SELECT
-                sv.station,
-                sv.name AS site_name,
-                sv.index AS site_index,
-                sv.updated_at AS reset_ts,
+                s.station,
+                s.name AS site_name,
+                s.index AS site_index,
+                sc.updated_at AS reset_ts,
                 prev.updated_at AS prev_ts,
                 COALESCE(NULLIF(TRIM(prev.updated_by), ''), '-') AS prev_by,
                 prev.content AS prev_content
-            FROM kvmes.site_view sv
+            FROM kvmes.site s
+            JOIN kvmes.site_contents sc
+              ON sc.station = s.station
+             AND sc.name = s.name
+             AND sc.index = s.index
+             AND sc.updated_at BETWEEN %s AND %s
             CROSS JOIN LATERAL (
-                SELECT sc.updated_at, sc.updated_by, sc.content
-                FROM kvmes.site_contents sc
-                WHERE sc.station = sv.station
-                  AND sc.name = sv.name
-                  AND sc.index = sv.index
-                  AND sc.updated_at < sv.updated_at
-                  AND sc.content != '{{"container": []}}'::jsonb
-                ORDER BY sc.updated_at DESC
+                SELECT prev_sc.updated_at, prev_sc.updated_by, prev_sc.content
+                FROM kvmes.site_contents prev_sc
+                WHERE prev_sc.station = s.station
+                  AND prev_sc.name = s.name
+                  AND prev_sc.index = s.index
+                  AND prev_sc.updated_at < sc.updated_at
+                ORDER BY prev_sc.updated_at DESC
                 LIMIT 1
             ) prev
-            WHERE (sv.attributes->>'type')::int = 1
-              AND COALESCE(sv.updated_by, '') = ''
-              AND sv.content = '{{"container": []}}'::jsonb
-              AND sv.updated_at BETWEEN %s AND %s
+            WHERE (s.attributes->>'type')::int = 1
+              AND COALESCE(sc.updated_by, '') = ''
+              AND sc.content = '{{"container": []}}'::jsonb
               {station_clause}
               AND jsonb_typeof(prev.content->'container') = 'array'
               AND jsonb_array_length(prev.content->'container') > 0
