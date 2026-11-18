@@ -98,7 +98,7 @@
             return 'helpPaneMesync';
         } else if (path.includes('station-configuration')) {
             return 'helpPaneStation';
-        } else if (path.includes('printer-setup') || path.includes('bypass') || path.includes('reprint-label-log') || path.includes('manual-data-insertion')) {
+        } else if (path.includes('printer-setup') || path.includes('bypass') || path.includes('reprint-label-log') || path.includes('manual-data-insertion') || path.includes('site-reset-recovery')) {
             return 'helpPaneSystemTools';
         } else {
             return 'helpPaneMain';

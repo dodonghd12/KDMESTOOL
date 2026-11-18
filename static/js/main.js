@@ -2512,7 +2512,8 @@ function isContextMenuAllowedOnCurrentPage() {
         document.body.classList.contains('check-kd-account') ||
         document.body.classList.contains('create-kd-account') ||
         document.body.classList.contains('gitlab-deleted-files') ||
-        document.body.classList.contains('postgres-deleted-data')) {
+        document.body.classList.contains('postgres-deleted-data') ||
+        document.body.classList.contains('site-reset-recovery-page')) {
         return false;
     }
 

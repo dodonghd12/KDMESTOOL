@@ -21,7 +21,8 @@
         { path: '/manual-data-insertion', frameId: 'view-manual-data-insertion', title: 'Manual Data Insertion' },
         { path: '/bypass', frameId: 'view-bypass', title: 'Bypass' },
         { path: '/printer-setup', frameId: 'view-printer-setup', title: 'Printer Setup' },
-        { path: '/reprint-label-log', frameId: 'view-reprint-label-log', title: 'Reprint Label Log' }
+        { path: '/reprint-label-log', frameId: 'view-reprint-label-log', title: 'Reprint Label Log' },
+        { path: '/site-reset-recovery', frameId: 'view-site-reset-recovery', title: 'Site Reset Recovery' }
     ];
 
     let currentRoutePath = null;

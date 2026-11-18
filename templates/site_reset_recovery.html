@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Site Reset Recovery | Khôi phục Quantity Tem</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v={{ version }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/smooth_input.css') }}?v={{ version }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bypass.css') }}?v={{ version }}">
+
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/favicon.svg') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome/css/all.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/flatpickr/flatpickr.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/material-symbols/material-symbols.css') }}">
+
+    <style>
+        .site-reset-recovery-page .srr-controls-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            width: 100%;
+        }
+
+        .site-reset-recovery-page .srr-summary-bar {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            padding: 8px 14px;
+            border-radius: 10px;
+            background: rgba(15, 23, 42, 0.55);
+            border: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.09));
+            font-size: 12.5px;
+        }
+
+        :root[data-theme="light"] .site-reset-recovery-page .srr-summary-bar,
+        body.theme-light .site-reset-recovery-page .srr-summary-bar {
+            background: #f8fafc;
+            border-color: rgba(15, 23, 42, 0.12);
+        }
+
+        .srr-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-weight: 600;
+            font-size: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            background: rgba(148, 163, 184, 0.08);
+            color: var(--color-text-secondary, #cbd5e1);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .srr-pill:hover {
+            border-color: #38bdf8;
+            color: #fff;
+        }
+
+        :root[data-theme="light"] .srr-pill,
+        body.theme-light .srr-pill {
+            color: #334155;
+            background: #ffffff;
+        }
+
+        :root[data-theme="light"] .srr-pill:hover,
+        body.theme-light .srr-pill:hover {
+            color: #0f172a;
+        }
+
+        .srr-pill.is-active {
+            border-color: #38bdf8;
+            background: rgba(56, 189, 248, 0.16);
+            color: #38bdf8;
+        }
+
+        .srr-pill.is-zero { color: #10b981; border-color: rgba(16, 185, 129, 0.35); }
+        .srr-pill.is-partial { color: #38bdf8; border-color: rgba(56, 189, 248, 0.35); }
+        .srr-pill.is-warn { color: #f59e0b; border-color: rgba(245, 158, 11, 0.35); }
+
+        .srr-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 11.5px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .srr-badge-safe {
+            background: rgba(16, 185, 129, 0.16);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.32);
+        }
+
+        .srr-badge-partial {
+            background: rgba(56, 189, 248, 0.16);
+            color: #38bdf8;
+            border: 1px solid rgba(56, 189, 248, 0.32);
+        }
+
+        .srr-badge-warn {
+            background: rgba(245, 158, 11, 0.16);
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.35);
+        }
+
+        :root[data-theme="light"] .srr-badge-safe,
+        body.theme-light .srr-badge-safe { color: #047857; }
+        :root[data-theme="light"] .srr-badge-partial,
+        body.theme-light .srr-badge-partial { color: #0369a1; }
+        :root[data-theme="light"] .srr-badge-warn,
+        body.theme-light .srr-badge-warn { color: #b45309; }
+
+        .srr-qty-input {
+            width: 96px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            background: rgba(15, 23, 42, 0.6);
+            color: var(--color-text-primary, #f8fafc);
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 12.5px;
+            font-weight: 600;
+            text-align: right;
+            outline: none;
+        }
+
+        .srr-qty-input:focus {
+            border-color: #38bdf8;
+            box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25);
+        }
+
+        :root[data-theme="light"] .srr-qty-input,
+        body.theme-light .srr-qty-input {
+            background: #ffffff;
+            color: #0f172a;
+            border-color: rgba(15, 23, 42, 0.22);
+        }
+
+        .srr-mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 12.5px;
+        }
+
+        .srr-num {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        }
+
+        .srr-flag-detail {
+            font-size: 11.5px;
+            color: var(--color-text-muted, #94a3b8);
+            margin-top: 2px;
+            max-width: 240px;
+            white-space: normal;
+            line-height: 1.3;
+        }
+
+        .srr-mode-group {
+            display: inline-flex;
+            border-radius: 8px;
+            padding: 2px;
+            background: rgba(15, 23, 42, 0.65);
+            border: 1px solid rgba(148, 163, 184, 0.22);
+            gap: 2px;
+        }
+
+        :root[data-theme="light"] .srr-mode-group,
+        body.theme-light .srr-mode-group {
+            background: #e2e8f0;
+            border-color: rgba(15, 23, 42, 0.14);
+        }
+
+        .srr-mode-btn {
+            border: none;
+            background: transparent;
+            color: var(--color-text-secondary, #94a3b8);
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .srr-mode-btn.active {
+            background: #0284c7;
+            color: #ffffff;
+        }
+
+        .btn-srr-restore {
+            background: #059669 !important;
+            border-color: rgba(16, 185, 129, 0.5) !important;
+            color: #ffffff !important;
+            height: 38px !important;
+            padding: 0 18px !important;
+            font-size: 13px !important;
+        }
+
+        .btn-srr-restore:hover:not(:disabled) {
+            background: #047857 !important;
+            box-shadow: 0 4px 16px rgba(16, 185, 129, 0.38) !important;
+        }
+
+        .btn-srr-restore:disabled {
+            opacity: 0.45 !important;
+            cursor: not-allowed !important;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        .srr-history-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(2, 6, 23, 0.72);
+            backdrop-filter: blur(4px);
+            z-index: 99990;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .srr-history-overlay.show {
+            display: flex;
+        }
+
+        .srr-history-card {
+            width: min(1040px, 96vw);
+            max-height: 84vh;
+            display: flex;
+            flex-direction: column;
+            border-radius: 14px;
+            background: var(--color-surface, #0f172a);
+            border: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.14));
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+            overflow: hidden;
+        }
+
+        :root[data-theme="light"] .srr-history-card,
+        body.theme-light .srr-history-card {
+            background: #ffffff;
+            border-color: rgba(15, 23, 42, 0.14);
+        }
+
+        .srr-history-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.1));
+        }
+
+        .srr-history-body {
+            overflow: auto;
+            padding: 14px 18px;
+            flex: 1;
+        }
+
+        .srr-btn-sm {
+            padding: 5px 10px;
+            border-radius: 6px;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            background: rgba(56, 189, 248, 0.12);
+            color: #38bdf8;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .srr-btn-sm:hover:not(:disabled) {
+            background: #0284c7;
+            color: #ffffff;
+            border-color: #0284c7;
+        }
+
+        .srr-btn-sm.is-danger {
+            background: rgba(244, 63, 94, 0.12);
+            border-color: rgba(244, 63, 94, 0.35);
+            color: #fb7185;
+        }
+
+        .srr-btn-sm.is-danger:hover:not(:disabled) {
+            background: #e11d48;
+            color: #ffffff;
+        }
+    </style>
+</head>
+<body class="site-reset-recovery-page {% if is_frame %}is-spa-frame{% endif %} app-loading-state">
+    {% if not is_frame %}{% include "components/sidebar.html" %}{% endif %}
+
+    <div class="container" autocomplete="off">
+        <div class="search-section">
+            <div class="search-row srr-controls-row">
+                <!-- 1. btnLoad -->
+                <button type="button" id="btnLoad" class="winx-btn winx-btn-primary btn-refresh" style="height: 42px; padding: 0 20px; font-size: 14px; font-weight: 700; letter-spacing: 0.4px; flex-shrink: 0;" aria-label="Quét dữ liệu tem bị uploader reset">
+                    <span class="material-symbols-outlined" id="btnLoadIcon" style="font-size: 20px !important;">sync</span>
+                    <span>Scan</span>
+                </button>
+
+                <!-- 2. Date Range -->
+                <div class="input-box" style="min-width: 225px; max-width: 265px; width: 245px; flex-shrink: 0;">
+                    <input required type="text" id="dateRange" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="input" placeholder="Khoảng ngày reset">
+                    <input type="hidden" id="fromDate">
+                    <input type="hidden" id="toDate">
+                </div>
+
+                <!-- 3. Station Dropdown -->
+                <div class="input-box" style="min-width: 190px; max-width: 240px; width: 215px; flex-shrink: 0; position: relative;">
+                    <input placeholder=" " type="text" id="stationFilter" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="input" style="cursor: pointer;" readonly aria-label="Lọc theo Station">
+                    <label class="user-label">Station</label>
+                    <div id="station-filter-dropdown" class="dropdown-list"></div>
+                </div>
+
+                <!-- 4. Status Filter Dropdown -->
+                <div class="input-box" style="min-width: 175px; max-width: 210px; width: 190px; flex-shrink: 0; position: relative;">
+                    <input placeholder=" " type="text" id="statusFilter" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="input" style="cursor: pointer;" readonly aria-label="Lọc theo Trạng thái Quantity">
+                    <label class="user-label">Trạng thái Qty</label>
+                    <div id="status-filter-dropdown" class="dropdown-list"></div>
+                </div>
+
+                <!-- 5. Client Search -->
+                <div class="input-wrapper" style="min-width: 190px; max-width: 300px; flex: 1;">
+                    <input placeholder="Tìm Barcode / Product / Station..." class="input" id="clientSearch" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text" aria-label="Tìm kiếm trong bảng">
+                </div>
+
+                <!-- 6. History Button -->
+                <button type="button" id="btnRecoveryHistory" class="winx-btn btn-open-yaml-file" style="margin-left: auto;" title="Xem lịch sử khôi phục và hoàn tác">
+                    <span class="material-symbols-outlined">history</span>
+                    <span>Lịch sử khôi phục</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Compact Summary Bar -->
+        <div class="srr-summary-bar" id="srrSummaryBar">
+            <span class="srr-pill is-active" data-quick-filter="all">Tổng quét: <strong id="sumTotal">0</strong></span>
+            <span class="srr-pill is-zero" data-quick-filter="zero">Mất hết (Qty = 0): <strong id="sumZero">0</strong></span>
+            <span class="srr-pill is-partial" data-quick-filter="partial">Partial (Qty &gt; 0): <strong id="sumPartial">0</strong></span>
+            <span class="srr-pill is-warn" data-quick-filter="negative">Âm (Qty &lt; 0): <strong id="sumNegative">0</strong></span>
+            <span class="srr-pill is-zero" data-quick-filter="safe_only">An toàn: <strong id="sumSafe">0</strong></span>
+            <span class="srr-pill is-warn" data-quick-filter="warn_only">Cần kiểm tra: <strong id="sumWarn">0</strong></span>
+            <button type="button" id="btnSelectSafe" class="srr-btn-sm" style="margin-left: auto;" title="Chọn toàn bộ các dòng An toàn đang lọc">
+                <span class="material-symbols-outlined" style="font-size: 15px;">done_all</span>
+                <span>Chọn dòng An toàn</span>
+            </button>
+            <button type="button" id="btnClearSelection" class="srr-btn-sm" title="Bỏ chọn tất cả">
+                <span class="material-symbols-outlined" style="font-size: 15px;">deselect</span>
+                <span>Bỏ chọn</span>
+            </button>
+        </div>
+
+        <div class="table-container">
+            <div class="table-scroll">
+                <div class="table-standby-placeholder" id="tableStandbyPlaceholder">
+                    <div class="standby-icon-ring">
+                        <span class="material-symbols-outlined standby-icon">restore_page</span>
+                    </div>
+                    <div class="standby-title">Sẵn sàng quét tem bị reset trắng bởi Uploader</div>
+                    <div class="standby-subtitle">Bấm nút "Scan" để dò các container bị SiteService.Upsert (updated_by = '') xóa trắng và đối chiếu quantity</div>
+                </div>
+
+                <table id="recoveryTable" style="display: none;">
+                    <thead id="tableHead">
+                        <tr>
+                            <th style="width: 42px; text-align: center;">
+                                <input type="checkbox" id="selectAllPage" title="Chọn/Bỏ chọn tất cả dòng ở trang hiện tại" aria-label="Chọn tất cả trang">
+                            </th>
+                            <th style="width: 46px; text-align: center;">#</th>
+                            <th>Barcode</th>
+                            <th>Product ID</th>
+                            <th>Loại NVL</th>
+                            <th>Station</th>
+                            <th>Site</th>
+                            <th>Thời điểm Reset (UTC+7)</th>
+                            <th style="text-align: right;">MR Qty Hiện tại</th>
+                            <th style="text-align: right;">Wiped Qty (Container)</th>
+                            <th style="text-align: right;">Qty Khôi Phục</th>
+                            <th style="text-align: right;">Initial Qty</th>
+                            <th>Trạng thái / Cảnh báo</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+
+            <div class="table-footer hidden" id="tableFooter">
+                <div class="table-footer-left" style="display: flex; align-items: center; gap: 14px;">
+                    <div class="row-count">Số dòng: <span id="rowCount">0</span></div>
+                    <div class="row-count">Đã chọn: <strong id="selectedCount" style="color: #38bdf8;">0</strong></div>
+                </div>
+                <nav aria-label="pagination" class="pagination-nav" id="paginationNav"></nav>
+                <div class="table-footer-right" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <div class="srr-mode-group" role="group" aria-label="Chế độ khôi phục">
+                        <button type="button" class="srr-mode-btn active" data-mode="quantity" title="Hoàn trả quantity về bảng kvmes.material_resource">Trả Quantity (MR)</button>
+                        <button type="button" class="srr-mode-btn" data-mode="container" title="Khôi phục nguyên container vào kvmes.site_contents (không đổi MR quantity)">Khôi phục Container</button>
+                    </div>
+
+                    <button type="button" id="btnRestoreHold" class="btn-bypass-toggle btn-srr-restore" disabled title="Bấm và giữ 3 giây để xác nhận ghi vào PostgreSQL">
+                        <div id="restoreHoldProgressBar" class="bypass-hold-progress-bar"></div>
+                        <span id="restoreHoldText" style="position: relative; z-index: 2;">Giữ 3s Khôi phục (0)</span>
+                    </button>
+
+                    <button class="btn-export-excel" id="exportExcelBtn" aria-label="Xuất dữ liệu ra file Excel">
+                        <div class="btn-export-excel-wrapper">
+                            <div class="text">Xuất Excel</div>
+                            <span class="icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" width="2em" height="2em" preserveAspectRatio="xMidYMid meet" viewBox="0 0 24 24">
+                                    <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 0 0 4.561 21h14.878a2 2 0 0 0 1.94-1.515L22 17"></path>
+                                </svg>
+                            </span>
+                        </div>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recovery History Modal -->
+    <div id="srrHistoryModal" class="srr-history-overlay" role="dialog" aria-modal="true" aria-labelledby="srrHistoryTitle">
+        <div class="srr-history-card">
+            <div class="srr-history-header">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="material-symbols-outlined" style="color: #38bdf8;">history</span>
+                    <h3 id="srrHistoryTitle" style="margin: 0; font-size: 16px;">Lịch sử Khôi phục &amp; Hoàn tác (Rollback)</h3>
+                </div>
+                <button type="button" id="btnCloseHistoryModal" class="srr-btn-sm">
+                    <span class="material-symbols-outlined" style="font-size: 16px;">close</span>
+                    <span>Đóng</span>
+                </button>
+            </div>
+            <div class="srr-history-body">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr>
+                            <th>Mã đợt</th>
+                            <th>Thời gian (UTC+7)</th>
+                            <th>Env</th>
+                            <th>Chế độ</th>
+                            <th>Số mục</th>
+                            <th>Người thao tác</th>
+                            <th>Trạng thái</th>
+                            <th style="text-align: center;">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="srrHistoryBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    {% include "components/shared_modals.html" %}
+
+    <script src="{{ url_for('static', filename='vendor/flatpickr/flatpickr.min.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='vendor/xlsx/xlsx.full.min.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/smooth_input.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/sidebar.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/site_reset_recovery.js') }}?v={{ version }}"></script>
+</body>
+</html>

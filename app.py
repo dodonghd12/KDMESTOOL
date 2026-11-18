@@ -1019,7 +1019,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.4.21"
+APP_VERSION = "2.4.22"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -1477,6 +1477,10 @@ def printer_setup():
 @app.route('/reprint-label-log')
 def reprint_label_log():
     return render_page_or_shell('reprint_label_log.html', '/reprint-label-log', 'Reprint Label Log')
+
+@app.route('/site-reset-recovery')
+def site_reset_recovery():
+    return render_page_or_shell('site_reset_recovery.html', '/site-reset-recovery', 'Site Reset Recovery')
 
 @app.route('/create-kd-account')
 def create_kd_account():
@@ -11265,6 +11269,736 @@ def api_printer_setup_available_printers():
             'message': f'Lỗi truy vấn danh sách máy in CUPS: {str(e)}',
             'printers': []
         }), 500
+
+
+# ==============================================================================
+# SITE RESET RECOVERY (Khôi phục tem mất quantity do uploader SiteService.Upsert)
+# ==============================================================================
+
+SITE_RESET_RECOVERY_LOG_NET_PATH = r"\\198.1.10.2\Vitinh\Thu\QUAN TRONG KHONG XOA\site_reset_recovery_log.jsonl"
+SITE_RESET_RECOVERY_LOG_LOCAL_PATH = os.path.join(_base_dir, "flask_session", "site_reset_recovery_log.jsonl")
+
+
+def _get_site_reset_recovery_log_path() -> str:
+    try:
+        net_dir = os.path.dirname(SITE_RESET_RECOVERY_LOG_NET_PATH)
+        if os.path.exists(net_dir):
+            return SITE_RESET_RECOVERY_LOG_NET_PATH
+    except Exception:
+        pass
+    os.makedirs(os.path.dirname(SITE_RESET_RECOVERY_LOG_LOCAL_PATH), exist_ok=True)
+    return SITE_RESET_RECOVERY_LOG_LOCAL_PATH
+
+
+def _ns_to_vn_str(ts_ns) -> str:
+    if not ts_ns:
+        return "-"
+    try:
+        return datetime.fromtimestamp(int(ts_ns) / 1e9, tz=VN_TZ).strftime("%Y-%m-%d %H:%M:%S")
+    except Exception:
+        return str(ts_ns)
+
+
+def _parse_recovery_date_range_ns(from_date_str: str, to_date_str: str):
+    now_vn = datetime.now(VN_TZ)
+    try:
+        if from_date_str:
+            start_dt = datetime.strptime(from_date_str[:10], "%Y-%m-%d").replace(tzinfo=VN_TZ)
+        else:
+            start_dt = (now_vn - timedelta(days=30)).replace(hour=0, minute=0, second=0, microsecond=0)
+    except Exception:
+        start_dt = (now_vn - timedelta(days=30)).replace(hour=0, minute=0, second=0, microsecond=0)
+
+    try:
+        if to_date_str:
+            end_dt = datetime.strptime(to_date_str[:10], "%Y-%m-%d").replace(
+                hour=23, minute=59, second=59, microsecond=999999, tzinfo=VN_TZ
+            )
+        else:
+            end_dt = now_vn.replace(hour=23, minute=59, second=59, microsecond=999999)
+    except Exception:
+        end_dt = now_vn.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+    if end_dt < start_dt:
+        start_dt, end_dt = end_dt.replace(hour=0, minute=0, second=0, microsecond=0), start_dt.replace(
+            hour=23, minute=59, second=59, microsecond=999999
+        )
+
+    return int(start_dt.timestamp() * 1e9), int(end_dt.timestamp() * 1e9) + 999
+
+
+def _read_recovery_log_records() -> list:
+    records = []
+    seen_ids = set()
+    for p in (SITE_RESET_RECOVERY_LOG_NET_PATH, SITE_RESET_RECOVERY_LOG_LOCAL_PATH):
+        try:
+            if not os.path.exists(p):
+                continue
+            with open(p, "r", encoding="utf-8") as f:
+                for line in f:
+                    s = line.strip()
+                    if not s:
+                        continue
+                    try:
+                        obj = json.loads(s)
+                        rid = obj.get("recovery_id")
+                        if rid and rid not in seen_ids:
+                            seen_ids.add(rid)
+                            records.append(obj)
+                    except Exception:
+                        continue
+        except Exception:
+            continue
+    records.sort(key=lambda r: r.get("created_at_ns", 0), reverse=True)
+    return records
+
+
+def _append_recovery_log_record(record: dict):
+    path = _get_site_reset_recovery_log_path()
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+
+def _mark_recovery_rolled_back(recovery_id: str, rollback_info: dict):
+    for p in (SITE_RESET_RECOVERY_LOG_NET_PATH, SITE_RESET_RECOVERY_LOG_LOCAL_PATH):
+        try:
+            if not os.path.exists(p):
+                continue
+            with open(p, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+            changed = False
+            new_lines = []
+            for line in lines:
+                s = line.strip()
+                if not s:
+                    continue
+                try:
+                    obj = json.loads(s)
+                    if obj.get("recovery_id") == recovery_id:
+                        obj["rolled_back"] = True
+                        obj["rollback_at"] = rollback_info.get("rollback_at")
+                        obj["rollback_by"] = rollback_info.get("rollback_by")
+                        changed = True
+                    new_lines.append(json.dumps(obj, ensure_ascii=False) + "\n")
+                except Exception:
+                    new_lines.append(line if line.endswith("\n") else line + "\n")
+            if changed:
+                with open(p, "w", encoding="utf-8") as f:
+                    f.writelines(new_lines)
+        except Exception:
+            continue
+
+
+@app.route('/api/site-reset-recovery/scan', methods=['POST'])
+@login_required
+def api_site_reset_recovery_scan():
+    data = request.get_json(silent=True) or {}
+    from_date = (data.get('from_date') or '').strip()
+    to_date = (data.get('to_date') or '').strip()
+    station_filter = (data.get('station') or '').strip()
+    status_filter = (data.get('status_filter') or 'zero').strip().lower()
+
+    start_ns, end_ns = _parse_recovery_date_range_ns(from_date, to_date)
+    active_env = (get_current_db_env() or 'KV2').strip().upper()
+
+    station_clause = "AND sv.station = %s" if station_filter else ""
+    scan_sql = f"""
+        WITH affected_sites AS (
+            SELECT
+                sv.station,
+                sv.name AS site_name,
+                sv.index AS site_index,
+                sv.updated_at AS reset_ts,
+                prev.updated_at AS prev_ts,
+                COALESCE(NULLIF(TRIM(prev.updated_by), ''), '-') AS prev_by,
+                prev.content AS prev_content
+            FROM kvmes.site_view sv
+            CROSS JOIN LATERAL (
+                SELECT sc.updated_at, sc.updated_by, sc.content
+                FROM kvmes.site_contents sc
+                WHERE sc.station = sv.station
+                  AND sc.name = sv.name
+                  AND sc.index = sv.index
+                  AND sc.updated_at < sv.updated_at
+                  AND sc.content != '{{"container": []}}'::jsonb
+                ORDER BY sc.updated_at DESC
+                LIMIT 1
+            ) prev
+            WHERE (sv.attributes->>'type')::int = 1
+              AND COALESCE(sv.updated_by, '') = ''
+              AND sv.content = '{{"container": []}}'::jsonb
+              AND sv.updated_at BETWEEN %s AND %s
+              {station_clause}
+              AND jsonb_typeof(prev.content->'container') = 'array'
+              AND jsonb_array_length(prev.content->'container') > 0
+        ),
+        extracted AS (
+            SELECT
+                a.station,
+                a.site_name,
+                a.site_index,
+                a.reset_ts,
+                a.prev_ts,
+                a.prev_by,
+                NULLIF(TRIM(item->'material'->>'resource_id'), '') AS resource_id,
+                MAX(COALESCE(NULLIF(TRIM(item->'material'->'material'->>'id'), ''), '')) AS container_product_id,
+                MAX(COALESCE(NULLIF(TRIM(item->'material'->>'product_type'), ''), '')) AS container_product_type,
+                COALESCE(SUM(COALESCE(NULLIF(TRIM(item->'material'->>'quantity'), '')::numeric, 0)), 0) AS wiped_qty,
+                COUNT(*) AS container_item_count
+            FROM affected_sites a
+            CROSS JOIN LATERAL jsonb_array_elements(a.prev_content->'container') item
+            WHERE NULLIF(TRIM(item->'material'->>'resource_id'), '') IS NOT NULL
+            GROUP BY a.station, a.site_name, a.site_index, a.reset_ts, a.prev_ts, a.prev_by,
+                     NULLIF(TRIM(item->'material'->>'resource_id'), '')
+        )
+        SELECT
+            e.station,
+            e.site_name,
+            e.site_index,
+            e.reset_ts,
+            e.prev_ts,
+            e.prev_by,
+            e.resource_id,
+            e.container_product_id,
+            e.container_product_type,
+            e.wiped_qty,
+            e.container_item_count,
+            mr.oid::text AS mr_oid,
+            mr.product_id AS mr_product_id,
+            mr.product_type AS mr_product_type,
+            mr.quantity AS mr_quantity,
+            mr.initial_quantity AS mr_initial_quantity,
+            mr.status AS mr_status,
+            mr.updated_at AS mr_updated_at,
+            mr.updated_by AS mr_updated_by,
+            mr.feed_records_id AS mr_feed_records_id
+        FROM extracted e
+        LEFT JOIN kvmes.material_resource mr ON mr.id = e.resource_id
+        ORDER BY e.reset_ts DESC, e.station ASC, e.site_name ASC, e.resource_id ASC;
+    """
+
+    active_sites_sql = """
+        SELECT DISTINCT
+            m->>'resource_id' AS resource_id,
+            sv.station,
+            sv.name AS site_name
+        FROM kvmes.site_view sv
+        CROSS JOIN LATERAL jsonb_each(sv.content) AS top(key, val)
+        CROSS JOIN LATERAL jsonb_path_query(top.val, '$.** ? (@.resource_id != null)') AS m
+        WHERE sv.content IS NOT NULL
+          AND sv.content != '{"container": []}'::jsonb
+          AND sv.content != '{"slot": {}}'::jsonb
+          AND strpos(sv.content::text, 'resource_id') > 0;
+    """
+
+    params = [start_ns, end_ns]
+    if station_filter:
+        params.append(station_filter)
+
+    try:
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(scan_sql, tuple(params))
+                raw_rows = cur.fetchall()
+
+                cur.execute(active_sites_sql)
+                active_rows = cur.fetchall()
+
+                active_map = {}
+                for r_id, st, sname in active_rows:
+                    if r_id:
+                        active_map.setdefault(r_id, []).append(f"{st} ({sname})")
+
+                # Collect feed_record timestamps in one PK batch for rows having feed_records_id
+                feed_id_set = set()
+                for row in raw_rows:
+                    fids = row[19]
+                    if fids:
+                        for fid in fids:
+                            if fid:
+                                feed_id_set.add(fid)
+
+                feed_time_ns_map = {}
+                if feed_id_set:
+                    cur.execute(
+                        "SELECT id, (EXTRACT(EPOCH FROM time) * 1000000000)::bigint FROM kvmes.feed_record WHERE id = ANY(%s);",
+                        (list(feed_id_set),)
+                    )
+                    for fid, fts in cur.fetchall():
+                        feed_time_ns_map[fid] = int(fts or 0)
+
+        # Count occurrences of each resource_id across wiped sites
+        barcode_site_counts = {}
+        for row in raw_rows:
+            rid = row[6]
+            barcode_site_counts[rid] = barcode_site_counts.get(rid, 0) + 1
+
+        stations_set = set()
+        summary = {
+            'total': 0,
+            'zero_count': 0,
+            'partial_count': 0,
+            'negative_count': 0,
+            'missing_count': 0,
+            'safe_count': 0,
+            'warn_count': 0,
+        }
+        filtered_items = []
+
+        for row in raw_rows:
+            (
+                st, sname, sidx, reset_ts, prev_ts, prev_by,
+                rid, c_prod_id, c_prod_type, wiped_qty_raw, item_count,
+                mr_oid, mr_prod_id, mr_prod_type, mr_qty_raw, mr_init_raw,
+                mr_status, mr_updated_at, mr_updated_by, mr_feed_ids
+            ) = row
+
+            stations_set.add(st)
+            wiped_qty = round(float(wiped_qty_raw or 0), 6)
+            mr_qty = round(float(mr_qty_raw), 6) if mr_qty_raw is not None else None
+            initial_qty = round(float(mr_init_raw), 6) if mr_init_raw is not None else None
+            reset_ts_int = int(reset_ts)
+            mr_upd_int = int(mr_updated_at) if mr_updated_at is not None else 0
+
+            if mr_oid is None or mr_qty is None:
+                qty_status = 'missing'
+                summary['missing_count'] += 1
+                proposed_qty = wiped_qty
+            elif mr_qty == 0:
+                qty_status = 'zero'
+                summary['zero_count'] += 1
+                proposed_qty = wiped_qty
+            elif mr_qty > 0:
+                qty_status = 'partial'
+                summary['partial_count'] += 1
+                proposed_qty = round(mr_qty + wiped_qty, 6)
+            else:
+                qty_status = 'negative'
+                summary['negative_count'] += 1
+                proposed_qty = round(mr_qty + wiped_qty, 6)
+
+            flags = []
+            flag_details = []
+            if qty_status == 'missing':
+                flags.append('missing_mr')
+                flag_details.append('Không tìm thấy trong material_resource')
+            if rid in active_map:
+                flags.append('in_other_site')
+                flag_details.append(f"Đang gắn tại: {', '.join(active_map[rid][:2])}")
+            if barcode_site_counts.get(rid, 0) > 1:
+                flags.append('dup_across_sites')
+                flag_details.append(f"Xuất hiện ở {barcode_site_counts[rid]} site bị reset")
+            if mr_upd_int > reset_ts_int:
+                flags.append('mr_updated_after')
+                flag_details.append(f"MR cập nhật sau reset ({_ns_to_vn_str(mr_upd_int)})")
+            if mr_feed_ids:
+                max_feed_ns = max((feed_time_ns_map.get(fid, 0) for fid in mr_feed_ids), default=0)
+                if max_feed_ns > reset_ts_int:
+                    flags.append('fed_after_reset')
+                    flag_details.append(f"Có feed sau reset ({_ns_to_vn_str(max_feed_ns)})")
+            if initial_qty is not None and initial_qty > 0 and proposed_qty > initial_qty + 1e-6:
+                flags.append('exceeds_initial')
+                flag_details.append(f"Sau khôi phục ({proposed_qty:g}) > initial ({initial_qty:g})")
+
+            if flags or qty_status in ('negative', 'missing'):
+                risk_level = 'WARN'
+                summary['warn_count'] += 1
+            elif qty_status == 'zero':
+                risk_level = 'SAFE'
+                summary['safe_count'] += 1
+            else:
+                risk_level = 'PARTIAL'
+
+            summary['total'] += 1
+
+            if status_filter != 'all' and qty_status != status_filter:
+                continue
+
+            filtered_items.append({
+                'oid': mr_oid,
+                'barcode': rid,
+                'product_id': mr_prod_id or c_prod_id or '-',
+                'product_type': mr_prod_type or c_prod_type or '-',
+                'station': st,
+                'site_name': sname,
+                'site_index': int(sidx or 0),
+                'reset_ts': str(reset_ts_int),
+                'reset_time_vn': _ns_to_vn_str(reset_ts_int),
+                'prev_ts': str(prev_ts),
+                'prev_time_vn': _ns_to_vn_str(prev_ts),
+                'prev_by': prev_by,
+                'wiped_qty': wiped_qty,
+                'item_count': int(item_count or 1),
+                'mr_qty': mr_qty,
+                'proposed_qty': proposed_qty,
+                'initial_qty': initial_qty,
+                'mr_status': mr_status,
+                'mr_updated_vn': _ns_to_vn_str(mr_upd_int) if mr_upd_int else '-',
+                'mr_updated_by': mr_updated_by or '-',
+                'qty_status': qty_status,
+                'risk_level': risk_level,
+                'flags': flags,
+                'flag_summary': ' | '.join(flag_details) if flag_details else ('Cộng phần bị mất' if qty_status == 'partial' else 'An toàn'),
+            })
+
+        return jsonify({
+            'success': True,
+            'env': active_env,
+            'rows': filtered_items,
+            'stations': sorted(stations_set),
+            'summary': summary,
+        })
+    except Exception as e:
+        app.logger.error(f"Lỗi API /api/site-reset-recovery/scan: {e}", exc_info=True)
+        return jsonify({'success': False, 'message': f'Lỗi truy vấn dữ liệu: {str(e)}'}), 500
+
+
+@app.route('/api/site-reset-recovery/restore', methods=['POST'])
+@login_required
+def api_site_reset_recovery_restore():
+    data = request.get_json(silent=True) or {}
+    mode = (data.get('mode') or 'quantity').strip().lower()
+    items = data.get('items') or []
+    note = (data.get('note') or '').strip()
+
+    if mode not in ('quantity', 'container'):
+        return jsonify({'success': False, 'message': 'Chế độ khôi phục không hợp lệ'}), 400
+    if not isinstance(items, list) or len(items) == 0:
+        return jsonify({'success': False, 'message': 'Chưa chọn dòng nào để khôi phục'}), 400
+    if len(items) > 1000:
+        return jsonify({'success': False, 'message': 'Tối đa 1000 dòng mỗi đợt khôi phục'}), 400
+
+    active_env = (get_current_db_env() or 'KV2').strip().upper()
+    operator_user = session.get('user_id') or DEFAULT_MES_USER or 'kdmes_recovery'
+    operator_ip = get_client_ip() or '127.0.0.1'
+    actor_tag = f"kdmes_recovery:{operator_user}"
+    now_ns = time.time_ns()
+    now_vn = datetime.now(VN_TZ).strftime("%Y-%m-%d %H:%M:%S")
+    recovery_id = f"REC_{datetime.now(VN_TZ).strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
+
+    try:
+        log_entries = []
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                if mode == 'quantity':
+                    seen_oids = set()
+                    validated = []
+                    for it in items:
+                        oid = str(it.get('oid') or '').strip()
+                        barcode = str(it.get('barcode') or '').strip()
+                        if not oid or not barcode:
+                            return jsonify({'success': False, 'message': f'Thiếu OID/Barcode cho dòng {barcode or "?"}'}), 400
+                        if oid in seen_oids:
+                            return jsonify({
+                                'success': False,
+                                'message': f'Barcode {barcode} đang được chọn lặp >1 lần trong cùng đợt khôi phục. Vui lòng giữ 1 dòng duy nhất hoặc chỉnh tay số lượng.'
+                            }), 400
+                        seen_oids.add(oid)
+                        try:
+                            expected_qty = float(it.get('expected_qty'))
+                            new_qty = float(it.get('new_qty'))
+                        except (TypeError, ValueError):
+                            return jsonify({'success': False, 'message': f'Số lượng không hợp lệ cho {barcode}'}), 400
+                        if new_qty < 0 or new_qty > 1e9:
+                            return jsonify({'success': False, 'message': f'Số lượng sau khôi phục không hợp lệ cho {barcode}: {new_qty}'}), 400
+                        validated.append({
+                            'oid': oid,
+                            'barcode': barcode,
+                            'expected_qty': expected_qty,
+                            'new_qty': round(new_qty, 6),
+                            'station': it.get('station', ''),
+                            'site_name': it.get('site_name', ''),
+                            'reset_ts': str(it.get('reset_ts') or ''),
+                        })
+
+                    oid_list = [v['oid'] for v in validated]
+                    cur.execute(
+                        "SELECT oid::text, id, quantity, updated_at, updated_by FROM kvmes.material_resource WHERE oid = ANY(%s::uuid[]) FOR UPDATE;",
+                        (oid_list,)
+                    )
+                    locked_map = {
+                        r[0]: {
+                            'id': r[1],
+                            'quantity': float(r[2]) if r[2] is not None else 0.0,
+                            'updated_at': int(r[3] or 0),
+                            'updated_by': r[4] or ''
+                        }
+                        for r in cur.fetchall()
+                    }
+
+                    conflicts = []
+                    for v in validated:
+                        db_row = locked_map.get(v['oid'])
+                        if not db_row:
+                            conflicts.append(f"{v['barcode']}: không tìm thấy trong material_resource")
+                        elif abs(db_row['quantity'] - v['expected_qty']) > 1e-4:
+                            conflicts.append(
+                                f"{v['barcode']}: MR quantity đã thay đổi ({db_row['quantity']:g} != {v['expected_qty']:g})"
+                            )
+                    if conflicts:
+                        conn.rollback()
+                        return jsonify({
+                            'success': False,
+                            'message': 'Phát hiện dữ liệu đã thay đổi trước khi xác nhận, vui lòng Load lại:\n- ' + '\n- '.join(conflicts[:10])
+                        }), 409
+
+                    for idx, v in enumerate(validated):
+                        db_row = locked_map[v['oid']]
+                        item_ns = now_ns + idx
+                        cur.execute(
+                            """
+                            UPDATE kvmes.material_resource
+                            SET quantity = %s,
+                                updated_at = %s,
+                                updated_by = %s
+                            WHERE oid = %s::uuid;
+                            """,
+                            (v['new_qty'], item_ns, actor_tag, v['oid'])
+                        )
+                        log_entries.append({
+                            'oid': v['oid'],
+                            'barcode': v['barcode'],
+                            'station': v['station'],
+                            'site_name': v['site_name'],
+                            'reset_ts': v['reset_ts'],
+                            'before_qty': db_row['quantity'],
+                            'after_qty': v['new_qty'],
+                            'before_updated_at': db_row['updated_at'],
+                            'before_updated_by': db_row['updated_by'],
+                            'after_updated_at': item_ns,
+                            'after_updated_by': actor_tag,
+                        })
+
+                else:
+                    # mode == 'container': khôi phục site_contents trước khi bị uploader reset
+                    seen_sites = set()
+                    site_targets = []
+                    for it in items:
+                        st = str(it.get('station') or '').strip()
+                        sname = str(it.get('site_name') or '').strip()
+                        sidx = int(it.get('site_index') or 0)
+                        reset_ts = str(it.get('reset_ts') or '').strip()
+                        prev_ts = str(it.get('prev_ts') or '').strip()
+                        if not st or sname is None or not reset_ts or not prev_ts:
+                            return jsonify({'success': False, 'message': 'Thiếu thông tin site/timestamp để khôi phục container'}), 400
+                        site_key = (st, sname, sidx)
+                        if site_key in seen_sites:
+                            continue
+                        seen_sites.add(site_key)
+                        site_targets.append((st, sname, sidx, int(reset_ts), int(prev_ts)))
+
+                    conflicts = []
+                    to_insert = []
+                    for st, sname, sidx, reset_ts_int, prev_ts_int in site_targets:
+                        cur.execute(
+                            """
+                            SELECT updated_at, content
+                            FROM kvmes.site_contents
+                            WHERE station = %s AND name = %s AND index = %s
+                            ORDER BY updated_at DESC
+                            LIMIT 1;
+                            """,
+                            (st, sname, sidx)
+                        )
+                        latest = cur.fetchone()
+                        if not latest or int(latest[0]) != reset_ts_int or latest[1] != {'container': []}:
+                            conflicts.append(f"{st} / {sname}: site_contents đã thay đổi sau reset")
+                            continue
+
+                        cur.execute(
+                            """
+                            SELECT content
+                            FROM kvmes.site_contents
+                            WHERE station = %s AND name = %s AND index = %s AND updated_at = %s
+                            LIMIT 1;
+                            """,
+                            (st, sname, sidx, prev_ts_int)
+                        )
+                        prev_row = cur.fetchone()
+                        if not prev_row or not prev_row[0]:
+                            conflicts.append(f"{st} / {sname}: không tìm thấy content tại ts {prev_ts_int}")
+                            continue
+                        to_insert.append((st, sname, sidx, reset_ts_int, prev_ts_int, prev_row[0]))
+
+                    if conflicts:
+                        conn.rollback()
+                        return jsonify({
+                            'success': False,
+                            'message': 'Phát hiện site đã thay đổi trước khi xác nhận:\n- ' + '\n- '.join(conflicts[:10])
+                        }), 409
+
+                    for idx, (st, sname, sidx, reset_ts_int, prev_ts_int, prev_content) in enumerate(to_insert):
+                        item_ns = now_ns + idx
+                        cur.execute(
+                            """
+                            INSERT INTO kvmes.site_contents (name, index, station, content, updated_at, updated_by)
+                            VALUES (%s, %s, %s, %s::jsonb, %s, %s);
+                            """,
+                            (sname, sidx, st, json.dumps(prev_content, ensure_ascii=False), item_ns, actor_tag)
+                        )
+                        log_entries.append({
+                            'station': st,
+                            'site_name': sname,
+                            'site_index': sidx,
+                            'reset_ts': reset_ts_int,
+                            'restored_from_ts': prev_ts_int,
+                            'inserted_updated_at': item_ns,
+                            'inserted_updated_by': actor_tag,
+                        })
+
+            conn.commit()
+
+        record = {
+            'recovery_id': recovery_id,
+            'created_at_ns': now_ns,
+            'timestamp_vn': now_vn,
+            'env': active_env,
+            'operator_user': operator_user,
+            'operator_ip': operator_ip,
+            'mode': mode,
+            'note': note or f"Khôi phục {len(log_entries)} mục ({mode})",
+            'count': len(log_entries),
+            'rolled_back': False,
+            'entries': log_entries,
+        }
+        _append_recovery_log_record(record)
+
+        return jsonify({
+            'success': True,
+            'recovery_id': recovery_id,
+            'count': len(log_entries),
+            'mode': mode,
+            'message': f"Đã khôi phục thành công {len(log_entries)} mục ({'Material Resource Quantity' if mode == 'quantity' else 'Container Site Contents'})."
+        })
+    except Exception as e:
+        app.logger.error(f"Lỗi API /api/site-reset-recovery/restore: {e}", exc_info=True)
+        return jsonify({'success': False, 'message': f'Lỗi khi khôi phục dữ liệu: {str(e)}'}), 500
+
+
+@app.route('/api/site-reset-recovery/history', methods=['GET'])
+@login_required
+def api_site_reset_recovery_history():
+    try:
+        active_env = (get_current_db_env() or 'KV2').strip().upper()
+        all_recs = _read_recovery_log_records()
+        env_recs = [r for r in all_recs if (r.get('env') or 'KV2').upper() == active_env]
+        return jsonify({
+            'success': True,
+            'env': active_env,
+            'records': env_recs[:200]
+        })
+    except Exception as e:
+        app.logger.error(f"Lỗi API /api/site-reset-recovery/history: {e}", exc_info=True)
+        return jsonify({'success': False, 'message': f'Lỗi tải lịch sử khôi phục: {str(e)}'}), 500
+
+
+@app.route('/api/site-reset-recovery/rollback', methods=['POST'])
+@login_required
+def api_site_reset_recovery_rollback():
+    data = request.get_json(silent=True) or {}
+    recovery_id = (data.get('recovery_id') or '').strip()
+    if not recovery_id:
+        return jsonify({'success': False, 'message': 'Thiếu recovery_id'}), 400
+
+    records = _read_recovery_log_records()
+    target = next((r for r in records if r.get('recovery_id') == recovery_id), None)
+    if not target:
+        return jsonify({'success': False, 'message': f'Không tìm thấy bản ghi {recovery_id}'}), 404
+    if target.get('rolled_back'):
+        return jsonify({'success': False, 'message': f'Đợt {recovery_id} đã được hoàn tác trước đó'}), 409
+
+    active_env = (get_current_db_env() or 'KV2').strip().upper()
+    if (target.get('env') or 'KV2').upper() != active_env:
+        return jsonify({
+            'success': False,
+            'message': f"Đợt này thuộc môi trường {target.get('env')}, hiện đang kết nối {active_env}"
+        }), 409
+
+    mode = target.get('mode')
+    entries = target.get('entries') or []
+    operator_user = session.get('user_id') or DEFAULT_MES_USER or 'kdmes_recovery'
+    now_ns = time.time_ns()
+    now_vn = datetime.now(VN_TZ).strftime("%Y-%m-%d %H:%M:%S")
+
+    try:
+        with get_pg_connection() as conn:
+            with conn.cursor() as cur:
+                if mode == 'quantity':
+                    oids = [e['oid'] for e in entries if e.get('oid')]
+                    cur.execute(
+                        "SELECT oid::text, quantity FROM kvmes.material_resource WHERE oid = ANY(%s::uuid[]) FOR UPDATE;",
+                        (oids,)
+                    )
+                    curr_map = {r[0]: float(r[1]) if r[1] is not None else 0.0 for r in cur.fetchall()}
+                    conflicts = []
+                    for e in entries:
+                        curr_q = curr_map.get(e['oid'])
+                        if curr_q is None:
+                            conflicts.append(f"{e.get('barcode')}: không còn tồn tại")
+                        elif abs(curr_q - float(e['after_qty'])) > 1e-4:
+                            conflicts.append(f"{e.get('barcode')}: quantity hiện tại ({curr_q:g}) khác ({float(e['after_qty']):g})")
+                    if conflicts:
+                        conn.rollback()
+                        return jsonify({
+                            'success': False,
+                            'message': 'Không thể hoàn tác vì dữ liệu đã thay đổi:\n- ' + '\n- '.join(conflicts[:10])
+                        }), 409
+
+                    for e in entries:
+                        cur.execute(
+                            """
+                            UPDATE kvmes.material_resource
+                            SET quantity = %s,
+                                updated_at = %s,
+                                updated_by = %s
+                            WHERE oid = %s::uuid;
+                            """,
+                            (e['before_qty'], e['before_updated_at'], e['before_updated_by'], e['oid'])
+                        )
+                elif mode == 'container':
+                    conflicts = []
+                    for e in entries:
+                        cur.execute(
+                            """
+                            SELECT updated_at
+                            FROM kvmes.site_contents
+                            WHERE station = %s AND name = %s AND index = %s
+                            ORDER BY updated_at DESC
+                            LIMIT 1;
+                            """,
+                            (e['station'], e['site_name'], int(e.get('site_index') or 0))
+                        )
+                        latest = cur.fetchone()
+                        if not latest or int(latest[0]) != int(e['inserted_updated_at']):
+                            conflicts.append(f"{e['station']} / {e['site_name']}: site đã có cập nhật mới hơn")
+                    if conflicts:
+                        conn.rollback()
+                        return jsonify({
+                            'success': False,
+                            'message': 'Không thể hoàn tác container vì site đã thay đổi:\n- ' + '\n- '.join(conflicts[:10])
+                        }), 409
+
+                    for idx, e in enumerate(entries):
+                        cur.execute(
+                            """
+                            INSERT INTO kvmes.site_contents (name, index, station, content, updated_at, updated_by)
+                            VALUES (%s, %s, %s, '{"container": []}'::jsonb, %s, %s);
+                            """,
+                            (e['site_name'], int(e.get('site_index') or 0), e['station'], now_ns + idx, f"kdmes_rollback:{operator_user}")
+                        )
+                else:
+                    return jsonify({'success': False, 'message': f'Mode không hỗ trợ hoàn tác: {mode}'}), 400
+            conn.commit()
+
+        _mark_recovery_rolled_back(recovery_id, {'rollback_at': now_vn, 'rollback_by': operator_user})
+        return jsonify({
+            'success': True,
+            'recovery_id': recovery_id,
+            'message': f'Đã hoàn tác thành công đợt {recovery_id} ({len(entries)} mục).'
+        })
+    except Exception as e:
+        app.logger.error(f"Lỗi API /api/site-reset-recovery/rollback: {e}", exc_info=True)
+        return jsonify({'success': False, 'message': f'Lỗi khi hoàn tác: {str(e)}'}), 500
 
 
 @app.errorhandler(404)

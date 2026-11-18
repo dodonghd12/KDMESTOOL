@@ -308,6 +308,7 @@
         <iframe id="view-bypass" class="spa-view-frame {% if initial_path == '/bypass' %}active{% endif %}" {% if initial_path == '/bypass' %}src="{{ url_for('bypass', frame='1') }}"{% else %}data-src="{{ url_for('bypass', frame='1') }}"{% endif %} title="Bypass"></iframe>
         <iframe id="view-printer-setup" class="spa-view-frame {% if initial_path == '/printer-setup' %}active{% endif %}" {% if initial_path == '/printer-setup' %}src="{{ url_for('printer_setup', frame='1') }}"{% else %}data-src="{{ url_for('printer_setup', frame='1') }}"{% endif %} title="Printer Setup"></iframe>
         <iframe id="view-reprint-label-log" class="spa-view-frame {% if initial_path == '/reprint-label-log' %}active{% endif %}" {% if initial_path == '/reprint-label-log' %}src="{{ url_for('reprint_label_log', frame='1') }}"{% else %}data-src="{{ url_for('reprint_label_log', frame='1') }}"{% endif %} title="Reprint Label Log"></iframe>
+        <iframe id="view-site-reset-recovery" class="spa-view-frame {% if initial_path == '/site-reset-recovery' %}active{% endif %}" {% if initial_path == '/site-reset-recovery' %}src="{{ url_for('site_reset_recovery', frame='1') }}"{% else %}data-src="{{ url_for('site_reset_recovery', frame='1') }}"{% endif %} title="Site Reset Recovery"></iframe>
     </main>
 
     {% include "components/shared_modals.html" %}
