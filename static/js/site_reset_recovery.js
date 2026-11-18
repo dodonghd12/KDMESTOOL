@@ -39,13 +39,14 @@
     }
 
     function init() {
-        ensureClientSearchAlwaysEnabled();
         initFlatpickr();
         initStationDropdown();
         initStatusDropdown();
         initControls();
         initHoldRestoreButton();
         initHistoryModal();
+        setFilterControlsEnabled(false);
+        window.updateClientSearchState = () => setFilterControlsEnabled(allRows.length > 0);
         document.body.classList.remove('app-loading-state');
     }
 
@@ -76,21 +77,16 @@
         return `${r.station}||${r.site}||${r.site_index}||${r.reset_ts}||${r.barcode}`;
     }
 
-    function ensureClientSearchAlwaysEnabled() {
-        const el = document.getElementById('clientSearch');
-        if (!el) return;
-        el.disabled = false;
-        el.removeAttribute('disabled');
-        try {
-            Object.defineProperty(el, 'disabled', {
-                get: () => false,
-                set: () => false,
-                configurable: true
-            });
-        } catch (e) {}
-        window.updateClientSearchState = function () {
-            el.disabled = false;
-        };
+    function setFilterControlsEnabled(enabled) {
+        const flag = Boolean(enabled);
+        ['dateRange', 'stationFilter', 'statusFilter', 'clientSearch'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.disabled = !flag;
+        });
+        if (flatpickrInstance) {
+            flatpickrInstance.set('clickOpens', flag);
+            if (!flag) flatpickrInstance.close();
+        }
     }
 
     function initFlatpickr() {
@@ -141,10 +137,12 @@
                     if (toEl) toEl.value = '';
                     dateInput.value = '';
                 }
+                applyFilters();
             }
         });
 
         dateInput.addEventListener('click', () => {
+            if (dateInput.disabled) return;
             if (dateInput.value && flatpickrInstance) {
                 flatpickrInstance.clear();
                 selectedFromDate = '';
@@ -152,6 +150,15 @@
                 if (fromEl) fromEl.value = '';
                 if (toEl) toEl.value = '';
                 dateInput.value = '';
+                applyFilters();
+            }
+        });
+
+        dateInput.addEventListener('change', () => {
+            if (!dateInput.value && (selectedFromDate || selectedToDate)) {
+                selectedFromDate = '';
+                selectedToDate = '';
+                applyFilters();
             }
         });
     }
@@ -184,6 +191,7 @@
 
         input.addEventListener('click', e => {
             e.stopPropagation();
+            if (input.disabled) return;
             if (dropdown.classList.contains('show')) {
                 dropdown.classList.remove('show');
                 return;
@@ -191,6 +199,12 @@
             document.querySelectorAll('.dropdown-list.show').forEach(d => d.classList.remove('show'));
             render();
             dropdown.classList.add('show');
+        });
+
+        input.addEventListener('input', () => {
+            if (!input.value.trim() && getSelected()) {
+                onSelect({ value: '', label: '' }, input);
+            }
         });
 
         document.addEventListener('click', e => {
@@ -268,10 +282,7 @@
             const res = await fetch('/api/site-reset-recovery/scan', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    from_date: selectedFromDate,
-                    to_date: selectedToDate
-                })
+                body: JSON.stringify({})
             });
             const data = await res.json();
             if (!res.ok || !data.success) {
@@ -327,6 +338,7 @@
             if (footer) footer.classList.remove('hidden');
 
             applyFilters();
+            setFilterControlsEnabled(allRows.length > 0);
             if (typeof Toast !== 'undefined') {
                 Toast.success('Quét hoàn tất', `Tìm thấy ${allRows.length} barcode có quantity = 0 bị uploader reset.`);
             }
@@ -373,6 +385,12 @@
     function applyFilters() {
         const kw = (document.getElementById('clientSearch')?.value || '').trim().toLowerCase();
         filteredRows = allRows.filter(r => {
+            if (selectedFromDate && selectedToDate) {
+                const rowDate = String(r.error_time || '').slice(0, 10);
+                if (!rowDate || rowDate === '-' || rowDate < selectedFromDate || rowDate > selectedToDate) {
+                    return false;
+                }
+            }
             if (activeStationFilter && r.station !== activeStationFilter) return false;
             if (activeStatusFilter && r.status !== activeStatusFilter) return false;
             if (kw) {
