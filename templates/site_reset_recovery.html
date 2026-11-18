@@ -26,78 +26,107 @@
             width: 100%;
         }
 
-        .srr-badge {
-            display: inline-flex;
+        /* Căn giữa tuyệt đối standby placeholder & subtitle */
+        .site-reset-recovery-page .table-standby-placeholder {
+            width: 100%;
             align-items: center;
-            gap: 4px;
-            padding: 3px 8px;
-            border-radius: 6px;
-            font-size: 11.5px;
-            font-weight: 700;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .site-reset-recovery-page .standby-title,
+        .site-reset-recovery-page .standby-subtitle {
+            max-width: 560px;
+            width: 100%;
+            margin-left: auto;
+            margin-right: auto;
+            text-align: center;
+        }
+
+        /* Vô hiệu hóa sticky horizontal 2 cột từ main.css để không đè chữ khi scroll */
+        .site-reset-recovery-page .table-scroll td:nth-child(1),
+        .site-reset-recovery-page .table-scroll th:nth-child(1),
+        .site-reset-recovery-page .table-scroll td:nth-child(2),
+        .site-reset-recovery-page .table-scroll th:nth-child(2) {
+            position: static !important;
+            left: auto !important;
+            border-right: none !important;
+            box-shadow: none !important;
+            background-color: transparent !important;
+        }
+
+        .site-reset-recovery-page .table-scroll thead th {
+            position: sticky !important;
+            top: 0 !important;
+            z-index: 10 !important;
+            background: var(--color-bg-surface-elevated-solid, #1e293b) !important;
+        }
+
+        /* Đồng nhất font & font-size trong toàn bộ table-container, không border/background trên chữ */
+        .site-reset-recovery-page #recoveryTable th,
+        .site-reset-recovery-page #recoveryTable td,
+        .site-reset-recovery-page #recoveryTable .srr-qty-input {
+            font-family: var(--font-stack) !important;
+            font-size: var(--table-font-size, 13.5px) !important;
+            line-height: var(--table-line-height, 1.45) !important;
+        }
+
+        .site-reset-recovery-page #recoveryTable td {
             white-space: nowrap;
         }
 
-        .srr-badge-safe {
-            background: rgba(16, 185, 129, 0.16);
+        .site-reset-recovery-page .srr-num {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .site-reset-recovery-page .srr-status-safe {
             color: #34d399;
-            border: 1px solid rgba(16, 185, 129, 0.32);
+            font-weight: 500;
         }
 
-        .srr-badge-warn {
-            background: rgba(245, 158, 11, 0.16);
+        .site-reset-recovery-page .srr-status-warn {
             color: #fbbf24;
-            border: 1px solid rgba(245, 158, 11, 0.35);
+            font-weight: 500;
         }
 
-        :root[data-theme="light"] .srr-badge-safe,
-        body.theme-light .srr-badge-safe { color: #047857; }
-        :root[data-theme="light"] .srr-badge-warn,
-        body.theme-light .srr-badge-warn { color: #b45309; }
+        :root[data-theme="light"] .site-reset-recovery-page .srr-status-safe,
+        body.theme-light .site-reset-recovery-page .srr-status-safe { color: #047857; }
+        :root[data-theme="light"] .site-reset-recovery-page .srr-status-warn,
+        body.theme-light .site-reset-recovery-page .srr-status-warn { color: #b45309; }
 
-        .srr-qty-input {
+        .site-reset-recovery-page .srr-flag-detail {
+            color: var(--color-text-muted, #94a3b8);
+            margin-left: 6px;
+        }
+
+        .site-reset-recovery-page .srr-qty-input {
             width: 96px;
-            padding: 4px 8px;
-            border-radius: 6px;
-            border: 1px solid rgba(148, 163, 184, 0.35);
-            background: rgba(15, 23, 42, 0.6);
+            padding: 2px 4px;
+            border-radius: 4px;
+            border: 1px solid transparent;
+            background: transparent;
             color: var(--color-text-primary, #f8fafc);
-            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-            font-size: 12.5px;
-            font-weight: 600;
             text-align: right;
             outline: none;
         }
 
-        .srr-qty-input:focus {
-            border-color: #38bdf8;
-            box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25);
+        .site-reset-recovery-page .srr-qty-input:hover,
+        .site-reset-recovery-page .srr-qty-input:focus {
+            border-color: rgba(61, 213, 192, 0.55);
+            background: rgba(15, 23, 42, 0.35);
         }
 
-        :root[data-theme="light"] .srr-qty-input,
-        body.theme-light .srr-qty-input {
-            background: #ffffff;
+        :root[data-theme="light"] .site-reset-recovery-page .srr-qty-input,
+        body.theme-light .site-reset-recovery-page .srr-qty-input {
             color: #0f172a;
-            border-color: rgba(15, 23, 42, 0.22);
         }
 
-        .srr-mono {
-            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-            font-size: 12.5px;
-        }
-
-        .srr-num {
-            text-align: right;
-            font-variant-numeric: tabular-nums;
-            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-        }
-
-        .srr-flag-detail {
-            font-size: 11.5px;
-            color: var(--color-text-muted, #94a3b8);
-            margin-top: 2px;
-            max-width: 240px;
-            white-space: normal;
-            line-height: 1.3;
+        :root[data-theme="light"] .site-reset-recovery-page .srr-qty-input:hover,
+        :root[data-theme="light"] .site-reset-recovery-page .srr-qty-input:focus,
+        body.theme-light .site-reset-recovery-page .srr-qty-input:hover,
+        body.theme-light .site-reset-recovery-page .srr-qty-input:focus {
+            background: #f1f5f9;
         }
 
         .btn-srr-restore {
@@ -233,12 +262,19 @@
                     <div id="station-filter-dropdown" class="dropdown-list"></div>
                 </div>
 
-                <!-- 4. Client Search -->
-                <div class="input-wrapper" style="min-width: 200px; max-width: 320px; flex: 1;">
+                <!-- 4. Status Dropdown -->
+                <div class="input-box" style="min-width: 155px; max-width: 190px; width: 170px; flex-shrink: 0; position: relative;">
+                    <input placeholder=" " type="text" id="statusFilter" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="input" style="cursor: pointer;" readonly aria-label="Lọc theo Status">
+                    <label class="user-label">Status</label>
+                    <div id="status-filter-dropdown" class="dropdown-list"></div>
+                </div>
+
+                <!-- 5. Client Search -->
+                <div class="input-wrapper" style="min-width: 190px; max-width: 300px; flex: 1;">
                     <input placeholder="Tìm kiếm..." class="input" id="clientSearch" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text" aria-label="Tìm kiếm trong bảng">
                 </div>
 
-                <!-- 5. History Button -->
+                <!-- 6. History Button -->
                 <button type="button" id="btnRecoveryHistory" class="winx-btn btn-open-yaml-file" style="margin-left: auto;" title="Xem lịch sử khôi phục và hoàn tác">
                     <span class="material-symbols-outlined">history</span>
                     <span>Lịch sử khôi phục</span>
@@ -257,25 +293,7 @@
                 </div>
 
                 <table id="recoveryTable" style="display: none;">
-                    <thead id="tableHead">
-                        <tr>
-                            <th style="width: 42px; text-align: center;">
-                                <input type="checkbox" id="selectAllRows" title="Chọn/Bỏ chọn tất cả dòng đang hiển thị" aria-label="Chọn tất cả">
-                            </th>
-                            <th style="width: 46px; text-align: center;">#</th>
-                            <th>Barcode</th>
-                            <th>Product ID</th>
-                            <th>Loại NVL</th>
-                            <th>Station</th>
-                            <th>Site</th>
-                            <th>Thời điểm Reset (UTC+7)</th>
-                            <th style="text-align: right;">MR Qty Hiện tại</th>
-                            <th style="text-align: right;">Wiped Qty (Container)</th>
-                            <th style="text-align: right;">Qty Khôi Phục</th>
-                            <th style="text-align: right;">Initial Qty</th>
-                            <th>Trạng thái / Cảnh báo</th>
-                        </tr>
-                    </thead>
+                    <thead id="tableHead"></thead>
                     <tbody id="tableBody"></tbody>
                 </table>
             </div>

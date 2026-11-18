@@ -1019,7 +1019,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.4.23"
+APP_VERSION = "2.4.24"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -11526,7 +11526,21 @@ def api_site_reset_recovery_scan():
             barcode_site_counts[rid] = barcode_site_counts.get(rid, 0) + 1
 
         stations_set = set()
-        items = []
+        columns = [
+            'barcode',
+            'product_id',
+            'product_type',
+            'station',
+            'site',
+            'error_time (UTC+7)',
+            'quantity',
+            'quantity_site_content',
+            'recovery_quantity',
+            'initial_quantity',
+            'status',
+        ]
+        result = []
+        meta = []
 
         for row in raw_rows:
             (
@@ -11565,37 +11579,36 @@ def api_site_reset_recovery_scan():
                 flag_details.append(f"Sau khôi phục ({proposed_qty:g}) > initial ({initial_qty:g})")
 
             risk_level = 'WARN' if flags else 'SAFE'
+            status_text = 'Cảnh báo' if flags else 'An toàn'
 
-            items.append({
+            result.append([
+                rid,
+                mr_prod_id or c_prod_id or '-',
+                mr_prod_type or c_prod_type or '-',
+                st,
+                sname,
+                _ns_to_vn_str(reset_ts_int),
+                mr_qty,
+                wiped_qty,
+                proposed_qty,
+                initial_qty,
+                status_text,
+            ])
+            meta.append({
                 'oid': mr_oid,
-                'barcode': rid,
-                'product_id': mr_prod_id or c_prod_id or '-',
-                'product_type': mr_prod_type or c_prod_type or '-',
-                'station': st,
-                'site_name': sname,
-                'site_index': int(sidx or 0),
                 'reset_ts': str(reset_ts_int),
-                'reset_time_vn': _ns_to_vn_str(reset_ts_int),
-                'prev_ts': str(prev_ts),
-                'prev_time_vn': _ns_to_vn_str(prev_ts),
-                'prev_by': prev_by,
-                'wiped_qty': wiped_qty,
+                'site_index': int(sidx or 0),
                 'item_count': int(item_count or 1),
-                'mr_qty': mr_qty,
-                'proposed_qty': proposed_qty,
-                'initial_qty': initial_qty,
-                'mr_status': mr_status,
-                'mr_updated_vn': _ns_to_vn_str(mr_upd_int) if mr_upd_int else '-',
-                'mr_updated_by': mr_updated_by or '-',
                 'risk_level': risk_level,
-                'flags': flags,
                 'flag_summary': ' | '.join(flag_details) if flag_details else 'An toàn',
             })
 
         return jsonify({
             'success': True,
             'env': active_env,
-            'rows': items,
+            'columns': columns,
+            'result': result,
+            'meta': meta,
             'stations': sorted(stations_set),
         })
     except Exception as e:

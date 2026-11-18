@@ -8,13 +8,20 @@
     'use strict';
 
     const HOLD_DURATION_MS = 3000;
+    const STATUS_OPTIONS = [
+        { value: '', label: 'Tất cả' },
+        { value: 'An toàn', label: 'An toàn' },
+        { value: 'Cảnh báo', label: 'Cảnh báo' }
+    ];
 
+    let tableColumns = [];
     let allRows = [];
     let filteredRows = [];
     let allStations = [];
     let selectedKeys = new Set();
     let editedQtyMap = new Map();
     let activeStationFilter = '';
+    let activeStatusFilter = '';
     let selectedFromDate = '';
     let selectedToDate = '';
     let flatpickrInstance = null;
@@ -35,6 +42,7 @@
         ensureClientSearchAlwaysEnabled();
         initFlatpickr();
         initStationDropdown();
+        initStatusDropdown();
         initControls();
         initHoldRestoreButton();
         initHistoryModal();
@@ -65,7 +73,7 @@
     }
 
     function makeRowKey(r) {
-        return `${r.station}||${r.site_name}||${r.site_index}||${r.reset_ts}||${r.barcode}`;
+        return `${r.station}||${r.site}||${r.site_index}||${r.reset_ts}||${r.barcode}`;
     }
 
     function ensureClientSearchAlwaysEnabled() {
@@ -148,32 +156,27 @@
         });
     }
 
-    function initStationDropdown() {
-        const input = document.getElementById('stationFilter');
-        const dropdown = document.getElementById('station-filter-dropdown');
+    function bindFilterDropdown(inputId, dropdownId, getOptions, getSelected, onSelect) {
+        const input = document.getElementById(inputId);
+        const dropdown = document.getElementById(dropdownId);
         if (!input || !dropdown) return;
 
-        input.value = 'Tất cả Station';
-        input.closest('.input-box')?.classList.add('has-value');
+        input.value = '';
+        input.closest('.input-box')?.classList.remove('has-value');
 
         const render = () => {
             dropdown.innerHTML = '';
-            const list = [{ value: '', label: 'Tất cả Station' }].concat(
-                allStations.map(st => ({ value: st, label: st }))
-            );
-            list.forEach(opt => {
+            const currentVal = getSelected();
+            getOptions().forEach(opt => {
                 const div = document.createElement('div');
                 div.className = 'dropdown-item';
-                if (opt.value === activeStationFilter) div.classList.add('selected');
+                if (opt.value === currentVal && currentVal !== '') div.classList.add('selected');
                 div.textContent = opt.label;
                 div.addEventListener('mousedown', e => {
                     e.preventDefault();
-                    activeStationFilter = opt.value;
-                    input.value = opt.label;
-                    input.closest('.input-box')?.classList.add('has-value');
                     dropdown.classList.remove('show');
                     input.blur();
-                    applyFilters();
+                    onSelect(opt, input);
                 });
                 dropdown.appendChild(div);
             });
@@ -197,6 +200,46 @@
         });
     }
 
+    function initStationDropdown() {
+        bindFilterDropdown(
+            'stationFilter',
+            'station-filter-dropdown',
+            () => [{ value: '', label: 'Tất cả Station' }].concat(allStations.map(st => ({ value: st, label: st }))),
+            () => activeStationFilter,
+            (opt, input) => {
+                activeStationFilter = opt.value;
+                if (opt.value) {
+                    input.value = opt.label;
+                    input.closest('.input-box')?.classList.add('has-value');
+                } else {
+                    input.value = '';
+                    input.closest('.input-box')?.classList.remove('has-value');
+                }
+                applyFilters();
+            }
+        );
+    }
+
+    function initStatusDropdown() {
+        bindFilterDropdown(
+            'statusFilter',
+            'status-filter-dropdown',
+            () => STATUS_OPTIONS,
+            () => activeStatusFilter,
+            (opt, input) => {
+                activeStatusFilter = opt.value;
+                if (opt.value) {
+                    input.value = opt.label;
+                    input.closest('.input-box')?.classList.add('has-value');
+                } else {
+                    input.value = '';
+                    input.closest('.input-box')?.classList.remove('has-value');
+                }
+                applyFilters();
+            }
+        );
+    }
+
     function initControls() {
         const btnLoad = document.getElementById('btnLoad');
         if (btnLoad) btnLoad.addEventListener('click', scanResetRows);
@@ -209,19 +252,6 @@
             });
         }
         window.customClientSearchHandler = () => applyFilters();
-
-        const selectAllRows = document.getElementById('selectAllRows');
-        if (selectAllRows) {
-            selectAllRows.addEventListener('change', () => {
-                filteredRows.forEach(r => {
-                    if (!r.oid) return;
-                    if (selectAllRows.checked) selectedKeys.add(r._key);
-                    else selectedKeys.delete(r._key);
-                });
-                renderTable();
-                updateSelectionUI();
-            });
-        }
     }
 
     async function scanResetRows() {
@@ -248,11 +278,54 @@
                 throw new Error((data && data.message) || `Lỗi HTTP ${res.status}`);
             }
 
-            allRows = (data.rows || []).map(r => ({ ...r, _key: makeRowKey(r) }));
+            tableColumns = Array.isArray(data.columns) ? data.columns : [];
+            const rawResult = Array.isArray(data.result) ? data.result : [];
+            const rawMeta = Array.isArray(data.meta) ? data.meta : [];
+
+            const idx = name => tableColumns.indexOf(name);
+            const iBarcode = idx('barcode');
+            const iProdId = idx('product_id');
+            const iProdType = idx('product_type');
+            const iStation = idx('station');
+            const iSite = idx('site');
+            const iErrTime = idx('error_time (UTC+7)');
+            const iQty = idx('quantity');
+            const iWipedQty = idx('quantity_site_content');
+            const iRecQty = idx('recovery_quantity');
+            const iInitQty = idx('initial_quantity');
+            const iStatus = idx('status');
+
+            allRows = rawResult.map((cells, rIdx) => {
+                const m = rawMeta[rIdx] || {};
+                const rowObj = {
+                    cells,
+                    barcode: cells[iBarcode] ?? '',
+                    product_id: cells[iProdId] ?? '-',
+                    product_type: cells[iProdType] ?? '-',
+                    station: cells[iStation] ?? '',
+                    site: cells[iSite] ?? '',
+                    error_time: cells[iErrTime] ?? '-',
+                    quantity: cells[iQty] ?? 0,
+                    quantity_site_content: cells[iWipedQty] ?? 0,
+                    recovery_quantity: cells[iRecQty] ?? 0,
+                    initial_quantity: cells[iInitQty],
+                    status: cells[iStatus] ?? 'An toàn',
+                    oid: m.oid || null,
+                    reset_ts: m.reset_ts || '',
+                    site_index: m.site_index || 0,
+                    item_count: m.item_count || 1,
+                    risk_level: m.risk_level || 'SAFE',
+                    flag_summary: m.flag_summary || 'An toàn',
+                };
+                rowObj._key = makeRowKey(rowObj);
+                return rowObj;
+            });
+
             allStations = Array.isArray(data.stations) ? data.stations : [];
             selectedKeys.clear();
             editedQtyMap.clear();
 
+            renderTableHeader();
             if (standby) standby.style.display = 'none';
             if (table) table.style.display = 'table';
             if (footer) footer.classList.remove('hidden');
@@ -270,12 +343,44 @@
         }
     }
 
+    function renderTableHeader() {
+        const thead = document.getElementById('tableHead');
+        if (!thead) return;
+        const rightCols = new Set(['quantity', 'quantity_site_content', 'recovery_quantity', 'initial_quantity']);
+        const thCols = tableColumns.map(col => {
+            const alignStyle = rightCols.has(col) ? ' style="text-align: right;"' : '';
+            return `<th${alignStyle}>${escapeHtml(col)}</th>`;
+        }).join('');
+        thead.innerHTML = `
+            <tr>
+                <th style="width: 44px; min-width: 44px; text-align: center;">
+                    <input type="checkbox" id="selectAllRows" title="Chọn/Bỏ chọn tất cả dòng đang hiển thị" aria-label="Chọn tất cả">
+                </th>
+                ${thCols}
+            </tr>
+        `;
+
+        const selectAllRows = document.getElementById('selectAllRows');
+        if (selectAllRows) {
+            selectAllRows.addEventListener('change', () => {
+                filteredRows.forEach(r => {
+                    if (!r.oid) return;
+                    if (selectAllRows.checked) selectedKeys.add(r._key);
+                    else selectedKeys.delete(r._key);
+                });
+                renderTable();
+                updateSelectionUI();
+            });
+        }
+    }
+
     function applyFilters() {
         const kw = (document.getElementById('clientSearch')?.value || '').trim().toLowerCase();
         filteredRows = allRows.filter(r => {
             if (activeStationFilter && r.station !== activeStationFilter) return false;
+            if (activeStatusFilter && r.status !== activeStatusFilter) return false;
             if (kw) {
-                const hay = `${r.barcode} ${r.product_id} ${r.product_type} ${r.station} ${r.site_name} ${r.flag_summary}`.toLowerCase();
+                const hay = `${r.barcode} ${r.product_id} ${r.product_type} ${r.station} ${r.site} ${r.status} ${r.flag_summary}`.toLowerCase();
                 if (!hay.includes(kw)) return false;
             }
             return true;
@@ -287,7 +392,7 @@
 
     function getTargetQty(row) {
         if (editedQtyMap.has(row._key)) return editedQtyMap.get(row._key);
-        return row.proposed_qty;
+        return row.recovery_quantity;
     }
 
     function renderTable() {
@@ -296,10 +401,11 @@
         if (!tbody) return;
         if (rowCountEl) rowCountEl.textContent = filteredRows.length;
 
+        const colSpan = 1 + Math.max(1, tableColumns.length);
         if (filteredRows.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="13" style="text-align: center; padding: 40px; color: var(--color-text-muted, #94a3b8);">
+                    <td colspan="${colSpan}" style="text-align: center; padding: 40px; color: var(--color-text-muted, #94a3b8);">
                         Không có dòng dữ liệu nào phù hợp bộ lọc hiện tại.
                     </td>
                 </tr>
@@ -309,36 +415,43 @@
             return;
         }
 
-        tbody.innerHTML = filteredRows.map((r, i) => {
-            const idx = i + 1;
+        tbody.innerHTML = filteredRows.map(r => {
             const checked = selectedKeys.has(r._key) ? 'checked' : '';
             const disabled = !r.oid ? 'disabled' : '';
-            const badgeCls = r.risk_level === 'SAFE' ? 'srr-badge-safe' : 'srr-badge-warn';
-            const badgeTxt = r.risk_level === 'SAFE' ? 'An toàn' : 'Cảnh báo';
+            const statusCls = r.risk_level === 'SAFE' ? 'srr-status-safe' : 'srr-status-warn';
             const targetQty = getTargetQty(r);
+
+            const cellsHtml = tableColumns.map((colName, idx) => {
+                const val = r.cells[idx];
+                if (colName === 'quantity' || colName === 'initial_quantity') {
+                    return `<td class="srr-num">${formatNum(val)}</td>`;
+                }
+                if (colName === 'quantity_site_content') {
+                    const mult = r.item_count > 1 ? ` (×${r.item_count})` : '';
+                    return `<td class="srr-num">${formatNum(val)}${mult}</td>`;
+                }
+                if (colName === 'recovery_quantity') {
+                    return `
+                        <td class="srr-num">
+                            <input type="number" step="any" min="0" class="srr-qty-input" data-key="${escapeHtml(r._key)}" value="${escapeHtml(targetQty)}" ${disabled}>
+                        </td>
+                    `;
+                }
+                if (colName === 'status') {
+                    const detail = (r.flag_summary && r.flag_summary !== 'An toàn')
+                        ? `<span class="srr-flag-detail">(${escapeHtml(r.flag_summary)})</span>`
+                        : '';
+                    return `<td><span class="${statusCls}">${escapeHtml(val)}</span>${detail}</td>`;
+                }
+                return `<td>${escapeHtml(val == null ? '-' : val)}</td>`;
+            }).join('');
 
             return `
                 <tr data-key="${escapeHtml(r._key)}">
                     <td style="text-align: center;">
                         <input type="checkbox" class="srr-row-cb" data-key="${escapeHtml(r._key)}" ${checked} ${disabled} aria-label="Chọn dòng ${escapeHtml(r.barcode)}">
                     </td>
-                    <td style="text-align: center;">${idx}</td>
-                    <td class="srr-mono">${escapeHtml(r.barcode)}</td>
-                    <td>${escapeHtml(r.product_id)}</td>
-                    <td>${escapeHtml(r.product_type)}</td>
-                    <td>${escapeHtml(r.station)}</td>
-                    <td>${escapeHtml(r.site_name)}</td>
-                    <td class="srr-mono">${escapeHtml(r.reset_time_vn)}</td>
-                    <td class="srr-num">${formatNum(r.mr_qty)}</td>
-                    <td class="srr-num">${formatNum(r.wiped_qty)}${r.item_count > 1 ? ` <small>(×${r.item_count})</small>` : ''}</td>
-                    <td class="srr-num">
-                        <input type="number" step="any" min="0" class="srr-qty-input" data-key="${escapeHtml(r._key)}" value="${escapeHtml(targetQty)}" ${disabled}>
-                    </td>
-                    <td class="srr-num">${formatNum(r.initial_qty)}</td>
-                    <td>
-                        <span class="srr-badge ${badgeCls}">${badgeTxt}</span>
-                        ${r.flag_summary && r.flag_summary !== 'An toàn' ? `<div class="srr-flag-detail">${escapeHtml(r.flag_summary)}</div>` : ''}
-                    </td>
+                    ${cellsHtml}
                 </tr>
             `;
         }).join('');
@@ -451,9 +564,9 @@
                 oid: r.oid,
                 barcode: r.barcode,
                 station: r.station,
-                site_name: r.site_name,
+                site_name: r.site,
                 reset_ts: r.reset_ts,
-                expected_qty: r.mr_qty,
+                expected_qty: r.quantity,
                 new_qty: getTargetQty(r)
             });
         });
@@ -529,15 +642,15 @@
             }
             tbody.innerHTML = recs.map(rec => `
                 <tr>
-                    <td class="srr-mono">${escapeHtml(rec.recovery_id)}</td>
-                    <td class="srr-mono">${escapeHtml(rec.timestamp_vn)}</td>
+                    <td>${escapeHtml(rec.recovery_id)}</td>
+                    <td>${escapeHtml(rec.timestamp_vn)}</td>
                     <td>${escapeHtml(rec.env || 'KV2')}</td>
                     <td class="srr-num">${escapeHtml(rec.count)}</td>
                     <td>${escapeHtml(rec.operator_user)} (${escapeHtml(rec.operator_ip)})</td>
                     <td>
                         ${rec.rolled_back
-                            ? `<span class="srr-badge srr-badge-warn">Đã hoàn tác (${escapeHtml(rec.rollback_at || '')})</span>`
-                            : `<span class="srr-badge srr-badge-safe">Đang áp dụng</span>`}
+                            ? `<span class="srr-status-warn">Đã hoàn tác (${escapeHtml(rec.rollback_at || '')})</span>`
+                            : `<span class="srr-status-safe">Đang áp dụng</span>`}
                     </td>
                     <td style="text-align: center;">
                         ${rec.rolled_back
