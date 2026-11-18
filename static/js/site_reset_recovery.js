@@ -118,24 +118,34 @@
                 }
             },
             onClose(selectedDates) {
+                const box = dateInput.closest('.input-box');
                 if (selectedDates.length === 1) {
-                    const ds = formatDateStr(selectedDates[0]);
+                    const d0 = selectedDates[0];
+                    const ds = formatDateStr(d0);
                     selectedFromDate = ds;
                     selectedToDate = ds;
                     if (fromEl) fromEl.value = ds;
                     if (toEl) toEl.value = ds;
-                    dateInput.value = ds;
+                    setTimeout(() => {
+                        if (flatpickrInstance && selectedFromDate === ds && selectedToDate === ds) {
+                            flatpickrInstance.setDate([d0, d0], false);
+                            dateInput.value = ds;
+                            if (box) box.classList.add('has-value');
+                        }
+                    }, 0);
                 } else if (selectedDates.length === 2) {
                     selectedFromDate = formatDateStr(selectedDates[0]);
                     selectedToDate = formatDateStr(selectedDates[1]);
                     if (fromEl) fromEl.value = selectedFromDate;
                     if (toEl) toEl.value = selectedToDate;
+                    if (box) box.classList.add('has-value');
                 } else {
                     selectedFromDate = '';
                     selectedToDate = '';
                     if (fromEl) fromEl.value = '';
                     if (toEl) toEl.value = '';
                     dateInput.value = '';
+                    if (box) box.classList.remove('has-value');
                 }
                 applyFilters();
             }
