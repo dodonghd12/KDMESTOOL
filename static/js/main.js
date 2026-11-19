@@ -3659,13 +3659,9 @@ async function showFeedRecords(rowData = null) {
 
         // Thứ tự 2: Output barcode cho check-used-history (rỗng thì hiển thị table-empty-state)
         if (!data || !data.result || data.result.length === 0) {
-            currentOutputTableType = null;
+            currentOutputTableType = 'outputBarcodeByFeedRecords';
             renderOutputBarcodeTable([], (data && data.columns) ? data.columns : []);
-            if (hasScanInStation) {
-                Toast.success('Thành công', `Tem đang gắn tại ${scanData.result.length} trạm, chưa có dữ liệu tiêu thụ`);
-            } else {
-                Toast.warning('Không có dữ liệu', 'Barcode chưa quét tem lần nào');
-            }
+            Toast.warning('Không có dữ liệu', 'Tem chưa quét tem sản xuất lần nào');
             return;
         }
 
@@ -7817,6 +7813,19 @@ function renderOutputBarcodeTable(rows, columns, target = null) {
     const rowCountId = (target && target.rowCountId) || 'outputRowCount';
     const footerSelector = (target && target.footerSelector) || '#outputContainer .output-footer';
     const skipOutputCountUpdate = !!(target && target.skipOutputCountUpdate);
+    const isScanInStationTable = tableSelector === '#scanInStationTable';
+    const isFeedRecordsOutputTable = !isScanInStationTable && (
+        currentOutputTableType === 'outputBarcodeByFeedRecords' ||
+        activeSearchContext === 'outputBarcodeByFeedRecords' ||
+        activeSearchContext === 'feedRecords'
+    );
+    const emptyDesc = (target && target.emptyDesc) || (
+        isScanInStationTable
+            ? 'Tem đang không gắn ở máy nào.'
+            : (isFeedRecordsOutputTable
+                ? 'Tem chưa quét tem sản xuất lần nào'
+                : 'Không tìm thấy bản ghi nào khớp với điều kiện tra cứu hoặc dữ liệu rỗng.')
+    );
 
     const thead = document.querySelector(`${tableSelector} thead`);
     const tbody = document.querySelector(`${tableSelector} tbody`);
@@ -7843,7 +7852,7 @@ function renderOutputBarcodeTable(rows, columns, target = null) {
                     <span class="material-symbols-outlined empty-state-icon">inventory_2</span>
                 </div>
                 <div class="empty-state-title">Không có dữ liệu</div>
-                <div class="empty-state-desc">Không tìm thấy bản ghi nào khớp với điều kiện tra cứu hoặc dữ liệu rỗng.</div>
+                <div class="empty-state-desc">${emptyDesc}</div>
             </div>
         `;
         emptyTr.appendChild(emptyTd);
