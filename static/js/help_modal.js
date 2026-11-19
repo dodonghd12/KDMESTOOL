@@ -10,7 +10,6 @@
 
     let helpModal = null;
     let navItems = [];
-    let groupLabels = [];
     let contentPanes = [];
     let navSearchInput = null;
     let navEmptyState = null;
@@ -32,7 +31,6 @@
         if (!helpModal) return;
 
         navItems = Array.from(helpModal.querySelectorAll('.help-nav-item'));
-        groupLabels = Array.from(helpModal.querySelectorAll('.help-nav-group-label'));
         contentPanes = Array.from(helpModal.querySelectorAll('.help-pane'));
         navSearchInput = document.getElementById('helpNavSearch');
         navEmptyState = document.getElementById('helpNavEmpty');
@@ -105,14 +103,6 @@
             const match = !q || haystack.includes(q);
             item.style.display = match ? '' : 'none';
             if (match) visibleTotal++;
-        });
-
-        groupLabels.forEach(label => {
-            const groupId = label.dataset.group;
-            const hasVisible = navItems.some(
-                item => item.dataset.group === groupId && item.style.display !== 'none'
-            );
-            label.style.display = hasVisible ? '' : 'none';
         });
 
         if (navEmptyState) {
