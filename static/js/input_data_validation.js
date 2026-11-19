@@ -732,6 +732,34 @@ function getValidationStatusText(item) {
     return reasons.length > 0 ? reasons.join(', ') : 'Sai quy cách';
 }
 
+const _comparisonCopyTimers = new WeakMap();
+
+async function copyTextWithFallback(text) {
+    if (!text) return false;
+    try {
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+            await navigator.clipboard.writeText(text);
+            return true;
+        }
+    } catch (err) { /* fallback below for non-HTTPS intranet */ }
+
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.cssText = 'position:fixed;inset-block-start:0;opacity:0;pointer-events:none;';
+    document.body.appendChild(textarea);
+    textarea.select();
+    let ok = false;
+    try {
+        ok = document.execCommand('copy');
+    } catch (e) {
+        console.error('Copy fallback failed:', e);
+    } finally {
+        textarea.remove();
+    }
+    return ok;
+}
+
 async function copyValidationRowText(event, btnElement) {
     if (event) {
         event.preventDefault();
@@ -740,36 +768,80 @@ async function copyValidationRowText(event, btnElement) {
     const textToCopy = btnElement?.dataset?.copyText;
     if (!textToCopy) return;
 
-    try {
-        await navigator.clipboard.writeText(textToCopy);
-    } catch (err) {
-        const textarea = document.createElement('textarea');
-        textarea.value = textToCopy;
-        textarea.style.position = 'fixed';
-        textarea.style.opacity = '0';
-        document.body.appendChild(textarea);
-        textarea.select();
-        try {
-            document.execCommand('copy');
-        } catch (e) {
-            console.error('Copy fallback failed:', e);
+    const ok = await copyTextWithFallback(textToCopy);
+    if (!ok) {
+        if (typeof Toast !== 'undefined' && Toast.error) {
+            Toast.error('Lỗi sao chép', 'Không thể sao chép nội dung vào clipboard');
         }
-        document.body.removeChild(textarea);
+        return;
     }
 
-    // Visual feedback
     if (btnElement) {
-        const originalHTML = btnElement.innerHTML;
+        clearTimeout(_comparisonCopyTimers.get(btnElement));
+        const iconEl = btnElement.querySelector('.material-symbols-outlined');
+        const labelEl = btnElement.querySelector('span:not(.material-symbols-outlined)');
         btnElement.classList.add('copied');
-        btnElement.innerHTML = '<span class="material-symbols-outlined" aria-hidden="true">check</span><span>Đã copy!</span>';
+        if (iconEl) iconEl.textContent = 'check';
+        if (labelEl) labelEl.textContent = 'Đã copy!';
 
-        setTimeout(() => {
+        _comparisonCopyTimers.set(btnElement, setTimeout(() => {
             btnElement.classList.remove('copied');
-            btnElement.innerHTML = originalHTML;
-        }, 2000);
+            if (iconEl) iconEl.textContent = 'content_copy';
+            if (labelEl) labelEl.textContent = 'Copy';
+        }, 2000));
     }
 }
 window.copyValidationRowText = copyValidationRowText;
+
+async function copyComparisonBarcode(el) {
+    const barcode = el?.dataset?.barcode?.trim();
+    if (!barcode) return;
+
+    const ok = await copyTextWithFallback(barcode);
+    if (!ok) {
+        if (typeof Toast !== 'undefined' && Toast.error) {
+            Toast.error('Lỗi sao chép', 'Không thể sao chép barcode vào clipboard');
+        }
+        return;
+    }
+
+    clearTimeout(_comparisonCopyTimers.get(el));
+    const iconEl = el.querySelector('.barcode-icon');
+    el.classList.add('copied');
+    if (iconEl) iconEl.textContent = 'check';
+
+    if (typeof Toast !== 'undefined' && Toast.success) {
+        Toast.success('Đã sao chép', `Đã copy barcode: ${barcode}`);
+    }
+
+    _comparisonCopyTimers.set(el, setTimeout(() => {
+        el.classList.remove('copied');
+        if (iconEl) iconEl.textContent = 'qr_code_2';
+    }, 1600));
+}
+window.copyComparisonBarcode = copyComparisonBarcode;
+
+function bindComparisonBarcodeCopy(contentEl) {
+    if (!contentEl || contentEl.dataset.barcodeCopyBound === '1') return;
+    contentEl.dataset.barcodeCopyBound = '1';
+
+    contentEl.addEventListener('click', (event) => {
+        if (event.button !== 0) return;
+        const target = event.target.closest('.barcode-highlight[data-barcode]');
+        if (target && contentEl.contains(target)) {
+            copyComparisonBarcode(target);
+        }
+    });
+
+    contentEl.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        const target = event.target.closest('.barcode-highlight[data-barcode]');
+        if (target && contentEl.contains(target)) {
+            event.preventDefault();
+            copyComparisonBarcode(target);
+        }
+    });
+}
 
 function displayComparison(result, recipeId, station, workOrderId) {
     const modal = document.getElementById('comparisonModal');
@@ -942,21 +1014,7 @@ function displayComparison(result, recipeId, station, workOrderId) {
                 html += `<td class="yaml-cell"${rowspanAttr}>${yamlHtml}</td>`;
             }
 
-            // 2. NVL column - show site_id (recipe name), barcode, quantity, expiry
-            html += '<td class="material-cell">';
-            const isMismatch = Boolean(item._hasBarcode && !item._isMatch);
-            const isSubstitute = Boolean(item.is_substitute || item.substituted);
-            let siteBadgeHtml = '';
-            if (isMismatch) {
-                siteBadgeHtml = ' <span class="badge-tag-mismatch">SAI QUY CÁCH</span>';
-            } else if (isSubstitute) {
-                siteBadgeHtml = ` <span class="badge-tag-substitute" title="Nguyên liệu thay thế hợp lệ cho quy cách ${escapeHtml(group.recipe_name || '')}">THAY THẾ</span>`;
-            }
-
-            const seqPill = rowCount > 1 ? `<span class="barcode-seq-pill">#${itemIdx + 1}</span> ` : '';
-            html += `<div class="site-id-text${isMismatch ? ' mismatch' : (isSubstitute ? ' substitute' : '')}">${seqPill}${item.site_id ? escapeHtml(item.site_id) : '<span class="empty-cell">N/A</span>'}${siteBadgeHtml}</div>`;
-
-            // Copy error button helper
+            // Copy error button helper (positioned top-right of material-cell)
             const renderCopyBtn = () => {
                 if (!item._isMatch || !item._isValid || item.match === false) {
                     const statusText = getValidationStatusText(item);
@@ -969,6 +1027,25 @@ function displayComparison(result, recipeId, station, workOrderId) {
                 return '';
             };
 
+            const copyBtnHtml = renderCopyBtn();
+
+            // 2. NVL column - show site_id (recipe name), barcode, quantity, expiry
+            html += `<td class="material-cell${copyBtnHtml ? ' has-copy-btn' : ''}">`;
+            if (copyBtnHtml) {
+                html += copyBtnHtml;
+            }
+            const isMismatch = Boolean(item._hasBarcode && !item._isMatch);
+            const isSubstitute = Boolean(item.is_substitute || item.substituted);
+            let siteBadgeHtml = '';
+            if (isMismatch) {
+                siteBadgeHtml = ' <span class="badge-tag-mismatch">SAI QUY CÁCH</span>';
+            } else if (isSubstitute) {
+                siteBadgeHtml = ` <span class="badge-tag-substitute" title="Nguyên liệu thay thế hợp lệ cho quy cách ${escapeHtml(group.recipe_name || '')}">THAY THẾ</span>`;
+            }
+
+            const seqPill = rowCount > 1 ? `<span class="barcode-seq-pill">#${itemIdx + 1}</span> ` : '';
+            html += `<div class="site-id-text${isMismatch ? ' mismatch' : (isSubstitute ? ' substitute' : '')}">${seqPill}${item.site_id ? escapeHtml(item.site_id) : '<span class="empty-cell">N/A</span>'}${siteBadgeHtml}</div>`;
+
             if (item._hasBarcode) {
                 let barcodeClass = 'barcode-highlight';
                 if (isMismatch) {
@@ -979,10 +1056,9 @@ function displayComparison(result, recipeId, station, workOrderId) {
                     barcodeClass += ' expired';
                 }
 
-                // barcode row with inline copy button
+                // Clickable barcode row (left-click copies barcode to clipboard)
                 html += `<div class="barcode-row-wrap">`;
-                html += `<div class="${barcodeClass}"><span class="material-symbols-outlined barcode-icon">qr_code_2</span>${escapeHtml(item.site_barcode)}</div>`;
-                html += renderCopyBtn();
+                html += `<div class="${barcodeClass}" role="button" tabindex="0" data-barcode="${escapeHtml(item.site_barcode)}" title="Nhấp chuột trái để sao chép barcode: ${escapeHtml(item.site_barcode)}" aria-label="Sao chép barcode ${escapeHtml(item.site_barcode)}"><span class="material-symbols-outlined barcode-icon" aria-hidden="true">qr_code_2</span><span class="barcode-value-text">${escapeHtml(item.site_barcode)}</span></div>`;
                 html += `</div>`;
 
                 // Số lượng & HSD
@@ -1000,7 +1076,6 @@ function displayComparison(result, recipeId, station, workOrderId) {
             } else {
                 html += `<div class="barcode-row-wrap">`;
                 html += `<div class="empty-cell">Chưa quét tem</div>`;
-                html += renderCopyBtn();
                 html += `</div>`;
             }
             html += '</td>';
@@ -1022,6 +1097,7 @@ function displayComparison(result, recipeId, station, workOrderId) {
 
     html += '</tbody></table>';
     content.innerHTML = html;
+    bindComparisonBarcodeCopy(content);
     modal.classList.remove('hidden');
     modal.classList.add('show');
 }

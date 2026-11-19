@@ -5744,6 +5744,11 @@ body.theme-light .comparison-table th {
     vertical-align: middle;
 }
 
+.comparison-table .material-cell.has-copy-btn .site-id-text {
+    padding-right: 78px;
+    box-sizing: border-box;
+}
+
 .comparison-table .barcode-row-wrap {
     display: flex;
     align-items: center;
@@ -5753,12 +5758,16 @@ body.theme-light .comparison-table th {
 }
 
 .comparison-copy-btn {
-    position: static;
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    z-index: 2;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 4px;
     padding: 3px 8px;
+    min-height: 24px;
     height: 24px;
     background: var(--color-interactive-bg-subtle, rgba(255, 255, 255, 0.06));
     border: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.15));
@@ -5944,6 +5953,41 @@ body.theme-light .comparison-table th {
     border: 1px solid var(--color-feedback-success-border);
     margin-bottom: 5px;
     margin-top: 0;
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, background-color 0.15s ease, filter 0.15s ease;
+}
+
+.comparison-table .barcode-highlight:hover {
+    filter: brightness(1.12);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.comparison-table .barcode-highlight:active {
+    transform: scale(0.97);
+}
+
+.comparison-table .barcode-highlight:focus-visible {
+    outline: 2px solid var(--color-text-accent, #3dd5c0);
+    outline-offset: 2px;
+}
+
+.comparison-table .barcode-highlight.copied {
+    background: rgba(16, 185, 129, 0.22) !important;
+    border-color: rgba(52, 211, 153, 0.65) !important;
+    color: #34d399 !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .comparison-table .barcode-highlight,
+    .comparison-copy-btn {
+        transition: none !important;
+    }
+    .comparison-table .barcode-highlight:active,
+    .comparison-copy-btn:hover,
+    .comparison-copy-btn:active {
+        transform: none !important;
+    }
 }
 
 .comparison-table .barcode-highlight .barcode-icon {
@@ -12645,6 +12689,10 @@ body.theme-light .material-transfer-retry-btn.is-success {
         margin-bottom: 3px !important;
     }
 
+    .comparison-table .material-cell.has-copy-btn .site-id-text {
+        padding-right: 68px !important;
+    }
+
     .comparison-table .barcode-highlight {
         font-size: 12px !important;
         padding: 2px 7px !important;
@@ -12669,6 +12717,8 @@ body.theme-light .material-transfer-retry-btn.is-success {
     }
 
     .comparison-copy-btn {
+        top: 6px !important;
+        right: 6px !important;
         height: 22px !important;
         padding: 2px 7px !important;
         font-size: 11px !important;

@@ -1,0 +1,967 @@
+<!-- ==============================================================================
+     KDMES TOOL — IN-APP HELP & DOCUMENTATION MODAL (v2.4.44+)
+     1-to-1 Guide for All 19 Active Sidebar Pages + Global Utilities
+     ============================================================================== -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/help_modal.css') }}?v={{ version }}">
+
+<div id="helpModal" class="help-modal" role="dialog" aria-modal="true" aria-labelledby="helpModalTitle" aria-hidden="true">
+    <div class="help-modal-container">
+        <!-- Compact Header -->
+        <div class="help-modal-header">
+            <div class="help-header-title-wrap">
+                <span class="material-symbols-outlined help-header-icon" aria-hidden="true">menu_book</span>
+                <h3 id="helpModalTitle" class="help-header-title">HƯỚNG DẪN SỬ DỤNG KDMES TOOL</h3>
+            </div>
+            <button type="button" id="helpModalCloseBtn" class="help-modal-close-btn" aria-label="Đóng hướng dẫn" title="Đóng (Phím Esc)">
+                <span class="material-symbols-outlined" aria-hidden="true">close</span>
+            </button>
+        </div>
+
+        <!-- Two-Column Body -->
+        <div class="help-modal-body">
+            <!-- Left Navigation Sidebar (20 items 1-to-1 with App Sidebar + Utilities) -->
+            <nav class="help-nav-sidebar" aria-label="Danh mục hướng dẫn theo trang">
+                <div class="help-nav-search-wrap">
+                    <span class="material-symbols-outlined help-nav-search-icon" aria-hidden="true">search</span>
+                    <input type="text" id="helpNavSearch" class="help-nav-search-input" placeholder="Tìm trang hoặc tính năng..." autocomplete="off" spellcheck="false" aria-label="Tìm nhanh hướng dẫn theo trang">
+                </div>
+
+                <div class="help-nav-list" id="helpNavList">
+                    <div class="help-nav-group-label" data-group="core">Tra cứu chính</div>
+                    <button type="button" class="help-nav-item active" data-group="core" data-target="helpPaneMain" data-keywords="main barcode feed record recipe work order ocr image to text xuat excel context menu">
+                        <span class="material-symbols-outlined help-nav-item-icon" aria-hidden="true">home</span>
+                        <span class="help-nav-item-text">Main</span>
+                    </button>
+                    <button type="button" class="help-nav-item" data-group="core" data-target="helpPaneInputDataValidation" data-keywords="kiem tra cap lieu poka yoke comparison modal copy barcode yaml">
+                        <span class="material-symbols-outlined help-nav-item-icon" aria-hidden="true">fact_check</span>
+                        <span class="help-nav-item-text">Kiểm tra cấp liệu</span>
+                    </button>
+                    <button type="button" class="help-nav-item" data-group="core" data-target="helpPaneTechnicalSpecifications" data-keywords="thong so ky thuat product type required labels limitary hour expdays">
+                        <span class="material-symbols-outlined help-nav-item-icon" aria-hidden="true">tune</span>
+                        <span class="help-nav-item-text">Thông số kỹ thuật</span>
+                    </button>
+
+                    <div class="help-nav-group-label" data-group="deleted">Deleted Data Log</div>
+                    <button type="button" class="help-nav-item" data-group="deleted" data-target="helpPaneGitlabDeletedFiles" data-keywords="gitlab deleted files yaml xoa log">
+                        <span class="material-symbols-outlined help-nav-item-icon" aria-hidden="true">delete_history</span>
+                        <span class="help-nav-item-text">Gitlab Deleted Files</span>
+                    </button>
+                    <button type="button" class="help-nav-item" data-group="deleted" data-target="helpPanePostgresDeletedData" data-keywords="postgres deleted data audit log insert query sql">
+                        <span class="material-symbols-outlined help-nav-item-icon" aria-hidden="true">database</span>
+                        <span class="help-nav-item-text">Postgres Deleted Data</span>
+                    </button>
+
+                    <div class="help-nav-group-label" data-group="account">Quản lý tài khoản</div>
+                    <button type="button" class="help-nav-item" data-group="account" data-target="helpPaneCreateKdAccount" data-keywords="tao tai khoan sll excel template pin bao mat role">
+                        <span class="material-symbols-outlined help-nav-item-icon" aria-hidden="true">person_add</span>
+                        <span class="help-nav-item-text">Tạo Tài Khoản</span>
+                    </button>
+                    <button type="button" class="help-nav-item" data-group="account" data-target="helpPaneCheckKdAccount" data-keywords="kiem tra tai khoan mat khau phan quyen role hold save undo">
+                        <span class="material-symbols-outlined help-nav-item-icon" aria-hidden="true">badge</span>
+                        <span class="help-nav-item-text">Kiểm Tra Tài Khoản</span>
+                    </button>
+
+                    <div class="help-nav-group-label" data-group="material">Xử lý Tem &amp; NVL</div>
+                    <button type="button" class="help-nav-item" data-group="material" data-target="helpPaneReprint" data-keywords="truy van in bu reprint ly do in lai">
+                        <span class="material-symbols-outlined help-nav-item-icon" aria-hidden="true">feature_search</span>
+                        <span class="help-nav-item-text">Truy vấn in bù</span>
+                    </button>
+                    <button type="button" class="help-nav-item" data-group="material" data-target="helpPaneMaterialTransfer" data-keywords="tem van chuyen failed retry ocr barcode">
+                        <span class="material-symbols-outlined help-nav-item-icon" aria-hidden="true">local_shipping</span>
+                        <span class="help-nav-item-text">Tem vận chuyển</span>
+                    </button>
+                    <button type="button" class="help-nav-item" data-group="material" data-target="helpPaneSubstitutions" data-keywords="nvl thay the substitutions quy cach">
+                        <span class="material-symbols-outlined help-nav-item-icon" aria-hidden="true">find_replace</span>
+                        <span class="help-nav-item-text">NVL thay thế</span>
+                    </button>
+
+                    <div class="help-nav-group-label" data-group="history">Lịch sử quét in</div>
+                    <button type="button" class="help-nav-item" data-group="history" data-target="helpPaneScanBarcodeHistory" data-keywords="lich su quet tem may station date">
+                        <span class="material-symbols-outlined help-nav-item-icon" aria-hidden="true">barcode_scanner</span>
+                        <span class="help-nav-item-text">Lịch sử quét tem</span>
+                    </button>
+                    <button type="button" class="help-nav-item" data-group="history" data-target="helpPanePrintBarcodeHistory" data-keywords="lich su in tem may station date">
+                        <span class="material-symbols-outlined help-nav-item-icon" aria-hidden="true">print</span>
+                        <span class="help-nav-item-text">Lịch sử in tem</span>
+                    </button>
+
+                    <div class="help-nav-group-label" data-group="ops">Kiểm định &amp; Cấu hình</div>
+                    <button type="button" class="help-nav-item" data-group="ops" data-target="helpPaneCheckQcData" data-keywords="check qc data kcs kiem dinh ngay">
+                        <span class="material-symbols-outlined help-nav-item-icon" aria-hidden="true">lab_research</span>
+                        <span class="help-nav-item-text">Check QC Data</span>
+                    </button>
+                    <button type="button" class="help-nav-item" data-group="ops" data-target="helpPaneCheckMesync" data-keywords="check mesync inbox events erp dong bo">
+                        <span class="material-symbols-outlined help-nav-item-icon" aria-hidden="true">sync</span>
+                        <span class="help-nav-item-text">Check Mesync</span>
+                    </button>
+                    <button type="button" class="help-nav-item" data-group="ops" data-target="helpPaneStationConfiguration" data-keywords="thiet lap may tram can site slot container">
+                        <span class="material-symbols-outlined help-nav-item-icon" aria-hidden="true">display_settings</span>
+                        <span class="help-nav-item-text">Thiết lập máy</span>
+                    </button>
+
+                    <div class="help-nav-group-label" data-group="tools">System Tools</div>
+                    <button type="button" class="help-nav-item" data-group="tools" data-target="helpPaneBypass" data-keywords="bypass strict mode 10.8 10.85 docker compose hold">
+                        <span class="material-symbols-outlined help-nav-item-icon" aria-hidden="true">bolt</span>
+                        <span class="help-nav-item-text">Bypass</span>
+                    </button>
+                    <button type="button" class="help-nav-item" data-group="tools" data-target="helpPanePrinterSetup" data-keywords="printer setup may in cups p5300 p8300 p8400 p9100 yaml">
+                        <span class="material-symbols-outlined help-nav-item-icon" aria-hidden="true">print_connect</span>
+                        <span class="help-nav-item-text">Printer Setup</span>
+                    </button>
+                    <button type="button" class="help-nav-item" data-group="tools" data-target="helpPaneReprintLabelLog" data-keywords="reprint label log nhat ky in lai tem erp 106">
+                        <span class="material-symbols-outlined help-nav-item-icon" aria-hidden="true">receipt_long</span>
+                        <span class="help-nav-item-text">Reprint Label Log</span>
+                    </button>
+                    <button type="button" class="help-nav-item" data-group="tools" data-target="helpPaneSiteResetRecovery" data-keywords="site reset recovery khoi phuc quantity uploader rollback">
+                        <span class="material-symbols-outlined help-nav-item-icon" aria-hidden="true">restore_page</span>
+                        <span class="help-nav-item-text">Site Reset Recovery</span>
+                    </button>
+
+                    <div class="help-nav-group-label" data-group="global">Toàn cục</div>
+                    <button type="button" class="help-nav-item" data-group="global" data-target="helpPaneUtilities" data-keywords="tien ich chung fyi convert epoch db kv1 kv2 dev light dark mode json excel">
+                        <span class="material-symbols-outlined help-nav-item-icon" aria-hidden="true">build</span>
+                        <span class="help-nav-item-text">Tiện ích &amp; Phím tắt</span>
+                    </button>
+
+                    <div id="helpNavEmpty" class="help-nav-empty">Không tìm thấy mục phù hợp.</div>
+                </div>
+            </nav>
+
+            <!-- Right Content Area -->
+            <main class="help-content-area">
+                <!-- =========================================================
+                     1. MAIN (/main)
+                     ========================================================= -->
+                <div id="helpPaneMain" class="help-pane active">
+                    <div class="help-pane-header">
+                        <div class="help-pane-title-row">
+                            <h2 class="help-pane-title"><span class="material-symbols-outlined" aria-hidden="true">home</span>Main — Trung Tâm Tra Cứu Sản Xuất</h2>
+                            <span class="help-route-pill">/main</span>
+                        </div>
+                        <p class="help-pane-desc">Tra cứu toàn diện Tem / Barcode, Lịch sử hao dùng (Feed Record), Quy cách (Recipe), Đơn điều động (Work Order), quét OCR tem trực tiếp từ ảnh và truy xuất phân cấp đầu vào / đầu ra qua menu chuột phải.</p>
+                    </div>
+
+                    <figure class="help-figure">
+                        <button type="button" class="help-screenshot-btn" aria-label="Phóng to ảnh giao diện Main">
+                            <img class="help-screenshot-img" width="1120" height="630" data-src="{{ url_for('static', filename='img/help/main.webp') }}?v={{ version }}" alt="Giao diện trang Main của KDMES TOOL">
+                        </button>
+                        <figcaption class="help-figcaption">
+                            <span class="help-figcaption-text">Giao diện Main gồm cụm ô chuyển đổi Barcode / Feed Record, Recipe / Work Order, ô lọc bảng và khung Image to Text (OCR).</span>
+                            <span class="help-zoom-hint"><span class="material-symbols-outlined" aria-hidden="true">open_in_new</span> Nhấp để phóng to</span>
+                        </figcaption>
+                    </figure>
+
+                    <div class="help-section">
+                        <h3 class="help-section-title"><span class="material-symbols-outlined section-icon" aria-hidden="true">tune</span>Thành phần &amp; Chức năng trên trang</h3>
+                        <div class="help-table-wrap">
+                            <table class="help-table">
+                                <thead>
+                                    <tr><th>Thành phần UI</th><th>Chức năng &amp; Cách dùng</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td><span class="help-code-pill">Tem / Barcode</span> ⇄ <span class="help-code-pill">Feed Record</span></td><td>Nhập hoặc quét mã Barcode để truy xuất tồn kho/thuộc tính tem. Bấm nút chuyển bên dưới cạnh ô nhập để đổi sang tra cứu theo <strong>Feed Record ID</strong> (lịch sử tiêu thụ).</td></tr>
+                                    <tr><td><span class="help-code-pill">Quy cách / Recipe</span> ⇄ <span class="help-code-pill">Work Order</span></td><td>Nhập mã công thức (Recipe) hoặc bấm nút chuyển sang <strong>Đơn điều động / Work Order</strong> để xem thông tin lệnh sản xuất.</td></tr>
+                                    <tr><td><span class="help-code-pill">Tìm kiếm...</span></td><td>Lọc nhanh theo từ khóa ngay trên dữ liệu bảng đang hiển thị (client-side, phản hồi tức thì).</td></tr>
+                                    <tr><td><span class="help-code-pill">Image to Text</span> (OCR)</td><td>Click để chọn file ảnh, kéo thả ảnh, hoặc nhấn <span class="help-code-pill">Ctrl+V</span> dán ảnh chụp tem từ clipboard. Hệ thống đọc barcode + AI OCR, tự điền vào ô nhập và cung cấp nút <span class="help-code-pill">Copy</span> / <span class="help-code-pill">×</span> xóa kết quả.</td></tr>
+                                    <tr><td>Bảng chính &amp; 3 bảng Drilldown</td><td>Bên dưới bảng chính có thể mở thêm tới 3 panel độc lập: <em>Thông tin nạp tem lên máy</em>, <em>Danh sách tem đầu ra / đầu vào</em> và <em>Bảng cấp 2</em> (mỗi panel có nút <span class="help-code-pill">Xuất Excel</span> và nút đóng <span class="help-code-pill">×</span> riêng).</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="help-section">
+                        <h3 class="help-section-title"><span class="material-symbols-outlined section-icon" aria-hidden="true">fact_check</span>Quy trình sử dụng &amp; Menu chuột phải</h3>
+                        <div class="help-steps-list">
+                            <div class="help-step-item"><div class="help-step-num">1</div><div class="help-step-content"><h4>Nhập mã hoặc dán ảnh tem</h4><p>Nhập/quét vào một trong hai cụm ô (Barcode/Feed Record hoặc Recipe/Work Order), hoặc dán ảnh tem vào <strong>Image to Text</strong>.</p></div></div>
+                            <div class="help-step-item"><div class="help-step-num">2</div><div class="help-step-content"><h4>Double-click để xem toàn bộ JSON</h4><p>Nhấp đúp chuột trái vào bất kỳ dòng nào (hoặc nhấn vào ô có nội dung dài) để mở <strong>Details Modal</strong> xem đầy đủ field dữ liệu và sao chép.</p></div></div>
+                            <div class="help-step-item"><div class="help-step-num">3</div><div class="help-step-content"><h4>Nhấp chuột phải mở Context Menu nghiệp vụ</h4><p>Tùy ngữ cảnh dòng đang chọn (Barcode, Recipe hay Work Order), menu chuột phải hỗ trợ: <strong>In lại tem (chọn máy in CUPS hoặc tải PDF)</strong>, Kiểm tra tem đầu vào, Kiểm tra tiêu thụ, Xem đơn điều động, Xem tem cùng MES, <strong>MES Tracking</strong> (cây phân cấp BOM Đầu Vào / Where-Used Đầu Ra), Kiểm tra vận chuyển, Kiểm tra gia hạn, Thông tin gốc, PRDEBA/B/C, Commit GitLab / Actions, và Nội dung YAML.</p></div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- =========================================================
+                     2. KIỂM TRA CẤP LIỆU (/input-data-validation)
+                     ========================================================= -->
+                <div id="helpPaneInputDataValidation" class="help-pane">
+                    <div class="help-pane-header">
+                        <div class="help-pane-title-row">
+                            <h2 class="help-pane-title"><span class="material-symbols-outlined" aria-hidden="true">fact_check</span>Kiểm tra cấp liệu</h2>
+                            <span class="help-route-pill">/input-data-validation</span>
+                        </div>
+                        <p class="help-pane-desc">Đối chiếu Poka-Yoke giữa tiêu chuẩn công thức YAML (trên GitLab) với tem thực tế đang gắn tại từng trạm (Site) của đơn điều động đang chạy trên máy, kèm quét phát hiện đơn lỗi.</p>
+                    </div>
+
+                    <figure class="help-figure">
+                        <button type="button" class="help-screenshot-btn" aria-label="Phóng to ảnh Kiểm tra cấp liệu">
+                            <img class="help-screenshot-img" width="1120" height="630" data-src="{{ url_for('static', filename='img/help/input-data-validation.webp') }}?v={{ version }}" alt="Giao diện Kiểm tra cấp liệu">
+                        </button>
+                        <figcaption class="help-figcaption">
+                            <span class="help-figcaption-text">Chọn Bộ phận và Máy để tải danh sách đơn điều động đang hoạt động và mở cửa sổ Comparison Modal.</span>
+                            <span class="help-zoom-hint"><span class="material-symbols-outlined" aria-hidden="true">open_in_new</span> Nhấp để phóng to</span>
+                        </figcaption>
+                    </figure>
+
+                    <div class="help-section">
+                        <h3 class="help-section-title"><span class="material-symbols-outlined section-icon" aria-hidden="true">tune</span>Thành phần &amp; Chức năng trên trang</h3>
+                        <div class="help-table-wrap">
+                            <table class="help-table">
+                                <thead>
+                                    <tr><th>Thành phần UI</th><th>Chức năng &amp; Cách dùng</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td><span class="help-code-pill">Bộ phận</span> &amp; <span class="help-code-pill">Máy (Station)</span></td><td>Dropdown tìm kiếm. Sau khi chọn Bộ phận mới mở khóa chọn Máy để tự động tải danh sách Work Order đang chạy của máy đó.</td></tr>
+                                    <tr><td>Bảng danh sách Work Order &amp; Icon cảnh báo lỗi</td><td>Các đơn có sai lệch được tô nền đỏ nhạt kèm nút icon cảnh báo đỏ ngay cạnh mã đơn để nhận diện nhanh. Nhấp chuột phải hoặc nhấp dòng để kiểm tra chi tiết cấp liệu.</td></tr>
+                                    <tr><td><span class="help-code-pill">comparisonModal</span> — Link nhảy nhanh</td><td>Trên header modal: nhấp vào thẻ <strong>Mã MES</strong> hoặc <strong>Recipe</strong> để nhảy thẳng sang trang <span class="help-code-pill">Main</span> và tự động điền mã tương ứng để tra cứu sâu.</td></tr>
+                                    <tr><td>Click chuột trái <span class="help-code-pill">barcode-highlight</span></td><td>Nhấp chuột trái trực tiếp vào khung mã Barcode (hoặc focus rồi nhấn Enter/Space) để <strong>copy sạch mã Barcode</strong> vào clipboard tức thì (có đổi icon check + thông báo Toast).</td></tr>
+                                    <tr><td>Nút <span class="help-code-pill">Copy</span> góc phải trên của ô NVL</td><td>Xuất hiện ở góc trên bên phải các dòng có lỗi/thiếu tem, giúp copy nhanh chuỗi tổng hợp: <em>Trạm ... Tem ... Lý do lỗi (Chưa quét tem / Sai quy cách / Hết Số Lượng / Hết Hạn)</em>.</td></tr>
+                                    <tr><td><span class="help-code-pill">Xuất Excel</span></td><td>Xuất toàn bộ danh sách kiểm tra ở bảng chính ra file <span class="help-code-pill">.xlsx</span>.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="help-section">
+                        <h3 class="help-section-title"><span class="material-symbols-outlined section-icon" aria-hidden="true">palette</span>Quy ước màu sắc &amp; Nhãn trong Comparison Modal</h3>
+                        <div class="help-callout info">
+                            <span class="material-symbols-outlined help-callout-icon" aria-hidden="true">info</span>
+                            <div>
+                                <strong>Chú thích trạng thái tem:</strong> Xanh lá = <strong>Hợp lệ (OK)</strong> · Đỏ = <strong>Sai quy cách / Chưa quét tem</strong> · Vàng cam = <strong>Hết hạn sử dụng</strong> · Tím = <strong>Hết số lượng (SL ≤ 0)</strong>. Nếu trạm dạng <span class="help-code-pill">CONTAINER</span> có nhiều tem sẽ hiển thị badge số lượng tem (<span class="help-code-pill">N tem</span>) và số thứ tự <span class="help-code-pill">#1, #2...</span>; nguyên liệu thay thế hợp lệ sẽ gắn nhãn <span class="help-code-pill">THAY THẾ</span>.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- =========================================================
+                     3. THÔNG SỐ KỸ THUẬT (/technical-specifications)
+                     ========================================================= -->
+                <div id="helpPaneTechnicalSpecifications" class="help-pane">
+                    <div class="help-pane-header">
+                        <div class="help-pane-title-row">
+                            <h2 class="help-pane-title"><span class="material-symbols-outlined" aria-hidden="true">tune</span>Thông số kỹ thuật</h2>
+                            <span class="help-route-pill">/technical-specifications</span>
+                        </div>
+                        <p class="help-pane-desc">Tra cứu thông số giới hạn giờ (limitary-hour), số ngày hết hạn (expdays) và cấu hình nhãn bắt buộc (required-labels) theo từng loại sản phẩm đồng bộ trực tiếp từ GitLab / MES.</p>
+                    </div>
+
+                    <figure class="help-figure">
+                        <button type="button" class="help-screenshot-btn" aria-label="Phóng to ảnh Thông số kỹ thuật">
+                            <img class="help-screenshot-img" width="1120" height="630" data-src="{{ url_for('static', filename='img/help/technical-specifications.webp') }}?v={{ version }}" alt="Giao diện Thông số kỹ thuật">
+                        </button>
+                        <figcaption class="help-figcaption">
+                            <span class="help-figcaption-text">Chọn Loại sản phẩm (Product Type) để xem bảng quy cách, Resource và thời hạn sử dụng tương ứng.</span>
+                            <span class="help-zoom-hint"><span class="material-symbols-outlined" aria-hidden="true">open_in_new</span> Nhấp để phóng to</span>
+                        </figcaption>
+                    </figure>
+
+                    <div class="help-section">
+                        <h3 class="help-section-title"><span class="material-symbols-outlined section-icon" aria-hidden="true">tune</span>Thành phần &amp; Cách sử dụng</h3>
+                        <div class="help-table-wrap">
+                            <table class="help-table">
+                                <thead>
+                                    <tr><th>Thành phần UI</th><th>Chức năng &amp; Cách dùng</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td><span class="help-code-pill">Loại sản phẩm (Product Type)</span></td><td>Dropdown liệt kê đầy đủ mã loại (I - INNER_LINER, P - CARCASS_PLY, S - SIDEWALL, T - TREAD, W - BEAD, G - GREEN_TIRE, M - RUBBER...). Có thể gõ mã ngắn như <span class="help-code-pill">W0</span> hoặc <span class="help-code-pill">WO</span>.</td></tr>
+                                    <tr><td><span class="help-code-pill">Tìm kiếm...</span></td><td>Lọc nhanh theo tên quy cách hoặc thông số ngay trên bảng kết quả đang mở.</td></tr>
+                                    <tr><td>Hiển thị chi tiết Resource</td><td>Hiển thị rõ mã tài nguyên (nhận diện loại Resource 2), thời gian giới hạn lưu (limitary hours) và hạn sử dụng (expdays).</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- =========================================================
+                     4. GITLAB DELETED FILES (/gitlab-deleted-files)
+                     ========================================================= -->
+                <div id="helpPaneGitlabDeletedFiles" class="help-pane">
+                    <div class="help-pane-header">
+                        <div class="help-pane-title-row">
+                            <h2 class="help-pane-title"><span class="material-symbols-outlined" aria-hidden="true">delete_history</span>Gitlab Deleted Files</h2>
+                            <span class="help-route-pill">/gitlab-deleted-files</span>
+                        </div>
+                        <p class="help-pane-desc">Theo dõi nhật ký các file cấu hình YAML (công thức, station-group, thông số kỹ thuật...) đã bị xóa trên GitLab để truy vết nguyên nhân mất dữ liệu.</p>
+                    </div>
+
+                    <figure class="help-figure">
+                        <button type="button" class="help-screenshot-btn" aria-label="Phóng to ảnh Gitlab Deleted Files">
+                            <img class="help-screenshot-img" width="1120" height="630" data-src="{{ url_for('static', filename='img/help/gitlab-deleted-files.webp') }}?v={{ version }}" alt="Giao diện Gitlab Deleted Files">
+                        </button>
+                        <figcaption class="help-figcaption">
+                            <span class="help-figcaption-text">Lọc theo Project, khoảng ngày và tải log file YAML đã xóa kèm phân trang &amp; Xuất Excel.</span>
+                            <span class="help-zoom-hint"><span class="material-symbols-outlined" aria-hidden="true">open_in_new</span> Nhấp để phóng to</span>
+                        </figcaption>
+                    </figure>
+
+                    <div class="help-section">
+                        <h3 class="help-section-title"><span class="material-symbols-outlined section-icon" aria-hidden="true">tune</span>Thành phần &amp; Chức năng trên trang</h3>
+                        <div class="help-table-wrap">
+                            <table class="help-table">
+                                <thead>
+                                    <tr><th>Thành phần UI</th><th>Chức năng &amp; Cách dùng</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td>Nút <span class="help-code-pill">Load</span></td><td>Truy vấn danh sách commit xóa file từ hệ thống log webhook GitLab.</td></tr>
+                                    <tr><td><span class="help-code-pill">Project</span></td><td>Dropdown lọc theo repo/dự án GitLab cụ thể.</td></tr>
+                                    <tr><td><span class="help-code-pill">Chọn ngày</span> &amp; <span class="help-code-pill">Tìm kiếm...</span></td><td>Giới hạn khoảng thời gian xóa bằng Flatpickr và tìm nhanh tên file, đường dẫn hoặc người thực hiện.</td></tr>
+                                    <tr><td>Phân trang &amp; <span class="help-code-pill">Xuất Excel</span></td><td>Duyệt bảng theo trang và xuất toàn bộ danh sách đã lọc ra Excel (kể cả khi nhiều trang).</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- =========================================================
+                     5. POSTGRES DELETED DATA (/postgres-deleted-data)
+                     ========================================================= -->
+                <div id="helpPanePostgresDeletedData" class="help-pane">
+                    <div class="help-pane-header">
+                        <div class="help-pane-title-row">
+                            <h2 class="help-pane-title"><span class="material-symbols-outlined" aria-hidden="true">database</span>Postgres Deleted Data</h2>
+                            <span class="help-route-pill">/postgres-deleted-data</span>
+                        </div>
+                        <p class="help-pane-desc">Tra cứu audit log các bản ghi PostgreSQL đã bị xóa, kiểm tra trạng thái khe/bảng slot audit và tự động sinh câu lệnh SQL INSERT phục hồi.</p>
+                    </div>
+
+                    <figure class="help-figure">
+                        <button type="button" class="help-screenshot-btn" aria-label="Phóng to ảnh Postgres Deleted Data">
+                            <img class="help-screenshot-img" width="1120" height="630" data-src="{{ url_for('static', filename='img/help/postgres-deleted-data.webp') }}?v={{ version }}" alt="Giao diện Postgres Deleted Data">
+                        </button>
+                        <figcaption class="help-figcaption">
+                            <span class="help-figcaption-text">Lọc theo Tên bảng, Khoảng ngày, theo dõi trạng thái Audit Slot và xuất file câu lệnh SQL Insert Query.</span>
+                            <span class="help-zoom-hint"><span class="material-symbols-outlined" aria-hidden="true">open_in_new</span> Nhấp để phóng to</span>
+                        </figcaption>
+                    </figure>
+
+                    <div class="help-section">
+                        <h3 class="help-section-title"><span class="material-symbols-outlined section-icon" aria-hidden="true">tune</span>Thành phần &amp; Chức năng trên trang</h3>
+                        <div class="help-table-wrap">
+                            <table class="help-table">
+                                <thead>
+                                    <tr><th>Thành phần UI</th><th>Chức năng &amp; Cách dùng</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td>Nút <span class="help-code-pill">Load</span></td><td>Tải danh sách bản ghi bị xóa từ file Audit Log của PostgreSQL và cập nhật trạng thái Audit Slot.</td></tr>
+                                    <tr><td><span class="help-code-pill">Bảng</span> &amp; <span class="help-code-pill">Chọn ngày</span></td><td>Dropdown lọc theo tên bảng DB (<span class="help-code-pill">kvmes.*</span>) và bộ lọc khoảng thời gian xóa.</td></tr>
+                                    <tr><td><span class="help-code-pill">Tìm kiếm...</span></td><td>Tìm nhanh theo khóa chính, mã tem, user xóa hoặc nội dung JSON của bản ghi.</td></tr>
+                                    <tr><td>Nút <span class="help-code-pill">Insert Query</span></td><td>Tự động sinh câu lệnh PostgreSQL <span class="help-code-pill">INSERT INTO ...</span> cho toàn bộ các dòng đang lọc để phục hồi nhanh và an toàn.</td></tr>
+                                    <tr><td><span class="help-code-pill">Xuất Excel</span></td><td>Xuất bảng dữ liệu audit log đã lọc thành file <span class="help-code-pill">.xlsx</span>.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- =========================================================
+                     6. TẠO TÀI KHOẢN (/create-kd-account)
+                     ========================================================= -->
+                <div id="helpPaneCreateKdAccount" class="help-pane">
+                    <div class="help-pane-header">
+                        <div class="help-pane-title-row">
+                            <h2 class="help-pane-title"><span class="material-symbols-outlined" aria-hidden="true">person_add</span>Tạo Tài Khoản</h2>
+                            <span class="help-route-pill">/create-kd-account</span>
+                        </div>
+                        <p class="help-pane-desc">Cấp phát tài khoản MES (<span class="help-code-pill">kvmes.account</span> &amp; <span class="help-code-pill">kvmes.user</span> kèm Role mặc định) theo dạng đơn lẻ hoặc hàng loạt bằng file Excel, được bảo vệ bởi lớp xác thực mật khẩu.</p>
+                    </div>
+
+                    <figure class="help-figure">
+                        <button type="button" class="help-screenshot-btn" aria-label="Phóng to ảnh Tạo Tài Khoản">
+                            <img class="help-screenshot-img" width="1120" height="630" data-src="{{ url_for('static', filename='img/help/create-kd-account.webp') }}?v={{ version }}" alt="Giao diện Tạo Tài Khoản">
+                        </button>
+                        <figcaption class="help-figcaption">
+                            <span class="help-figcaption-text">Hỗ trợ tạo nhanh 1 tài khoản (trái) hoặc tải lên file Excel tạo hàng loạt SLL (phải) sau khi mở khóa Security Gate.</span>
+                            <span class="help-zoom-hint"><span class="material-symbols-outlined" aria-hidden="true">open_in_new</span> Nhấp để phóng to</span>
+                        </figcaption>
+                    </figure>
+
+                    <div class="help-section">
+                        <h3 class="help-section-title"><span class="material-symbols-outlined section-icon" aria-hidden="true">tune</span>Thành phần &amp; Quy trình thao tác</h3>
+                        <div class="help-table-wrap">
+                            <table class="help-table">
+                                <thead>
+                                    <tr><th>Thành phần UI</th><th>Chức năng &amp; Cách dùng</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td><span class="help-code-pill">Account Security Gate</span></td><td>Màn hình khóa mặc định yêu cầu nhập mật khẩu quản trị (có nút <span class="help-code-pill">Hiện/Ẩn</span>) trước khi mở quyền tạo tài khoản.</td></tr>
+                                    <tr><td><span class="help-code-pill">TẠO TÀI KHOẢN</span> (Đơn lẻ)</td><td>Nhập tên tài khoản và mã bộ phận (VD: P1, B2, B2210...), bấm <span class="help-code-pill">Tạo</span>. Mật khẩu khởi tạo mặc định giống tên user.</td></tr>
+                                    <tr><td><span class="help-code-pill">DOWNLOAD TEMPLATE</span></td><td>Tải file mẫu <span class="help-code-pill">template_create_kd_account.xlsx</span> đúng cấu trúc cột A1 = <span class="help-code-pill">accounts</span>, B1 = <span class="help-code-pill">department</span>.</td></tr>
+                                    <tr><td>Vùng kéo thả Excel &amp; <span class="help-code-pill">Tạo danh sách tài khoản</span></td><td>Chọn hoặc kéo thả file <span class="help-code-pill">.xlsx/.xls</span> (tối đa 50 MB), kiểm tra số lượng hợp lệ rồi bấm thực thi tạo hàng loạt.</td></tr>
+                                    <tr><td>Lọc <span class="help-code-pill">Trạng thái</span>, <span class="help-code-pill">Tìm kiếm...</span> &amp; <span class="help-code-pill">Download Log</span></td><td>Lọc kết quả Thành công / Thất bại sau khi tạo SLL và xuất file Excel nhật ký kết quả tạo tài khoản.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- =========================================================
+                     7. KIỂM TRA TÀI KHOẢN (/check-kd-account)
+                     ========================================================= -->
+                <div id="helpPaneCheckKdAccount" class="help-pane">
+                    <div class="help-pane-header">
+                        <div class="help-pane-title-row">
+                            <h2 class="help-pane-title"><span class="material-symbols-outlined" aria-hidden="true">badge</span>Kiểm Tra Tài Khoản</h2>
+                            <span class="help-route-pill">/check-kd-account</span>
+                        </div>
+                        <p class="help-pane-desc">Tra cứu tài khoản, xem mật khẩu, chỉnh sửa phân quyền (Roles) trực tiếp trên bảng và lưu cập nhật an toàn xuống cơ sở dữ liệu MES.</p>
+                    </div>
+
+                    <figure class="help-figure">
+                        <button type="button" class="help-screenshot-btn" aria-label="Phóng to ảnh Kiểm Tra Tài Khoản">
+                            <img class="help-screenshot-img" width="1120" height="630" data-src="{{ url_for('static', filename='img/help/check-kd-account.webp') }}?v={{ version }}" alt="Giao diện Kiểm Tra Tài Khoản">
+                        </button>
+                        <figcaption class="help-figcaption">
+                            <span class="help-figcaption-text">Tìm từng tài khoản hoặc bấm Tất cả, double-click mật khẩu/role để chỉnh sửa và giữ nút Save 3 giây để lưu.</span>
+                            <span class="help-zoom-hint"><span class="material-symbols-outlined" aria-hidden="true">open_in_new</span> Nhấp để phóng to</span>
+                        </figcaption>
+                    </figure>
+
+                    <div class="help-section">
+                        <h3 class="help-section-title"><span class="material-symbols-outlined section-icon" aria-hidden="true">tune</span>Thành phần &amp; Chức năng trên trang</h3>
+                        <div class="help-table-wrap">
+                            <table class="help-table">
+                                <thead>
+                                    <tr><th>Thành phần UI</th><th>Chức năng &amp; Cách dùng</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td><span class="help-code-pill">Account Security Gate</span></td><td>Yêu cầu nhập mật khẩu mở khóa trước khi truy cập dữ liệu tài khoản và mật khẩu nhân sự.</td></tr>
+                                    <tr><td><span class="help-code-pill">Tên tài khoản</span> &amp; Nút <span class="help-code-pill">Tất cả</span></td><td>Nhập mã user để tra cứu đích danh, hoặc bấm <strong>Tất cả</strong> để tải toàn bộ danh sách tài khoản MES.</td></tr>
+                                    <tr><td>Sửa Mật khẩu &amp; Phân quyền</td><td><strong>Double-click</strong> vào ô mật khẩu hoặc badge phân quyền trực tiếp trên bảng để chỉnh sửa tại chỗ (các dòng thay đổi sẽ hiển thị bộ đếm trạng thái chưa lưu).</td></tr>
+                                    <tr><td>Nút <span class="help-code-pill">Undo</span> &amp; <span class="help-code-pill">Save</span> (Giữ 3s)</td><td><strong>Undo</strong> hoàn tác mọi chỉnh sửa chưa lưu. Để lưu xuống DB, <strong>bấm và giữ nút Save đủ 3 giây</strong> đến khi thanh tiến trình chạy hết để tránh bấm nhầm.</td></tr>
+                                    <tr><td><span class="help-code-pill">Tìm kiếm...</span> &amp; <span class="help-code-pill">Xuất Excel</span></td><td>Lọc nhanh theo user/bộ phận/quyền và xuất danh sách tài khoản đang lọc ra file Excel.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- =========================================================
+                     8. TRUY VẤN IN BÙ (/reprint)
+                     ========================================================= -->
+                <div id="helpPaneReprint" class="help-pane">
+                    <div class="help-pane-header">
+                        <div class="help-pane-title-row">
+                            <h2 class="help-pane-title"><span class="material-symbols-outlined" aria-hidden="true">feature_search</span>Truy vấn in bù</h2>
+                            <span class="help-route-pill">/reprint</span>
+                        </div>
+                        <p class="help-pane-desc">Tra cứu danh sách tem đã yêu cầu in bù theo khoảng ngày, tự động giải mã lý do in bù (Quét lố, Quét xót, Tem hư, TH làm mất, CBK làm mất).</p>
+                    </div>
+
+                    <figure class="help-figure">
+                        <button type="button" class="help-screenshot-btn" aria-label="Phóng to ảnh Truy vấn in bù">
+                            <img class="help-screenshot-img" width="1120" height="630" data-src="{{ url_for('static', filename='img/help/reprint.webp') }}?v={{ version }}" alt="Giao diện Truy vấn in bù">
+                        </button>
+                        <figcaption class="help-figcaption">
+                            <span class="help-figcaption-text">Chọn khoảng ngày trên bộ chọn Flatpickr để truy vấn toàn bộ lượt in bù và xuất báo cáo Excel.</span>
+                            <span class="help-zoom-hint"><span class="material-symbols-outlined" aria-hidden="true">open_in_new</span> Nhấp để phóng to</span>
+                        </figcaption>
+                    </figure>
+
+                    <div class="help-section">
+                        <h3 class="help-section-title"><span class="material-symbols-outlined section-icon" aria-hidden="true">tune</span>Thành phần &amp; Mã lý do in bù</h3>
+                        <div class="help-table-wrap">
+                            <table class="help-table">
+                                <thead>
+                                    <tr><th>Thành phần UI</th><th>Chức năng &amp; Cách dùng</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td><span class="help-code-pill">Chọn ngày</span> (Flatpickr Range)</td><td>Chọn 1 ngày hoặc khoảng từ ngày – đến ngày để gọi dữ liệu in bù từ DB.</td></tr>
+                                    <tr><td><span class="help-code-pill">Tìm kiếm...</span></td><td>Lọc nhanh kết quả theo mã tem, quy cách, máy hoặc lý do in bù ngay trên bảng.</td></tr>
+                                    <tr><td>Quy đổi mã lý do (1–5)</td><td><span class="help-code-pill">1</span> Quét lố · <span class="help-code-pill">2</span> Quét xót · <span class="help-code-pill">3</span> Tem hư · <span class="help-code-pill">4</span> TH làm mất · <span class="help-code-pill">5</span> CBK làm mất.</td></tr>
+                                    <tr><td><span class="help-code-pill">Xuất Excel</span></td><td>Xuất danh sách kết quả đang hiển thị/đã lọc ra file <span class="help-code-pill">.xlsx</span>.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- =========================================================
+                     9. TEM VẬN CHUYỂN (/material-transfer)
+                     ========================================================= -->
+                <div id="helpPaneMaterialTransfer" class="help-pane">
+                    <div class="help-pane-header">
+                        <div class="help-pane-title-row">
+                            <h2 class="help-pane-title"><span class="material-symbols-outlined" aria-hidden="true">local_shipping</span>Tem vận chuyển</h2>
+                            <span class="help-route-pill">/material-transfer</span>
+                        </div>
+                        <p class="help-pane-desc">Tra cứu lịch sử chuyển tem nguyên liệu/bán thành phẩm (KV1/KV2), phát hiện các lượt chuyển bị lỗi (<span class="help-code-pill">FAILED</span>) và hỗ trợ Retry đẩy lại trạng thái.</p>
+                    </div>
+
+                    <figure class="help-figure">
+                        <button type="button" class="help-screenshot-btn" aria-label="Phóng to ảnh Tem vận chuyển">
+                            <img class="help-screenshot-img" width="1120" height="630" data-src="{{ url_for('static', filename='img/help/material-transfer.webp') }}?v={{ version }}" alt="Giao diện Tem vận chuyển">
+                        </button>
+                        <figcaption class="help-figcaption">
+                            <span class="help-figcaption-text">Hỗ trợ nhập/quét Barcode, dán ảnh vào Image to Text (OCR) và nút Check Failed Transfer để rà sót đơn lỗi.</span>
+                            <span class="help-zoom-hint"><span class="material-symbols-outlined" aria-hidden="true">open_in_new</span> Nhấp để phóng to</span>
+                        </figcaption>
+                    </figure>
+
+                    <div class="help-section">
+                        <h3 class="help-section-title"><span class="material-symbols-outlined section-icon" aria-hidden="true">tune</span>Thành phần &amp; Chức năng trên trang</h3>
+                        <div class="help-table-wrap">
+                            <table class="help-table">
+                                <thead>
+                                    <tr><th>Thành phần UI</th><th>Chức năng &amp; Cách dùng</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td><span class="help-code-pill">Barcode</span> &amp; <span class="help-code-pill">Image to Text</span> (OCR)</td><td>Nhập/quét mã tem vận chuyển hoặc dán ảnh (<span class="help-code-pill">Ctrl+V</span>) để tự động nhận diện barcode và tra cứu lịch sử luân chuyển.</td></tr>
+                                    <tr><td>Nút <span class="help-code-pill">Check Failed Transfer</span></td><td>Quét toàn bộ các bản ghi vận chuyển đang kẹt ở trạng thái <strong>FAILED</strong> để xử lý tập trung.</td></tr>
+                                    <tr><td>Nút <span class="help-code-pill">Retry</span> trên dòng FAILED</td><td>Các dòng lỗi có nút <strong>Retry</strong> ngay tại cột trạng thái cho phép kích hoạt xử lý lại lượt chuyển tem đó mà không cần thao tác tay trên DB.</td></tr>
+                                    <tr><td><span class="help-code-pill">Tìm kiếm...</span> &amp; <span class="help-code-pill">Xuất Excel</span></td><td>Lọc nhanh trong bảng kết quả và xuất dữ liệu ra Excel.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- =========================================================
+                     10. NVL THAY THẾ (/substitutions)
+                     ========================================================= -->
+                <div id="helpPaneSubstitutions" class="help-pane">
+                    <div class="help-pane-header">
+                        <div class="help-pane-title-row">
+                            <h2 class="help-pane-title"><span class="material-symbols-outlined" aria-hidden="true">find_replace</span>NVL thay thế</h2>
+                            <span class="help-route-pill">/substitutions</span>
+                        </div>
+                        <p class="help-pane-desc">Tra cứu danh sách nguyên vật liệu được phép dùng thay thế hợp lệ theo mã Quy cách (Recipe / Product ID) trong hệ thống MES.</p>
+                    </div>
+
+                    <figure class="help-figure">
+                        <button type="button" class="help-screenshot-btn" aria-label="Phóng to ảnh NVL thay thế">
+                            <img class="help-screenshot-img" width="1120" height="630" data-src="{{ url_for('static', filename='img/help/substitutions.webp') }}?v={{ version }}" alt="Giao diện NVL thay thế">
+                        </button>
+                        <figcaption class="help-figcaption">
+                            <span class="help-figcaption-text">Nhập mã Quy cách để liệt kê các cặp nguyên liệu chính và nguyên liệu thay thế hợp lệ kèm Xuất Excel.</span>
+                            <span class="help-zoom-hint"><span class="material-symbols-outlined" aria-hidden="true">open_in_new</span> Nhấp để phóng to</span>
+                        </figcaption>
+                    </figure>
+
+                    <div class="help-section">
+                        <h3 class="help-section-title"><span class="material-symbols-outlined section-icon" aria-hidden="true">tune</span>Thành phần &amp; Cách sử dụng</h3>
+                        <div class="help-table-wrap">
+                            <table class="help-table">
+                                <thead>
+                                    <tr><th>Thành phần UI</th><th>Chức năng &amp; Cách dùng</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td><span class="help-code-pill">Quy cách</span></td><td>Nhập mã quy cách/nguyên liệu để tra cứu các phương án thay thế được phê duyệt trong bảng <span class="help-code-pill">substitutions</span>.</td></tr>
+                                    <tr><td><span class="help-code-pill">Tìm kiếm...</span> &amp; <span class="help-code-pill">Xuất Excel</span></td><td>Lọc nhanh kết quả trên bảng và xuất file Excel khi cần đối chiếu.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- =========================================================
+                     11. LỊCH SỬ QUÉT TEM (/scan-barcode-history)
+                     ========================================================= -->
+                <div id="helpPaneScanBarcodeHistory" class="help-pane">
+                    <div class="help-pane-header">
+                        <div class="help-pane-title-row">
+                            <h2 class="help-pane-title"><span class="material-symbols-outlined" aria-hidden="true">barcode_scanner</span>Lịch sử quét tem</h2>
+                            <span class="help-route-pill">/scan-barcode-history</span>
+                        </div>
+                        <p class="help-pane-desc">Truy xuất nhật ký toàn bộ tem nguyên liệu đã được công nhân quét nạp vào từng Máy (Station) trong khoảng thời gian chọn.</p>
+                    </div>
+
+                    <figure class="help-figure">
+                        <button type="button" class="help-screenshot-btn" aria-label="Phóng to ảnh Lịch sử quét tem">
+                            <img class="help-screenshot-img" width="1120" height="630" data-src="{{ url_for('static', filename='img/help/scan-barcode-history.webp') }}?v={{ version }}" alt="Giao diện Lịch sử quét tem">
+                        </button>
+                        <figcaption class="help-figcaption">
+                            <span class="help-figcaption-text">Chọn Bộ phận, Máy và khoảng ngày để tải lịch sử quét tem nạp liệu lên máy.</span>
+                            <span class="help-zoom-hint"><span class="material-symbols-outlined" aria-hidden="true">open_in_new</span> Nhấp để phóng to</span>
+                        </figcaption>
+                    </figure>
+
+                    <div class="help-section">
+                        <h3 class="help-section-title"><span class="material-symbols-outlined section-icon" aria-hidden="true">tune</span>Thành phần &amp; Cách sử dụng</h3>
+                        <div class="help-table-wrap">
+                            <table class="help-table">
+                                <thead>
+                                    <tr><th>Thành phần UI</th><th>Chức năng &amp; Cách dùng</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td><span class="help-code-pill">Bộ phận</span> &amp; <span class="help-code-pill">Máy (Station)</span></td><td>Chọn Bộ phận trước để tải danh sách máy, sau đó chọn Máy cần kiểm tra.</td></tr>
+                                    <tr><td><span class="help-code-pill">Chọn ngày</span> (Flatpickr)</td><td>Chọn ngày hoặc khoảng ngày cần tra cứu lịch sử quét tem.</td></tr>
+                                    <tr><td>Context Menu &amp; <span class="help-code-pill">Xuất Excel</span></td><td>Hỗ trợ lọc từ khóa với <span class="help-code-pill">Tìm kiếm...</span>, nhấp chuột phải thao tác tiếp trên tem và xuất Excel toàn bộ lịch sử quét.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- =========================================================
+                     12. LỊCH SỬ IN TEM (/print-barcode-history)
+                     ========================================================= -->
+                <div id="helpPanePrintBarcodeHistory" class="help-pane">
+                    <div class="help-pane-header">
+                        <div class="help-pane-title-row">
+                            <h2 class="help-pane-title"><span class="material-symbols-outlined" aria-hidden="true">print</span>Lịch sử in tem</h2>
+                            <span class="help-route-pill">/print-barcode-history</span>
+                        </div>
+                        <p class="help-pane-desc">Tra cứu nhật ký các tem thành phẩm / bán thành phẩm đã được máy sản xuất phát sinh lệnh in trong khoảng thời gian chỉ định.</p>
+                    </div>
+
+                    <figure class="help-figure">
+                        <button type="button" class="help-screenshot-btn" aria-label="Phóng to ảnh Lịch sử in tem">
+                            <img class="help-screenshot-img" width="1120" height="630" data-src="{{ url_for('static', filename='img/help/print-barcode-history.webp') }}?v={{ version }}" alt="Giao diện Lịch sử in tem">
+                        </button>
+                        <figcaption class="help-figcaption">
+                            <span class="help-figcaption-text">Chọn Bộ phận, Máy và khoảng ngày để xem toàn bộ tem đã in tại trạm/máy đó.</span>
+                            <span class="help-zoom-hint"><span class="material-symbols-outlined" aria-hidden="true">open_in_new</span> Nhấp để phóng to</span>
+                        </figcaption>
+                    </figure>
+
+                    <div class="help-section">
+                        <h3 class="help-section-title"><span class="material-symbols-outlined section-icon" aria-hidden="true">tune</span>Thành phần &amp; Cách sử dụng</h3>
+                        <div class="help-table-wrap">
+                            <table class="help-table">
+                                <thead>
+                                    <tr><th>Thành phần UI</th><th>Chức năng &amp; Cách dùng</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td><span class="help-code-pill">Bộ phận</span> &amp; <span class="help-code-pill">Máy (Station)</span></td><td>Chọn Bộ phận và Máy cần kiểm tra đầu ra tem đã in.</td></tr>
+                                    <tr><td><span class="help-code-pill">Chọn ngày</span> &amp; <span class="help-code-pill">Tìm kiếm...</span></td><td>Giới hạn thời gian bằng Flatpickr và lọc nhanh theo barcode, quy cách hoặc nhân viên in.</td></tr>
+                                    <tr><td>Context Menu &amp; <span class="help-code-pill">Xuất Excel</span></td><td>Nhấp chuột phải lên dòng tem để truy xuất tiếp các nghiệp vụ (MES Tracking, In lại tem PDF...) hoặc xuất bảng ra Excel.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- =========================================================
+                     13. CHECK QC DATA (/check-qc-data)
+                     ========================================================= -->
+                <div id="helpPaneCheckQcData" class="help-pane">
+                    <div class="help-pane-header">
+                        <div class="help-pane-title-row">
+                            <h2 class="help-pane-title"><span class="material-symbols-outlined" aria-hidden="true">lab_research</span>Check QC Data</h2>
+                            <span class="help-route-pill">/check-qc-data</span>
+                        </div>
+                        <p class="help-pane-desc">Tra cứu dữ liệu kết quả kiểm định chất lượng (QC / KCS) theo ngày để đối chiếu trạng thái đạt/không đạt của lô sản xuất.</p>
+                    </div>
+
+                    <figure class="help-figure">
+                        <button type="button" class="help-screenshot-btn" aria-label="Phóng to ảnh Check QC Data">
+                            <img class="help-screenshot-img" width="1120" height="630" data-src="{{ url_for('static', filename='img/help/check-qc-data.webp') }}?v={{ version }}" alt="Giao diện Check QC Data">
+                        </button>
+                        <figcaption class="help-figcaption">
+                            <span class="help-figcaption-text">Chọn khoảng ngày trên bộ lọc thời gian để tải dữ liệu kiểm định QC và lọc/xuất Excel.</span>
+                            <span class="help-zoom-hint"><span class="material-symbols-outlined" aria-hidden="true">open_in_new</span> Nhấp để phóng to</span>
+                        </figcaption>
+                    </figure>
+
+                    <div class="help-section">
+                        <h3 class="help-section-title"><span class="material-symbols-outlined section-icon" aria-hidden="true">tune</span>Thành phần &amp; Cách sử dụng</h3>
+                        <div class="help-table-wrap">
+                            <table class="help-table">
+                                <thead>
+                                    <tr><th>Thành phần UI</th><th>Chức năng &amp; Cách dùng</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td><span class="help-code-pill">Chọn ngày</span> (Flatpickr)</td><td>Chọn ngày hoặc dải ngày cần tải bảng dữ liệu QC từ hệ thống.</td></tr>
+                                    <tr><td><span class="help-code-pill">Tìm kiếm...</span> &amp; <span class="help-code-pill">Xuất Excel</span></td><td>Lọc nhanh theo mã lô, quy cách, kết quả QC và xuất báo cáo Excel chỉ với 1 bấm.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- =========================================================
+                     14. CHECK MESYNC (/check-mesync)
+                     ========================================================= -->
+                <div id="helpPaneCheckMesync" class="help-pane">
+                    <div class="help-pane-header">
+                        <div class="help-pane-title-row">
+                            <h2 class="help-pane-title"><span class="material-symbols-outlined" aria-hidden="true">sync</span>Check Mesync</h2>
+                            <span class="help-route-pill">/check-mesync</span>
+                        </div>
+                        <p class="help-pane-desc">Giám sát và kiểm tra hàng đợi <span class="help-code-pill">mesync_inbox_events</span> đồng bộ dữ liệu giữa hệ thống MES và ERP.</p>
+                    </div>
+
+                    <figure class="help-figure">
+                        <button type="button" class="help-screenshot-btn" aria-label="Phóng to ảnh Check Mesync">
+                            <img class="help-screenshot-img" width="1120" height="630" data-src="{{ url_for('static', filename='img/help/check-mesync.webp') }}?v={{ version }}" alt="Giao diện Check Mesync">
+                        </button>
+                        <figcaption class="help-figcaption">
+                            <span class="help-figcaption-text">Nhập từ khóa (Barcode, Work Order, Event ID...) vào ô Tìm kiếm để truy vấn hộp thư đồng bộ MES–ERP.</span>
+                            <span class="help-zoom-hint"><span class="material-symbols-outlined" aria-hidden="true">open_in_new</span> Nhấp để phóng to</span>
+                        </figcaption>
+                    </figure>
+
+                    <div class="help-section">
+                        <h3 class="help-section-title"><span class="material-symbols-outlined section-icon" aria-hidden="true">tune</span>Thành phần &amp; Cách sử dụng</h3>
+                        <div class="help-table-wrap">
+                            <table class="help-table">
+                                <thead>
+                                    <tr><th>Thành phần UI</th><th>Chức năng &amp; Cách dùng</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td><span class="help-code-pill">Tìm kiếm</span> (Server query)</td><td>Nhập mã chứng từ, work order, barcode hoặc event key để truy vấn trực tiếp các bản ghi trong <span class="help-code-pill">mesync</span>.</td></tr>
+                                    <tr><td><span class="help-code-pill">Tìm kiếm trong bảng...</span></td><td>Lọc thu gọn thêm ngay trên các bản ghi vừa tải về (client-side).</td></tr>
+                                    <tr><td>Double-click &amp; <span class="help-code-pill">Xuất Excel</span></td><td>Double-click dòng để mở JSON payload chi tiết hoặc bấm <strong>Xuất Excel</strong> để tải báo cáo đối soát đồng bộ.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- =========================================================
+                     15. THIẾT LẬP MÁY (/station-configuration)
+                     ========================================================= -->
+                <div id="helpPaneStationConfiguration" class="help-pane">
+                    <div class="help-pane-header">
+                        <div class="help-pane-title-row">
+                            <h2 class="help-pane-title"><span class="material-symbols-outlined" aria-hidden="true">display_settings</span>Thiết lập máy</h2>
+                            <span class="help-route-pill">/station-configuration</span>
+                        </div>
+                        <p class="help-pane-desc">Xem cấu hình từng vị trí cấp liệu (Site / Slot / Container), loại nguyên liệu gắn theo thời gian thực và trạng thái thiết lập của từng Máy sản xuất.</p>
+                    </div>
+
+                    <figure class="help-figure">
+                        <button type="button" class="help-screenshot-btn" aria-label="Phóng to ảnh Thiết lập máy">
+                            <img class="help-screenshot-img" width="1120" height="630" data-src="{{ url_for('static', filename='img/help/station-configuration.webp') }}?v={{ version }}" alt="Giao diện Thiết lập máy">
+                        </button>
+                        <figcaption class="help-figcaption">
+                            <span class="help-figcaption-text">Chọn Bộ phận và Máy để kiểm tra toàn bộ danh sách Site, chế độ Slot/Container và liệu đang gắn.</span>
+                            <span class="help-zoom-hint"><span class="material-symbols-outlined" aria-hidden="true">open_in_new</span> Nhấp để phóng to</span>
+                        </figcaption>
+                    </figure>
+
+                    <div class="help-section">
+                        <h3 class="help-section-title"><span class="material-symbols-outlined section-icon" aria-hidden="true">tune</span>Thành phần &amp; Cách sử dụng</h3>
+                        <div class="help-table-wrap">
+                            <table class="help-table">
+                                <thead>
+                                    <tr><th>Thành phần UI</th><th>Chức năng &amp; Cách dùng</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td><span class="help-code-pill">Bộ phận</span> &amp; <span class="help-code-pill">Máy (Station)</span></td><td>Chọn Bộ phận rồi chọn Máy để tải cấu hình <span class="help-code-pill">site_view</span> &amp; thông số trạm.</td></tr>
+                                    <tr><td>Menu chuột phải</td><td>Hỗ trợ nhấp chuột phải trên dòng có barcode/quy cách để mở menu truy xuất nhanh (tương tự trang Main).</td></tr>
+                                    <tr><td><span class="help-code-pill">Xuất Excel</span></td><td>Xuất toàn bộ bảng cấu hình các trạm/site của máy ra file <span class="help-code-pill">.xlsx</span>.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- =========================================================
+                     16. BYPASS (/bypass)
+                     ========================================================= -->
+                <div id="helpPaneBypass" class="help-pane">
+                    <div class="help-pane-header">
+                        <div class="help-pane-title-row">
+                            <h2 class="help-pane-title"><span class="material-symbols-outlined" aria-hidden="true">bolt</span>Bypass</h2>
+                            <span class="help-route-pill">/bypass</span>
+                        </div>
+                        <p class="help-pane-desc">Điều khiển bật/tắt chế độ Strict Mode của MES từ xa thông qua cấu hình container trên máy chủ <span class="help-code-pill">198.1.10.85</span> / <span class="help-code-pill">198.1.10.8</span> và ghi nhận đầy đủ nhật ký Audit.</p>
+                    </div>
+
+                    <figure class="help-figure">
+                        <button type="button" class="help-screenshot-btn" aria-label="Phóng to ảnh Bypass">
+                            <img class="help-screenshot-img" width="1120" height="630" data-src="{{ url_for('static', filename='img/help/bypass.webp') }}?v={{ version }}" alt="Giao diện Bypass">
+                        </button>
+                        <figcaption class="help-figcaption">
+                            <span class="help-figcaption-text">Thanh điều khiển Bypass gồm chuyển đổi máy chủ, nút giữ 3s Kích hoạt, pill trạng thái, xem YAML và bảng log phân trang.</span>
+                            <span class="help-zoom-hint"><span class="material-symbols-outlined" aria-hidden="true">open_in_new</span> Nhấp để phóng to</span>
+                        </figcaption>
+                    </figure>
+
+                    <div class="help-section">
+                        <h3 class="help-section-title"><span class="material-symbols-outlined section-icon" aria-hidden="true">tune</span>Thành phần &amp; Quy trình thao tác</h3>
+                        <div class="help-table-wrap">
+                            <table class="help-table">
+                                <thead>
+                                    <tr><th>Thành phần UI</th><th>Chức năng &amp; Cách dùng</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td>Thẻ máy chủ &amp; nút chuyển <span class="help-code-pill">10.8</span> / <span class="help-code-pill">10.85</span></td><td>Hiển thị máy chủ đang thao tác (<span class="help-code-pill">root@198.1.10.85</span> hoặc <span class="help-code-pill">198.1.10.8</span>) và chuyển đổi đích khi cần.</td></tr>
+                                    <tr><td>Nút <span class="help-code-pill">Refresh</span></td><td>Tải lại ngay trạng thái Strict Mode / Bypass hiện tại và làm mới bảng log.</td></tr>
+                                    <tr><td>Nút <span class="help-code-pill">Kích hoạt</span> / Ngưng (Giữ 3 giây)</td><td><strong>Bấm và giữ chuột liên tục trong 3 giây</strong> cho tới khi thanh tiến trình chạy hết để chuyển trạng thái hệ thống (chống bấm nhầm). Khi thực thi, badge live step hiển thị từng bước kết nối container.</td></tr>
+                                    <tr><td><span class="help-code-pill">Open yaml File</span></td><td>Mở hộp thoại xem trực tiếp nội dung file <span class="help-code-pill">docker-compose.yml</span> hiện hành trên máy chủ đang chọn.</td></tr>
+                                    <tr><td>Bảng Nhật ký &amp; <span class="help-code-pill">Tìm kiếm...</span></td><td>Theo dõi IP, thời gian (UTC+7) và ghi chú từng lần bật/tắt Bypass kèm lọc từ khóa và phân trang.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="help-callout warning">
+                            <span class="material-symbols-outlined help-callout-icon" aria-hidden="true">warning</span>
+                            <div><strong>Lưu ý vận hành:</strong> Mọi thao tác Bật/Tắt Bypass đều lưu vết IP và thời gian thực. Chỉ kích hoạt khi có sự cố khẩn cấp và nhớ ngưng kích hoạt (trả về Strict Mode) ngay sau khi xử lý xong.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- =========================================================
+                     17. PRINTER SETUP (/printer-setup)
+                     ========================================================= -->
+                <div id="helpPanePrinterSetup" class="help-pane">
+                    <div class="help-pane-header">
+                        <div class="help-pane-title-row">
+                            <h2 class="help-pane-title"><span class="material-symbols-outlined" aria-hidden="true">print_connect</span>Printer Setup</h2>
+                            <span class="help-route-pill">/printer-setup</span>
+                        </div>
+                        <p class="help-pane-desc">Quản lý và chỉnh sửa ánh xạ Máy sản xuất ↔ Máy in CUPS trong file <span class="help-code-pill">printers-manager.yaml</span> trên <span class="help-code-pill">198.1.10.85</span> theo từng xưởng.</p>
+                    </div>
+
+                    <figure class="help-figure">
+                        <button type="button" class="help-screenshot-btn" aria-label="Phóng to ảnh Printer Setup">
+                            <img class="help-screenshot-img" width="1120" height="630" data-src="{{ url_for('static', filename='img/help/printer-setup.webp') }}?v={{ version }}" alt="Giao diện Printer Setup">
+                        </button>
+                        <figcaption class="help-figcaption">
+                            <span class="help-figcaption-text">Chọn thư mục máy in KV2 (p5300_ic, p8300, p8400, p9100), chỉnh sửa Stations / Printer Name trực tiếp và giữ Save 3s để lưu.</span>
+                            <span class="help-zoom-hint"><span class="material-symbols-outlined" aria-hidden="true">open_in_new</span> Nhấp để phóng to</span>
+                        </figcaption>
+                    </figure>
+
+                    <div class="help-section">
+                        <h3 class="help-section-title"><span class="material-symbols-outlined section-icon" aria-hidden="true">tune</span>Thành phần &amp; Chức năng trên trang</h3>
+                        <div class="help-table-wrap">
+                            <table class="help-table">
+                                <thead>
+                                    <tr><th>Thành phần UI</th><th>Chức năng &amp; Cách dùng</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td>Dropdown <span class="help-code-pill">Chọn thư mục máy in (KV2)</span></td><td>Chọn khu vực cấu hình: <span class="help-code-pill">p5300_ic</span>, <span class="help-code-pill">p8300</span>, <span class="help-code-pill">p8400</span> hoặc <span class="help-code-pill">p9100</span> để nạp danh sách nhóm trạm &amp; máy in.</td></tr>
+                                    <tr><td>Nút <span class="help-code-pill">Refresh</span> &amp; <span class="help-code-pill">Open yaml File</span></td><td>Làm mới dữ liệu từ server 10.85 hoặc mở xem trực tiếp nội dung thô của <span class="help-code-pill">printers-manager.yaml</span>.</td></tr>
+                                    <tr><td>Chỉnh sửa Stations &amp; Printer Name</td><td><strong>Double-click</strong> vào ô Stations hoặc Printer Name để mở menu nổi tìm kiếm, thêm/gỡ trạm hoặc đổi máy in đích.</td></tr>
+                                    <tr><td><span class="help-code-pill">Undo</span> &amp; <span class="help-code-pill">Save</span> (Giữ 3 giây)</td><td><strong>Undo</strong> khôi phục mọi sửa đổi chưa lưu. Nhấn giữ nút <strong>Save 3 giây</strong> để ghi file YAML lên server và đồng bộ lại container in tem.</td></tr>
+                                    <tr><td><span class="help-code-pill">Tìm kiếm...</span></td><td>Tìm nhanh theo tên trạm hoặc tên máy in (tự mở khóa ngay khi đã chọn thư mục).</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- =========================================================
+                     18. REPRINT LABEL LOG (/reprint-label-log)
+                     ========================================================= -->
+                <div id="helpPaneReprintLabelLog" class="help-pane">
+                    <div class="help-pane-header">
+                        <div class="help-pane-title-row">
+                            <h2 class="help-pane-title"><span class="material-symbols-outlined" aria-hidden="true">receipt_long</span>Reprint Label Log</h2>
+                            <span class="help-route-pill">/reprint-label-log</span>
+                        </div>
+                        <p class="help-pane-desc">Tra cứu nhật ký các lượt in lại tem thực tế (<span class="help-code-pill">reprint_label_log</span>) từ cả hai nguồn ERP (10.33) và KV1 (1.106).</p>
+                    </div>
+
+                    <figure class="help-figure">
+                        <button type="button" class="help-screenshot-btn" aria-label="Phóng to ảnh Reprint Label Log">
+                            <img class="help-screenshot-img" width="1120" height="630" data-src="{{ url_for('static', filename='img/help/reprint-label-log.webp') }}?v={{ version }}" alt="Giao diện Reprint Label Log">
+                        </button>
+                        <figcaption class="help-figcaption">
+                            <span class="help-figcaption-text">Lọc theo Location, khoảng ngày và tải bảng nhật ký in lại tem kèm phân trang &amp; Xuất Excel.</span>
+                            <span class="help-zoom-hint"><span class="material-symbols-outlined" aria-hidden="true">open_in_new</span> Nhấp để phóng to</span>
+                        </figcaption>
+                    </figure>
+
+                    <div class="help-section">
+                        <h3 class="help-section-title"><span class="material-symbols-outlined section-icon" aria-hidden="true">tune</span>Thành phần &amp; Cách sử dụng</h3>
+                        <div class="help-table-wrap">
+                            <table class="help-table">
+                                <thead>
+                                    <tr><th>Thành phần UI</th><th>Chức năng &amp; Cách dùng</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td>Nút <span class="help-code-pill">Load</span></td><td>Đọc và nạp toàn bộ nhật ký in lại tem mới nhất.</td></tr>
+                                    <tr><td><span class="help-code-pill">Location</span> &amp; <span class="help-code-pill">Chọn ngày</span></td><td>Lọc theo nguồn/khu vực in tem và giới hạn khoảng thời gian cần kiểm tra.</td></tr>
+                                    <tr><td><span class="help-code-pill">Tìm kiếm...</span> &amp; <span class="help-code-pill">Xuất Excel</span></td><td>Tìm nhanh theo mã tem, máy in, người thực hiện và xuất file Excel danh sách đã lọc.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- =========================================================
+                     19. SITE RESET RECOVERY (/site-reset-recovery)
+                     ========================================================= -->
+                <div id="helpPaneSiteResetRecovery" class="help-pane">
+                    <div class="help-pane-header">
+                        <div class="help-pane-title-row">
+                            <h2 class="help-pane-title"><span class="material-symbols-outlined" aria-hidden="true">restore_page</span>Site Reset Recovery</h2>
+                            <span class="help-route-pill">/site-reset-recovery</span>
+                        </div>
+                        <p class="help-pane-desc">Quét tìm và khôi phục số lượng (<span class="help-code-pill">quantity</span>) cho các tem nguyên liệu bị kẹt về <span class="help-code-pill">0</span> do job <span class="help-code-pill">SiteService.Upsert</span> (uploader) ghi đè rỗng <span class="help-code-pill">site_contents</span>, kèm nhật ký và nút Rollback.</p>
+                    </div>
+
+                    <figure class="help-figure">
+                        <button type="button" class="help-screenshot-btn" aria-label="Phóng to ảnh Site Reset Recovery">
+                            <img class="help-screenshot-img" width="1120" height="630" data-src="{{ url_for('static', filename='img/help/site-reset-recovery.webp') }}?v={{ version }}" alt="Giao diện Site Reset Recovery">
+                        </button>
+                        <figcaption class="help-figcaption">
+                            <span class="help-figcaption-text">Quét theo khoảng ngày, lọc Station/Status, tick chọn các tem cần phục hồi và nhấn giữ Execute 3 giây.</span>
+                            <span class="help-zoom-hint"><span class="material-symbols-outlined" aria-hidden="true">open_in_new</span> Nhấp để phóng to</span>
+                        </figcaption>
+                    </figure>
+
+                    <div class="help-section">
+                        <h3 class="help-section-title"><span class="material-symbols-outlined section-icon" aria-hidden="true">tune</span>Thành phần &amp; Quy trình phục hồi an toàn</h3>
+                        <div class="help-table-wrap">
+                            <table class="help-table">
+                                <thead>
+                                    <tr><th>Thành phần UI</th><th>Chức năng &amp; Cách dùng</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td><span class="help-code-pill">Chọn khoảng ngày</span> &amp; Nút <span class="help-code-pill">Load</span></td><td>Chọn thời điểm xảy ra reset trắng site để hệ thống quét đối chiếu <span class="help-code-pill">site_contents</span> trước/sau reset cùng <span class="help-code-pill">material_resource</span> và <span class="help-code-pill">feed_record</span>.</td></tr>
+                                    <tr><td>Bộ lọc <span class="help-code-pill">Station</span>, <span class="help-code-pill">Status</span> &amp; <span class="help-code-pill">Tìm kiếm...</span></td><td>Thu hẹp theo tên Máy, trạng thái phục hồi hoặc từ khóa barcode; tick checkbox các dòng hợp lệ (hoặc tick chọn tất cả).</td></tr>
+                                    <tr><td>Nút <span class="help-code-pill">Execute (N)</span> (Giữ 3 giây)</td><td><strong>Nhấn giữ 3 giây</strong> để xác nhận hoàn trả đúng số lượng <span class="help-code-pill">quantity</span> về bảng <span class="help-code-pill">material_resource</span> cho <span class="help-code-pill">N</span> tem đã chọn.</td></tr>
+                                    <tr><td>Nút <span class="help-code-pill">Lịch sử khôi phục</span> &amp; Rollback</td><td>Mở modal lịch sử các đợt khôi phục đã chạy và hỗ trợ <strong>hoàn tác (Rollback)</strong> nếu cần đưa số lượng về trạng thái trước khôi phục.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- =========================================================
+                     20. TIỆN ÍCH TOÀN CỤC & PHÍM TẮT
+                     ========================================================= -->
+                <div id="helpPaneUtilities" class="help-pane">
+                    <div class="help-pane-header">
+                        <div class="help-pane-title-row">
+                            <h2 class="help-pane-title"><span class="material-symbols-outlined" aria-hidden="true">build</span>Tiện Ích Toàn Cục &amp; Phím Tắt</h2>
+                            <span class="help-route-pill">Global Shell</span>
+                        </div>
+                        <p class="help-pane-desc">Các công cụ xuất hiện xuyên suốt mọi trang ở góc dưới bên trái Sidebar, nút tiện ích nhanh (+) và phím tắt thao tác trên bảng dữ liệu.</p>
+                    </div>
+
+                    <figure class="help-figure">
+                        <button type="button" class="help-screenshot-btn" aria-label="Phóng to ảnh Tiện ích nhanh FAB Speed Dial">
+                            <img class="help-screenshot-img" width="1120" height="630" data-src="{{ url_for('static', filename='img/help/utilities.webp') }}?v={{ version }}" alt="Menu tiện ích nhanh trên Sidebar">
+                        </button>
+                        <figcaption class="help-figcaption">
+                            <span class="help-figcaption-text">Bấm nút dấu + ở góc dưới bên trái Sidebar để mở bộ chuyển đổi DB (KV1/KV2/DEV), tra cứu FYI và chuyển đổi Epoch.</span>
+                            <span class="help-zoom-hint"><span class="material-symbols-outlined" aria-hidden="true">open_in_new</span> Nhấp để phóng to</span>
+                        </figcaption>
+                    </figure>
+
+                    <div class="help-section">
+                        <h3 class="help-section-title"><span class="material-symbols-outlined section-icon" aria-hidden="true">tune</span>Bộ công cụ Sidebar &amp; Speed Dial</h3>
+                        <div class="help-table-wrap">
+                            <table class="help-table">
+                                <thead>
+                                    <tr><th>Tiện ích / Phím tắt</th><th>Chức năng &amp; Cách dùng</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td><span class="help-code-pill">KV1</span> / <span class="help-code-pill">KV2</span> / <span class="help-code-pill">DEV</span></td><td>Chuyển nóng môi trường PostgreSQL đích (KV1 <span class="help-code-pill">198.1.1.92</span>, KV2 <span class="help-code-pill">198.1.10.85</span>, DEV <span class="help-code-pill">198.1.10.3</span>) cho toàn bộ công cụ tra cứu.</td></tr>
+                                    <tr><td><span class="help-code-pill">FYI</span> (Product Type)</td><td>Mở bảng tra nhanh toàn bộ mã Product Type chuẩn của MES bất kỳ lúc nào mà không rời trang đang làm việc.</td></tr>
+                                    <tr><td><span class="help-code-pill">Convert</span> (Epoch 2 chiều)</td><td>Chuyển đổi tức thì giữa Timestamp <strong>Nanosecond / Millisecond / Second</strong> và <strong>Ngày giờ (UTC+7 / UTC)</strong>; có nút <span class="help-code-pill">Now</span> lấy thời điểm hiện tại và copy từng định dạng.</td></tr>
+                                    <tr><td>Nút bóng đèn (Sáng / Tối)</td><td>Đổi giao diện Dark Mode / Light Mode đồng bộ tức thời sang toàn bộ trang con và hộp thoại.</td></tr>
+                                    <tr><td>Double-click dòng &amp; <span class="help-code-pill">Esc</span></td><td>Double-click bất kỳ dòng dữ liệu nào để mở Details Modal (có ô tìm &amp; highlight JSON + Copy). Nhấn <span class="help-code-pill">Esc</span> để đóng nhanh các hộp thoại đang mở.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Fullscreen Screenshot Lightbox -->
+    <div id="helpImageLightbox" class="help-lightbox" role="dialog" aria-modal="true" aria-label="Xem ảnh hướng dẫn phóng to" aria-hidden="true">
+        <button type="button" id="helpLightboxCloseBtn" class="help-lightbox-close" aria-label="Đóng ảnh phóng to" title="Đóng (Esc)">
+            <span class="material-symbols-outlined" aria-hidden="true">close</span>
+        </button>
+        <img id="helpLightboxImg" class="help-lightbox-img" alt="">
+        <div id="helpLightboxCaption" class="help-lightbox-caption"></div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/help_modal.js') }}?v={{ version }}"></script>
