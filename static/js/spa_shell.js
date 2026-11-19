@@ -18,7 +18,6 @@
         { path: '/postgres-deleted-data', frameId: 'view-postgres-deleted-data', title: 'Postgres Deleted Data' },
         { path: '/create-kd-account', frameId: 'view-create-kd-account', title: 'Tạo Tài Khoản' },
         { path: '/check-kd-account', frameId: 'view-check-kd-account', title: 'Kiểm Tra Tài Khoản' },
-        { path: '/manual-data-insertion', frameId: 'view-manual-data-insertion', title: 'Manual Data Insertion' },
         { path: '/bypass', frameId: 'view-bypass', title: 'Bypass' },
         { path: '/printer-setup', frameId: 'view-printer-setup', title: 'Printer Setup' },
         { path: '/reprint-label-log', frameId: 'view-reprint-label-log', title: 'Reprint Label Log' },
@@ -26,8 +25,8 @@
     ];
 
     let currentRoutePath = null;
-    let isAllPagesLoaded = false;
-    window.__kd_all_pages_loaded = false;
+    window.__kd_all_pages_loaded = true;
+    window.__kd_intro_finished = true;
 
     // Prefetch departments once at top shell level so all child iframes share the same single-flight request
     if (typeof window.getDepartments === 'function') {
@@ -150,165 +149,38 @@
         }
     }
 
-    function completeSpaPreloading() {
-        if (isAllPagesLoaded) return;
-        isAllPagesLoaded = true;
-        window.__kd_all_pages_loaded = true;
-
-        const allFrames = document.querySelectorAll('.spa-view-frame');
-        const total = allFrames.length || SPA_ROUTES.length;
-
-        const counterEl = document.getElementById('spaPreloadCounter');
-        const progressBar = document.getElementById('spaPreloadProgressBar');
-        const badge = document.getElementById('spaPreloadBadge');
-        const titleEl = document.getElementById('spaPreloadTitle');
-        const msgEl = document.getElementById('spaPreloadMessage');
-        const iconContainer = document.getElementById('spaPreloadIconContainer');
-
-        if (counterEl) counterEl.textContent = `${total}/${total}`;
-        if (progressBar) progressBar.style.width = '100%';
-
-        if (badge) {
-            badge.classList.remove('toast-info');
-            badge.classList.add('toast-success');
-        }
-        if (titleEl) titleEl.textContent = 'Khởi tạo hoàn tất';
-        if (msgEl) msgEl.textContent = `Tất cả ${total} trang đã sẵn sàng`;
-        if (iconContainer) {
-            iconContainer.innerHTML = '<span class="material-symbols-outlined" style="color: #34d399; font-size: 22px;">check_circle</span>';
-        }
-
-        // 1. Notify Prisma Hero Preloader overlay FIRST to start smooth reveal
-        const introEngine = window.PrismaHeroIntro || window.LusionIntro || window.SupercarIntro;
-        if (introEngine && typeof introEngine.onAllLoaded === 'function') {
-            introEngine.onAllLoaded(total);
-        }
-
-        // 2. Hide preload toast with smooth spring out
-        if (badge) {
-            setTimeout(() => {
-                badge.classList.add('removing');
-                setTimeout(() => {
-                    badge.style.display = 'none';
-                }, 350);
-            }, 1200);
-        }
-
-        // 3. Defer heavy iframe postMessage broadcast & skeleton cleanup until AFTER reveal animation finishes (60fps lock)
-        const deferIframeCleanup = () => {
-            allFrames.forEach(frame => {
-                try {
-                    const doc = frame.contentDocument || frame.contentWindow?.document;
-                    if (doc && doc.body) {
-                        doc.body.classList.remove('app-loading-state');
-                    }
-                    frame.contentWindow?.postMessage({ type: 'SPA_ALL_PAGES_LOADED' }, '*');
-                } catch (e) { }
-            });
+    function initFrameThemeSync() {
+        const applyThemeAndReady = (frame) => {
+            try {
+                const doc = frame.contentDocument || frame.contentWindow?.document;
+                if (!doc) return;
+                const isLight = (localStorage.getItem('kd_theme') || 'dark') === 'light';
+                doc.documentElement?.setAttribute('data-theme', isLight ? 'light' : 'dark');
+                if (doc.body) {
+                    doc.body.classList.toggle('theme-light', isLight);
+                    doc.body.classList.remove('app-loading-state');
+                }
+                frame.contentWindow?.postMessage({ type: 'SPA_ALL_PAGES_LOADED' }, '*');
+            } catch (e) { /* ignore cross-origin or unready iframe */ }
         };
 
-        if (window.__kd_intro_finished) {
-            deferIframeCleanup();
-        } else {
-            document.addEventListener('kd_intro_finished', deferIframeCleanup, { once: true });
-            setTimeout(deferIframeCleanup, 900);
-        }
-    }
-
-    function initPreloadTracker() {
-        const allFrames = document.querySelectorAll('.spa-view-frame');
-        const total = allFrames.length || SPA_ROUTES.length;
-        let loadedCount = 0;
-        const loadedSet = new Set();
-
-        const introEngine = window.PrismaHeroIntro || window.LusionIntro || window.SupercarIntro;
-        if (introEngine && typeof introEngine.setTotalPages === 'function') {
-            introEngine.setTotalPages(total);
-        }
-
-        function onFrameLoaded(frameId) {
-            if (loadedSet.has(frameId)) return;
-            loadedSet.add(frameId);
-            loadedCount = loadedSet.size;
-
-            // Apply active theme to newly loaded frame
-            try {
-                const frameEl = document.getElementById(frameId);
-                const isLight = (localStorage.getItem('kd_theme') || 'dark') === 'light';
-                if (frameEl && frameEl.contentDocument) {
-                    frameEl.contentDocument.documentElement?.setAttribute('data-theme', isLight ? 'light' : 'dark');
-                    if (frameEl.contentDocument.body) {
-                        frameEl.contentDocument.body.classList.toggle('theme-light', isLight);
-                    }
-                }
-            } catch (e) {}
-
-            const counterEl = document.getElementById('spaPreloadCounter');
-            const progressBar = document.getElementById('spaPreloadProgressBar');
-            if (counterEl) counterEl.textContent = `${loadedCount}/${total}`;
-            if (progressBar) {
-                const percent = Math.min(100, Math.round((loadedCount / total) * 100));
-                progressBar.style.width = `${percent}%`;
+        document.querySelectorAll('.spa-view-frame').forEach(frame => {
+            if (frame.contentDocument && frame.contentDocument.readyState === 'complete' && frame.src && !frame.src.endsWith('about:blank')) {
+                applyThemeAndReady(frame);
             }
-
-            // Đồng bộ tiến trình chính xác với Prisma Hero Preloader
-            if (introEngine && typeof introEngine.onProgress === 'function') {
-                introEngine.onProgress(loadedCount, total);
-            }
-
-            if (loadedCount >= total) {
-                completeSpaPreloading();
-            }
-        }
-
-        allFrames.forEach(frame => {
-            // If iframe is already loaded
-            try {
-                if (frame.contentDocument && frame.contentDocument.readyState === 'complete' && frame.src && !frame.src.endsWith('about:blank')) {
-                    onFrameLoaded(frame.id);
-                }
-            } catch (e) {}
-
             frame.addEventListener('load', () => {
                 if (frame.src && !frame.src.endsWith('about:blank')) {
-                    onFrameLoaded(frame.id);
+                    applyThemeAndReady(frame);
                 }
             });
         });
-
-        // Staggered background preloading for deferred data-src iframes
-        const lazyFrames = Array.from(document.querySelectorAll('.spa-view-frame[data-src]'));
-        let staggerDelay = 50;
-        lazyFrames.forEach((frame) => {
-            setTimeout(() => {
-                if (frame.dataset.src && (!frame.src || frame.src.endsWith('about:blank') || frame.src === window.location.href)) {
-                    frame.src = frame.dataset.src;
-                    frame.removeAttribute('data-src');
-                }
-            }, staggerDelay);
-            staggerDelay += 70; // 70ms interval smoothly loads all frames during preloader
-        });
-
-        // Listen for frame readiness messages
-        window.addEventListener('message', (e) => {
-            if (e.data && e.data.type === 'FRAME_PAGE_READY' && e.data.frameId) {
-                onFrameLoaded(e.data.frameId);
-            }
-        });
-
-        // Safety fallback timer: in case an iframe takes too long, complete after 4.5 seconds
-        setTimeout(() => {
-            if (!isAllPagesLoaded) {
-                completeSpaPreloading();
-            }
-        }, 4500);
     }
 
     function initSpaNavigation() {
         const sidebar = document.getElementById('sidebar');
         if (!sidebar) return;
 
-        initPreloadTracker();
+        initFrameThemeSync();
 
         // Intercept all sidebar link clicks
         sidebar.addEventListener('click', (e) => {

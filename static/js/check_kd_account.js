@@ -1103,6 +1103,7 @@
         if (!confirmed) return;
 
         try {
+            const XLSX = await window.ensureXlsxLoaded();
             const wsData = [
                 ['Tài Khoản', 'Mật Khẩu', 'Mã Phân Quyền', 'Tên Phân Quyền', 'Bộ Phận']
             ];

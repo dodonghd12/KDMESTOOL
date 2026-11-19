@@ -1019,7 +1019,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.4.42"
+APP_VERSION = "2.4.43"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -1326,9 +1326,7 @@ def api_get_db_env():
 
 @app.route('/')
 def index():
-    if 'user_token' not in session:
-        perform_mes_login()
-    return redirect(url_for('main'))
+    return render_page_or_shell('main.html', '/main', 'Main')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -1468,6 +1466,8 @@ def bypass():
 
 @app.route('/manual-data-insertion')
 def manual_data_insertion():
+    if request.args.get('frame') == '1':
+        return redirect(url_for('main', frame='1'))
     return redirect(url_for('main'))
 
 @app.route('/printer-setup')

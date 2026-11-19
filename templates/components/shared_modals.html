@@ -13,6 +13,7 @@
     </div>
 </div>
 
+{% if is_frame %}
 <!-- Details Modal (Data Details on Row Double-Click) -->
 <div id="detailsModal" class="details-modal hidden" role="dialog" aria-modal="true" aria-labelledby="detailsModalTitle">
     <div class="details-modal-content">
@@ -103,6 +104,7 @@
         </div>
     </div>
 </div>
+{% endif %}
 
 <!-- Global API Loading Indicator (Cyberpunk Word Flipper Loader) -->
 <div class="api-loading" id="apiLoading" style="display:none;" role="status" aria-live="polite" aria-label="Đang gọi API xử lý dữ liệu">
@@ -118,6 +120,7 @@
     </div>
 </div>
 
+{% if is_frame %}
 <!-- Unified Enhanced Context Menu (Shared across Main & All Sub-Pages) -->
 <div id="contextMenu" class="context-menu" role="menu" aria-label="Menu thao tác dòng">
     <!-- Main page barcode actions -->
@@ -163,7 +166,9 @@
         <span class="submenu-item-name">Tải file PDF</span>
     </div>
 </div>
+{% endif %}
 
+{% if not is_frame %}
 <!-- ==============================================================================
      FLOATING ACTION BUTTON (FAB) & SPEED DIAL (Material UI / Jetpack Compose)
      Accessible Tabs Modal: FYI (Product Type) & Convert (Epoch & Datetime)
@@ -1031,3 +1036,4 @@ ightarrow$ Hệ thống liệt kê toàn bộ các mã vật tư thay thế đã
 <link rel="stylesheet" href="{{ url_for('static', filename='vendor/flatpickr/flatpickr.min.css') }}">
 <script src="{{ url_for('static', filename='vendor/flatpickr/flatpickr.min.js') }}"></script>
 <script src="{{ url_for('static', filename='js/fab_speed_dial.js') }}?v={{ version }}"></script>
+{% endif %}

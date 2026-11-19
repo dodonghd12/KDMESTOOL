@@ -10,11 +10,10 @@
     <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
 
-    <!-- Preload Critical Visual Assets for Instant Render -->
-    <link rel="preload" as="image" href="{{ url_for('static', filename='img/prisma_hero_poster.jpg') }}">
-    <link rel="preload" as="font" type="font/woff2" crossorigin href="{{ url_for('static', filename='fonts/material-symbols-outlined.woff2') }}">
+    <!-- Preload Critical Font for Instant Icon Render -->
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="{{ url_for('static', filename='fonts/material-symbols-outlined.woff2') }}?v=subset128">
 
-    <!-- Inline Critical Preloader Styles for Instant Frame 0 Paint (0ms Blank Screen) -->
+    <!-- Inline Critical Shell Layout Styles -->
     <style>
         html, body.spa-shell-body {
             margin: 0;
@@ -34,223 +33,19 @@
             touch-action: manipulation !important;
             pointer-events: auto !important;
         }
-        .prisma-hero-container {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            z-index: 2147483647;
-            background-color: #0A0E1A;
-            overflow: hidden;
-            user-select: none;
-            -webkit-user-select: none;
-            opacity: 1;
-            visibility: visible;
-            transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.2s;
-            will-change: opacity, visibility;
-            pointer-events: auto;
-            transform: translateZ(0);
-            contain: strict;
-            --reveal-radius: 0%;
-            -webkit-mask-image: radial-gradient(circle at 52% 51.5%, transparent var(--reveal-radius), #000 calc(var(--reveal-radius) + 0.8%));
-            mask-image: radial-gradient(circle at 52% 51.5%, transparent var(--reveal-radius), #000 calc(var(--reveal-radius) + 0.8%));
-        }
-        .prisma-hero-container.fade-out {
-            opacity: 0 !important;
-            visibility: hidden !important;
-            pointer-events: none !important;
-        }
-        .prisma-hero-inner {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-        }
-        .prisma-hero-video {
-            position: absolute;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            object-position: center center;
-            pointer-events: none;
-        }
-        .prisma-noise-overlay {
-            position: absolute;
-            inset: 0;
-            pointer-events: none;
-            opacity: 0.45;
-            mix-blend-mode: overlay;
-            background-image: none;
-            background-size: 16px 16px;
-            z-index: 2;
-        }
-        .prisma-gradient-overlay {
-            position: absolute;
-            inset: 0;
-            pointer-events: none;
-            background: rgba(10, 14, 26, 0.65);
-            z-index: 3;
-        }
-        .prisma-hero-counter-zone {
-            position: absolute;
-            bottom: 36px;
-            left: 48px;
-            z-index: 20;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1), transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-        .prisma-counter-row {
-            display: flex;
-            align-items: baseline;
-            line-height: 0.82;
-            font-family: 'JetBrains Mono', 'Plus Jakarta Sans', -apple-system, monospace;
-            font-weight: 700;
-            letter-spacing: -0.06em;
-            color: #E1E0CC;
-            text-shadow: 0 4px 30px rgba(0, 0, 0, 0.8), 0 0 40px rgba(225, 224, 204, 0.25);
-        }
-        .prisma-counter-number {
-            font-size: clamp(64px, 13vw, 150px);
-            display: inline-block;
-            min-width: 1.8ch;
-        }
-        .prisma-counter-percent {
-            font-size: clamp(28px, 4.5vw, 52px);
-            font-weight: 300;
-            color: rgba(225, 224, 204, 0.6);
-            margin-left: 6px;
-            letter-spacing: normal;
-        }
-        .prisma-counter-status {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 11px;
-            font-weight: 600;
-            letter-spacing: 0.16em;
-            color: rgba(225, 224, 204, 0.85);
-            text-transform: uppercase;
-            margin-top: 4px;
-        }
-        .prisma-status-dot {
-            width: 7px;
-            height: 7px;
-            border-radius: 50%;
-            background-color: #3dd5c0;
-            box-shadow: 0 0 10px #3dd5c0, 0 0 20px #3dd5c0;
-            animation: prismaPulse 1.4s infinite alternate ease-in-out;
-        }
-        @keyframes prismaPulse {
-            0% { opacity: 0.4; transform: scale(0.85); }
-            100% { opacity: 1.0; transform: scale(1.2); }
-        }
-        .prisma-progress-track {
-            width: clamp(200px, 22vw, 340px);
-            height: 3px;
-            background: rgba(255, 255, 255, 0.15);
-            border-radius: 9999px;
-            overflow: hidden;
-            margin-top: 6px;
-            backdrop-filter: blur(8px);
-        }
-        .prisma-progress-bar {
-            width: 0%;
-            height: 100%;
-            background: #3DD5C0;
-            border-radius: 9999px;
-            box-shadow: 0 0 12px rgba(61, 213, 192, 0.75);
-            transition: none !important;
-            will-change: width;
-        }
-        .prisma-portal-rim {
-            position: absolute;
-            top: 51.5%;
-            left: 52%;
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
-            pointer-events: none;
-            z-index: 30;
-            border: 2px solid rgba(61, 213, 192, 0.9);
-            box-shadow: 0 0 25px rgba(61, 213, 192, 0.85), inset 0 0 15px rgba(61, 213, 192, 0.65);
-            opacity: 0;
-            transform: translate3d(-50%, -50%, 0) scale(0);
-            will-change: transform, opacity;
-        }
-        .prisma-hero-container.is-revealing .prisma-noise-overlay {
-            display: none !important;
-        }
-        .prisma-hero-container.is-revealing .prisma-hero-counter-zone {
-            opacity: 0 !important;
-            transform: translateY(16px) !important;
-            pointer-events: none;
-        }
-        @media (max-width: 768px) {
-            .prisma-hero-counter-zone {
-                bottom: 24px;
-                left: 20px;
-            }
-        }
     </style>
 
-    <!-- Shell Layout & Core UI Styles (Non-blocking for instant Prisma Hero Frame 0 Paint) -->
+    <!-- Shell Layout & Core UI Styles -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/google-fonts/google-fonts.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/material-symbols/material-symbols.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}?v={{ version }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/smooth_input.css') }}?v={{ version }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/material-symbols/material-symbols.css') }}">
 
     <!-- Main CSS for Modals, Toasts, and Shared UI Components -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v={{ version }}">
 </head>
 
 <body class="spa-shell-body">
-    <!-- Prisma-Hero Cinematic Preloader & Laptop Screen Zoom-Reveal Portal -->
-    <div id="prismaHeroPreloader" class="prisma-hero-container" role="dialog" aria-modal="true" aria-label="Đang tải hệ thống KDMES">
-        <div class="prisma-hero-inner">
-            <!-- Background Video & Poster (Deferred video source so critical assets load with maximum bandwidth) -->
-            <video
-                id="prismaHeroVideo"
-                autoplay
-                loop
-                muted
-                playsinline
-                preload="none"
-                poster="{{ url_for('static', filename='img/prisma_hero_poster.jpg') }}"
-                class="prisma-hero-video"
-            >
-                <source data-src="{{ url_for('static', filename='video/prisma_hero.mp4') }}" type="video/mp4">
-            </video>
-
-            <!-- Noise & Gradient Overlays -->
-            <div class="prisma-noise-overlay"></div>
-            <div class="prisma-gradient-overlay"></div>
-
-            <!-- Bottom-Left: 0 to 100 Counter & Status -->
-            <div class="prisma-hero-counter-zone">
-                <div class="prisma-counter-row">
-                    <span class="prisma-counter-number" id="prismaCounterNumber">00</span>
-                    <span class="prisma-counter-percent">%</span>
-                </div>
-                <div class="prisma-counter-status">
-                    <span class="prisma-status-dot"></span>
-                    <span class="prisma-status-text" id="prismaStatusText">INITIALIZING KDMES SYSTEM...</span>
-                </div>
-                <div class="prisma-progress-track">
-                    <div class="prisma-progress-bar" id="prismaHeroProgressBar"></div>
-                </div>
-            </div>
-
-            <!-- Expanding Portal Rim on Laptop Screen -->
-            <div class="prisma-portal-rim" id="prismaPortalRim"></div>
-        </div>
-    </div>
-    <!-- Execute Prisma Hero Preloader immediately on frame 0 -->
-    <script src="{{ url_for('static', filename='js/prisma_hero.js') }}?v={{ version }}"></script>
-
     <!-- Mobile Top App Bar (Only visible on mobile screens <= 800px) -->
     <header id="mobileHeader" class="mobile-header" role="banner">
         <button type="button" class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Mở menu điều hướng" title="Mở menu">
@@ -273,22 +68,8 @@
 
     {% include "components/sidebar.html" %}
 
-    <!-- Global Loading Toast Indicator for Preloading SPA -->
-    <div id="spaPreloadBadge" class="spa-preload-badge toast-item toast-info" role="status" aria-live="polite">
-        <div class="toast-icon" id="spaPreloadIconContainer">
-            <div class="spa-preload-spinner" id="spaPreloadSpinner"></div>
-        </div>
-        <div class="toast-content">
-            <div class="toast-title" id="spaPreloadTitle">Đang tải KDMES Tool...</div>
-            <div class="toast-message" id="spaPreloadMessage">Đang tải các trang... (<span id="spaPreloadCounter">...</span>)</div>
-        </div>
-        <div class="spa-preload-progress-track">
-            <div class="spa-preload-progress-bar" id="spaPreloadProgressBar"></div>
-        </div>
-    </div>
-
     <main id="spaViewport" class="spa-viewport">
-        <!-- Preloaded Isolated Views (Active Route loads first, remaining 11 frames stagger-loaded in background) -->
+        <!-- Lazy-Loaded Isolated Views (Active Route loads immediately; sidebar views load on demand when clicked) -->
         <iframe id="view-main" class="spa-view-frame {% if initial_path == '/main' or not initial_path %}active{% endif %}" {% if initial_path == '/main' or not initial_path %}src="{{ url_for('main', frame='1') }}"{% else %}data-src="{{ url_for('main', frame='1') }}"{% endif %} title="Main"></iframe>
         <iframe id="view-scan-barcode-history" class="spa-view-frame {% if initial_path == '/scan-barcode-history' %}active{% endif %}" {% if initial_path == '/scan-barcode-history' %}src="{{ url_for('scan_barcode_history', frame='1') }}"{% else %}data-src="{{ url_for('scan_barcode_history', frame='1') }}"{% endif %} title="Lịch sử quét tem theo Máy"></iframe>
         <iframe id="view-print-barcode-history" class="spa-view-frame {% if initial_path == '/print-barcode-history' %}active{% endif %}" {% if initial_path == '/print-barcode-history' %}src="{{ url_for('print_barcode_history', frame='1') }}"{% else %}data-src="{{ url_for('print_barcode_history', frame='1') }}"{% endif %} title="Lịch sử in tem theo Máy"></iframe>
@@ -304,7 +85,6 @@
         <iframe id="view-postgres-deleted-data" class="spa-view-frame {% if initial_path == '/postgres-deleted-data' %}active{% endif %}" {% if initial_path == '/postgres-deleted-data' %}src="{{ url_for('postgres_deleted_data', frame='1') }}"{% else %}data-src="{{ url_for('postgres_deleted_data', frame='1') }}"{% endif %} title="Postgres Deleted Data"></iframe>
         <iframe id="view-create-kd-account" class="spa-view-frame {% if initial_path == '/create-kd-account' %}active{% endif %}" {% if initial_path == '/create-kd-account' %}src="{{ url_for('create_kd_account', frame='1') }}"{% else %}data-src="{{ url_for('create_kd_account', frame='1') }}"{% endif %} title="Tạo Tài Khoản"></iframe>
         <iframe id="view-check-kd-account" class="spa-view-frame {% if initial_path == '/check-kd-account' %}active{% endif %}" {% if initial_path == '/check-kd-account' %}src="{{ url_for('check_kd_account', frame='1') }}"{% else %}data-src="{{ url_for('check_kd_account', frame='1') }}"{% endif %} title="Kiểm Tra Tài Khoản"></iframe>
-        <iframe id="view-manual-data-insertion" class="spa-view-frame {% if initial_path == '/manual-data-insertion' %}active{% endif %}" {% if initial_path == '/manual-data-insertion' %}src="{{ url_for('manual_data_insertion', frame='1') }}"{% else %}data-src="{{ url_for('manual_data_insertion', frame='1') }}"{% endif %} title="Manual Data Insertion"></iframe>
         <iframe id="view-bypass" class="spa-view-frame {% if initial_path == '/bypass' %}active{% endif %}" {% if initial_path == '/bypass' %}src="{{ url_for('bypass', frame='1') }}"{% else %}data-src="{{ url_for('bypass', frame='1') }}"{% endif %} title="Bypass"></iframe>
         <iframe id="view-printer-setup" class="spa-view-frame {% if initial_path == '/printer-setup' %}active{% endif %}" {% if initial_path == '/printer-setup' %}src="{{ url_for('printer_setup', frame='1') }}"{% else %}data-src="{{ url_for('printer_setup', frame='1') }}"{% endif %} title="Printer Setup"></iframe>
         <iframe id="view-reprint-label-log" class="spa-view-frame {% if initial_path == '/reprint-label-log' %}active{% endif %}" {% if initial_path == '/reprint-label-log' %}src="{{ url_for('reprint_label_log', frame='1') }}"{% else %}data-src="{{ url_for('reprint_label_log', frame='1') }}"{% endif %} title="Reprint Label Log"></iframe>

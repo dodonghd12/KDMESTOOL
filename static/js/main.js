@@ -1080,28 +1080,15 @@ function initSkeletonState() {
         document.body.classList.remove('app-loading-state');
     };
 
-    // Remove loading state as soon as this frame's own DOM is ready
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
-        setTimeout(removeLoading, 150);
+        removeLoading();
     } else {
-        window.addEventListener('DOMContentLoaded', () => setTimeout(removeLoading, 150));
+        window.addEventListener('DOMContentLoaded', removeLoading);
         window.addEventListener('load', removeLoading);
     }
 
-    // Safety fallback timer: guarantee interactive state after max 800ms
-    setTimeout(removeLoading, 800);
-
-    // 1. Check if top window already marked all pages as loaded
-    try {
-        if (window.top && window.top.__kd_all_pages_loaded) {
-            removeLoading();
-            return;
-        }
-    } catch (e) {}
-
-    // 2. Listen for broadcast from spa_shell
     window.addEventListener('message', (e) => {
-        if (e.data && (e.data.type === 'SPA_ALL_PAGES_LOADED' || e.data.type === 'PRISMA_INTRO_FINISHED')) {
+        if (e.data && e.data.type === 'SPA_ALL_PAGES_LOADED') {
             removeLoading();
         }
     });
@@ -8646,6 +8633,50 @@ document.addEventListener('click', function (e) {
     }
 });
 
+// ===== ON-DEMAND SINGLETON VENDOR LOADER (SHARED VIA WINDOW.TOP) =====
+function loadVendorScriptOnce(globalName, srcPath, cacheKey) {
+    let host = window;
+    try {
+        if (window.top && window.top.document) {
+            host = window.top;
+        }
+    } catch (e) { /* fallback to local window if cross-origin */ }
+
+    if (host[globalName]) return Promise.resolve(host[globalName]);
+    if (window[globalName]) return Promise.resolve(window[globalName]);
+    if (host[cacheKey]) return host[cacheKey];
+
+    const promise = new Promise((resolve, reject) => {
+        const doc = host.document;
+        const script = doc.createElement('script');
+        script.src = srcPath;
+        script.async = true;
+        script.onload = () => {
+            if (host[globalName]) {
+                resolve(host[globalName]);
+            } else {
+                delete host[cacheKey];
+                reject(new Error(`Vendor ${globalName} failed to initialize`));
+            }
+        };
+        script.onerror = () => {
+            delete host[cacheKey];
+            reject(new Error(`Failed to load ${srcPath}`));
+        };
+        doc.head.appendChild(script);
+    });
+    host[cacheKey] = promise;
+    return promise;
+}
+
+window.ensureXlsxLoaded = function () {
+    return loadVendorScriptOnce('XLSX', '/static/vendor/xlsx/xlsx.full.min.js', '__kd_xlsx_promise');
+};
+
+window.ensureTesseractLoaded = function () {
+    return loadVendorScriptOnce('Tesseract', '/static/vendor/tesseract.min.js', '__kd_tesseract_promise');
+};
+
 /**
  * Xuất dữ liệu ra file Excel (.xlsx) chuẩn SheetJS
  * Hỗ trợ xuất toàn bộ trang (all pages / filtered pages) cho cả bảng phân trang và bảng thông thường
@@ -8658,7 +8689,8 @@ document.addEventListener('click', function (e) {
  * @param {string} options.sheetName - Tên sheet trong file Excel (mặc định 'Data')
  * @param {string} options.defaultFileName - Tên file tải về
  */
-function exportDatasetToExcel({ rows = null, columns = null, tableElement = null, sheetName = 'Data', defaultFileName = null }) {
+async function exportDatasetToExcel({ rows = null, columns = null, tableElement = null, sheetName = 'Data', defaultFileName = null }) {
+    const XLSX = await window.ensureXlsxLoaded();
     const hiddenColumns = ['diff', 'new_path', 'old_path', 'new_file', 'renamed_file', 'deleted_file', 'a_mode', 'b_mode', 'web_url'];
 
     // 1. Xác định danh sách cột hiển thị (Visible Headers)
@@ -8794,11 +8826,11 @@ async function handleExportExcel(button = null) {
     );
     if (!confirmed) return;
 
-    exportTableToExcel(rowsToExport, colsToExport, customFileName, customSheetName);
+    await exportTableToExcel(rowsToExport, colsToExport, customFileName, customSheetName);
     Toast.success('Thành công', `Xuất file Excel thành công (${totalCount.toLocaleString()} dòng)!`);
 }
 
-function exportTableToExcel(rows = null, columns = null, customFileName = null, customSheetName = null) {
+async function exportTableToExcel(rows = null, columns = null, customFileName = null, customSheetName = null) {
     const table = document.querySelector('.table-container table');
 
     let dataRows = rows;
@@ -8828,7 +8860,7 @@ function exportTableToExcel(rows = null, columns = null, customFileName = null, 
         }
     }
 
-    exportDatasetToExcel({
+    await exportDatasetToExcel({
         rows: dataRows,
         columns: dataCols,
         tableElement: table,
@@ -8858,11 +8890,11 @@ async function handleExportOutputBarcodeExcel(button = null) {
     );
     if (!confirmed) return;
 
-    exportOutputBarcodeToExcel();
+    await exportOutputBarcodeToExcel();
     Toast.success('Thành công', `Xuất file Excel thành công (${totalCount.toLocaleString()} dòng)!`);
 }
 
-function exportOutputBarcodeToExcel() {
+async function exportOutputBarcodeToExcel() {
     const table = document.getElementById('outputBarcodeTable');
     if (!table) return;
 
@@ -8870,7 +8902,7 @@ function exportOutputBarcodeToExcel() {
         ? filteredOutputBarcodeData
         : outputBarcodeRawData;
 
-    exportDatasetToExcel({
+    await exportDatasetToExcel({
         rows: dataRows,
         columns: outputBarcodeColumns,
         tableElement: table,
@@ -8895,7 +8927,7 @@ async function handleExportScanInStationExcel() {
     );
     if (!confirmed) return;
 
-    exportDatasetToExcel({
+    await exportDatasetToExcel({
         rows: dataRows,
         columns: scanInStationColumns,
         tableElement: table,
@@ -8926,11 +8958,11 @@ async function handleExportSubOutputBarcodeExcel(button = null) {
     );
     if (!confirmed) return;
 
-    exportSubOutputBarcodeToExcel();
+    await exportSubOutputBarcodeToExcel();
     Toast.success('Thành công', `Xuất file Excel thành công (${totalCount.toLocaleString()} dòng)!`);
 }
 
-function exportSubOutputBarcodeToExcel() {
+async function exportSubOutputBarcodeToExcel() {
     const table = document.getElementById('subOutputBarcodeTable');
     if (!table) return;
 
@@ -8938,7 +8970,7 @@ function exportSubOutputBarcodeToExcel() {
         ? filteredSubOutputBarcodeData
         : subOutputRawData;
 
-    exportDatasetToExcel({
+    await exportDatasetToExcel({
         rows: dataRows,
         columns: subOutputColumns,
         tableElement: table,
@@ -9517,24 +9549,29 @@ async function processOcrImageFile(file, targetInput = null) {
         }
 
         // Stage 3: Fallback client-side Tesseract nếu Server không phản hồi
-        if (!rawText && typeof Tesseract !== 'undefined') {
-            if (statusEl) statusEl.textContent = 'Quét bổ trợ (Tesseract)...';
-            const result = await Tesseract.recognize(file, 'eng', {
-                logger: m => {
-                    if (m.status === 'recognizing text' && m.progress !== undefined) {
-                        const pct = Math.min(95, Math.round(m.progress * 100));
-                        if (pctEl) pctEl.textContent = `${pct}%`;
-                        if (barEl) barEl.style.width = `${pct}%`;
+        if (!rawText) {
+            try {
+                const TesseractLib = await window.ensureTesseractLoaded();
+                if (statusEl) statusEl.textContent = 'Quét bổ trợ (Tesseract)...';
+                const result = await TesseractLib.recognize(file, 'eng', {
+                    logger: m => {
+                        if (m.status === 'recognizing text' && m.progress !== undefined) {
+                            const pct = Math.min(95, Math.round(m.progress * 100));
+                            if (pctEl) pctEl.textContent = `${pct}%`;
+                            if (barEl) barEl.style.width = `${pct}%`;
+                        }
+                    }
+                });
+                if (result && result.data && result.data.text) {
+                    // Lọc bỏ dòng nhiễu do sọc barcode
+                    const lines = result.data.text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                    if (lines.length > 0) {
+                        const sorted = lines.slice().sort((a, b) => b.replace(/[^A-Za-z0-9]/g, '').length - a.replace(/[^A-Za-z0-9]/g, '').length);
+                        rawText = sorted[0] || lines.join(' ');
                     }
                 }
-            });
-            if (result && result.data && result.data.text) {
-                // Lọc bỏ dòng nhiễu do sọc barcode
-                const lines = result.data.text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-                if (lines.length > 0) {
-                    const sorted = lines.slice().sort((a, b) => b.replace(/[^A-Za-z0-9]/g, '').length - a.replace(/[^A-Za-z0-9]/g, '').length);
-                    rawText = sorted[0] || lines.join(' ');
-                }
+            } catch (tessErr) {
+                console.warn('[OCR] Client-side Tesseract fallback failed:', tessErr);
             }
         }
 

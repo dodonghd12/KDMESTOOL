@@ -427,7 +427,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.updateSidebarActiveIndicator = updateSidebarActiveIndicator;
 
     (function highlightActiveSidebarItem() {
-        const currentPath = window.location.pathname.replace(/\/+$/, '');
+        const currentPath = window.location.pathname.replace(/\/+$/, '') || '/main';
 
         const sidebarLinks = document.querySelectorAll('#sidebar a[href]');
         let activeSubMenu = null;

@@ -220,8 +220,9 @@
     }
 
     // ── 2. EXCEL TEMPLATE DOWNLOAD ───────────────────────────────────────────────
-    function downloadAccountTemplate() {
+    async function downloadAccountTemplate() {
         try {
+            const XLSX = await window.ensureXlsxLoaded();
             const wb = XLSX.utils.book_new();
             const wsData = [
                 ['accounts', 'department'],
@@ -401,8 +402,9 @@
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
 
-            reader.onload = (e) => {
+            reader.onload = async (e) => {
                 try {
+                    const XLSX = await window.ensureXlsxLoaded();
                     const data = new Uint8Array(e.target.result);
                     const workbook = XLSX.read(data, { type: 'array' });
                     if (!workbook.SheetNames || !workbook.SheetNames.length) {
@@ -854,6 +856,7 @@
         if (!confirmed) return;
 
         try {
+            const XLSX = await window.ensureXlsxLoaded();
             const wsData = [
                 ['STT', 'Tên Tài Khoản', 'Bộ Phận', 'Phân Quyền (Roles)', 'Trạng Thái', 'Chi Tiết Ghi Chú', 'Thời Gian']
             ];

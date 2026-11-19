@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Site Reset Recovery | Khôi phục Quantity Tem</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/google-fonts/google-fonts.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v={{ version }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/smooth_input.css') }}?v={{ version }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bypass.css') }}?v={{ version }}">
@@ -13,7 +14,6 @@
     <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/kd_favicon.png') }}">
 
-    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome/css/all.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/flatpickr/flatpickr.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/material-symbols/material-symbols.css') }}">
 
@@ -475,7 +475,7 @@
 
     {% include "components/shared_modals.html" %}
 
-    <script src="{{ url_for('static', filename='vendor/flatpickr/flatpickr.min.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='vendor/flatpickr/flatpickr.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/smooth_input.js') }}?v={{ version }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}?v={{ version }}"></script>
     <script src="{{ url_for('static', filename='js/sidebar.js') }}?v={{ version }}"></script>
