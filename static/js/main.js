@@ -3566,13 +3566,11 @@ window.closeScanInStationWindow = closeScanInStationWindow;
 
 function openScanInStationWindow(materialOid, rows, columns) {
     const container = document.getElementById('scanInStationContainer');
-    if (!container || !Array.isArray(rows) || rows.length === 0) {
-        closeScanInStationWindow();
-        return;
-    }
-    scanInStationRawData = rows;
+    if (!container) return;
+    const safeRows = Array.isArray(rows) ? rows : [];
+    scanInStationRawData = safeRows;
     scanInStationColumns = columns || [];
-    filteredScanInStationData = rows;
+    filteredScanInStationData = safeRows;
     const headerEl = document.getElementById('scanInStationHeaderContent');
     if (headerEl) {
         headerEl.textContent = `Thông tin nạp tem lên máy (${materialOid})`;
@@ -3650,11 +3648,11 @@ async function showFeedRecords(rowData = null) {
             outputHeaderContentEl.textContent = `Kiểm tra tiêu thụ (${material_oid}) - Sum Consumption: ${sumConsumption}`;
         }
 
-        // Thứ tự 1: Output barcode cho scan-in-station (chỉ hiển thị nếu đang gắn tại trạm/máy, rỗng thì ẩn hoàn toàn)
+        // Thứ tự 1: Output barcode cho scan-in-station (rỗng thì hiển thị table-empty-state)
         const scanData = (data && data.scan_in_station) ? data.scan_in_station : null;
         const hasScanInStation = !!(scanData && Array.isArray(scanData.result) && scanData.result.length > 0);
-        if (hasScanInStation) {
-            openScanInStationWindow(material_oid, scanData.result, scanData.columns || []);
+        if (data && data.success && scanData) {
+            openScanInStationWindow(material_oid, scanData.result || [], scanData.columns || []);
         } else {
             closeScanInStationWindow();
         }
