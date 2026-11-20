@@ -1168,7 +1168,7 @@ body.theme-light .flatpickr-day.today.inRange {
     height: 100vh;
     max-height: 100vh;
     margin: 0;
-    padding: 16px 20px;
+    padding: 16px;
     box-sizing: border-box;
     overflow: hidden;
     background: transparent;
@@ -2699,7 +2699,7 @@ body.theme-light .empty-state-icon-wrapper::after {
     -webkit-backdrop-filter: blur(28px);
     border: 1.5px solid var(--color-border-interactive);
     border-radius: 20px;
-    padding: 32px 28px 26px;
+    padding: 24px;
     max-width: 440px;
     width: min(440px, 92vw);
     box-shadow: var(--color-shadow-glass), var(--color-border-glow);
@@ -2988,12 +2988,11 @@ body.theme-light .empty-state-icon-wrapper::after {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 6px 14px;
+    padding: 16px;
     border-bottom: 1px solid #1E293B;
     background: #1E293B;
     border-radius: 14px 14px 0 0;
     flex-shrink: 0;
-    min-height: 42px;
     box-sizing: border-box;
 }
 
@@ -3179,7 +3178,7 @@ body.theme-light .empty-state-icon-wrapper::after {
 
 /* ── BODY & CODE CONTAINER ── */
 .details-modal-body-wrapper {
-    padding: 16px 20px 20px 20px;
+    padding: 16px;
     flex: 1;
     min-height: 0;
     overflow: hidden;
@@ -3192,7 +3191,7 @@ body.theme-light .empty-state-icon-wrapper::after {
     background: #0A0E1A;
     border: 1px solid #1E293B;
     border-radius: 12px;
-    padding: 18px 20px;
+    padding: 16px;
     margin: 0;
     color: #F8FAFC;
     font-family: var(--font-mono);
@@ -4899,19 +4898,19 @@ a.pipeline-status-dot:hover {
 }
 
 .modal-header {
-    padding: 16px 20px;
+    padding: 16px;
     font-size: var(--font-size-lg);
     font-weight: 600;
     border-bottom: 1px solid var(--color-border-subtle);
 }
 
 .modal-body {
-    padding: 20px;
+    padding: 16px;
     line-height: 1.6;
 }
 
 .modal-footer {
-    padding: 16px 20px;
+    padding: 16px;
     text-align: right;
     border-top: 1px solid var(--color-border-subtle);
 }
@@ -5391,8 +5390,7 @@ a.yaml-path-badge:hover .yaml-link-open-icon {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 20px;
-    min-height: 48px;
+    padding: 16px;
     box-sizing: border-box;
     border-bottom: 1px solid rgba(61, 213, 192, 0.25);
     background: var(--color-bg-canvas, #0A0E1A);
@@ -6153,8 +6151,7 @@ body.theme-light .comparison-table th {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 20px;
-    min-height: 48px;
+    padding: 16px;
     box-sizing: border-box;
     border-top: 1px solid var(--color-border-glass);
     background: var(--color-bg-surface-elevated);
@@ -6294,7 +6291,7 @@ body.theme-light .comparison-table th {
     border: 1px solid var(--color-border-glass);
     border-radius: 14px;
     box-shadow: var(--color-shadow-glass), var(--color-border-glow);
-    padding: 18px 22px;
+    padding: 20px;
     width: 100%;
     box-sizing: border-box;
     transition: border-color 0.3s ease, box-shadow 0.3s ease;
@@ -6900,8 +6897,21 @@ body.theme-light .winx-btn-primary:hover:not(:disabled) {
 }
 
 #btnLoad,
-#btnLoad:hover:not(:disabled) {
+#btnLoad:hover:not(:disabled),
+#btnRefreshLogs,
+#btnRefreshLogs:hover:not(:disabled) {
     color: #ffffff;
+}
+
+#btnRefreshLogs {
+    height: 44px;
+    padding: 0 24px;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    border-radius: 10px;
+    flex-shrink: 0;
+    box-sizing: border-box;
 }
 
 .winx-btn-ghost {
@@ -7166,7 +7176,7 @@ body.theme-light .winx-btn-primary:hover:not(:disabled) {
 .winx-modal-lg  { min-width: 720px; max-width: 960px; width: 92vw; }
 
 .winx-modal-header {
-    padding: 16px 22px;
+    padding: 16px;
     border-bottom: 1px solid var(--color-border-glass);
     display: flex;
     align-items: center;
@@ -7240,7 +7250,7 @@ body.theme-light .winx-btn-primary:hover:not(:disabled) {
 }
 
 .winx-modal-body {
-    padding: 20px 22px;
+    padding: 16px;
 }
 
 .winx-confirm-msg {
@@ -7264,7 +7274,7 @@ body.theme-light .winx-btn-primary:hover:not(:disabled) {
 }
 
 .winx-modal-footer {
-    padding: 14px 22px;
+    padding: 16px;
     border-top: 1px solid var(--color-border-glass);
     background: var(--color-bg-surface-elevated);
     display: flex;
@@ -7458,7 +7468,7 @@ body.theme-light .winx-btn-primary:hover:not(:disabled) {
     border: 1px solid var(--color-border-glass);
     border-radius: 14px;
     box-shadow: var(--color-shadow-glass), var(--color-border-glow);
-    padding: 18px 22px;
+    padding: 20px;
     width: 100%;
     box-sizing: border-box;
     transition: border-color 0.3s ease, box-shadow 0.3s ease;
@@ -8543,7 +8553,7 @@ body.is-spa-frame .container {
     height: 100vh !important;
     max-height: 100vh !important;
     margin: 0 !important;
-    padding: 16px 20px !important;
+    padding: 16px !important;
     box-sizing: border-box !important;
     overflow: hidden !important;
     display: flex !important;
@@ -8874,8 +8884,8 @@ body.theme-light .ocr-dropzone {
     overflow: hidden !important;
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    padding: 12px 18px 16px 18px;
+    gap: 12px;
+    padding: 16px;
     flex: 1;
     min-height: 0;
     background: #0A0E1A !important;
@@ -8888,7 +8898,7 @@ body.theme-light .ocr-dropzone {
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
-    padding: 8px 12px;
+    padding: 12px;
     background: #111827 !important;
     border: 1px solid #1E293B !important;
     border-radius: 8px;
@@ -9080,7 +9090,7 @@ body.theme-light .ocr-dropzone {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 14px;
+    padding: 12px;
     background: #1E293B !important;
     border-bottom: 1px solid #1E293B !important;
     gap: 12px;
@@ -9179,7 +9189,7 @@ body.theme-light .ocr-dropzone {
 }
 
 .actions-card-body {
-    padding: 12px 14px;
+    padding: 12px;
     background: #111827 !important;
 }
 
@@ -9206,7 +9216,7 @@ body.theme-light .ocr-dropzone {
     background: #0A0E1A !important;
     border: 1px solid #1E293B !important;
     border-radius: 8px;
-    padding: 9px 12px;
+    padding: 12px;
     display: flex;
     flex-direction: column;
     gap: 6px;
@@ -9316,7 +9326,7 @@ body.theme-light .ocr-dropzone {
     border: 1px solid #1E293B !important;
     border-radius: 12px;
     overflow: hidden;
-    margin-top: 2px;
+    margin-top: 0;
     display: flex;
     flex-direction: column;
     flex: 1;
@@ -9325,7 +9335,7 @@ body.theme-light .ocr-dropzone {
 
 .diff-section-header {
     flex-shrink: 0;
-    padding: 9px 14px;
+    padding: 12px;
     background: #1E293B !important;
     border-bottom: 1px solid #1E293B !important;
     display: flex;
@@ -9455,23 +9465,26 @@ body.theme-light .ocr-dropzone {
     color: rgba(248, 250, 252, 0.78) !important;
 }
 
-.actions-diff-viewer .diff-line-target {
-    background: #0d2322 !important;
-    border-left: 3px solid #3DD5C0 !important;
-    color: #3DD5C0 !important;
+.actions-diff-viewer .diff-line.diff-line-target {
+    background: #33250b !important;
+    border-left: 3px solid #fbbf24 !important;
+    border-top: 1px solid rgba(251, 191, 36, 0.38) !important;
+    border-bottom: 1px solid rgba(251, 191, 36, 0.38) !important;
+    color: #fef08a !important;
     font-weight: 700;
 }
 
 .diff-target-badge {
     font-size: 9.5px;
     font-weight: 800;
-    padding: 1px 5px;
+    padding: 1px 6px;
     border-radius: 4px;
-    background: #3DD5C0;
+    background: #fbbf24;
     color: #0A0E1A;
     margin-left: 8px;
     user-select: none;
     letter-spacing: 0.5px;
+    flex-shrink: 0;
 }
 
 /* GitLab-style Folded Lines */
@@ -9649,7 +9662,7 @@ body.theme-light .ocr-dropzone {
 .actions-syntax-banner {
     border-radius: 10px;
     overflow: hidden;
-    margin: 4px 0 2px 0;
+    margin: 0;
     border: 1px solid transparent;
     flex-shrink: 0;
 }
@@ -9698,7 +9711,7 @@ body.theme-light .ocr-dropzone {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 14px;
+    padding: 12px;
     gap: 10px;
 }
 
@@ -9822,8 +9835,8 @@ body.theme-light .ocr-dropzone {
     .details-modal-body-wrapper.has-actions-commit {
         overflow-y: auto !important;
         -webkit-overflow-scrolling: touch;
-        padding: 10px 10px 16px 10px !important;
-        gap: 8px !important;
+        padding: 12px !important;
+        gap: 10px !important;
         display: flex !important;
         flex-direction: column !important;
         background: #0A0E1A !important;
@@ -9837,7 +9850,7 @@ body.theme-light .ocr-dropzone {
     }
 
     .yaml-toolbar {
-        padding: 6px 10px !important;
+        padding: 10px !important;
         flex-wrap: wrap !important;
         gap: 6px !important;
         background: #111827 !important;
@@ -9859,7 +9872,7 @@ body.theme-light .ocr-dropzone {
     }
 
     .actions-version-tabs-bar {
-        padding: 6px 8px !important;
+        padding: 10px !important;
         gap: 6px !important;
         background: #111827 !important;
         border: 1px solid #1E293B !important;
@@ -9872,7 +9885,7 @@ body.theme-light .ocr-dropzone {
     }
 
     .actions-card-body {
-        padding: 8px 10px !important;
+        padding: 10px !important;
         background: #111827 !important;
     }
 
@@ -9883,7 +9896,7 @@ body.theme-light .ocr-dropzone {
     }
 
     .actions-meta-cell {
-        padding: 6px 8px !important;
+        padding: 10px !important;
         gap: 3px !important;
         background: #0A0E1A !important;
         border: 1px solid #1E293B !important;
@@ -9903,11 +9916,11 @@ body.theme-light .ocr-dropzone {
     }
 
     .actions-syntax-banner {
-        margin: 2px 0 !important;
+        margin: 0 !important;
     }
 
     .syntax-banner-header {
-        padding: 6px 10px !important;
+        padding: 10px !important;
         background: #111827 !important;
     }
 
@@ -9916,7 +9929,7 @@ body.theme-light .ocr-dropzone {
     }
 
     .diff-section-header {
-        padding: 6px 10px !important;
+        padding: 10px !important;
         background: #1E293B !important;
         border-bottom: 1px solid #1E293B !important;
     }
@@ -9969,7 +9982,7 @@ body.theme-light .ocr-dropzone {
     border: 1px solid #1E293B;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.85);
     border-radius: 16px;
-    padding: 36px 32px;
+    padding: 32px;
     width: 100%;
     max-width: 440px;
     text-align: center;
@@ -10221,7 +10234,7 @@ body.theme-light .ocr-dropzone {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px 18px;
+    padding: 16px;
     border-bottom: 1px solid var(--color-border-glass);
     background: var(--color-bg-surface-elevated);
     border-radius: 14px 14px 0 0;
@@ -10885,7 +10898,7 @@ body.theme-light .material-transfer-retry-btn.is-success {
         height: 100% !important;
         height: 100dvh !important;
         max-height: 100dvh !important;
-        padding: 8px 10px max(10px, env(safe-area-inset-bottom, 10px)) 10px !important;
+        padding: 10px 10px max(10px, env(safe-area-inset-bottom, 10px)) 10px !important;
         gap: 8px !important;
         box-sizing: border-box !important;
         overflow: hidden !important;
@@ -11327,8 +11340,8 @@ body.theme-light .material-transfer-retry-btn.is-success {
     /* Hàng 2 */
     .bypass-controls-row .bypass-meta-badge {
         order: 3 !important;
-        flex: 1 1 calc(100% - 46px) !important;
-        width: calc(100% - 46px) !important;
+        flex: 1 1 0% !important;
+        width: auto !important;
         height: 38px !important;
         font-size: 12px !important;
         padding: 0 8px !important;
@@ -11353,12 +11366,14 @@ body.theme-light .material-transfer-retry-btn.is-success {
         margin-left: auto !important;
     }
 
+    .bypass-controls-row #btnRefreshLogs,
     .bypass-controls-row .btn-refresh-compact {
         order: 4 !important;
-        flex: 0 0 38px !important;
-        width: 38px !important;
+        flex: 0 0 auto !important;
+        width: auto !important;
         height: 38px !important;
-        padding: 0 !important;
+        padding: 0 14px !important;
+        font-size: 13px !important;
         justify-content: center !important;
         border-radius: 8px !important;
     }
@@ -11379,27 +11394,30 @@ body.theme-light .material-transfer-retry-btn.is-success {
     }
 
     .static-server-badge {
-        flex: 1 1 auto !important;
-        height: 34px !important;
-        font-size: 11px !important;
-        padding: 0 6px !important;
-        gap: 4px !important;
+        flex: 1 1 0% !important;
+        height: 38px !important;
+        font-size: 12px !important;
+        padding: 0 10px !important;
+        gap: 6px !important;
         min-width: 0 !important;
     }
 
     .static-server-badge #currentServerLabel {
-        font-size: 11px !important;
+        font-size: 12px !important;
         white-space: nowrap !important;
         overflow: hidden !important;
         text-overflow: ellipsis !important;
     }
 
+    .printer-setup-controls-row #btnRefreshLogs,
     .printer-setup-controls-row .btn-refresh-compact {
-        flex: 0 0 34px !important;
-        width: 34px !important;
-        height: 34px !important;
-        padding: 0 !important;
+        flex: 0 0 auto !important;
+        width: auto !important;
+        height: 38px !important;
+        padding: 0 14px !important;
+        font-size: 13px !important;
         justify-content: center !important;
+        border-radius: 8px !important;
     }
 
     /* Printer Setup controls row */
@@ -11480,7 +11498,7 @@ body.theme-light .material-transfer-retry-btn.is-success {
     }
 
     .account-card {
-        padding: 14px 14px 16px 14px !important;
+        padding: 16px !important;
         border-radius: 14px !important;
         width: 100% !important;
         min-width: 0 !important;
@@ -12507,7 +12525,7 @@ body.theme-light .material-transfer-retry-btn.is-success {
     }
 
     .details-modal-header {
-        padding: 8px 12px !important;
+        padding: 12px !important;
         min-height: 48px !important;
     }
 
@@ -12560,13 +12578,13 @@ body.theme-light .material-transfer-retry-btn.is-success {
 
     .details-modal-body {
         font-size: 12px !important;
-        padding: 10px !important;
+        padding: 12px !important;
     }
 
     .custom-modal-content {
         width: 92% !important;
         max-width: 92% !important;
-        padding: 20px 16px !important;
+        padding: 16px !important;
         border-radius: 14px !important;
     }
 
@@ -12580,7 +12598,7 @@ body.theme-light .material-transfer-retry-btn.is-success {
     }
 
     .comparison-modal-header {
-        padding: 8px 12px !important;
+        padding: 12px !important;
         min-height: auto !important;
         display: grid !important;
         grid-template-columns: 1fr auto !important;
@@ -12730,7 +12748,7 @@ body.theme-light .material-transfer-retry-btn.is-success {
     }
 
     .comparison-modal-footer {
-        padding: 6px 12px !important;
+        padding: 12px !important;
         min-height: auto !important;
         display: flex !important;
         flex-direction: row !important;
@@ -13395,7 +13413,7 @@ body.theme-light .material-transfer-retry-btn.is-success {
 /* ===== REPRINT LABEL LOG & LOAD BUTTON SPIN STYLES ===== */
 .reprint-label-log-spin,
 .btn-load-spin {
-    animation: spin 1s linear infinite !important;
+    animation: spin 1s linear infinite reverse !important;
     display: inline-block !important;
 }
 @keyframes ttSpin {
@@ -13507,50 +13525,82 @@ body.theme-light .material-transfer-retry-btn.is-success {
 
 /* ===== CHECK KD ACCOUNT BUTTON STYLES ===== */
 .btn-undo-account {
-    height: 23px;
-    padding: 0 10px;
-    font-size: 11.5px;
-    font-weight: 600;
-    border-radius: 5px;
-    border: 1px solid rgba(244, 63, 94, 0.5);
-    background: #e11d48;
-    color: #fda4af;
+    width: 108px !important;
+    min-width: 108px !important;
+    height: 38px !important;
+    padding: 0 12px !important;
+    justify-content: center !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    box-sizing: border-box !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.3px;
+    border-radius: 8px !important;
+    border: 1px solid rgba(244, 63, 94, 0.55) !important;
+    background: #e11d48 !important;
+    color: #ffffff !important;
     cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     align-items: center;
-    gap: 4px;
-    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.25);
+    gap: 6px;
+    box-shadow: 0 2px 10px rgba(225, 29, 72, 0.25);
 }
 
 .btn-undo-account:hover:not(:disabled) {
-    background: #e11d48;
-    color: #ffffff;
-    box-shadow: 0 4px 10px rgba(239, 68, 68, 0.35);
+    background: #be123c !important;
+    border-color: rgba(244, 63, 94, 0.8) !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 14px rgba(225, 29, 72, 0.38) !important;
+    transform: translateY(-1px);
+}
+
+.btn-undo-account:disabled {
+    opacity: 0.45 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+    box-shadow: none !important;
 }
 
 .btn-save-account {
-    height: 23px;
-    padding: 0 12px;
-    font-size: 11.5px;
-    font-weight: 700;
-    border-radius: 5px;
-    border: 1px solid rgba(16, 185, 129, 0.5);
-    background: #111827;
-    color: #6ee7b7;
+    width: 215px !important;
+    min-width: 215px !important;
+    height: 38px !important;
+    padding: 0 14px !important;
+    justify-content: center !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    box-sizing: border-box !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.4px;
+    border-radius: 8px !important;
+    border: 1px solid rgba(16, 185, 129, 0.5) !important;
+    background: #059669 !important;
+    color: #ffffff !important;
     cursor: pointer;
     position: relative;
     overflow: hidden;
     user-select: none;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     align-items: center;
-    gap: 4px;
-    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.25);
+    gap: 6px;
+    box-shadow: 0 2px 10px rgba(5, 150, 105, 0.28);
 }
 
 .btn-save-account:hover:not(:disabled) {
-    background: #3DD5C0;
-    color: #ffffff;
-    box-shadow: 0 4px 10px rgba(16, 185, 129, 0.35);
+    background: #047857 !important;
+    border-color: rgba(16, 185, 129, 0.7) !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.38) !important;
+    transform: translateY(-1px);
+}
+
+.btn-save-account:disabled {
+    opacity: 0.45 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+    box-shadow: none !important;
 }
 
 .btn-save-account .save-progress-bar {
@@ -13559,8 +13609,9 @@ body.theme-light .material-transfer-retry-btn.is-success {
     top: 0;
     bottom: 0;
     width: 0%;
-    background: rgba(16, 185, 129, 0.55);
+    background: rgba(255, 255, 255, 0.32);
     pointer-events: none;
+    z-index: 1;
     transition: width 0.05s linear;
 }
 
@@ -14029,7 +14080,7 @@ body.is-spa-frame .kd-fab-container {
 .kd-tabs-container {
     width: 100% !important;
     box-sizing: border-box !important;
-    padding: 6px 14px 0 16px !important;
+    padding: 12px 16px 0 16px !important;
     background: #1E293B !important;
     border-bottom: 1px solid #1E293B !important;
     display: flex !important;
@@ -14064,7 +14115,7 @@ body.is-spa-frame .kd-fab-container {
     cursor: pointer !important;
     flex-shrink: 0 !important;
     margin-left: 12px !important;
-    margin-bottom: 6px !important;
+    margin-bottom: 12px !important;
     transition: all 0.18s ease !important;
 }
 
@@ -14133,7 +14184,7 @@ body.is-spa-frame .kd-fab-container {
     flex: 1 1 auto !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
-    padding: 22px 24px !important;
+    padding: 16px !important;
     scrollbar-width: thin !important;
     scrollbar-color: rgba(61, 213, 192, 0.28) transparent !important;
 }
@@ -14265,7 +14316,7 @@ body.is-spa-frame .kd-fab-container {
     background: rgba(30, 41, 59, 0.45) !important;
     border: 1px solid var(--color-border-glass, rgba(255, 255, 255, 0.08)) !important;
     border-radius: 12px !important;
-    padding: 16px 18px !important;
+    padding: 16px !important;
     display: flex !important;
     flex-direction: column !important;
     gap: 12px !important;

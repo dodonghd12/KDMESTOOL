@@ -200,6 +200,11 @@
      * Tải trạng thái máy chủ và danh sách log
      */
     async function fetchStatusAndLogs(showToast = false, isSwitchingServer = false, forceRefresh = false) {
+        const refreshBtn = document.getElementById('btnRefreshLogs');
+        const refreshIcon = document.getElementById('btnRefreshLogsIcon');
+        if (refreshBtn) refreshBtn.disabled = true;
+        if (refreshIcon) refreshIcon.classList.add('btn-load-spin');
+
         if (showToast) {
             showStepBadge(`Đang làm mới dữ liệu (${currentServer})...`, 'sync', 'progress');
         } else if (isSwitchingServer) {
@@ -265,14 +270,15 @@
                 }
             }
         } finally {
+            if (refreshBtn) refreshBtn.disabled = false;
+            if (refreshIcon) refreshIcon.classList.remove('btn-load-spin');
             ensureClientSearchEnabled();
         }
     }
 
     /**
      * Cập nhật giao diện Trạng thái & Button
-     * - Trạng thái: Strict Mode -> Button: Kích hoạt
-     * - Trạng thái: Hắc ám -> Button: Ngưng kích hoạt
+     * - Trạng thái: Strict Mode / Hắc ám (Button mặc định hiển thị "Execute")
      */
     function updateStatusUI(isActive) {
         const btn = document.getElementById('btnBypassToggle') || document.getElementById('btnDarkMagicToggle');
@@ -282,12 +288,9 @@
 
         if (btn) {
             btn.classList.remove('is-active', 'is-inactive', 'is-loading');
-            if (isActive) {
-                btn.classList.add('is-active');
-                if (btnText) btnText.textContent = 'Ngưng kích hoạt';
-            } else {
-                btn.classList.add('is-inactive');
-                if (btnText) btnText.textContent = 'Kích hoạt';
+            btn.classList.add(isActive ? 'is-active' : 'is-inactive');
+            if (btnText && !holdStartTime && !isLoading) {
+                btnText.textContent = 'Execute';
             }
         }
 
@@ -360,6 +363,7 @@
     function initBypassHoldButton() {
         const btn = document.getElementById('btnBypassToggle') || document.getElementById('btnDarkMagicToggle');
         const progressBar = document.getElementById('bypassHoldProgressBar');
+        const btnText = document.getElementById('bypassBtnText') || document.getElementById('darkMagicBtnText');
         if (!btn || !progressBar) return;
 
         function startHold(e) {
@@ -368,6 +372,7 @@
             e.preventDefault();
 
             holdStartTime = performance.now();
+            if (btnText) btnText.textContent = 'On Hold for Execution';
 
             function updateProgress(now) {
                 const elapsed = now - holdStartTime;
@@ -375,7 +380,7 @@
                 progressBar.style.width = `${pct}%`;
 
                 if (elapsed >= HOLD_DURATION_MS) {
-                    cancelHold();
+                    cancelHold(false, true);
                     executeToggleBypass();
                 } else {
                     holdAnimFrame = requestAnimationFrame(updateProgress);
@@ -385,7 +390,7 @@
             holdAnimFrame = requestAnimationFrame(updateProgress);
         }
 
-        function cancelHold(showShortToast = false) {
+        function cancelHold(showShortToast = false, completed = false) {
             const wasHolding = Boolean(holdStartTime);
             if (holdAnimFrame) {
                 cancelAnimationFrame(holdAnimFrame);
@@ -393,6 +398,9 @@
             }
             holdStartTime = null;
             if (progressBar) progressBar.style.width = '0%';
+            if (btnText && !completed && !isLoading) {
+                btnText.textContent = 'Execute';
+            }
             if (showShortToast && wasHolding && typeof Toast !== 'undefined') {
                 Toast.info('Chưa đủ 3 giây', 'Vui lòng nhấn và giữ nút đủ 3 giây để thực hiện.');
             }
@@ -529,12 +537,12 @@
             if (loading) {
                 btn.classList.add('is-loading');
                 if (btnText) {
-                    btnText.textContent = (targetAction === 'activate') ? 'Đang kích hoạt...' : 'Đang xử lý...';
+                    btnText.textContent = 'Executing...';
                 }
             } else {
                 btn.classList.remove('is-loading');
                 if (btnText) {
-                    btnText.textContent = isBypassActive ? 'Ngưng kích hoạt' : 'Kích hoạt';
+                    btnText.textContent = 'Execute';
                 }
             }
         }

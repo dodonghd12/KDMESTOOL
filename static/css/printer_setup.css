@@ -15,7 +15,7 @@
     flex-wrap: wrap;
     width: 100%;
     flex-shrink: 0;
-    padding: 2px 0 0 0;
+    padding: 0;
 }
 
 .printer-setup-hero-right {
@@ -27,15 +27,16 @@
 }
 
 .printer-setup-search-wrapper {
-    width: 200px !important;
-    min-width: 160px !important;
-    max-width: 240px !important;
+    width: 240px !important;
+    min-width: 220px !important;
+    max-width: 280px !important;
     flex: 0 0 auto !important;
 }
 
 .printer-setup-search-wrapper .input {
-    height: 40px;
-    font-size: 13px;
+    height: 44px;
+    font-size: 14px;
+    padding: 0 16px;
     cursor: text !important;
     opacity: 1 !important;
     pointer-events: auto !important;
@@ -62,11 +63,11 @@
     position: relative;
     display: inline-flex;
     align-items: center;
-    height: 40px;
-    padding: 0 34px 0 12px;
-    min-width: 220px;
-    border-radius: 8px;
-    font-size: 13.5px;
+    height: 44px;
+    padding: 0 38px 0 16px;
+    min-width: 310px;
+    border-radius: 12px;
+    font-size: 14px;
     font-weight: 600;
     background: rgba(15, 23, 42, 0.7);
     border: 1px solid var(--color-border-subtle);
@@ -75,6 +76,7 @@
     transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
     user-select: none;
+    box-sizing: border-box;
 }
 
 .folder-dropdown-wrapper:hover {
@@ -93,9 +95,9 @@
 }
 
 .folder-dropdown-wrapper .folder-icon {
-    font-size: 18px;
+    font-size: 20px;
     color: #38bdf8;
-    margin-right: 8px;
+    margin-right: 10px;
     pointer-events: none;
     flex-shrink: 0;
 }
@@ -105,7 +107,7 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-size: 13.5px;
+    font-size: 14px;
     font-weight: 600;
     color: var(--color-text-primary);
     pointer-events: none;
@@ -541,7 +543,9 @@
 /* Static Server Badge (No toggle button) */
 .static-server-badge {
     cursor: default !important;
-    padding: 0 14px !important;
+    height: 44px;
+    min-width: 195px !important;
+    padding: 0 18px !important;
     user-select: none;
 }
 
@@ -557,8 +561,8 @@
     align-items: center;
     justify-content: flex-start;
     gap: 10px;
-    padding: var(--table-footer-py, 4px) var(--table-footer-px, 14px) !important;
-    min-height: 32px;
+    padding: 8px 16px !important;
+    min-height: 54px;
     box-sizing: border-box;
 }
 
@@ -925,7 +929,9 @@ body.theme-light .btn-remove-station:hover {
 .printer-floating-dropdown {
     position: fixed;
     z-index: 99999;
-    width: 260px;
+    width: max-content;
+    min-width: 260px;
+    max-width: calc(100vw - 24px);
     max-height: 320px;
     background: rgba(15, 23, 42, 0.96);
     backdrop-filter: blur(16px);
@@ -939,16 +945,22 @@ body.theme-light .btn-remove-station:hover {
     animation: akDropdownFadeIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.printer-floating-dropdown .floating-dropdown-list {
+    width: 100%;
+    box-sizing: border-box;
+    scrollbar-gutter: stable;
+}
+
 .printer-dropdown-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 5px 10px;
+    padding: 6px 12px;
     font-family: var(--font-mono, monospace);
     font-size: 11.5px;
     color: var(--color-text-primary);
     cursor: pointer;
-    gap: 6px;
+    gap: 12px;
     transition: background 0.15s ease, color 0.15s ease;
     user-select: none;
 }
@@ -974,7 +986,7 @@ body.theme-light .btn-remove-station:hover {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    flex: 1;
+    flex: 1 0 auto;
     overflow: hidden;
     min-width: 0;
 }
@@ -1032,55 +1044,85 @@ body.theme-light .btn-remove-station:hover {
 }
 
 .printer-setup-page .btn-undo-changes {
-    height: 24px;
-    padding: 0 10px;
-    font-size: 11.5px;
-    font-weight: 600;
-    border-radius: 5px;
-    border: 1px solid rgba(244, 63, 94, 0.5);
-    background: #e11d48;
-    color: #fda4af;
+    width: 108px !important;
+    min-width: 108px !important;
+    height: 38px !important;
+    padding: 0 12px !important;
+    justify-content: center !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    box-sizing: border-box !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.3px;
+    border-radius: 8px !important;
+    border: 1px solid rgba(244, 63, 94, 0.55) !important;
+    background: #e11d48 !important;
+    color: #ffffff !important;
     cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.25);
+    gap: 6px;
+    box-shadow: 0 2px 10px rgba(225, 29, 72, 0.25);
     user-select: none;
 }
 
-.printer-setup-page .btn-undo-changes:hover {
-    background: #e11d48;
-    border-color: rgba(244, 63, 94, 0.7);
-    color: #fff;
-    box-shadow: 0 3px 8px rgba(239, 68, 68, 0.35);
+.printer-setup-page .btn-undo-changes:hover:not(:disabled) {
+    background: #be123c !important;
+    border-color: rgba(244, 63, 94, 0.8) !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 14px rgba(225, 29, 72, 0.38) !important;
+    transform: translateY(-1px);
+}
+
+.printer-setup-page .btn-undo-changes:disabled {
+    opacity: 0.45 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+    box-shadow: none !important;
 }
 
 .printer-setup-page .btn-save-hold {
-    height: 24px;
-    padding: 0 12px;
-    font-size: 11.5px;
-    font-weight: 700;
-    border-radius: 5px;
-    border: 1px solid rgba(16, 185, 129, 0.5);
-    background: #111827;
-    color: #6ee7b7;
+    width: 215px !important;
+    min-width: 215px !important;
+    height: 38px !important;
+    padding: 0 14px !important;
+    justify-content: center !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    box-sizing: border-box !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.4px;
+    border-radius: 8px !important;
+    border: 1px solid rgba(16, 185, 129, 0.5) !important;
+    background: #059669 !important;
+    color: #ffffff !important;
     cursor: pointer;
     position: relative;
     overflow: hidden;
     user-select: none;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.25);
+    gap: 6px;
+    box-shadow: 0 2px 10px rgba(5, 150, 105, 0.28);
 }
 
-.printer-setup-page .btn-save-hold:hover {
-    background: #3DD5C0;
-    border-color: rgba(16, 185, 129, 0.7);
-    color: #fff;
-    box-shadow: 0 3px 8px rgba(16, 185, 129, 0.35);
+.printer-setup-page .btn-save-hold:hover:not(:disabled) {
+    background: #047857 !important;
+    border-color: rgba(16, 185, 129, 0.7) !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.38) !important;
+    transform: translateY(-1px);
+}
+
+.printer-setup-page .btn-save-hold:disabled {
+    opacity: 0.45 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+    box-shadow: none !important;
 }
 
 .printer-setup-page .save-progress-bar {
@@ -1089,8 +1131,9 @@ body.theme-light .btn-remove-station:hover {
     top: 0;
     bottom: 0;
     width: 0%;
-    background: rgba(16, 185, 129, 0.55);
+    background: rgba(255, 255, 255, 0.32);
     pointer-events: none;
+    z-index: 1;
     transition: width 0.05s linear;
 }
 

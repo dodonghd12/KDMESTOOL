@@ -35,15 +35,16 @@
                 </button>
             </div>
 
-            <!-- 2. Refresh Button (Chỉ hiển thị icon refresh) -->
-            <button type="button" id="btnRefreshLogs" class="winx-btn btn-refresh-compact" title="Tải lại log và trạng thái" aria-label="Làm mới">
-                <span class="material-symbols-outlined">refresh</span>
+            <!-- 2. Refresh Button -->
+            <button type="button" id="btnRefreshLogs" class="winx-btn winx-btn-primary btn-refresh" title="Tải lại log và trạng thái" aria-label="Refresh">
+                <span class="material-symbols-outlined" id="btnRefreshLogsIcon" style="font-size: 20px !important;">sync</span>
+                <span>Refresh</span>
             </button>
 
             <!-- 3. Primary Toggle Button (Bấm và giữ 3s) -->
-            <button type="button" id="btnBypassToggle" class="btn-bypass-toggle is-inactive" title="Bấm và giữ chuột trong 3 giây để kích hoạt hoặc ngưng kích hoạt" aria-label="Kích hoạt hoặc ngưng kích hoạt">
+            <button type="button" id="btnBypassToggle" class="btn-bypass-toggle is-inactive" title="Bấm và giữ chuột trong 3 giây để thực thi kích hoạt hoặc ngưng kích hoạt" aria-label="Bấm và giữ 3 giây để thực thi">
                 <div id="bypassHoldProgressBar" class="bypass-hold-progress-bar"></div>
-                <span id="bypassBtnText" style="position: relative; z-index: 2;">Kích hoạt</span>
+                <span id="bypassBtnText" style="position: relative; z-index: 2;">Execute</span>
             </button>
 
             <!-- 4. Status Pill -->

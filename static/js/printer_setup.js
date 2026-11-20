@@ -12,7 +12,17 @@
     let filteredGroups = [];
     let selectedFolder = '';
     let isLoading = false;
+    let activeRefreshOps = 0;
     let hideBadgeTimeout = null;
+
+    function setRefreshSpinning(active) {
+        activeRefreshOps = Math.max(0, activeRefreshOps + (active ? 1 : -1));
+        const refreshBtn = document.getElementById('btnRefreshLogs');
+        const refreshIcon = document.getElementById('btnRefreshLogsIcon');
+        const spinning = activeRefreshOps > 0;
+        if (refreshBtn) refreshBtn.disabled = spinning;
+        if (refreshIcon) refreshIcon.classList.toggle('btn-load-spin', spinning);
+    }
 
     // Quản lý stations & floating dropdown
     const availableStationsCache = {}; // folder -> array of stations
@@ -325,6 +335,7 @@
      * Kiểm tra trạng thái máy chủ
      */
     async function checkServerStatus(forceRefresh = false) {
+        setRefreshSpinning(true);
         showStepBadge(`Đang kiểm tra root@${currentServer}...`, 'dns', 'progress');
 
         try {
@@ -348,6 +359,8 @@
             console.error('[PRINTER_SETUP] Lỗi kiểm tra máy chủ:', err);
             showStepBadge(`Lỗi kết nối root@${currentServer}`, 'error', 'error');
             hideStepBadgeAfterDelay(5000);
+        } finally {
+            setRefreshSpinning(false);
         }
     }
 
@@ -357,6 +370,7 @@
     async function fetchPrintersConfig(folder, isRefresh = false) {
         if (!folder) return;
         isLoading = true;
+        setRefreshSpinning(true);
 
         hideStandbyPlaceholder();
         showStepBadge(`Đang đọc cấu hình (${folder})...`, 'sync', 'progress');
@@ -420,6 +434,7 @@
             }
         } finally {
             isLoading = false;
+            setRefreshSpinning(false);
             updateClientSearchState();
         }
     }
@@ -1050,7 +1065,7 @@
         if (!dropdown || !anchorBtn) return;
 
         const rect = anchorBtn.getBoundingClientRect();
-        const dropdownWidth = 260;
+        const dropdownWidth = Math.ceil(dropdown.getBoundingClientRect().width) || dropdown.offsetWidth || 260;
         const dropdownHeight = dropdown.offsetHeight || 300;
 
         let top = rect.bottom + 4;
@@ -1148,6 +1163,10 @@
         if (filtered.length === 0) {
             listEl.innerHTML = '';
             if (emptyEl) emptyEl.style.display = 'flex';
+            const dropdown = document.getElementById('printerFloatingDropdown');
+            if (activePrinterAnchorBtn && dropdown && dropdown.style.display !== 'none') {
+                positionPrinterFloatingDropdown(activePrinterAnchorBtn);
+            }
             return;
         }
 
@@ -1199,6 +1218,10 @@
         }).join('');
 
         listEl.innerHTML = html;
+        const dropdown = document.getElementById('printerFloatingDropdown');
+        if (activePrinterAnchorBtn && dropdown && dropdown.style.display !== 'none') {
+            positionPrinterFloatingDropdown(activePrinterAnchorBtn);
+        }
     }
 
     /**
@@ -1305,6 +1328,7 @@
             e.preventDefault();
 
             holdStartTime = performance.now();
+            if (btnText) btnText.textContent = 'On Hold to Save';
 
             function updateProgress(now) {
                 const elapsed = now - holdStartTime;
@@ -1312,7 +1336,7 @@
                 progressBar.style.width = `${pct}%`;
 
                 if (elapsed >= HOLD_DURATION_MS) {
-                    cancelHold();
+                    cancelHold(false, true);
                     executeSaveHold();
                 } else {
                     holdAnimFrame = requestAnimationFrame(updateProgress);
@@ -1322,7 +1346,7 @@
             holdAnimFrame = requestAnimationFrame(updateProgress);
         }
 
-        function cancelHold(showShortToast = false) {
+        function cancelHold(showShortToast = false, completed = false) {
             const wasHolding = Boolean(holdStartTime);
             if (holdAnimFrame) {
                 cancelAnimationFrame(holdAnimFrame);
@@ -1330,7 +1354,7 @@
             }
             holdStartTime = null;
             if (progressBar) progressBar.style.width = '0%';
-            if (btnText && !btn.classList.contains('is-saving')) btnText.textContent = 'Save';
+            if (btnText && !completed && !btn.classList.contains('is-saving')) btnText.textContent = 'Save';
             if (showShortToast && wasHolding && typeof Toast !== 'undefined') {
                 Toast.info('Chưa đủ 3 giây', 'Vui lòng nhấn và giữ nút đủ 3 giây để thực hiện.');
             }

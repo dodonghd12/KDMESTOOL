@@ -16,7 +16,7 @@
     flex-wrap: wrap;
     width: 100%;
     flex-shrink: 0;
-    padding: 2px 0 0 0;
+    padding: 0;
 }
 
 .bypass-hero-right {
@@ -29,27 +29,30 @@
 
 /* ── OPEN YAML / YML FILE BUTTON (BYPASS & PRINTER SETUP) ── */
 .btn-open-yaml-file {
-    height: 40px;
-    padding: 0 14px;
+    height: 44px;
+    min-width: 175px;
+    padding: 0 18px;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    justify-content: center;
+    gap: 8px;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.12));
-    border-radius: 8px;
+    border-radius: 10px;
     color: var(--color-text-secondary, #cbd5e1);
     font-family: var(--font-stack, inherit);
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     cursor: pointer;
     white-space: nowrap;
     transition: all 0.2s ease;
     user-select: none;
     outline: none;
+    box-sizing: border-box;
 }
 
 .btn-open-yaml-file .material-symbols-outlined {
-    font-size: 18px;
+    font-size: 20px !important;
     color: var(--color-text-secondary, #94a3b8);
     transition: color 0.2s ease;
 }
@@ -83,18 +86,22 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    height: 40px;
-    padding: 0 22px;
+    width: 215px;
+    min-width: 215px;
+    height: 44px;
+    padding: 0 18px;
+    box-sizing: border-box;
     font-family: var(--font-stack);
     font-size: 14px;
     font-weight: 700;
     letter-spacing: 0.4px;
-    border-radius: 8px;
+    white-space: nowrap;
+    border-radius: 10px;
     cursor: pointer;
-    border: 1px solid transparent;
+    border: 1px solid rgba(16, 185, 129, 0.5);
     outline: none;
     transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+    box-shadow: 0 2px 10px rgba(5, 150, 105, 0.28);
     user-select: none;
     flex-shrink: 0;
 }
@@ -111,38 +118,28 @@
     transition: width 0.05s linear;
 }
 
-/* Inactive State: "Kích hoạt" */
-.btn-bypass-toggle.is-inactive {
-    background: #e11d48;
-    border-color: rgba(244, 63, 94, 0.4);
-    color: #fda4af;
-}
-
-.btn-bypass-toggle.is-inactive:hover {
-    background: #e11d48;
-    border-color: var(--rose-500);
-    color: #ffffff;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 18px rgba(244, 63, 94, 0.35);
-}
-
-.btn-bypass-toggle.is-inactive:active {
-    transform: translateY(1px);
-}
-
-/* Active State: "Đang kích hoạt" */
+/* Synchronized Hold-to-Execute styling matching btnSaveHold / btnRestoreHold */
+.btn-bypass-toggle.is-inactive,
 .btn-bypass-toggle.is-active {
-    background: #e11d48;
-    border-color: #f43f5e;
+    background: #059669;
+    border-color: rgba(16, 185, 129, 0.5);
     color: #ffffff;
-    box-shadow: 0 0 20px rgba(225, 29, 72, 0.55), inset 0 1px 1px rgba(255, 255, 255, 0.25);
-    animation: bypassActivePulse 2.2s infinite ease-in-out;
+    box-shadow: 0 2px 10px rgba(5, 150, 105, 0.28);
+    animation: none;
 }
 
-.btn-bypass-toggle.is-active:hover {
-    background: #e11d48;
-    box-shadow: 0 0 28px rgba(225, 29, 72, 0.75);
+.btn-bypass-toggle.is-inactive:hover:not(:disabled),
+.btn-bypass-toggle.is-active:hover:not(:disabled) {
+    background: #047857;
+    border-color: rgba(16, 185, 129, 0.7);
+    color: #ffffff;
     transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.38);
+}
+
+.btn-bypass-toggle.is-inactive:active,
+.btn-bypass-toggle.is-active:active {
+    transform: translateY(1px);
 }
 
 @keyframes bypassActivePulse {
@@ -168,16 +165,18 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    height: 40px;
-    padding: 0 16px;
-    border-radius: 8px;
-    font-size: 13.5px;
+    height: 44px;
+    min-width: 225px;
+    padding: 0 18px;
+    border-radius: 10px;
+    font-size: 14px;
     font-weight: 700;
     letter-spacing: 0.3px;
     background: rgba(15, 23, 42, 0.7);
     border: 1px solid var(--color-border-subtle);
     transition: all 0.2s ease;
     flex-shrink: 0;
+    box-sizing: border-box;
 }
 
 .bypass-status-pill .status-indicator-dot {
@@ -210,15 +209,16 @@
 }
 
 .bypass-search-wrapper {
-    width: 200px;
-    min-width: 160px;
-    max-width: 240px;
+    width: 240px;
+    min-width: 220px;
+    max-width: 280px;
     flex: 0 0 auto;
 }
 
 .bypass-search-wrapper .input {
-    height: 40px;
-    font-size: 13px;
+    height: 44px;
+    font-size: 14px;
+    padding: 0 16px;
     cursor: text !important;
     opacity: 1 !important;
     pointer-events: auto !important;
@@ -235,10 +235,10 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    height: 40px;
-    padding: 0 14px;
-    border-radius: 8px;
-    font-size: 13px;
+    height: 44px;
+    padding: 0 16px;
+    border-radius: 10px;
+    font-size: 13.5px;
     font-weight: 600;
     font-family: var(--font-mono);
     background: rgba(15, 23, 42, 0.7);
@@ -246,6 +246,7 @@
     color: var(--color-text-secondary);
     transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
     flex-shrink: 0;
+    box-sizing: border-box;
 }
 
 .bypass-step-badge .step-badge-icon {
@@ -303,10 +304,11 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    height: 40px;
-    padding: 0 6px 0 12px;
-    border-radius: 8px;
-    font-size: 13px;
+    height: 44px;
+    min-width: 265px;
+    padding: 0 10px 0 16px;
+    border-radius: 10px;
+    font-size: 14px;
     color: var(--color-text-secondary);
     background: rgba(16, 185, 129, 0.08);
     border: 1px solid rgba(16, 185, 129, 0.35);
@@ -315,6 +317,7 @@
     cursor: pointer;
     user-select: none;
     transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    box-sizing: border-box;
 }
 
 .bypass-meta-badge:hover {
@@ -324,7 +327,7 @@
 }
 
 .bypass-meta-badge .material-symbols-outlined {
-    font-size: 18px;
+    font-size: 20px;
     color: #10b981;
 }
 
@@ -386,11 +389,11 @@
     display: inline-flex !important;
     align-items: center !important;
     gap: 4px !important;
-    padding: 0 10px !important;
-    height: 22px !important;
-    line-height: 20px !important;
+    padding: 0 12px !important;
+    height: 26px !important;
+    line-height: 24px !important;
     font-family: var(--font-family-base, 'Plus Jakarta Sans', sans-serif) !important;
-    font-size: 11px !important;
+    font-size: 12px !important;
     font-weight: 600 !important;
     letter-spacing: 0.25px !important;
     color: var(--color-text-secondary) !important;

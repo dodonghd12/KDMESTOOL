@@ -33,8 +33,9 @@
             </div>
 
             <!-- 2. Refresh Button -->
-            <button type="button" id="btnRefreshLogs" class="winx-btn btn-refresh-compact" title="Tải lại trạng thái và cấu hình máy in" aria-label="Làm mới">
-                <span class="material-symbols-outlined">refresh</span>
+            <button type="button" id="btnRefreshLogs" class="winx-btn winx-btn-primary btn-refresh" title="Tải lại trạng thái và cấu hình máy in" aria-label="Refresh">
+                <span class="material-symbols-outlined" id="btnRefreshLogsIcon" style="font-size: 20px !important;">sync</span>
+                <span>Refresh</span>
             </button>
 
             <!-- 3. Folder Input Dropdown (KV2) -->
@@ -120,14 +121,14 @@
                 <div class="table-footer-actions" id="tableFooterActions">
                     <!-- Undo Button -->
                     <button type="button" class="winx-btn btn-undo-changes" id="btnUndoChanges" style="display: none;" title="Khôi phục lại tất cả các thay đổi chưa lưu">
-                        <span class="material-symbols-outlined" style="font-size: 14px; line-height: 1;">undo</span>
+                        <span class="material-symbols-outlined" style="font-size: 16px; line-height: 1;">undo</span>
                         <span>Undo</span>
                     </button>
 
                     <!-- Save Button (Hold 3s) -->
                     <button type="button" class="winx-btn btn-save-hold" id="btnSaveHold" style="display: none;" title="Bấm và giữ chuột trong 3 giây để lưu thay đổi">
                         <div id="saveProgressBar" class="save-progress-bar"></div>
-                        <span class="material-symbols-outlined save-icon" style="font-size: 14px; line-height: 1; position: relative; z-index: 2;">save</span>
+                        <span class="material-symbols-outlined save-icon" style="font-size: 16px; line-height: 1; position: relative; z-index: 2;">save</span>
                         <span id="saveBtnText" style="position: relative; z-index: 2;">Save</span>
                     </button>
                 </div>

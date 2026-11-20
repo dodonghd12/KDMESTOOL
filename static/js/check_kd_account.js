@@ -934,6 +934,7 @@
             e.preventDefault();
 
             holdStartTime = performance.now();
+            if (btnText) btnText.textContent = 'On Hold to Save';
 
             function updateProgress(now) {
                 const elapsed = now - holdStartTime;
@@ -942,7 +943,7 @@
 
                 if (elapsed >= HOLD_DURATION_MS) {
                     // Completed 3-second hold!
-                    cancelHold(false);
+                    cancelHold(false, true);
                     executeSaveAccountChanges();
                 } else {
                     holdAnimFrame = requestAnimationFrame(updateProgress);
@@ -952,7 +953,7 @@
             holdAnimFrame = requestAnimationFrame(updateProgress);
         }
 
-        function cancelHold(showShortToast = false) {
+        function cancelHold(showShortToast = false, completed = false) {
             const wasHolding = Boolean(holdStartTime);
             if (holdAnimFrame) {
                 cancelAnimationFrame(holdAnimFrame);
@@ -960,7 +961,7 @@
             }
             holdStartTime = null;
             if (progressBar) progressBar.style.width = '0%';
-            if (btnText) btnText.textContent = 'Save';
+            if (btnText && !completed && !btn.disabled) btnText.textContent = 'Save';
             if (showShortToast && wasHolding && typeof Toast !== 'undefined') {
                 Toast.info('Chưa đủ 3 giây', 'Vui lòng nhấn và giữ nút đủ 3 giây để thực hiện.');
             }
@@ -982,9 +983,11 @@
         const saveIndicator = document.getElementById('saveStatusIndicator');
         const btnSave = document.getElementById('btnSaveHold');
         const btnUndo = document.getElementById('btnUndoChanges');
+        const btnText = document.getElementById('saveBtnText');
 
         if (btnSave) btnSave.disabled = true;
         if (btnUndo) btnUndo.disabled = true;
+        if (btnText) btnText.textContent = 'Saving...';
 
         try {
             const payload = {
@@ -1059,6 +1062,7 @@
         } finally {
             if (btnSave) btnSave.disabled = false;
             if (btnUndo) btnUndo.disabled = false;
+            if (btnText) btnText.textContent = 'Save';
         }
     }
 

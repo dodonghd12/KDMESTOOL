@@ -1120,7 +1120,7 @@ body.is-spa-frame .container {
     height: 100vh !important;
     max-height: 100vh !important;
     margin: 0 !important;
-    padding: 16px 20px !important;
+    padding: 16px !important;
     box-sizing: border-box !important;
     overflow: hidden !important;
     display: flex !important;
