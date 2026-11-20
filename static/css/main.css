@@ -15189,20 +15189,6 @@ html, body, .spa-shell-body, .spa-viewport, .container {
     }
 }
 
-/* 4. Touch Zone Safeguard (Minimum 44x44px Tap Target without modifying visual layout) */
-.input-mode-toggle-btn::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    min-width: 44px;
-    min-height: 44px;
-    width: 100%;
-    height: 100%;
-    pointer-events: auto;
-}
-
 /* ===== SUBSTITUTIONS (/substitutions) TABLE LAYOUT ===== */
 .substitutions .table-scroll table {
     width: 100%;
