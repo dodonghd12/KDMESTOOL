@@ -1943,6 +1943,7 @@ function initializeMainEventListeners() {
 
     // Click chuột trái vào vùng data-full-value của cột 1 hoặc cột 2 trong .table-container, #outputContainer, #subOutputContainer để copy nhanh
     document.addEventListener('click', async (e) => {
+        if (document.body.classList.contains('substitutions')) return;
         const td = e.target && e.target.closest ? e.target.closest('td[data-full-value]') : null;
         if (!td || (td.cellIndex !== 0 && td.cellIndex !== 1)) return;
         const tr = td.closest('tr');
