@@ -616,6 +616,27 @@
                     ? currentGroups[groupIndex].stations 
                     : [currentGroups[groupIndex].stations];
 
+                const validStations = rawStations.filter(st => st != null && String(st).trim() !== '');
+                if (validStations.length <= 1) {
+                    if (typeof Toast !== 'undefined' && Toast.warning) {
+                        Toast.warning(
+                            'Không thể xóa station duy nhất',
+                            `Nhóm #${groupIndex + 1} chỉ còn 1 máy (${stationName}). Vui lòng đổi Printer Name thay vì xóa máy khỏi nhóm.`
+                        );
+                    }
+                    const row = removeBtn.closest('tr');
+                    const printerCellWrap = row ? row.querySelector('.printer-cell-wrapper') : null;
+                    if (printerCellWrap) {
+                        printerCellWrap.classList.remove('printer-cell-shake');
+                        void printerCellWrap.offsetWidth;
+                        printerCellWrap.classList.add('printer-cell-shake');
+                        printerCellWrap.addEventListener('animationend', () => {
+                            printerCellWrap.classList.remove('printer-cell-shake');
+                        }, { once: true });
+                    }
+                    return;
+                }
+
                 currentGroups[groupIndex].stations = rawStations.filter(
                     st => String(st || '').trim() !== stationName
                 );

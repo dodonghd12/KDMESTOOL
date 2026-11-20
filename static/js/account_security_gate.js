@@ -171,12 +171,16 @@
             });
         }
 
-        // Clear error style on typing
+        // Clear error style only when password becomes empty or user inserts new characters
         if (input) {
-            input.addEventListener('input', () => {
-                if (inputBox) inputBox.classList.remove('error');
-                if (errorMsg && !form.dataset.locked) {
-                    errorMsg.style.display = 'none';
+            input.addEventListener('input', (e) => {
+                const isDeleting = !!(e && typeof e.inputType === 'string' && e.inputType.startsWith('delete'));
+                const shouldClearError = (input.value.length === 0) || !isDeleting;
+                if (shouldClearError) {
+                    if (inputBox) inputBox.classList.remove('error');
+                    if (errorMsg && !form.dataset.locked) {
+                        errorMsg.style.display = 'none';
+                    }
                 }
             });
         }

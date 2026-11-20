@@ -1208,3 +1208,8 @@ body.theme-light .printer-status-badge.is-error {
     border-color: rgba(225, 29, 72, 0.3);
 }
 
+.printer-cell-wrapper.printer-cell-shake {
+    animation: shakeInput 0.35s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+
