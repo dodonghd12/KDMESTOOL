@@ -268,18 +268,22 @@
         if (btnLoad) btnLoad.disabled = true;
         if (loadIcon) loadIcon.classList.add('reprint-label-log-spin');
 
-        hideStandbyPlaceholder();
-        if (typeof showTableSkeleton === 'function') {
-            showTableSkeleton(6, 5);
-        } else if (tableBody) {
-            tableBody.innerHTML = `
-                <tr>
-                    <td colspan="6" style="text-align: center; padding: 36px 16px; color: var(--color-text-muted, #94a3b8);">
-                        <span class="material-symbols-outlined reprint-label-log-spin" style="font-size: 28px; vertical-align: middle;">sync</span>
-                        <span style="margin-left: 8px;">Đang tải dữ liệu nhật ký in tem...</span>
-                    </td>
-                </tr>
-            `;
+        if (typeof showTableLoadingState === 'function') {
+            showTableLoadingState('Đang tải dữ liệu nhật ký in lại tem...', 6);
+        } else {
+            hideStandbyPlaceholder();
+            if (typeof showTableSkeleton === 'function') {
+                showTableSkeleton(6, 5);
+            } else if (tableBody) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 36px 16px; color: var(--color-text-muted, #94a3b8);">
+                            <span class="material-symbols-outlined reprint-label-log-spin" style="font-size: 28px; vertical-align: middle;">sync</span>
+                            <span style="margin-left: 8px;">Đang tải dữ liệu nhật ký in tem...</span>
+                        </td>
+                    </tr>
+                `;
+            }
         }
 
         try {

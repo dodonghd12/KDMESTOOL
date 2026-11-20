@@ -504,7 +504,9 @@ async function fetchDeletedRecordsLog() {
         loadIcon.classList.add('btn-load-spin');
     }
 
-    if (typeof showTableSkeleton === 'function') {
+    if (typeof showTableLoadingState === 'function') {
+        showTableLoadingState('Đang tải danh sách bản ghi PostgreSQL bị xóa...', 5);
+    } else if (typeof showTableSkeleton === 'function') {
         showTableSkeleton(5, 5);
     }
 

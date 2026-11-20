@@ -490,7 +490,9 @@ async function fetchDeletedFilesLog() {
         loadIcon.classList.add('btn-load-spin');
     }
 
-    if (typeof showTableSkeleton === 'function') {
+    if (typeof showTableLoadingState === 'function') {
+        showTableLoadingState('Đang tải danh sách file YAML bị xóa từ GitLab...', 8);
+    } else if (typeof showTableSkeleton === 'function') {
         showTableSkeleton(8, 5);
     }
 

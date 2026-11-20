@@ -360,6 +360,9 @@
 
         if (btnLoad) btnLoad.disabled = true;
         if (loadIcon) loadIcon.classList.add('reprint-label-log-spin');
+        if (typeof showTableLoadingState === 'function') {
+            showTableLoadingState('Đang quét danh sách barcode mất quantity do SiteService.Upsert (mcom)...', Math.max(1, tableColumns.length + 1));
+        }
 
         try {
             const res = await fetch('/api/site-reset-recovery/scan', {
@@ -433,6 +436,16 @@
             }
         } catch (err) {
             console.error('[SiteResetRecovery] Scan error:', err);
+            if (allRows.length === 0) {
+                if (standby) {
+                    standby.classList.remove('has-data');
+                    standby.style.display = '';
+                }
+                if (table) table.style.display = 'none';
+            } else {
+                renderTable();
+                if (footer) footer.classList.remove('hidden');
+            }
             if (typeof Toast !== 'undefined') Toast.error('Lỗi quét dữ liệu', err.message || 'Không thể kết nối server');
         } finally {
             if (btnLoad) btnLoad.disabled = false;

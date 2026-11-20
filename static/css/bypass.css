@@ -98,10 +98,10 @@
     white-space: nowrap;
     border-radius: 10px;
     cursor: pointer;
-    border: 1px solid rgba(16, 185, 129, 0.5);
+    border: 1px solid rgba(244, 63, 94, 0.55);
     outline: none;
     transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-    box-shadow: 0 2px 10px rgba(5, 150, 105, 0.28);
+    box-shadow: 0 2px 10px rgba(225, 29, 72, 0.28);
     user-select: none;
     flex-shrink: 0;
 }
@@ -118,23 +118,23 @@
     transition: width 0.05s linear;
 }
 
-/* Synchronized Hold-to-Execute styling matching btnSaveHold / btnRestoreHold */
+/* Synchronized Red Hold-to-Execute styling */
 .btn-bypass-toggle.is-inactive,
 .btn-bypass-toggle.is-active {
-    background: #059669;
-    border-color: rgba(16, 185, 129, 0.5);
+    background: #e11d48;
+    border-color: rgba(244, 63, 94, 0.55);
     color: #ffffff;
-    box-shadow: 0 2px 10px rgba(5, 150, 105, 0.28);
+    box-shadow: 0 2px 10px rgba(225, 29, 72, 0.28);
     animation: none;
 }
 
 .btn-bypass-toggle.is-inactive:hover:not(:disabled),
 .btn-bypass-toggle.is-active:hover:not(:disabled) {
-    background: #047857;
-    border-color: rgba(16, 185, 129, 0.7);
+    background: #be123c;
+    border-color: rgba(244, 63, 94, 0.8);
     color: #ffffff;
     transform: translateY(-1px);
-    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.38);
+    box-shadow: 0 4px 16px rgba(225, 29, 72, 0.42);
 }
 
 .btn-bypass-toggle.is-inactive:active,

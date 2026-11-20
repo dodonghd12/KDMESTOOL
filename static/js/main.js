@@ -1023,6 +1023,50 @@ function showTableSkeleton(columnsCount = 6, rowsCount = 5, targetTbodyId = 'tab
 }
 window.showTableSkeleton = showTableSkeleton;
 
+// ===== TABLE CENTERED SPINNER LOADING HELPER (MATCHING CHECK-KD-ACCOUNT) =====
+function showTableLoadingState(message = 'Đang tải dữ liệu...', columnsCount = 1, targetTbodyId = 'tableBody') {
+    const tbody = typeof targetTbodyId === 'string' ? document.getElementById(targetTbodyId) : targetTbodyId;
+    if (!tbody) return;
+
+    const placeholder = document.getElementById('tableStandbyPlaceholder');
+    if (placeholder) {
+        placeholder.classList.add('has-data');
+        placeholder.style.display = 'none';
+    }
+
+    const tableContainer = tbody.closest('.table-container') || document.querySelector('.table-container');
+    if (tableContainer) {
+        tableContainer.classList.remove('hidden');
+        tableContainer.style.display = 'flex';
+        const footer = tableContainer.querySelector('.table-footer');
+        if (footer) footer.classList.add('hidden');
+    }
+
+    const table = tbody.closest('table') || document.querySelector('.table-container table');
+    let cols = columnsCount || 1;
+    if (table) {
+        table.style.display = 'table';
+        const headerThs = table.querySelectorAll('thead th');
+        if (headerThs && headerThs.length > 0) {
+            cols = headerThs.length;
+        }
+    }
+
+    const safeMsg = (typeof escapeHtml === 'function')
+        ? escapeHtml(message)
+        : String(message || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+    tbody.innerHTML = `
+        <tr class="table-loading-row">
+            <td colspan="${cols}" style="text-align: center; padding: 48px 16px; color: var(--color-text-muted);">
+                <span class="material-symbols-outlined account-loading-spin" style="font-size: 36px; width: 36px; height: 36px; line-height: 36px; display: inline-block; margin: 0 auto 12px; color: #3b82f6;">progress_activity</span>
+                <div style="font-size: 14px; font-weight: 500;">${safeMsg}</div>
+            </td>
+        </tr>
+    `;
+}
+window.showTableLoadingState = showTableLoadingState;
+
 // ===== UNIVERSAL BROWSER AUTOFILL & SAVED INFO SUPPRESSOR =====
 function initAutofillSuppressor() {
     function guardInput(input) {
