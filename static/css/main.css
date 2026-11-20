@@ -10100,19 +10100,10 @@ body.theme-light .ocr-dropzone {
     align-items: center;
 }
 
-.security-input-icon {
-    position: absolute;
-    left: 14px;
-    font-size: 20px;
-    color: var(--color-text-muted, #94a3b8);
-    pointer-events: none;
-    transition: color 0.2s ease;
-}
-
 .security-gate-input {
     width: 100%;
     height: 48px;
-    padding: 0 44px 0 44px;
+    padding: 0 44px 0 16px;
     background: #0A0E1A;
     border: 1.5px solid #1E293B;
     border-radius: 12px;
@@ -10150,10 +10141,6 @@ body.theme-light .ocr-dropzone {
     outline: none !important;
     box-shadow: none !important;
     animation: shakeInput 0.35s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
-}
-
-.security-input-box.error .security-input-icon {
-    color: #f87171 !important;
 }
 
 .security-eye-btn {
@@ -13463,17 +13450,46 @@ body.theme-light .material-transfer-retry-btn.is-success {
     display: inline-block !important;
 }
 
+body .table-container:has(tr.table-loading-row) thead,
+body .table-container:has(tr.table-loading-row) .table-footer,
+#checkAccountTableContainer:has(tr.table-loading-row) thead,
+#checkAccountTableContainer:has(tr.table-loading-row) #checkAccountTableFooter {
+    display: none !important;
+}
+
+.table-container:has(tr.table-loading-row) .table-scroll table,
+.table-container:has(tr.table-loading-row) table {
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: fixed !important;
+}
+
 .table-loading-row,
-.table-loading-row:hover {
+.table-loading-row:hover,
+.table-container .table-scroll table tbody tr.table-loading-row,
+.table-container .table-scroll table tbody tr.table-loading-row:hover {
     cursor: default !important;
     background: transparent !important;
 }
 
 .table-loading-row td,
-.table-loading-row:hover td {
+.table-loading-row:hover td,
+.table-container .table-scroll table tbody tr.table-loading-row td,
+.table-container .table-scroll table tbody tr.table-loading-row:hover td,
+.check-kd-account #checkAccountTableContainer table tbody tr.table-loading-row td {
     position: static !important;
     left: auto !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    padding: 48px 16px !important;
+    text-align: center !important;
+    vertical-align: middle !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
     background-color: transparent !important;
+    border: none !important;
     border-bottom: none !important;
     white-space: normal !important;
     overflow: visible !important;

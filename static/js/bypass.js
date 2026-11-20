@@ -24,8 +24,10 @@
     function showStandbyPlaceholder() {
         const ph = document.getElementById('tableStandbyPlaceholder');
         const tbl = document.getElementById('bypassLogTable') || document.querySelector('.table-container table');
+        const tbody = document.getElementById('tableBody');
         const footer = document.querySelector('.table-footer');
         const paginationNav = document.getElementById('paginationNav');
+        if (tbody) tbody.innerHTML = '';
         if (ph) {
             ph.classList.remove('has-data');
             ph.style.display = '';
@@ -205,6 +207,10 @@
         if (refreshBtn) refreshBtn.disabled = true;
         if (refreshIcon) refreshIcon.classList.add('btn-load-spin');
 
+        if (typeof showTableLoadingState === 'function') {
+            showTableLoadingState(`Đang tải trạng thái và nhật ký Bypass (${currentServer})...`, 4);
+        }
+
         if (showToast) {
             showStepBadge(`Đang làm mới dữ liệu (${currentServer})...`, 'sync', 'progress');
         } else if (isSwitchingServer) {
@@ -251,7 +257,11 @@
                     }
                 }
             } else {
-                if (!hasFetchedLogs || allLogs.length === 0) showStandbyPlaceholder();
+                if (hasFetchedLogs && allLogs.length > 0) {
+                    applyClientSearch(document.getElementById('clientSearch')?.value || '');
+                } else {
+                    showStandbyPlaceholder();
+                }
                 if (showToast || isSwitchingServer) {
                     showStepBadge(`Lỗi kiểm tra root@${currentServer}`, 'error', 'error');
                     hideStepBadgeAfterDelay(5000);
@@ -262,6 +272,11 @@
             }
         } catch (err) {
             console.error('[BYPASS] Lỗi khi tải trạng thái:', err);
+            if (hasFetchedLogs && allLogs.length > 0) {
+                applyClientSearch(document.getElementById('clientSearch')?.value || '');
+            } else {
+                showStandbyPlaceholder();
+            }
             if (showToast || isSwitchingServer) {
                 showStepBadge(`Lỗi kết nối root@${currentServer}`, 'error', 'error');
                 hideStepBadgeAfterDelay(5000);

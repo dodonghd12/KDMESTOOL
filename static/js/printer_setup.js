@@ -55,8 +55,10 @@
     function showStandbyPlaceholder() {
         const ph = document.getElementById('tableStandbyPlaceholder');
         const tbl = document.getElementById('printerSetupTable');
+        const tbody = document.getElementById('tableBody');
         const footer = document.getElementById('tableFooter');
         const tableContainer = document.getElementById('printerSetupTableContainer') || document.querySelector('.table-container');
+        if (tbody) tbody.innerHTML = '';
         if (ph) {
             ph.classList.remove('has-data');
             ph.style.display = '';
@@ -338,6 +340,12 @@
         setRefreshSpinning(true);
         showStepBadge(`Đang kiểm tra root@${currentServer}...`, 'dns', 'progress');
 
+        let showedTableLoading = false;
+        if (forceRefresh && !selectedFolder && !isLoading && typeof showTableLoadingState === 'function') {
+            showTableLoadingState(`Đang làm mới trạng thái máy chủ root@${currentServer}...`, 3);
+            showedTableLoading = true;
+        }
+
         try {
             const fetchFn = (window.top && window.top.getBypassServerStatus)
                 || window.getBypassServerStatus
@@ -361,6 +369,9 @@
             hideStepBadgeAfterDelay(5000);
         } finally {
             setRefreshSpinning(false);
+            if (showedTableLoading && !selectedFolder && !isLoading) {
+                showStandbyPlaceholder();
+            }
         }
     }
 
@@ -372,7 +383,6 @@
         isLoading = true;
         setRefreshSpinning(true);
 
-        hideStandbyPlaceholder();
         showStepBadge(`Đang đọc cấu hình (${folder})...`, 'sync', 'progress');
         showTableLoading(folder);
         closeStationFloatingDropdown();
@@ -803,7 +813,7 @@
         if (listEl) {
             listEl.innerHTML = `
                 <div style="padding: 24px; text-align: center; color: var(--color-text-muted);">
-                    <span class="material-symbols-outlined" style="animation: akStepSpin 1s infinite linear; font-size: 24px; color: #38bdf8;">progress_activity</span>
+                    <span class="material-symbols-outlined" style="animation: akStepSpin 1s infinite linear; font-size: 24px; color: var(--color-text-accent, #3DD5C0);">progress_activity</span>
                     <div style="margin-top: 6px; font-size: 12px;">Đang tải danh sách station...</div>
                 </div>
             `;
@@ -1098,7 +1108,7 @@
         if (listEl) {
             listEl.innerHTML = `
                 <div style="padding: 24px; text-align: center; color: var(--color-text-muted);">
-                    <span class="material-symbols-outlined" style="animation: akStepSpin 1s infinite linear; font-size: 24px; color: #38bdf8;">progress_activity</span>
+                    <span class="material-symbols-outlined" style="animation: akStepSpin 1s infinite linear; font-size: 24px; color: var(--color-text-accent, #3DD5C0);">progress_activity</span>
                     <div style="margin-top: 6px; font-size: 12px;">Đang tải danh sách máy in từ CUPS...</div>
                 </div>
             `;
@@ -1470,18 +1480,19 @@
      * Hiển thị trạng thái Loading trong Table
      */
     function showTableLoading(folder) {
+        if (typeof showTableLoadingState === 'function') {
+            showTableLoadingState(`Đang tải cấu hình máy in (${folder}) từ root@${currentServer}...`, 3);
+            return;
+        }
         const tbody = document.getElementById('tableBody');
         const footer = document.getElementById('tableFooter');
         if (!tbody) return;
 
         tbody.innerHTML = `
-            <tr>
-                <td colspan="3" class="printer-setup-empty-state">
-                    <div class="empty-placeholder-box">
-                        <span class="material-symbols-outlined empty-icon" style="animation: akStepSpin 1s infinite linear;">progress_activity</span>
-                        <span class="empty-title">Đang đọc printers-manager.yaml (${escapeHtml(folder)})...</span>
-                        <span class="empty-subtitle">Kết nối SSH root@${escapeHtml(currentServer)}</span>
-                    </div>
+            <tr class="table-loading-row">
+                <td colspan="3" style="text-align: center; padding: 48px 16px; color: var(--color-text-muted);">
+                    <span class="material-symbols-outlined account-loading-spin" style="font-size: 36px; width: 36px; height: 36px; line-height: 36px; display: inline-block; margin: 0 auto 12px; color: var(--color-text-accent, #3DD5C0);">progress_activity</span>
+                    <div style="font-size: 14px; font-weight: 500;">Đang tải cấu hình máy in (${escapeHtml(folder)}) từ root@${escapeHtml(currentServer)}...</div>
                 </td>
             </tr>
         `;

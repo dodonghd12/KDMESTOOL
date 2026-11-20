@@ -51,8 +51,10 @@
     function showStandbyPlaceholder() {
         const ph = document.getElementById('tableStandbyPlaceholder');
         const tbl = document.getElementById('checkAccountTable');
+        const tbody = document.getElementById('checkAccountTableBody');
         const footer = document.getElementById('checkAccountTableFooter') || document.querySelector('.table-footer');
         const container = document.getElementById('checkAccountTableContainer');
+        if (tbody) tbody.innerHTML = '';
         if (ph) {
             ph.classList.remove('has-data');
             ph.style.display = '';
@@ -172,18 +174,15 @@
         const rowCount = document.getElementById('rowCount');
 
         closeRoleDropdown();
-        hideStandbyPlaceholder();
 
-        if (container) {
-            container.classList.remove('hidden');
-            container.style.display = 'flex';
-        }
-
-        if (tbody) {
+        if (typeof showTableLoadingState === 'function') {
+            showTableLoadingState('Đang tải toàn bộ tài khoản từ kvmes.account...', 4, 'checkAccountTableBody');
+        } else if (tbody) {
+            hideStandbyPlaceholder();
             tbody.innerHTML = `
-                <tr>
+                <tr class="table-loading-row">
                     <td colspan="4" style="text-align: center; padding: 48px 16px; color: var(--color-text-muted);">
-                        <span class="material-symbols-outlined account-loading-spin" style="font-size: 36px; width: 36px; height: 36px; line-height: 36px; display: inline-block; margin: 0 auto 12px; color: #3b82f6; animation: spin 1s linear infinite;">progress_activity</span>
+                        <span class="material-symbols-outlined account-loading-spin" style="font-size: 36px; width: 36px; height: 36px; line-height: 36px; display: inline-block; margin: 0 auto 12px; color: var(--color-text-accent, #3DD5C0);">progress_activity</span>
                         <div style="font-size: 14px; font-weight: 500;">Đang tải toàn bộ tài khoản từ kvmes.account...</div>
                     </td>
                 </tr>
@@ -247,10 +246,7 @@
             checkAndUpdateDirtyState();
             const clientSearchInp = document.getElementById('clientSearch');
             if (allAccountRecords.length > 0) {
-                if (container) {
-                    container.classList.remove('hidden');
-                    container.style.display = 'flex';
-                }
+                hideStandbyPlaceholder();
                 if (clientSearchInp) {
                     clientSearchInp.disabled = false;
                     clientSearchInp.removeAttribute('disabled');
@@ -312,13 +308,15 @@
             return;
         }
 
-        hideStandbyPlaceholder();
         isFetchingAccounts = true;
-        if (tbody) {
+        if (typeof showTableLoadingState === 'function') {
+            showTableLoadingState(`Đang tra cứu tài khoản "${query}"...`, 4, 'checkAccountTableBody');
+        } else if (tbody) {
+            hideStandbyPlaceholder();
             tbody.innerHTML = `
-                <tr>
+                <tr class="table-loading-row">
                     <td colspan="4" style="text-align: center; padding: 48px 16px; color: var(--color-text-muted);">
-                        <span class="material-symbols-outlined account-loading-spin" style="font-size: 36px; width: 36px; height: 36px; line-height: 36px; display: inline-block; margin: 0 auto 12px; color: #3b82f6; animation: spin 1s linear infinite;">progress_activity</span>
+                        <span class="material-symbols-outlined account-loading-spin" style="font-size: 36px; width: 36px; height: 36px; line-height: 36px; display: inline-block; margin: 0 auto 12px; color: var(--color-text-accent, #3DD5C0);">progress_activity</span>
                         <div style="font-size: 14px; font-weight: 500;">Đang tra cứu tài khoản "${escapeHtml(query)}"...</div>
                     </td>
                 </tr>
@@ -384,10 +382,7 @@
             checkAndUpdateDirtyState();
             const clientSearchInp = document.getElementById('clientSearch');
             if (allAccountRecords.length > 0) {
-                if (container) {
-                    container.classList.remove('hidden');
-                    container.style.display = 'flex';
-                }
+                hideStandbyPlaceholder();
                 if (clientSearchInp) {
                     clientSearchInp.disabled = false;
                     clientSearchInp.removeAttribute('disabled');

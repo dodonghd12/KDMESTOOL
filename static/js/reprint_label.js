@@ -552,7 +552,7 @@
             <tr>
                 <td colspan="10" style="text-align:center; padding: 32px 16px; color:#64748b;">
                     <div style="display:inline-flex; align-items:center; gap:8px;">
-                        <span class="material-symbols-outlined spin" style="font-size:20px; color:#0d9488;">progress_activity</span>
+                        <span class="material-symbols-outlined spin" style="font-size:20px; color: var(--color-text-accent, #3DD5C0);">progress_activity</span>
                         <span style="font-weight:600;">Đang tra cứu dữ liệu...</span>
                     </div>
                 </td>

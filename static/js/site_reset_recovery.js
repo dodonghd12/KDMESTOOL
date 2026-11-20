@@ -437,6 +437,8 @@
         } catch (err) {
             console.error('[SiteResetRecovery] Scan error:', err);
             if (allRows.length === 0) {
+                const tbody = document.getElementById('tableBody');
+                if (tbody) tbody.innerHTML = '';
                 if (standby) {
                     standby.classList.remove('has-data');
                     standby.style.display = '';

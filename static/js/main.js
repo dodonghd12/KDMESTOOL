@@ -1059,7 +1059,7 @@ function showTableLoadingState(message = 'Đang tải dữ liệu...', columnsCo
     tbody.innerHTML = `
         <tr class="table-loading-row">
             <td colspan="${cols}" style="text-align: center; padding: 48px 16px; color: var(--color-text-muted);">
-                <span class="material-symbols-outlined account-loading-spin" style="font-size: 36px; width: 36px; height: 36px; line-height: 36px; display: inline-block; margin: 0 auto 12px; color: #3b82f6;">progress_activity</span>
+                <span class="material-symbols-outlined account-loading-spin" style="font-size: 36px; width: 36px; height: 36px; line-height: 36px; display: inline-block; margin: 0 auto 12px; color: var(--color-text-accent, #3DD5C0);">progress_activity</span>
                 <div style="font-size: 14px; font-weight: 500;">${safeMsg}</div>
             </td>
         </tr>

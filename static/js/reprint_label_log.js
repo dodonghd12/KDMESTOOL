@@ -33,8 +33,10 @@
     function showStandbyPlaceholder() {
         const ph = document.getElementById('tableStandbyPlaceholder');
         const tbl = document.getElementById('reprintLogTable') || document.querySelector('.table-container table');
+        const tbody = document.getElementById('tableBody');
         const footer = document.querySelector('.table-footer');
         const paginationNav = document.getElementById('paginationNav');
+        if (tbody) tbody.innerHTML = '';
         if (ph) {
             ph.classList.remove('has-data');
             ph.style.display = '';
