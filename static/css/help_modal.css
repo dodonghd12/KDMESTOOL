@@ -97,7 +97,7 @@ body.theme-light {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 5px 16px;
+    padding: 5px 12px;
     min-height: 38px;
     gap: 10px;
     border-bottom: 1px solid var(--help-border-surface);
@@ -190,16 +190,16 @@ body.theme-light {
 
 .help-nav-search-wrap {
     position: relative;
-    padding: 10px 12px 8px 12px;
+    padding: 8px;
     border-bottom: 1px solid var(--help-border-surface);
     flex-shrink: 0;
 }
 
 .help-nav-search-icon {
     position: absolute;
-    left: 22px;
+    left: 18px;
     top: 50%;
-    transform: translateY(-44%);
+    transform: translateY(-50%);
     font-size: 16px;
     color: var(--help-text-muted);
     pointer-events: none;
@@ -304,7 +304,7 @@ body.theme-light {
     flex: 1;
     overflow-y: auto !important;
     overflow-x: hidden;
-    padding: 20px;
+    padding: 12px;
     box-sizing: border-box;
     scroll-behavior: smooth;
     min-height: 0;
@@ -677,7 +677,7 @@ body.theme-light {
 
 /* Callout Box */
 .help-callout {
-    padding: 13px 16px;
+    padding: 10px;
     border-radius: 10px;
     margin: 14px 0 0 0;
     display: flex;
@@ -765,7 +765,7 @@ body.theme-light {
         padding: 0 14px !important;
     }
     .help-content-area {
-        padding: 16px;
+        padding: 10px;
     }
     #helpModal .help-table th:first-child,
     #helpModal .help-table td:first-child {
