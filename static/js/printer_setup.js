@@ -318,6 +318,7 @@
         initPrinterFloatingDropdown();
         initUndoButton();
         initSaveHoldButton();
+        checkDirtyAndUpdateFooter();
 
         // 8. Tự động kiểm tra trạng thái máy chủ (tận dụng cache từ Bypass nếu có)
         checkServerStatus(false);
@@ -1265,10 +1266,18 @@
     function checkDirtyAndUpdateFooter() {
         const btnSave = document.getElementById('btnSaveHold');
         const btnUndo = document.getElementById('btnUndoChanges');
+        const isSaving = Boolean(btnSave && btnSave.classList.contains('is-saving'));
         const dirty = isDirtyState();
+        const disabled = !dirty || isSaving;
 
-        if (btnSave) btnSave.style.display = dirty ? 'inline-flex' : 'none';
-        if (btnUndo) btnUndo.style.display = dirty ? 'inline-flex' : 'none';
+        if (btnSave) {
+            btnSave.style.display = 'inline-flex';
+            btnSave.disabled = disabled;
+        }
+        if (btnUndo) {
+            btnUndo.style.display = 'inline-flex';
+            btnUndo.disabled = disabled;
+        }
     }
 
     function isDirtyState() {
@@ -1306,6 +1315,7 @@
         if (!btnUndo) return;
 
         btnUndo.addEventListener('click', () => {
+            if (btnUndo.disabled) return;
             currentGroups = JSON.parse(JSON.stringify(originalGroups));
             newlyAddedStations.clear();
             closeStationFloatingDropdown();
@@ -1467,10 +1477,8 @@
             showStepBadge(`Lỗi kết nối khi lưu (${selectedFolder})`, 'error', 'error');
         } finally {
             if (btnSave) {
-                btnSave.disabled = false;
                 btnSave.classList.remove('is-saving');
             }
-            if (btnUndo) btnUndo.disabled = false;
             if (saveBtnText) saveBtnText.textContent = 'Save';
             checkDirtyAndUpdateFooter();
         }
