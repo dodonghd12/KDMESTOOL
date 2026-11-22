@@ -185,6 +185,9 @@
                 <button type="button" class="kd-tab active" role="tab" id="fyiTabProductType" aria-selected="true" aria-controls="fyiPanelProductType" tabindex="0">
                     <span class="tab-label">Product Type</span>
                 </button>
+                <button type="button" class="kd-tab" role="tab" id="fyiTabProductionRate" aria-selected="false" aria-controls="fyiPanelProductionRate" tabindex="-1">
+                    <span class="tab-label">Production rate</span>
+                </button>
                 <div class="kd-tab-indicator" aria-hidden="true"></div>
             </div>
             <button type="button" class="details-modal-close" id="fyiModalCloseBtn" title="Đóng (ESC)" aria-label="Đóng hộp thoại FYI">
@@ -201,6 +204,118 @@
             <div class="kd-tabpanel active" role="tabpanel" id="fyiPanelProductType" aria-labelledby="fyiTabProductType" tabindex="0">
                 <div class="kd-product-type-grid" id="fyiProductTypeList">
                     <!-- Populated dynamically by fab_speed_dial.js -->
+                </div>
+            </div>
+
+            <!-- Panel 2: Production rate (Tỷ lệ đạt thành sản xuất) -->
+            <div class="kd-tabpanel hidden" role="tabpanel" id="fyiPanelProductionRate" aria-labelledby="fyiTabProductionRate" tabindex="0">
+                <div class="kd-fyi-doc">
+                    <figure class="kd-fyi-figure">
+                        <img src="{{ url_for('static', filename='img/fyi/production-rate.png') }}?v={{ version }}" alt="Giao diện Tỷ lệ đạt thành sản xuất (Production rate)" loading="lazy">
+                        <figcaption class="kd-fyi-caption">
+                            Màn hình <strong>Tỷ lệ đạt thành sản xuất</strong> trên MES UI — gọi API <code>GET /work-orders-rate/department/{departmentId}</code> (<code>ListWorkOrdersRate</code>).
+                        </figcaption>
+                    </figure>
+
+                    <div class="kd-fyi-doc-grid">
+                        <!-- 1. Lọc theo khoảng ngày -->
+                        <section class="kd-fyi-section">
+                            <div class="kd-fyi-section-head">
+                                <span class="kd-fyi-step-badge">1</span>
+                                <h4 class="kd-fyi-section-title">Chọn khoảng ngày — Lọc mã đơn điều động MES theo bảng &amp; cột nào?</h4>
+                            </div>
+                            <ul class="kd-fyi-list">
+                                <li><strong>Bảng dữ liệu:</strong> <code>kvmes.work_order</code>.</li>
+                                <li><strong>Cột lọc bộ phận:</strong> <code>department_id = &lt;Mã số bộ phận&gt;</code> (VD: <code>'P8400'</code>).</li>
+                                <li><strong>Cột lọc khoảng ngày:</strong> <code>reserved_date BETWEEN &lt;Ngày bắt đầu&gt; AND &lt;Ngày kết thúc&gt;</code> (kiểu <code>DATE</code> — ngày dự kiến / ngày lên lịch sản xuất của đơn điều động).</li>
+                                <li><strong>Sắp xếp mặc định:</strong> <code>ORDER BY reserved_date ASC, reserved_sequence ASC</code>.</li>
+                            </ul>
+                            <div class="kd-fyi-note">
+                                <strong>Lưu ý:</strong> Bộ lọc chỉ dựa trên <code>reserved_date</code>, <strong>không</strong> lọc theo <code>created_at</code>, <code>updated_at</code> hay ngày chạy thực tế; trả về mọi đơn trong khoảng ngày đó bất kể trạng thái (<code>PENDING = 0</code>, <code>ACTIVE = 1</code>, <code>CLOSING = 2</code>, <code>CLOSED = 3</code>, <code>SKIPPED = 4</code>, <code>PAUSE = 5</code>).
+                            </div>
+                        </section>
+
+                        <!-- 2. Cột Thời gian sản xuất -->
+                        <section class="kd-fyi-section">
+                            <div class="kd-fyi-section-head">
+                                <span class="kd-fyi-step-badge">2</span>
+                                <h4 class="kd-fyi-section-title">Cột “Thời gian sản xuất” (<code>productionTime</code>) lấy từ bảng, cột &amp; dòng nào?</h4>
+                            </div>
+                            <ul class="kd-fyi-list">
+                                <li><strong>Điều kiện 1 (Trạng thái đơn):</strong> Dòng đơn trong <code>kvmes.work_order</code> phải có <code>status</code> thuộc <code>ACTIVE (1)</code>, <code>CLOSING (2)</code> hoặc <code>CLOSED (3)</code>. Nếu là <code>PENDING (0)</code>, <code>SKIPPED (4)</code>, <code>PAUSE (5)</code> → <strong>để trống</strong>.</li>
+                                <li><strong>Điều kiện 2 (Đã có mẻ hoàn tất):</strong> Đơn phải có <code>CurrentBatch &gt; 0</code> — tức trong <code>kvmes.batch</code> tồn tại ít nhất 1 dòng <code>work_order = &lt;mã đơn&gt;</code> có <code>status</code> thuộc nhóm hoàn tất (<code>BATCH_CLOSING</code>, <code>BATCH_CLOSED</code> hoặc <code>BATCH_CANCELLED</code>) để <code>SELECT MAX(number) ... &gt; 0</code>.</li>
+                                <li><strong>Bước 1 — Lấy dòng Batch đầu tiên (<code>kvmes.batch</code>):</strong> Truy vấn <code>WHERE work_order = &lt;mã đơn&gt; ORDER BY number ASC LIMIT 1</code> (chỉ lấy đúng <strong>1 dòng batch có <code>number</code> nhỏ nhất</strong>, thường là <code>number = 1</code>). Dòng này phải có <code>status</code> thuộc <code>BATCH_STARTED</code> / <code>BATCH_CLOSING</code> / <code>BATCH_CLOSED</code> và mảng cột <code>records_id</code> (<code>text[]</code>) <strong>không rỗng</strong>.</li>
+                                <li><strong>Bước 2 — Lấy ngày từ bảng <code>kvmes.feed_record</code>:</strong> Dùng phần tử đầu tiên <code>records_id[1]</code> (index <code>0</code> trong Go) tra <code>kvmes.feed_record WHERE id = &lt;records_id[1]&gt;</code>, lấy cột <code>time</code> (<code>timestamptz</code>) và format thành <code>YYYY-MM-DD</code>.</li>
+                            </ul>
+                            <div class="kd-fyi-note kd-fyi-note-warn">
+                                <strong>Vì sao nhiều đơn đã sản xuất vẫn bị trống cột này?</strong> Vì hệ thống chỉ kiểm tra duy nhất <strong>dòng batch đầu tiên (<code>number = 1</code>)</strong>. Nếu batch <code>number = 1</code> có <code>records_id = {}</code> (rỗng) — dù batch <code>number = 2, 3...</code> đã có đủ <code>feed_record</code> — cột <em>Thời gian sản xuất</em> vẫn hiển thị <strong>trống</strong> (như đơn <code>DC00M9O29QBC72QB603G</code> trong hình).
+                            </div>
+                        </section>
+
+                        <!-- 3. Cột Thời gian kết thúc sản xuất -->
+                        <section class="kd-fyi-section">
+                            <div class="kd-fyi-section-head">
+                                <span class="kd-fyi-step-badge">3</span>
+                                <h4 class="kd-fyi-section-title">Cột “Thời gian kết thúc sản xuất” (<code>productionEndTime</code>) lấy từ bảng, cột &amp; dòng nào?</h4>
+                            </div>
+                            <ul class="kd-fyi-list">
+                                <li><strong>Điều kiện bắt buộc:</strong> Dòng đơn trong <code>kvmes.work_order</code> phải có <code>status = 3 (CLOSED)</code>. Mọi trạng thái khác (<code>PENDING = 0</code>, <code>ACTIVE = 1</code>, <code>CLOSING = 2</code>, <code>SKIPPED = 4</code>, <code>PAUSE = 5</code>) đều <strong>để trống</strong>.</li>
+                                <li><strong>Bảng, dòng &amp; cột nguồn:</strong> Lấy trực tiếp từ <strong>chính dòng đơn điều động đó</strong> (<code>WHERE id = &lt;mã đơn&gt;</code>) trong bảng <code>kvmes.work_order</code>, cột <code>updated_at</code> (kiểu <code>bigint</code>, Unix timestamp đơn vị <strong>nanosecond</strong>) và format thành <code>YYYY-MM-DD</code>.</li>
+                                <li><strong>Cột liên quan cùng dòng <code>kvmes.work_order</code>:</strong> <em>Nhân viên nhập liệu</em> (<code>updateBy</code>) lấy từ cột <code>updated_by</code>; <em>Thiết lập nhân viên</em> (<code>createdBy</code>) lấy từ cột <code>created_by</code>.</li>
+                            </ul>
+                            <div class="kd-fyi-note">
+                                <strong>Lưu ý:</strong> Vì lấy trực tiếp theo <code>work_order.updated_at</code>, nếu đơn đã <code>CLOSED (3)</code> nhưng về sau có thao tác ghi đè/cập nhật lại dòng <code>work_order</code> đó thì ngày hiển thị ở cột <em>Thời gian kết thúc sản xuất</em> cũng thay đổi theo <code>updated_at</code> mới nhất.
+                            </div>
+                        </section>
+
+                        <!-- Bảng đối chiếu nhanh 3 dòng ví dụ trong hình -->
+                        <section class="kd-fyi-section">
+                            <div class="kd-fyi-section-head">
+                                <span class="kd-fyi-step-badge">✓</span>
+                                <h4 class="kd-fyi-section-title">Đối chiếu nhanh 3 dòng ví dụ trong hình (lọc <code>reserved_date = 2026-11-21</code>)</h4>
+                            </div>
+                            <div class="kd-fyi-table-wrap">
+                                <table class="kd-fyi-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Mã đơn điều động</th>
+                                            <th>work_order.status</th>
+                                            <th>batch (number = 1)</th>
+                                            <th>Thời gian sản xuất</th>
+                                            <th>Thời gian kết thúc</th>
+                                            <th>updated_by</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td data-label="Mã đơn điều động"><code>DC00LOO29QBC72QB601G</code></td>
+                                            <td data-label="work_order.status"><code>3 (CLOSED)</code></td>
+                                            <td data-label="batch (number = 1)"><code>records_id = [DC0KPOK7E1NS710DNMQG]</code></td>
+                                            <td data-label="Thời gian sản xuất"><code>2026-11-21</code> (<code>feed_record.time</code>)</td>
+                                            <td data-label="Thời gian kết thúc"><code>2026-11-22</code> (<code>updated_at</code> 00:46)</td>
+                                            <td data-label="updated_by"><code>015292</code></td>
+                                        </tr>
+                                        <tr>
+                                            <td data-label="Mã đơn điều động"><code>DC00M9O29QBC72QB603G</code></td>
+                                            <td data-label="work_order.status"><code>3 (CLOSED)</code></td>
+                                            <td data-label="batch (number = 1)"><code>records_id = {}</code> (rỗng ở batch #1)</td>
+                                            <td data-label="Thời gian sản xuất"><em>(trống)</em></td>
+                                            <td data-label="Thời gian kết thúc"><code>2026-11-21</code> (<code>updated_at</code> 23:43)</td>
+                                            <td data-label="updated_by"><code>025459</code></td>
+                                        </tr>
+                                        <tr>
+                                            <td data-label="Mã đơn điều động"><code>DC00MKG29QBC72QB604G</code></td>
+                                            <td data-label="work_order.status"><code>5 (PAUSE)</code></td>
+                                            <td data-label="batch (number = 1)">Chưa <code>CLOSED</code> &amp; batch #1 rỗng</td>
+                                            <td data-label="Thời gian sản xuất"><em>(trống)</em></td>
+                                            <td data-label="Thời gian kết thúc"><em>(trống)</em></td>
+                                            <td data-label="updated_by"><code>025449</code></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+                    </div>
                 </div>
             </div>
         </div>

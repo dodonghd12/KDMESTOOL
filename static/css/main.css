@@ -14364,6 +14364,180 @@ body.is-spa-frame .kd-fab-container {
     text-overflow: ellipsis !important;
 }
 
+/* FYI Reference Documentation Tab (Production rate) */
+.kd-fyi-doc {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    box-sizing: border-box;
+    color: #e2e8f0;
+}
+
+.kd-fyi-figure {
+    margin: 0;
+    padding: 10px;
+    background: rgba(15, 23, 42, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    box-sizing: border-box;
+}
+
+.kd-fyi-figure img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 6px;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    background: #ffffff;
+}
+
+.kd-fyi-caption {
+    margin-top: 8px;
+    font-size: 12.5px;
+    color: #94a3b8;
+    line-height: 1.5;
+}
+
+.kd-fyi-doc-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.kd-fyi-section {
+    background: rgba(30, 41, 59, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 12px 14px;
+    box-sizing: border-box;
+}
+
+.kd-fyi-section-head {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-bottom: 8px;
+}
+
+.kd-fyi-step-badge {
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--color-text-accent, #3dd5c0);
+    background: rgba(61, 213, 192, 0.14);
+    border: 1px solid rgba(61, 213, 192, 0.35);
+    flex-shrink: 0;
+}
+
+.kd-fyi-section-title {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+    color: #f8fafc;
+    line-height: 1.4;
+}
+
+.kd-fyi-list {
+    margin: 0;
+    padding-left: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    font-size: 13px;
+    line-height: 1.55;
+    color: #cbd5e1;
+}
+
+.kd-fyi-list strong {
+    color: #f1f5f9;
+}
+
+.kd-fyi-doc code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 12px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid rgba(61, 213, 192, 0.24);
+    color: #5eead4;
+}
+
+.kd-fyi-note {
+    margin-top: 8px;
+    padding: 8px 11px;
+    border-radius: 8px;
+    background: rgba(61, 213, 192, 0.08);
+    border-left: 3px solid #3dd5c0;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: #cbd5e1;
+}
+
+.kd-fyi-note-warn {
+    background: rgba(245, 158, 11, 0.1);
+    border-left-color: #f59e0b;
+}
+
+.kd-fyi-note strong {
+    color: #f8fafc;
+}
+
+.kd-fyi-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+}
+
+.kd-fyi-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+}
+
+.kd-fyi-table th,
+.kd-fyi-table td {
+    padding: 7px 10px;
+    text-align: left;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    white-space: nowrap;
+}
+
+.kd-fyi-table th {
+    position: static;
+    background: rgba(15, 23, 42, 0.9);
+    color: #3dd5c0;
+    font-size: 11.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    border-bottom: 1px solid rgba(61, 213, 192, 0.25) !important;
+}
+
+.kd-fyi-table td {
+    background-color: transparent !important;
+    color: #cbd5e1;
+}
+
+.kd-fyi-table tbody tr:hover td {
+    background-color: rgba(61, 213, 192, 0.06) !important;
+}
+
+.kd-fyi-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.kd-fyi-table em {
+    color: #94a3b8;
+    font-style: italic;
+}
+
 /* ══════════════════════════════════════════════════════════════════════
    DUAL-COLUMN INTEGRATED CONVERT GRID
    ══════════════════════════════════════════════════════════════════════ */
