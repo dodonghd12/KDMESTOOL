@@ -58,6 +58,40 @@ if (document.readyState === 'loading') {
 }
 
 let hasFetchedData = false;
+let isFetching = false;
+
+function hasLoadedTableResults() {
+    return !isFetching && allFetchedRecords.length > 0;
+}
+
+function setFiltersEnabled(enabled) {
+    const isEnabled = Boolean(enabled);
+    ['table_filter', 'dateRange', 'clientSearch'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.disabled = !isEnabled;
+        if (isEnabled) {
+            el.removeAttribute('disabled');
+        } else {
+            el.setAttribute('disabled', '');
+        }
+    });
+
+    if (!isEnabled) {
+        const dropdown = document.getElementById('table-filter-dropdown');
+        if (dropdown) dropdown.classList.remove('show');
+        if (typeof updateClientSearchFocusRing === 'function') {
+            updateClientSearchFocusRing(false);
+        }
+        if (flatpickrInstance) {
+            flatpickrInstance.close();
+        }
+    }
+
+    if (flatpickrInstance) {
+        flatpickrInstance.set('clickOpens', isEnabled);
+    }
+}
 
 function showStandbyPlaceholder() {
     const ph = document.getElementById('tableStandbyPlaceholder');
@@ -99,6 +133,7 @@ function initializePostgresDeletedData() {
     initControls();
     initDatePicker();
     initTableDropdown();
+    setFiltersEnabled(false);
 
     // Hook custom search handler cho main.js clientSearch
     window.customClientSearchHandler = function () {
@@ -139,15 +174,21 @@ function resetAllFiltersAndTable() {
     const fromDateEl = document.getElementById('fromDate');
     const toDateEl = document.getElementById('toDate');
     if (flatpickrInstance) {
-        flatpickrInstance.clear();
+        flatpickrInstance.clear(false);
     }
-    if (dateInput) dateInput.value = '';
+    if (dateInput) {
+        dateInput.value = '';
+        const box = dateInput.closest('.input-box');
+        if (box) box.classList.remove('has-value');
+    }
     if (fromDateEl) fromDateEl.value = '';
     if (toDateEl) toDateEl.value = '';
 
     const searchInput = document.getElementById('clientSearch');
     if (searchInput) {
         searchInput.value = '';
+        const box = searchInput.closest('.input-wrapper, .input-box');
+        if (box) box.classList.remove('has-value');
     }
 
     // 3. Clear table container state & pagination nav
@@ -172,6 +213,8 @@ function resetAllFiltersAndTable() {
 
     const insertBtn = document.getElementById('btnInsertQuery');
     if (insertBtn) insertBtn.disabled = true;
+
+    setFiltersEnabled(false);
 }
 
 function initControls() {
@@ -186,19 +229,27 @@ function initControls() {
 
     const searchInput = document.getElementById('clientSearch');
     if (searchInput) {
-        searchInput.disabled = false;
-        searchInput.removeAttribute('disabled');
         searchInput.addEventListener('input', () => {
             applyAllFilters(true);
         });
     }
 
-    // Override updateClientSearchState trên page này để clientSearch luôn luôn enable
+    // Chỉ bật clientSearch sau khi Load API trả kết quả hiển thị trong table container
     window.updateClientSearchState = function () {
         const input = document.getElementById('clientSearch');
-        if (input) {
-            input.disabled = false;
+        if (!input) return;
+        const enabled = hasLoadedTableResults();
+        input.disabled = !enabled;
+        if (enabled) {
             input.removeAttribute('disabled');
+        } else {
+            input.setAttribute('disabled', '');
+            if (typeof clearInputBox === 'function') {
+                clearInputBox(input);
+            }
+            if (typeof updateClientSearchFocusRing === 'function') {
+                updateClientSearchFocusRing(false);
+            }
         }
     };
 
@@ -207,19 +258,6 @@ function initControls() {
         insertQueryBtn.addEventListener('click', () => {
             generateInsertQueries();
         });
-    }
-
-    // Đảm bảo bật clientSearch ngay lập tức và sau DOM update
-    ensureClientSearchEnabled();
-    setTimeout(ensureClientSearchEnabled, 50);
-    setTimeout(ensureClientSearchEnabled, 250);
-}
-
-function ensureClientSearchEnabled() {
-    const searchInput = document.getElementById('clientSearch');
-    if (searchInput) {
-        searchInput.disabled = false;
-        searchInput.removeAttribute('disabled');
     }
 }
 
@@ -239,7 +277,7 @@ function initDatePicker() {
         dateFormat: "Y-m-d",
         maxDate: "today",
         allowInput: false,
-        clickOpens: true,
+        clickOpens: false,
         defaultDate: null,
         locale: {
             rangeSeparator: "  →  ",
@@ -254,6 +292,7 @@ function initDatePicker() {
             }
         },
         onClose(selectedDates) {
+            if (dateInput.disabled || !hasLoadedTableResults()) return;
             if (selectedDates.length === 1) {
                 const dateStr = formatDateToStr(selectedDates[0]);
                 selectedFromDate = dateStr;
@@ -279,6 +318,7 @@ function initDatePicker() {
     });
 
     dateInput.addEventListener('click', function () {
+        if (dateInput.disabled) return;
         if (dateInput.value && flatpickrInstance) {
             flatpickrInstance.clear();
             selectedFromDate = '';
@@ -305,6 +345,7 @@ function initTableDropdown() {
     if (!input || !dropdown) return;
 
     input.addEventListener('click', (e) => {
+        if (input.disabled) return;
         e.stopPropagation();
         toggleTableDropdown();
     });
@@ -330,8 +371,9 @@ function initTableDropdown() {
 }
 
 function toggleTableDropdown() {
+    const input = document.getElementById('table_filter');
     const dropdown = document.getElementById('table-filter-dropdown');
-    if (!dropdown) return;
+    if (!input || !dropdown || input.disabled) return;
 
     if (dropdown.classList.contains('show')) {
         dropdown.classList.remove('show');
@@ -461,7 +503,6 @@ function renderCurrentPage() {
     const pageRows = currentFilteredRecords.slice(startIdx, endIdx);
 
     displayTable(pageRows, tableColumns);
-    ensureClientSearchEnabled();
 
     const rowCount = document.getElementById('rowCount');
     if (rowCount) {
@@ -497,7 +538,9 @@ function renderCurrentPage() {
 }
 
 async function fetchDeletedRecordsLog() {
+    isFetching = true;
     hasFetchedData = true;
+    setFiltersEnabled(false);
     hideStandbyPlaceholder();
     const loadBtn = document.getElementById('btnLoad') || document.getElementById('btnCheckDeletedData');
     const loadIcon = document.getElementById('btnLoadIcon');
@@ -581,6 +624,8 @@ async function fetchDeletedRecordsLog() {
         allFetchedRecords = [];
         applyAllFilters(true);
     } finally {
+        isFetching = false;
+        setFiltersEnabled(hasLoadedTableResults());
         if (loadBtn) {
             loadBtn.disabled = false;
         }

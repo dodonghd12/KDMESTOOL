@@ -1345,8 +1345,15 @@ body.theme-light .flatpickr-day.today.inRange {
 .input-box .input:disabled,
 .input-box .input[disabled] {
     opacity: 0.6;
-    cursor: not-allowed;
+    cursor: not-allowed !important;
+    border-color: var(--color-border-glass);
+    background: var(--color-interactive-disabled-bg);
     box-shadow: none !important;
+}
+
+.input-box .input:disabled ~ .user-label,
+.input-box .input[disabled] ~ .user-label {
+    opacity: 0.6;
 }
 
 .input-wrapper.has-value .input {
