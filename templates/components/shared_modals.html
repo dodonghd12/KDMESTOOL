@@ -267,54 +267,6 @@
                                 <strong>Lưu ý:</strong> Vì lấy trực tiếp theo <code>work_order.updated_at</code>, nếu đơn đã <code>CLOSED (3)</code> nhưng về sau có thao tác ghi đè/cập nhật lại dòng <code>work_order</code> đó thì ngày hiển thị ở cột <em>Thời gian kết thúc sản xuất</em> cũng thay đổi theo <code>updated_at</code> mới nhất.
                             </div>
                         </section>
-
-                        <!-- Bảng đối chiếu nhanh 3 dòng ví dụ trong hình -->
-                        <section class="kd-fyi-section">
-                            <div class="kd-fyi-section-head">
-                                <span class="kd-fyi-step-badge">✓</span>
-                                <h4 class="kd-fyi-section-title">Đối chiếu nhanh 3 dòng ví dụ trong hình (lọc <code>reserved_date = 2026-11-21</code>)</h4>
-                            </div>
-                            <div class="kd-fyi-table-wrap">
-                                <table class="kd-fyi-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Mã đơn điều động</th>
-                                            <th>work_order.status</th>
-                                            <th>batch (number = 1)</th>
-                                            <th>Thời gian sản xuất</th>
-                                            <th>Thời gian kết thúc</th>
-                                            <th>updated_by</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr>
-                                            <td data-label="Mã đơn điều động"><code>DC00LOO29QBC72QB601G</code></td>
-                                            <td data-label="work_order.status"><code>3 (CLOSED)</code></td>
-                                            <td data-label="batch (number = 1)"><code>records_id = [DC0KPOK7E1NS710DNMQG]</code></td>
-                                            <td data-label="Thời gian sản xuất"><code>2026-11-21</code> (<code>feed_record.time</code>)</td>
-                                            <td data-label="Thời gian kết thúc"><code>2026-11-22</code> (<code>updated_at</code> 00:46)</td>
-                                            <td data-label="updated_by"><code>015292</code></td>
-                                        </tr>
-                                        <tr>
-                                            <td data-label="Mã đơn điều động"><code>DC00M9O29QBC72QB603G</code></td>
-                                            <td data-label="work_order.status"><code>3 (CLOSED)</code></td>
-                                            <td data-label="batch (number = 1)"><code>records_id = {}</code> (rỗng ở batch #1)</td>
-                                            <td data-label="Thời gian sản xuất"><em>(trống)</em></td>
-                                            <td data-label="Thời gian kết thúc"><code>2026-11-21</code> (<code>updated_at</code> 23:43)</td>
-                                            <td data-label="updated_by"><code>025459</code></td>
-                                        </tr>
-                                        <tr>
-                                            <td data-label="Mã đơn điều động"><code>DC00MKG29QBC72QB604G</code></td>
-                                            <td data-label="work_order.status"><code>5 (PAUSE)</code></td>
-                                            <td data-label="batch (number = 1)">Chưa <code>CLOSED</code> &amp; batch #1 rỗng</td>
-                                            <td data-label="Thời gian sản xuất"><em>(trống)</em></td>
-                                            <td data-label="Thời gian kết thúc"><em>(trống)</em></td>
-                                            <td data-label="updated_by"><code>025449</code></td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </section>
                     </div>
                 </div>
             </div>
