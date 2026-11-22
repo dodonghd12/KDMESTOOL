@@ -14394,6 +14394,17 @@ body.is-spa-frame .kd-fab-container {
     background: #ffffff;
 }
 
+.kd-fyi-figure-portrait img {
+    width: auto;
+    max-width: min(360px, 100%);
+    margin: 0 auto;
+    background: transparent;
+}
+
+.kd-fyi-figure-portrait .kd-fyi-caption {
+    text-align: center;
+}
+
 .kd-fyi-caption {
     margin-top: 8px;
     font-size: 12.5px;

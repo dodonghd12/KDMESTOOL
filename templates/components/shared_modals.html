@@ -188,6 +188,9 @@
                 <button type="button" class="kd-tab" role="tab" id="fyiTabProductionRate" aria-selected="false" aria-controls="fyiPanelProductionRate" tabindex="-1">
                     <span class="tab-label">Production rate</span>
                 </button>
+                <button type="button" class="kd-tab" role="tab" id="fyiTabShiftWorkDate" aria-selected="false" aria-controls="fyiPanelShiftWorkDate" tabindex="-1">
+                    <span class="tab-label">Shift &amp; Work Date</span>
+                </button>
                 <div class="kd-tab-indicator" aria-hidden="true"></div>
             </div>
             <button type="button" class="details-modal-close" id="fyiModalCloseBtn" title="Đóng (ESC)" aria-label="Đóng hộp thoại FYI">
@@ -266,6 +269,84 @@
                             <div class="kd-fyi-note">
                                 <strong>Lưu ý:</strong> Vì lấy trực tiếp theo <code>work_order.updated_at</code>, nếu đơn đã <code>CLOSED (3)</code> nhưng về sau có thao tác ghi đè/cập nhật lại dòng <code>work_order</code> đó thì ngày hiển thị ở cột <em>Thời gian kết thúc sản xuất</em> cũng thay đổi theo <code>updated_at</code> mới nhất.
                             </div>
+                        </section>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel 3: Shift & Work Date (Ca làm việc & Ngày làm việc khi đăng nhập) -->
+            <div class="kd-tabpanel hidden" role="tabpanel" id="fyiPanelShiftWorkDate" aria-labelledby="fyiTabShiftWorkDate" tabindex="0">
+                <div class="kd-fyi-doc">
+                    <figure class="kd-fyi-figure kd-fyi-figure-portrait">
+                        <img src="{{ url_for('static', filename='img/fyi/login-shift-workdate.png') }}?v={{ version }}" alt="Màn hình đăng nhập MES — chọn Ca làm việc và Ngày làm việc" loading="lazy">
+                        <figcaption class="kd-fyi-caption">
+                            Màn hình đăng nhập MES — trường <strong>Ca</strong> (<code>shift_group</code> / <code>group</code>: <code>1..9</code>) và <strong>Ngày làm việc</strong> (<code>work_date</code>) mà người vận hành chọn khi login.
+                        </figcaption>
+                    </figure>
+
+                    <div class="kd-fyi-doc-grid">
+                        <!-- 1. Tác động khi Đăng nhập / Vào máy -->
+                        <section class="kd-fyi-section">
+                            <div class="kd-fyi-section-head">
+                                <span class="kd-fyi-step-badge">1</span>
+                                <h4 class="kd-fyi-section-title">Ghi nhận khi Đăng nhập / Vào máy (<code>SignInStation</code> → <code>kvmes.site_contents</code> &amp; <code>kvmes.site_view</code>)</h4>
+                            </div>
+                            <ul class="kd-fyi-list">
+                                <li><strong>Điều kiện kiểm tra lúc vào máy:</strong> Giá trị <strong>Ca</strong> hợp lệ là <code>1..9</code>; <strong>Ngày làm việc</strong> (<code>work_date</code>) chỉ chấp nhận <strong>hôm qua hoặc hôm nay</strong> (<code>yesterday &lt;= work_date &lt; tomorrow</code>) — chọn lệch ngoài phạm vi này sẽ báo lỗi <code>BAD_WORK_DATE</code>.</li>
+                                <li><strong>Bảng &amp; View bị tác động:</strong> Chèn dòng mới vào <code>kvmes.site_contents</code> (và phản ánh trạng thái hiện hành tại view <code>kvmes.site_view</code>) cho Operator Site (<code>sub_type = OPERATOR</code>, <code>type = SLOT</code>) của máy đó.</li>
+                                <li><strong>Cột &amp; key JSONB lưu trữ:</strong> Cột <code>content</code> (<code>jsonb</code>) → <code>content-&gt;'slot'-&gt;'operator'</code> gồm <code>employee_id</code> (mã NV), <code>group</code> (số <strong>Ca</strong>) và <code>work_date</code> (<strong>Ngày làm việc</strong>, VD <code>"2026-11-22T07:00:00+07:00"</code>).</li>
+                            </ul>
+                            <div class="kd-fyi-note">
+                                <strong>Thời gian hiệu lực:</strong> Thông tin <code>group</code> và <code>work_date</code> gắn trên máy suốt ca cho đến khi nhân viên đăng xuất (<code>SignOutStation</code>) hoặc người khác đăng nhập đè lên. Mọi thao tác thu liệu tại máy đều đọc lại 2 giá trị này từ <code>kvmes.site_view</code>.
+                            </div>
+                        </section>
+
+                        <!-- 2. Công thức sinh mã lô lot_number -->
+                        <section class="kd-fyi-section">
+                            <div class="kd-fyi-section-head">
+                                <span class="kd-fyi-step-badge">2</span>
+                                <h4 class="kd-fyi-section-title">Công thức sinh Mã lô (<code>lot_number</code>) khi Thu liệu (<code>Collect</code>)</h4>
+                            </div>
+                            <ul class="kd-fyi-list">
+                                <li><strong>Nguồn ghép:</strong> Kết hợp <strong>Ca</strong> (<code>group</code>) + mã máy rút gọn tại bảng <code>kvmes.station</code> (cột <code>information-&gt;&gt;'code'</code>) + tháng/ngày của <strong>Ngày làm việc</strong> (<code>work_date</code> định dạng <code>MMDD</code>).</li>
+                                <li><strong>Công thức:</strong> <code>&lt;Ca&gt;&lt;station.information-&gt;&gt;'code'&gt;-&lt;MMDD(work_date)&gt;</code>.</li>
+                                <li><strong>Ví dụ thực tế:</strong> Đăng nhập Ca <code>1</code> tại máy có <code>code = "12"</code> với <code>work_date = 2026-05-25</code> → sinh ra <code>lot_number = "112-0525"</code>.</li>
+                            </ul>
+                        </section>
+
+                        <!-- 3. Tác động trực tiếp lên các bảng & cột khi Thu liệu -->
+                        <section class="kd-fyi-section">
+                            <div class="kd-fyi-section-head">
+                                <span class="kd-fyi-step-badge">3</span>
+                                <h4 class="kd-fyi-section-title">Các bảng &amp; cột dữ liệu bị tác động trực tiếp khi Thu liệu &amp; In tem</h4>
+                            </div>
+                            <ul class="kd-fyi-list">
+                                <li><strong>Bảng <code>kvmes.collect_record</code>:</strong>
+                                    <ul>
+                                        <li>Cột <code>work_date</code> (kiểu <code>DATE</code>): lưu trực tiếp <strong>Ngày làm việc</strong> chọn lúc login (không phụ thuộc thời điểm qua 00:00 của server).</li>
+                                        <li>Cột <code>detail</code> (<code>jsonb</code>) → <code>detail-&gt;&gt;'shift_group'</code>: lưu số <strong>Ca làm việc</strong> (<code>1..9</code>).</li>
+                                        <li>Cột <code>lot_number</code> (<code>text</code>): lưu mã lô <code>&lt;Ca&gt;&lt;code&gt;-&lt;MMDD&gt;</code> vừa sinh ở bước trên.</li>
+                                    </ul>
+                                </li>
+                                <li><strong>Bảng <code>kvmes.material_resource</code>:</strong> Cột <code>info</code> (<code>jsonb</code>) → <code>info-&gt;&gt;'lot_number'</code> nhận mã lô <code>lot_number</code> tương ứng.</li>
+                                <li><strong>Tem in ra tại máy (<code>Label Printing</code>):</strong> Trường <strong>Mã lô / Số lô</strong> (<code>lot_number</code>) trên tem in nhận trực tiếp giá trị <code>lot_number</code> này.</li>
+                            </ul>
+                            <div class="kd-fyi-note kd-fyi-note-warn">
+                                <strong>Lưu ý về mốc giờ thực tế:</strong> Các cột <code>collect_record.created_at</code>, <code>material_resource.created_at</code>, <code>info-&gt;'production_info'-&gt;&gt;'production_time'</code>, <code>standing_time</code> và <code>expiry_time</code> vẫn lấy theo <strong>giờ đồng hồ thực tế của server (<code>time.Now()</code>)</strong> lúc thu liệu, <strong>không</strong> lấy theo <code>work_date</code>.
+                            </div>
+                        </section>
+
+                        <!-- 4. Tác động gián tiếp & bảng không bị ảnh hưởng -->
+                        <section class="kd-fyi-section">
+                            <div class="kd-fyi-section-head">
+                                <span class="kd-fyi-step-badge">4</span>
+                                <h4 class="kd-fyi-section-title">Ảnh hưởng tới báo cáo, bảng Phế phẩm &amp; các bảng không bị tác động</h4>
+                            </div>
+                            <ul class="kd-fyi-list">
+                                <li><strong>Bảng phế phẩm <code>kvmes.defective_records</code>:</strong> Khi quét tem thu liệu để ghi nhận phế phẩm, hệ thống tách <strong>ký tự đầu tiên của <code>collect_record.lot_number</code></strong> (chính là số Ca) lưu vào cột <code>fallbacks-&gt;&gt;'shift_group'</code>.</li>
+                                <li><strong>Báo cáo sản lượng / Tra cứu trên MES UI:</strong> Thống kê ca/ngày lọc theo <code>collect_record.work_date</code>, <code>detail-&gt;&gt;'shift_group'</code> và <code>lot_number</code> — chọn nhầm Ca hoặc Ngày làm việc lúc đăng nhập sẽ khiến sản lượng nhảy sang ca/ngày khác và toàn bộ tem in ra mang sai mã lô.</li>
+                                <li><strong>Không bị tác động bởi Ca &amp; Ngày login:</strong> <code>kvmes.feed_record.time</code> (giờ cấp liệu thực tế), <code>kvmes.work_order.reserved_date</code> (ngày kế hoạch đơn điều động), cũng như toàn bộ cột <code>created_at</code> / <code>expiry_time</code> theo giờ hệ thống.</li>
+                            </ul>
                         </section>
                     </div>
                 </div>
