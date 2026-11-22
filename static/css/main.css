@@ -14108,6 +14108,7 @@ body.is-spa-frame .kd-fab-container {
     border-radius: 16px !important;
     padding: 0 !important;
     width: 95vw !important;
+    height: min(760px, 86vh) !important;
     max-height: 88vh !important;
     display: flex !important;
     flex-direction: column !important;
@@ -14130,11 +14131,13 @@ body.is-spa-frame .kd-fab-container {
 #convertModal .kd-utility-modal-content {
     width: min(1200px, 96vw) !important;
     max-width: 1200px !important;
+    height: min(620px, 86vh) !important;
 }
 
 #fyiModal .kd-utility-modal-content {
     width: min(1120px, 95vw) !important;
     max-width: 1120px !important;
+    height: min(760px, 86vh) !important;
 }
 
 @keyframes kdModalPop {
