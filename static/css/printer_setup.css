@@ -863,16 +863,24 @@ body.theme-light .btn-remove-station:hover {
     max-height: 260px;
     padding: 4px 0;
     scrollbar-width: thin;
-    scrollbar-color: rgba(56, 189, 248, 0.3) transparent;
+    scrollbar-color: var(--scrollbar-thumb, rgba(61, 213, 192, 0.28)) var(--scrollbar-track, transparent);
 }
 
 .floating-dropdown-list::-webkit-scrollbar {
     width: 5px;
 }
 
+.floating-dropdown-list::-webkit-scrollbar-track {
+    background: var(--scrollbar-track, transparent);
+}
+
 .floating-dropdown-list::-webkit-scrollbar-thumb {
-    background: rgba(56, 189, 248, 0.3);
+    background: var(--scrollbar-thumb, rgba(61, 213, 192, 0.28));
     border-radius: 4px;
+}
+
+.floating-dropdown-list::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover, var(--color-text-accent, #3dd5c0));
 }
 
 .station-dropdown-item {

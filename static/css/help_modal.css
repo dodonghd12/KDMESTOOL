@@ -315,22 +315,27 @@ body.theme-light {
 }
 
 /* Custom Scrollbars */
+.help-nav-list,
+.help-content-area {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb, rgba(61, 213, 192, 0.28)) var(--scrollbar-track, transparent);
+}
 .help-nav-list::-webkit-scrollbar,
 .help-content-area::-webkit-scrollbar {
     width: 6px;
 }
 .help-nav-list::-webkit-scrollbar-track,
 .help-content-area::-webkit-scrollbar-track {
-    background: var(--help-bg-canvas);
+    background: var(--scrollbar-track, transparent);
 }
 .help-nav-list::-webkit-scrollbar-thumb,
 .help-content-area::-webkit-scrollbar-thumb {
-    background: var(--help-border-surface);
+    background: var(--scrollbar-thumb, rgba(61, 213, 192, 0.28));
     border-radius: 4px;
 }
 .help-nav-list::-webkit-scrollbar-thumb:hover,
 .help-content-area::-webkit-scrollbar-thumb:hover {
-    background: var(--help-accent);
+    background: var(--scrollbar-thumb-hover, var(--color-text-accent, #3dd5c0));
 }
 
 /* Pane Styles */

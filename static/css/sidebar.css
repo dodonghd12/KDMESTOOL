@@ -94,13 +94,26 @@ body {
     border-radius: 0;
 }
 
+#sidebar>ul {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb, rgba(61, 213, 192, 0.28)) var(--scrollbar-track, transparent);
+}
+
 #sidebar>ul::-webkit-scrollbar {
     width: 4px;
 }
 
+#sidebar>ul::-webkit-scrollbar-track {
+    background: var(--scrollbar-track, transparent);
+}
+
 #sidebar>ul::-webkit-scrollbar-thumb {
-    background: var(--color-interactive-bg-hover, rgba(61, 213, 192, 0.2));
+    background: var(--scrollbar-thumb, rgba(61, 213, 192, 0.28));
     border-radius: 4px;
+}
+
+#sidebar>ul::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover, var(--color-text-accent, #3dd5c0));
 }
 
 /* === removing default styling ===*/

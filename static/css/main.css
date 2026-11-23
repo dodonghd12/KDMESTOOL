@@ -116,6 +116,9 @@
     --table-row-bg-selected-hover: #0A0E1A;
     --color-interactive-disabled: var(--slate-600);
     --color-interactive-disabled-bg: rgba(255, 255, 255, 0.05);
+    --scrollbar-track: transparent;
+    --scrollbar-thumb: rgba(61, 213, 192, 0.28);
+    --scrollbar-thumb-hover: var(--color-text-accent, #3dd5c0);
 
     /* ══════════════════════════════════════════════════════════════════════
        4. FEEDBACK COLORS (SUCCESS, WARNING, ERROR, INFO, SPECIAL)
@@ -460,6 +463,34 @@ html, body {
     -moz-osx-font-smoothing: grayscale;
 }
 
+/* ── GLOBAL SCROLLBAR COLOR (MATCHING .kd-tabpanels-wrapper) ── */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+}
+
+::-webkit-scrollbar-corner {
+    background: var(--scrollbar-track);
+}
+
 /* ── SEMANTIC TYPOGRAPHY UTILITIES ── */
 .text-display {
     font-size: var(--font-size-display);
@@ -567,6 +598,8 @@ html, body {
     padding: 6px;
     box-shadow: var(--color-shadow-glass), var(--color-border-glow);
     animation: dropdownSlideDown 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
 .dropdown-list::-webkit-scrollbar {
@@ -574,18 +607,18 @@ html, body {
 }
 
 .dropdown-list::-webkit-scrollbar-track {
-    background: var(--color-bg-canvas);
+    background: var(--scrollbar-track);
     border-radius: 6px;
     margin: 4px;
 }
 
 .dropdown-list::-webkit-scrollbar-thumb {
-    background: var(--color-border-interactive);
+    background: var(--scrollbar-thumb);
     border-radius: 6px;
 }
 
 .dropdown-list::-webkit-scrollbar-thumb:hover {
-    background: var(--color-text-accent);
+    background: var(--scrollbar-thumb-hover);
 }
 
 .dropdown-list.show {
@@ -1697,7 +1730,7 @@ body.theme-light .table-container.search-target-focused {
     overflow-x: auto;
     overflow-y: auto;
     scrollbar-width: thin;
-    scrollbar-color: var(--color-border-interactive) var(--color-bg-canvas);
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
 .table-scroll::-webkit-scrollbar {
@@ -1706,16 +1739,20 @@ body.theme-light .table-container.search-target-focused {
 }
 
 .table-scroll::-webkit-scrollbar-track {
-    background: var(--color-bg-canvas);
+    background: var(--scrollbar-track);
 }
 
 .table-scroll::-webkit-scrollbar-thumb {
-    background: var(--color-border-interactive);
+    background: var(--scrollbar-thumb);
     border-radius: 8px;
 }
 
 .table-scroll::-webkit-scrollbar-thumb:hover {
-    background: var(--color-text-accent);
+    background: var(--scrollbar-thumb-hover);
+}
+
+.table-scroll::-webkit-scrollbar-corner {
+    background: var(--scrollbar-track);
 }
 
 table {
@@ -3205,7 +3242,7 @@ body.theme-light .empty-state-icon-wrapper::after {
     white-space: pre-wrap;
     word-break: break-word;
     scrollbar-width: thin;
-    scrollbar-color: #1E293B #0A0E1A;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
 /* ── CODE SCROLLBAR ── */
@@ -3215,18 +3252,22 @@ body.theme-light .empty-state-icon-wrapper::after {
 }
 
 .details-modal-body::-webkit-scrollbar-track {
-    background: #0A0E1A;
+    background: var(--scrollbar-track);
     border-radius: 6px;
     margin: 4px;
 }
 
 .details-modal-body::-webkit-scrollbar-thumb {
-    background: #1E293B;
+    background: var(--scrollbar-thumb);
     border-radius: 6px;
 }
 
 .details-modal-body::-webkit-scrollbar-thumb:hover {
-    background: #3DD5C0;
+    background: var(--scrollbar-thumb-hover);
+}
+
+.details-modal-body::-webkit-scrollbar-corner {
+    background: var(--scrollbar-track);
 }
 
 /* ── SYNTAX HIGHLIGHTING ── */
@@ -3273,7 +3314,7 @@ body.theme-light .empty-state-icon-wrapper::after {
     padding: 6px 0;
     animation: scaleIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
     scrollbar-width: thin;
-    scrollbar-color: var(--color-border-interactive) var(--color-bg-canvas);
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
 .context-menu-header {
@@ -3369,10 +3410,10 @@ body.theme-light .empty-state-icon-wrapper::after {
     padding: 6px 0;
     animation: scaleIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
     scrollbar-width: thin;
-    scrollbar-color: var(--color-border-interactive) var(--color-bg-canvas);
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
-/* Context Menu & Submenu Scrollbars matching .table-scroll */
+/* Context Menu & Submenu Scrollbars matching .kd-tabpanels-wrapper */
 .context-menu::-webkit-scrollbar,
 .context-submenu::-webkit-scrollbar {
     width: 8px;
@@ -3381,19 +3422,19 @@ body.theme-light .empty-state-icon-wrapper::after {
 
 .context-menu::-webkit-scrollbar-track,
 .context-submenu::-webkit-scrollbar-track {
-    background: var(--color-bg-canvas);
+    background: var(--scrollbar-track);
     border-radius: 8px;
 }
 
 .context-menu::-webkit-scrollbar-thumb,
 .context-submenu::-webkit-scrollbar-thumb {
-    background: var(--color-border-interactive);
+    background: var(--scrollbar-thumb);
     border-radius: 8px;
 }
 
 .context-menu::-webkit-scrollbar-thumb:hover,
 .context-submenu::-webkit-scrollbar-thumb:hover {
-    background: var(--color-text-accent);
+    background: var(--scrollbar-thumb-hover);
 }
 
 .context-submenu-body {
@@ -3607,6 +3648,8 @@ body.theme-light .empty-state-icon-wrapper::after {
     overflow-y: auto;
     overflow-x: auto;
     min-height: 0;
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
 .output-table-scroll::-webkit-scrollbar {
@@ -3615,12 +3658,20 @@ body.theme-light .empty-state-icon-wrapper::after {
 }
 
 .output-table-scroll::-webkit-scrollbar-track {
-    background: var(--color-bg-canvas);
+    background: var(--scrollbar-track);
 }
 
 .output-table-scroll::-webkit-scrollbar-thumb {
-    background: var(--color-border-interactive);
+    background: var(--scrollbar-thumb);
     border-radius: 8px;
+}
+
+.output-table-scroll::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+}
+
+.output-table-scroll::-webkit-scrollbar-corner {
+    background: var(--scrollbar-track);
 }
 
 #scanInStationTable,
@@ -3715,6 +3766,8 @@ body.theme-light .empty-state-icon-wrapper::after {
     overflow-y: auto;
     overflow-x: auto;
     min-height: 0;
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
 .sub-output-table-scroll::-webkit-scrollbar {
@@ -3723,12 +3776,20 @@ body.theme-light .empty-state-icon-wrapper::after {
 }
 
 .sub-output-table-scroll::-webkit-scrollbar-track {
-    background: var(--color-bg-canvas);
+    background: var(--scrollbar-track);
 }
 
 .sub-output-table-scroll::-webkit-scrollbar-thumb {
-    background: var(--color-border-interactive);
+    background: var(--scrollbar-thumb);
     border-radius: 8px;
+}
+
+.sub-output-table-scroll::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+}
+
+.sub-output-table-scroll::-webkit-scrollbar-corner {
+    background: var(--scrollbar-track);
 }
 
 #subOutputBarcodeTable {
@@ -4656,7 +4717,7 @@ a.pipeline-status-dot:hover {
     overflow-x: auto;
     box-sizing: border-box;
     scrollbar-width: thin;
-    scrollbar-color: #1E293B #0A0E1A;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
     background: #0A0E1A !important;
 }
 
@@ -4666,20 +4727,20 @@ a.pipeline-status-dot:hover {
 }
 
 .diff-split-pane-half::-webkit-scrollbar-track {
-    background: #0A0E1A;
+    background: var(--scrollbar-track);
 }
 
 .diff-split-pane-half::-webkit-scrollbar-thumb {
-    background: #1E293B;
+    background: var(--scrollbar-thumb);
     border-radius: 4px;
 }
 
 .diff-split-pane-half::-webkit-scrollbar-thumb:hover {
-    background: #3DD5C0;
+    background: var(--scrollbar-thumb-hover);
 }
 
 .diff-split-pane-half::-webkit-scrollbar-corner {
-    background: #0A0E1A;
+    background: var(--scrollbar-track);
 }
 
 .diff-pane-left {
@@ -5139,7 +5200,7 @@ a.yaml-path-badge:hover .yaml-link-open-icon {
     max-height: 140px;
     overflow-y: auto;
     scrollbar-width: thin;
-    scrollbar-color: #1E293B #0A0E1A;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
 .yaml-error-item {
@@ -5222,7 +5283,7 @@ a.yaml-path-badge:hover .yaml-link-open-icon {
     background: #0A0E1A !important;
     box-shadow: none !important;
     scrollbar-width: thin;
-    scrollbar-color: #1E293B #0A0E1A;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
     border-bottom-left-radius: 14px;
     border-bottom-right-radius: 14px;
 }
@@ -5233,16 +5294,20 @@ a.yaml-path-badge:hover .yaml-link-open-icon {
 }
 
 .yaml-code-scroll::-webkit-scrollbar-track {
-    background: #0A0E1A;
+    background: var(--scrollbar-track);
 }
 
 .yaml-code-scroll::-webkit-scrollbar-thumb {
-    background: #1E293B;
+    background: var(--scrollbar-thumb);
     border-radius: 4px;
 }
 
 .yaml-code-scroll::-webkit-scrollbar-thumb:hover {
-    background: #3DD5C0;
+    background: var(--scrollbar-thumb-hover);
+}
+
+.yaml-code-scroll::-webkit-scrollbar-corner {
+    background: var(--scrollbar-track);
 }
 
 .yaml-line {
@@ -5603,6 +5668,8 @@ body.theme-light .comparison-table th {
     flex-direction: column;
     padding: 0;
     background: var(--color-bg-canvas);
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
 .comparison-modal-body::-webkit-scrollbar {
@@ -5611,16 +5678,20 @@ body.theme-light .comparison-table th {
 }
 
 .comparison-modal-body::-webkit-scrollbar-track {
-    background: var(--color-bg-canvas);
+    background: var(--scrollbar-track);
 }
 
 .comparison-modal-body::-webkit-scrollbar-thumb {
-    background: var(--color-border-interactive);
+    background: var(--scrollbar-thumb);
     border-radius: 4px;
 }
 
 .comparison-modal-body::-webkit-scrollbar-thumb:hover {
-    background: var(--color-text-accent);
+    background: var(--scrollbar-thumb-hover);
+}
+
+.comparison-modal-body::-webkit-scrollbar-corner {
+    background: var(--scrollbar-track);
 }
 
 #comparisonContent {
@@ -7105,6 +7176,8 @@ body.theme-light .winx-btn-primary:hover:not(:disabled) {
 .winx-table-scroll {
     max-height: 340px;
     overflow: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
 .winx-table-scroll::-webkit-scrollbar {
@@ -7113,16 +7186,20 @@ body.theme-light .winx-btn-primary:hover:not(:disabled) {
 }
 
 .winx-table-scroll::-webkit-scrollbar-track {
-    background: var(--color-bg-canvas);
+    background: var(--scrollbar-track);
 }
 
 .winx-table-scroll::-webkit-scrollbar-thumb {
-    background: var(--color-border-interactive);
+    background: var(--scrollbar-thumb);
     border-radius: 8px;
 }
 
 .winx-table-scroll::-webkit-scrollbar-thumb:hover {
-    background: var(--color-text-accent);
+    background: var(--scrollbar-thumb-hover);
+}
+
+.winx-table-scroll::-webkit-scrollbar-corner {
+    background: var(--scrollbar-track);
 }
 
 .winx-table {
@@ -7404,6 +7481,8 @@ body.theme-light .winx-btn-primary:hover:not(:disabled) {
     overflow: auto;
     border-radius: 10px;
     border: 1px solid var(--color-border-glass);
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
 .winx-select-scroll::-webkit-scrollbar {
@@ -7412,12 +7491,20 @@ body.theme-light .winx-btn-primary:hover:not(:disabled) {
 }
 
 .winx-select-scroll::-webkit-scrollbar-track {
-    background: var(--color-bg-canvas);
+    background: var(--scrollbar-track);
 }
 
 .winx-select-scroll::-webkit-scrollbar-thumb {
-    background: var(--color-border-interactive);
+    background: var(--scrollbar-thumb);
     border-radius: 8px;
+}
+
+.winx-select-scroll::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+}
+
+.winx-select-scroll::-webkit-scrollbar-corner {
+    background: var(--scrollbar-track);
 }
 
 .winx-select-table td input[type="checkbox"] {
@@ -9441,7 +9528,7 @@ body.theme-light .ocr-dropzone {
     scroll-behavior: smooth;
     position: relative;
     scrollbar-width: thin;
-    scrollbar-color: #1E293B #0A0E1A;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
 .actions-diff-viewer::-webkit-scrollbar {
@@ -9450,16 +9537,20 @@ body.theme-light .ocr-dropzone {
 }
 
 .actions-diff-viewer::-webkit-scrollbar-track {
-    background: #0A0E1A;
+    background: var(--scrollbar-track);
 }
 
 .actions-diff-viewer::-webkit-scrollbar-thumb {
-    background: #1E293B;
+    background: var(--scrollbar-thumb);
     border-radius: 4px;
 }
 
 .actions-diff-viewer::-webkit-scrollbar-thumb:hover {
-    background: #3DD5C0;
+    background: var(--scrollbar-thumb-hover);
+}
+
+.actions-diff-viewer::-webkit-scrollbar-corner {
+    background: var(--scrollbar-track);
 }
 
 .actions-diff-viewer .diff-line {
@@ -10453,6 +10544,8 @@ body.theme-light .ocr-dropzone {
     padding: 0;
     background: var(--color-bg-canvas);
     border-radius: 0 0 14px 14px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
 .mes-tracking-modal-body::-webkit-scrollbar {
@@ -10461,16 +10554,20 @@ body.theme-light .ocr-dropzone {
 }
 
 .mes-tracking-modal-body::-webkit-scrollbar-track {
-    background: var(--color-bg-canvas);
+    background: var(--scrollbar-track);
 }
 
 .mes-tracking-modal-body::-webkit-scrollbar-thumb {
-    background: var(--color-border-interactive);
+    background: var(--scrollbar-thumb);
     border-radius: 8px;
 }
 
 .mes-tracking-modal-body::-webkit-scrollbar-thumb:hover {
-    background: var(--color-text-accent);
+    background: var(--scrollbar-thumb-hover);
+}
+
+.mes-tracking-modal-body::-webkit-scrollbar-corner {
+    background: var(--scrollbar-track);
 }
 
 /* Master Unified Tree Table (Single sticky thead, matching main table design) */
@@ -12183,6 +12280,7 @@ body.theme-light .material-transfer-retry-btn.is-success {
         gap: 6px !important;
         width: 100% !important;
         box-sizing: border-box !important;
+        scrollbar-width: none !important;
     }
 
     .table-footer.hidden {
@@ -12691,6 +12789,7 @@ body.theme-light .material-transfer-retry-btn.is-success {
         padding: 1px 0 2px 0 !important;
         margin: 0 !important;
         width: 100% !important;
+        scrollbar-width: none !important;
     }
 
     .comparison-meta-info::-webkit-scrollbar {
@@ -12791,6 +12890,7 @@ body.theme-light .material-transfer-retry-btn.is-success {
         -webkit-overflow-scrolling: touch !important;
         flex-shrink: 0 !important;
         border-radius: 0 0 14px 14px !important;
+        scrollbar-width: none !important;
     }
 
     .comparison-modal-footer::-webkit-scrollbar {
@@ -13297,7 +13397,7 @@ body.theme-light .material-transfer-retry-btn.is-success {
         overscroll-behavior: contain !important;
         padding: 6px 0 !important;
         scrollbar-width: thin;
-        scrollbar-color: var(--color-border-interactive) var(--color-bg-canvas);
+        scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
     }
 
     .context-menu-item {
