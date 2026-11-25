@@ -15446,9 +15446,10 @@ button.hold-btn {
     --hold-border-hover: rgba(52, 211, 153, 0.8);
     --hold-fg: #ffffff;
     --hold-shadow: 0 2px 10px rgba(5, 150, 105, 0.28);
-    --hold-fill-bg: #ecfdf5;
-    --hold-fill-border: #10b981;
-    --hold-fill-fg: #064e3b;
+    --hold-fill-bg: #3DD5C0;
+    --hold-fill-border: #3DD5C0;
+    --hold-fill-fg: #0A0E1A;
+    --hold-confirmed-shadow: 0 0 16px rgba(61, 213, 192, 0.35);
     position: relative;
     display: inline-grid;
     place-items: center;
@@ -15495,9 +15496,10 @@ button.hold-btn.hold-btn--emerald {
     --hold-border-hover: rgba(52, 211, 153, 0.8);
     --hold-fg: #ffffff;
     --hold-shadow: 0 2px 10px rgba(5, 150, 105, 0.28);
-    --hold-fill-bg: #ecfdf5;
-    --hold-fill-border: #10b981;
-    --hold-fill-fg: #064e3b;
+    --hold-fill-bg: #3DD5C0;
+    --hold-fill-border: #3DD5C0;
+    --hold-fill-fg: #0A0E1A;
+    --hold-confirmed-shadow: 0 0 16px rgba(61, 213, 192, 0.35);
 }
 
 button.hold-btn.hold-btn--danger {
@@ -15507,9 +15509,10 @@ button.hold-btn.hold-btn--danger {
     --hold-border-hover: rgba(251, 113, 133, 0.85);
     --hold-fg: #ffffff;
     --hold-shadow: 0 2px 10px rgba(225, 29, 72, 0.28);
-    --hold-fill-bg: #fff1f2;
-    --hold-fill-border: #f43f5e;
-    --hold-fill-fg: #881337;
+    --hold-fill-bg: #881337;
+    --hold-fill-border: #fb7185;
+    --hold-fill-fg: #ffffff;
+    --hold-confirmed-shadow: 0 0 16px rgba(244, 63, 94, 0.38);
 }
 
 .hold-btn__bg {
@@ -15555,6 +15558,10 @@ button.hold-btn[data-hold-state="holding"] .hold-btn__progress[data-hold-progres
 button.hold-btn[data-hold-state="confirmed"] .hold-btn__progress[data-hold-progress] {
     clip-path: inset(0);
     transition: none;
+}
+
+button.hold-btn[data-hold-state="confirmed"] .hold-btn__bg {
+    box-shadow: var(--hold-confirmed-shadow, var(--hold-shadow));
 }
 
 .hold-btn__fill-bg {
