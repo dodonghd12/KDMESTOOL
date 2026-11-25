@@ -13721,9 +13721,11 @@ body .table-container:has(tr.table-loading-row) .table-footer,
     color: #ffffff !important;
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    display: inline-flex;
     align-items: center;
     gap: 6px;
     box-shadow: 0 2px 10px rgba(225, 29, 72, 0.25);
+    user-select: none;
 }
 
 .btn-undo-account:hover:not(:disabled) {
@@ -13746,7 +13748,6 @@ body .table-container:has(tr.table-loading-row) .table-footer,
     min-width: 215px !important;
     height: 38px !important;
     padding: 0 14px !important;
-    justify-content: center !important;
     white-space: nowrap !important;
     flex-shrink: 0 !important;
     box-sizing: border-box !important;
@@ -13754,44 +13755,6 @@ body .table-container:has(tr.table-loading-row) .table-footer,
     font-weight: 700 !important;
     letter-spacing: 0.4px;
     border-radius: 8px !important;
-    border: 1px solid rgba(16, 185, 129, 0.5) !important;
-    background: #059669 !important;
-    color: #ffffff !important;
-    cursor: pointer;
-    position: relative;
-    overflow: hidden;
-    user-select: none;
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-    align-items: center;
-    gap: 6px;
-    box-shadow: 0 2px 10px rgba(5, 150, 105, 0.28);
-}
-
-.btn-save-account:hover:not(:disabled) {
-    background: #047857 !important;
-    border-color: rgba(16, 185, 129, 0.7) !important;
-    color: #ffffff !important;
-    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.38) !important;
-    transform: translateY(-1px);
-}
-
-.btn-save-account:disabled {
-    opacity: 0.45 !important;
-    cursor: not-allowed !important;
-    transform: none !important;
-    box-shadow: none !important;
-}
-
-.btn-save-account .save-progress-bar {
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 0%;
-    background: rgba(255, 255, 255, 0.32);
-    pointer-events: none;
-    z-index: 1;
-    transition: width 0.05s linear;
 }
 
 /* ===== TABLE CELL URL LINK (GITLAB DELETED FILES & DATA GRIDS) ===== */
@@ -15458,6 +15421,426 @@ html, body, .spa-shell-body, .spa-viewport, .container {
     z-index: 25 !important;
     border-right: none;
     box-shadow: none;
+}
+
+/* ==============================================================================
+   HOLD-TO-CONFIRM BUTTON COMPONENT & NATIVE CONFIRMATION DIALOG
+   ============================================================================== */
+.hold-sr-only {
+    position: absolute !important;
+    clip-path: inset(50%) !important;
+    overflow: hidden !important;
+    width: 1px !important;
+    height: 1px !important;
+    margin: -1px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    white-space: nowrap !important;
+}
+
+button.hold-btn {
+    --hold-duration: 3000ms;
+    --hold-bg: #047857;
+    --hold-bg-hover: #065f46;
+    --hold-border: rgba(16, 185, 129, 0.55);
+    --hold-border-hover: rgba(52, 211, 153, 0.8);
+    --hold-fg: #ffffff;
+    --hold-shadow: 0 2px 10px rgba(5, 150, 105, 0.28);
+    --hold-fill-bg: #ecfdf5;
+    --hold-fill-border: #10b981;
+    --hold-fill-fg: #064e3b;
+    position: relative;
+    display: inline-grid;
+    place-items: center;
+    box-sizing: border-box;
+    touch-action: pan-y;
+    user-select: none;
+    -webkit-user-select: none;
+    isolation: isolate;
+    overflow: visible;
+    cursor: pointer;
+    font-family: var(--font-stack, inherit);
+    line-height: 1;
+}
+
+body:not(.app-loading-state) button.hold-btn,
+body:not(.app-loading-state) button.hold-btn:hover,
+body:not(.app-loading-state) button.hold-btn:active {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    transform: none !important;
+    filter: none !important;
+}
+
+button.hold-btn:focus-visible {
+    outline: 2.5px solid #38bdf8;
+    outline-offset: 2px;
+}
+
+button.hold-btn:disabled {
+    opacity: 0.45 !important;
+    cursor: not-allowed !important;
+    pointer-events: none;
+}
+
+button.hold-btn[data-hold-busy="true"] {
+    cursor: default;
+}
+
+button.hold-btn.hold-btn--emerald {
+    --hold-bg: #047857;
+    --hold-bg-hover: #065f46;
+    --hold-border: rgba(16, 185, 129, 0.55);
+    --hold-border-hover: rgba(52, 211, 153, 0.8);
+    --hold-fg: #ffffff;
+    --hold-shadow: 0 2px 10px rgba(5, 150, 105, 0.28);
+    --hold-fill-bg: #ecfdf5;
+    --hold-fill-border: #10b981;
+    --hold-fill-fg: #064e3b;
+}
+
+button.hold-btn.hold-btn--danger {
+    --hold-bg: #e11d48;
+    --hold-bg-hover: #be123c;
+    --hold-border: rgba(244, 63, 94, 0.55);
+    --hold-border-hover: rgba(251, 113, 133, 0.85);
+    --hold-fg: #ffffff;
+    --hold-shadow: 0 2px 10px rgba(225, 29, 72, 0.28);
+    --hold-fill-bg: #fff1f2;
+    --hold-fill-border: #f43f5e;
+    --hold-fill-fg: #881337;
+}
+
+.hold-btn__bg {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: var(--hold-bg);
+    border: 1px solid var(--hold-border);
+    box-shadow: var(--hold-shadow);
+    pointer-events: none;
+    z-index: 0;
+    transition:
+        transform 140ms cubic-bezier(0.23, 1, 0.32, 1),
+        background-color 160ms ease,
+        border-color 160ms ease,
+        box-shadow 160ms ease;
+}
+
+button.hold-btn:hover:not(:disabled):not([data-hold-busy="true"]) .hold-btn__bg {
+    background: var(--hold-bg-hover);
+    border-color: var(--hold-border-hover);
+}
+
+.hold-btn__progress[data-hold-progress] {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    padding: inherit;
+    box-sizing: border-box;
+    clip-path: inset(0 100% 0 0);
+    transition: clip-path 180ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+button.hold-btn[data-hold-state="holding"] .hold-btn__progress[data-hold-progress] {
+    clip-path: inset(0);
+    transition: clip-path var(--hold-duration, 3000ms) linear;
+}
+
+button.hold-btn[data-hold-state="confirmed"] .hold-btn__progress[data-hold-progress] {
+    clip-path: inset(0);
+    transition: none;
+}
+
+.hold-btn__fill-bg {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: var(--hold-fill-bg);
+    border: 1px solid var(--hold-fill-border);
+    box-sizing: border-box;
+    pointer-events: none;
+    z-index: 0;
+    transition: transform 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* Scale ONLY background layers in active pointer state so labels never shift */
+button.hold-btn.is-active-press:not([data-hold-modality="keyboard"]) .hold-btn__bg,
+button.hold-btn.is-active-press:not([data-hold-modality="keyboard"]) .hold-btn__fill-bg {
+    transform: scale(0.98);
+}
+
+.hold-btn__content {
+    position: relative;
+    z-index: 1;
+    display: inline-grid;
+    align-items: center;
+    justify-items: center;
+    pointer-events: none;
+    color: var(--hold-fg);
+    line-height: 1;
+}
+
+.hold-btn__content--fill {
+    color: var(--hold-fill-fg);
+}
+
+.hold-btn__label {
+    grid-area: 1 / 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    white-space: nowrap;
+    line-height: 1;
+}
+
+.hold-btn__check {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+    display: block;
+}
+
+button.hold-btn[data-hold-state="idle"] .hold-btn__label--idle {
+    opacity: 1;
+}
+button.hold-btn[data-hold-state="idle"] .hold-btn__label--waiting {
+    opacity: 0;
+}
+button.hold-btn[data-hold-state="idle"] .hold-btn__label--confirmed {
+    opacity: 0;
+    transform: translateY(-3px);
+}
+
+button.hold-btn[data-hold-state="holding"] .hold-btn__label--idle {
+    opacity: 0;
+}
+button.hold-btn[data-hold-state="holding"] .hold-btn__label--waiting {
+    opacity: 1;
+}
+button.hold-btn[data-hold-state="holding"] .hold-btn__label--confirmed {
+    opacity: 0;
+    transform: translateY(-3px);
+}
+
+button.hold-btn[data-hold-state="confirmed"] .hold-btn__label--idle,
+button.hold-btn[data-hold-state="confirmed"] .hold-btn__label--waiting {
+    opacity: 0;
+    transition: opacity 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+button.hold-btn[data-hold-state="confirmed"] .hold-btn__label--confirmed {
+    opacity: 1;
+    transform: translateY(0);
+    transition:
+        opacity 160ms cubic-bezier(0.23, 1, 0.32, 1),
+        transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* Keyboard modality skips scale, confirmation transition, and release animation */
+button.hold-btn[data-hold-modality="keyboard"] .hold-btn__bg,
+button.hold-btn[data-hold-modality="keyboard"] .hold-btn__fill-bg {
+    transform: none !important;
+    transition: none !important;
+}
+
+button.hold-btn[data-hold-modality="keyboard"] .hold-btn__label {
+    transition: none !important;
+}
+
+button.hold-btn[data-hold-modality="keyboard"] .hold-btn__label--confirmed {
+    transform: none !important;
+}
+
+button.hold-btn[data-hold-modality="keyboard"]:not([data-hold-state="holding"]) .hold-btn__progress[data-hold-progress] {
+    transition: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    button.hold-btn .hold-btn__bg,
+    button.hold-btn .hold-btn__fill-bg {
+        transform: none !important;
+        transition: none !important;
+    }
+
+    button.hold-btn .hold-btn__label {
+        transition: none !important;
+    }
+
+    button.hold-btn .hold-btn__label--confirmed {
+        transform: none !important;
+    }
+
+    button.hold-btn:not([data-hold-state="holding"]) .hold-btn__progress[data-hold-progress] {
+        transition: none !important;
+    }
+
+    /* Exempt [data-hold-progress] during active hold so linear fill still tracks time */
+    button.hold-btn[data-hold-state="holding"] [data-hold-progress] {
+        transition: clip-path var(--hold-duration, 3000ms) linear !important;
+    }
+}
+
+@media (forced-colors: active) {
+    button.hold-btn {
+        forced-color-adjust: none;
+        outline: 2px solid ButtonText !important;
+        outline-offset: -2px;
+    }
+
+    button.hold-btn:disabled {
+        opacity: 1 !important;
+        outline-color: GrayText !important;
+    }
+
+    button.hold-btn:focus-visible {
+        outline: 3px solid Highlight !important;
+        outline-offset: 2px;
+    }
+
+    button.hold-btn .hold-btn__bg {
+        background: ButtonFace !important;
+        border-color: ButtonText !important;
+        box-shadow: none !important;
+    }
+
+    button.hold-btn:disabled .hold-btn__bg {
+        border-color: GrayText !important;
+    }
+
+    button.hold-btn .hold-btn__content {
+        color: ButtonText !important;
+    }
+
+    button.hold-btn:disabled .hold-btn__content {
+        color: GrayText !important;
+    }
+
+    button.hold-btn .hold-btn__fill-bg {
+        background: Highlight !important;
+        border-color: Highlight !important;
+    }
+
+    button.hold-btn .hold-btn__content--fill {
+        color: HighlightText !important;
+    }
+}
+
+/* Native <dialog> fallback for assistive-tech click (event.detail === 0) */
+dialog.hold-confirm-dialog {
+    margin: auto;
+    padding: 0;
+    border: 1px solid var(--color-border-interactive, #334155);
+    border-radius: 12px;
+    background: var(--color-bg-surface, #111827);
+    color: var(--color-text-primary, #f8fafc);
+    width: min(420px, calc(100vw - 32px));
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+    font-family: var(--font-stack, inherit);
+}
+
+dialog.hold-confirm-dialog[open] {
+    display: block;
+}
+
+dialog.hold-confirm-dialog:modal {
+    overscroll-behavior: contain;
+}
+
+dialog.hold-confirm-dialog::backdrop {
+    overflow: hidden;
+    overscroll-behavior: contain;
+    background: rgba(2, 6, 23, 0.72);
+    backdrop-filter: blur(4px);
+}
+
+.hold-confirm-dialog__body {
+    padding: 20px 22px;
+}
+
+.hold-confirm-dialog__title {
+    margin: 0 0 8px 0;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.35;
+    color: var(--color-text-primary, #f8fafc);
+}
+
+.hold-confirm-dialog__desc {
+    margin: 0 0 18px 0;
+    font-size: 13.5px;
+    line-height: 1.5;
+    color: var(--color-text-secondary, #cbd5e1);
+}
+
+.hold-confirm-dialog__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.hold-confirm-dialog__btn {
+    min-width: 92px;
+    height: 36px;
+    padding: 0 16px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    border: 1px solid transparent;
+}
+
+.hold-confirm-dialog__btn:focus-visible {
+    outline: 2.5px solid #38bdf8;
+    outline-offset: 2px;
+}
+
+.hold-confirm-dialog__btn--cancel {
+    background: rgba(148, 163, 184, 0.14);
+    border-color: rgba(148, 163, 184, 0.35);
+    color: var(--color-text-primary, #f8fafc);
+}
+
+.hold-confirm-dialog__btn--confirm {
+    background: #047857;
+    border-color: rgba(16, 185, 129, 0.55);
+    color: #ffffff;
+}
+
+dialog.hold-confirm-dialog[data-theme="danger"] .hold-confirm-dialog__btn--confirm {
+    background: #e11d48;
+    border-color: rgba(244, 63, 94, 0.55);
+}
+
+:root[data-theme="light"] dialog.hold-confirm-dialog,
+body.theme-light dialog.hold-confirm-dialog {
+    background: #ffffff;
+    border-color: #cbd5e1;
+    color: #0f172a;
+}
+
+:root[data-theme="light"] .hold-confirm-dialog__title,
+body.theme-light .hold-confirm-dialog__title {
+    color: #0f172a;
+}
+
+:root[data-theme="light"] .hold-confirm-dialog__desc,
+body.theme-light .hold-confirm-dialog__desc {
+    color: #475569;
+}
+
+:root[data-theme="light"] .hold-confirm-dialog__btn--cancel,
+body.theme-light .hold-confirm-dialog__btn--cancel {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #0f172a;
 }
 
 

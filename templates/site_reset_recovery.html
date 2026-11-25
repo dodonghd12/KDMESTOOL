@@ -231,26 +231,11 @@
             min-width: 215px !important;
             height: 38px !important;
             padding: 0 14px !important;
-            justify-content: center !important;
             white-space: nowrap !important;
             flex-shrink: 0 !important;
             box-sizing: border-box !important;
-            background: #059669 !important;
-            border-color: rgba(16, 185, 129, 0.5) !important;
-            color: #ffffff !important;
+            border-radius: 10px !important;
             font-size: 13px !important;
-        }
-
-        .btn-srr-restore:hover:not(:disabled) {
-            background: #047857 !important;
-            box-shadow: 0 4px 16px rgba(16, 185, 129, 0.38) !important;
-        }
-
-        .btn-srr-restore:disabled {
-            opacity: 0.45 !important;
-            cursor: not-allowed !important;
-            transform: none !important;
-            box-shadow: none !important;
         }
 
         .srr-history-overlay {
@@ -430,10 +415,7 @@
                     <div class="row-count">Đã chọn: <strong id="selectedCount" style="color: #38bdf8;">0</strong></div>
                 </div>
                 <div class="table-footer-right" style="display: flex; align-items: center; gap: 10px; margin-left: auto;">
-                    <button type="button" id="btnRestoreHold" class="btn-bypass-toggle btn-srr-restore" disabled title="Bấm và giữ 3 giây để xác nhận trả quantity vào PostgreSQL">
-                        <div id="restoreHoldProgressBar" class="bypass-hold-progress-bar"></div>
-                        <span id="restoreHoldText" style="position: relative; z-index: 2;">Execute (0)</span>
-                    </button>
+                    <button type="button" id="btnRestoreHold" class="btn-bypass-toggle btn-srr-restore hold-btn hold-btn--emerald" disabled data-hold-idle="Hold to Execute" data-hold-waiting="Keep holding..." data-hold-confirmed="Executed" data-hold-dialog-title="Xác nhận khôi phục quantity vào PostgreSQL?" data-hold-dialog-confirm="Execute">Hold to Execute</button>
                 </div>
             </div>
         </div>

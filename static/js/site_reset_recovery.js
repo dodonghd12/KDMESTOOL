@@ -7,7 +7,6 @@
 (function () {
     'use strict';
 
-    const HOLD_DURATION_MS = 3000;
     const STATUS_OPTIONS = [
         { value: '', label: 'Tất cả' },
         { value: 'OK', label: 'OK' },
@@ -28,9 +27,6 @@
     let searchDebounceTimer = null;
     let historyRecords = [];
 
-    let holdStartTime = null;
-    let holdAnimFrame = null;
-    let holdCompleted = false;
     let isRestoring = false;
 
     if (document.readyState === 'loading') {
@@ -611,70 +607,32 @@
         const count = selectedKeys.size;
         const countEl = document.getElementById('selectedCount');
         const holdBtn = document.getElementById('btnRestoreHold');
-        const holdTxt = document.getElementById('restoreHoldText');
         if (countEl) countEl.textContent = count;
-        if (holdBtn) holdBtn.disabled = count === 0 || isRestoring;
-        if (holdTxt && !isRestoring) {
-            holdTxt.textContent = `Execute (${count})`;
+        if (holdBtn && holdBtn.dataset.holdBusy !== 'true') {
+            holdBtn.disabled = count === 0 || isRestoring;
         }
     }
 
     function initHoldRestoreButton() {
         const btn = document.getElementById('btnRestoreHold');
-        const bar = document.getElementById('restoreHoldProgressBar');
-        const txt = document.getElementById('restoreHoldText');
-        if (!btn) return;
+        if (!btn || !window.HoldButton) return;
 
-        const cancelHold = () => {
-            if (holdAnimFrame) {
-                cancelAnimationFrame(holdAnimFrame);
-                holdAnimFrame = null;
+        window.HoldButton.init(btn, {
+            idleLabel: 'Hold to Execute',
+            waitingLabel: 'Keep holding...',
+            confirmedLabel: 'Executed',
+            theme: 'emerald',
+            dialogTitle: 'Xác nhận khôi phục quantity vào PostgreSQL?',
+            dialogConfirmLabel: 'Execute',
+            onSettled: () => updateSelectionUI()
+        });
+
+        btn.addEventListener('holdconfirm', (e) => {
+            if (isRestoring || selectedKeys.size === 0) return;
+            const promise = executeRestore();
+            if (e.detail && typeof e.detail.waitUntil === 'function') {
+                e.detail.waitUntil(promise);
             }
-            holdStartTime = null;
-            if (bar) bar.style.width = '0%';
-            updateSelectionUI();
-        };
-
-        const tick = () => {
-            if (!holdStartTime) return;
-            const elapsed = performance.now() - holdStartTime;
-            const pct = Math.min(100, (elapsed / HOLD_DURATION_MS) * 100);
-            if (bar) bar.style.width = `${pct}%`;
-            if (elapsed >= HOLD_DURATION_MS) {
-                holdCompleted = true;
-                holdStartTime = null;
-                holdAnimFrame = null;
-                if (bar) bar.style.width = '100%';
-                executeRestore();
-                return;
-            }
-            holdAnimFrame = requestAnimationFrame(tick);
-        };
-
-        const startHold = e => {
-            if (btn.disabled || isRestoring || selectedKeys.size === 0) return;
-            if (e && e.type === 'mousedown' && e.button !== 0) return;
-            holdCompleted = false;
-            holdStartTime = performance.now();
-            if (txt) txt.textContent = 'On Hold for Execution';
-            holdAnimFrame = requestAnimationFrame(tick);
-        };
-
-        const endHold = () => {
-            if (holdStartTime && !holdCompleted) {
-                cancelHold();
-                if (typeof Toast !== 'undefined') {
-                    Toast.info('Chưa đủ 3 giây', 'Vui lòng nhấn và giữ nút đủ 3 giây để thực hiện khôi phục.');
-                }
-            }
-        };
-
-        btn.addEventListener('mousedown', startHold);
-        btn.addEventListener('touchstart', startHold, { passive: true });
-        window.addEventListener('mouseup', endHold);
-        window.addEventListener('touchend', endHold);
-        btn.addEventListener('mouseleave', () => {
-            if (holdStartTime && !holdCompleted) cancelHold();
         });
     }
 
@@ -699,11 +657,6 @@
         if (items.length === 0) return;
 
         isRestoring = true;
-        const holdBtn = document.getElementById('btnRestoreHold');
-        const holdTxt = document.getElementById('restoreHoldText');
-        const bar = document.getElementById('restoreHoldProgressBar');
-        if (holdBtn) holdBtn.disabled = true;
-        if (holdTxt) holdTxt.textContent = 'Executing...';
 
         try {
             const res = await fetch('/api/site-reset-recovery/restore', {
@@ -726,7 +679,6 @@
             }
         } finally {
             isRestoring = false;
-            if (bar) bar.style.width = '0%';
             updateSelectionUI();
         }
     }

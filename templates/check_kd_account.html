@@ -67,34 +67,15 @@
                 <div class="table-footer-left">
                     <div class="row-count">Số dòng: <span id="rowCount">0</span></div>
                 </div>
-                <div class="table-footer-right" style="display: flex; align-items: center; gap: 8px;">
-                    <!-- Save Status Indicator -->
-                    <span id="saveStatusIndicator" style="display: none; font-size: 12px; font-weight: 700; align-items: center; gap: 4px;"></span>
-
+                <div class="table-footer-right" style="display: flex; align-items: center; gap: 8px; margin-left: auto;">
                     <!-- Undo Button -->
-                    <button type="button" class="winx-btn btn-undo-account" id="btnUndoChanges" style="display: none;">
+                    <button type="button" class="winx-btn btn-undo-account" id="btnUndoChanges" disabled title="Khôi phục lại tất cả các thay đổi chưa lưu">
                         <span class="material-symbols-outlined" style="font-size: 16px; line-height: 1;">undo</span>
                         <span>Undo</span>
                     </button>
 
                     <!-- Save Button (Hold 3s) -->
-                    <button type="button" class="winx-btn btn-save-account" id="btnSaveHold" style="display: none;" title="Bấm và giữ chuột trong 3 giây để lưu thay đổi">
-                        <div id="saveProgressBar" class="save-progress-bar"></div>
-                        <span class="material-symbols-outlined" style="font-size: 16px; line-height: 1; position: relative; z-index: 2;">save</span>
-                        <span id="saveBtnText" style="position: relative; z-index: 2;">Save</span>
-                    </button>
-
-                    <!-- Export Excel Button -->
-                    <button class="btn-export-excel" id="exportExcelBtn" aria-label="Xuất dữ liệu ra file Excel">
-                        <div class="btn-export-excel-wrapper">
-                            <div class="text">Xuất Excel</div>
-                            <span class="icon">
-                                <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img" width="2em" height="2em" preserveAspectRatio="xMidYMid meet" viewBox="0 0 24 24">
-                                    <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 0 0 4.561 21h14.878a2 2 0 0 0 1.94-1.515L22 17"></path>
-                                </svg>
-                            </span>
-                        </div>
-                    </button>
+                    <button type="button" class="winx-btn btn-save-account hold-btn hold-btn--emerald" id="btnSaveHold" disabled data-hold-idle="Hold to save" data-hold-waiting="Keep holding..." data-hold-confirmed="Saved" data-hold-dialog-title="Xác nhận lưu thay đổi tài khoản?" data-hold-dialog-confirm="Save">Hold to save</button>
                 </div>
             </div>
         </div>

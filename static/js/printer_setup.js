@@ -12,6 +12,7 @@
     let filteredGroups = [];
     let selectedFolder = '';
     let isLoading = false;
+    let isSavingChanges = false;
     let activeRefreshOps = 0;
     let hideBadgeTimeout = null;
 
@@ -250,7 +251,7 @@
                     return;
                 }
 
-                showStepBadge(`Đang tải printers-manager.yaml (${folder})...`, 'description', 'progress');
+                showStepBadge(`Đang tải printers-manager.yaml (${folder})...`, 'sync', 'progress');
                 btnOpenPrintersYaml.disabled = true;
 
                 try {
@@ -339,7 +340,7 @@
      */
     async function checkServerStatus(forceRefresh = false) {
         setRefreshSpinning(true);
-        showStepBadge(`Đang kiểm tra root@${currentServer}...`, 'dns', 'progress');
+        showStepBadge(`Đang kiểm tra root@${currentServer}...`, 'sync', 'progress');
 
         let showedTableLoading = false;
         if (forceRefresh && !selectedFolder && !isLoading && typeof showTableLoadingState === 'function') {
@@ -1287,13 +1288,15 @@
     function checkDirtyAndUpdateFooter() {
         const btnSave = document.getElementById('btnSaveHold');
         const btnUndo = document.getElementById('btnUndoChanges');
-        const isSaving = Boolean(btnSave && btnSave.classList.contains('is-saving'));
+        const isHoldBusy = Boolean(btnSave && btnSave.dataset.holdBusy === 'true');
         const dirty = isDirtyState();
-        const disabled = !dirty || isSaving;
+        const disabled = !dirty || isSavingChanges || isHoldBusy;
 
         if (btnSave) {
             btnSave.style.display = 'inline-flex';
-            btnSave.disabled = disabled;
+            if (!isHoldBusy) {
+                btnSave.disabled = disabled;
+            }
         }
         if (btnUndo) {
             btnUndo.style.display = 'inline-flex';
@@ -1355,65 +1358,32 @@
      */
     function initSaveHoldButton() {
         const btn = document.getElementById('btnSaveHold');
-        const progressBar = document.getElementById('saveProgressBar');
-        const btnText = document.getElementById('saveBtnText');
-        if (!btn || !progressBar || !btnText) return;
+        if (!btn || !window.HoldButton) return;
 
-        let holdStartTime = null;
-        let holdAnimFrame = null;
-        const HOLD_DURATION_MS = 3000;
+        window.HoldButton.init(btn, {
+            idleLabel: 'Hold to save',
+            waitingLabel: 'Keep holding...',
+            confirmedLabel: 'Saved',
+            theme: 'emerald',
+            dialogTitle: 'Xác nhận lưu cấu hình máy in?',
+            dialogConfirmLabel: 'Save',
+            onSettled: () => checkDirtyAndUpdateFooter()
+        });
 
-        function startHold(e) {
-            if (btn.disabled || btn.classList.contains('is-saving')) return;
-            if (e.button !== 0 && e.type !== 'touchstart') return; // Left mouse or touch
-            e.preventDefault();
-
-            holdStartTime = performance.now();
-            if (btnText) btnText.textContent = 'On Hold to Save';
-
-            function updateProgress(now) {
-                const elapsed = now - holdStartTime;
-                const pct = Math.min(100, (elapsed / HOLD_DURATION_MS) * 100);
-                progressBar.style.width = `${pct}%`;
-
-                if (elapsed >= HOLD_DURATION_MS) {
-                    cancelHold(false, true);
-                    executeSaveHold();
-                } else {
-                    holdAnimFrame = requestAnimationFrame(updateProgress);
-                }
+        btn.addEventListener('holdconfirm', (e) => {
+            if (isSavingChanges) return;
+            const promise = executeSaveHold();
+            if (e.detail && typeof e.detail.waitUntil === 'function') {
+                e.detail.waitUntil(promise);
             }
-
-            holdAnimFrame = requestAnimationFrame(updateProgress);
-        }
-
-        function cancelHold(showShortToast = false, completed = false) {
-            const wasHolding = Boolean(holdStartTime);
-            if (holdAnimFrame) {
-                cancelAnimationFrame(holdAnimFrame);
-                holdAnimFrame = null;
-            }
-            holdStartTime = null;
-            if (progressBar) progressBar.style.width = '0%';
-            if (btnText && !completed && !btn.classList.contains('is-saving')) btnText.textContent = 'Save';
-            if (showShortToast && wasHolding && typeof Toast !== 'undefined') {
-                Toast.info('Chưa đủ 3 giây', 'Vui lòng nhấn và giữ nút đủ 3 giây để thực hiện.');
-            }
-        }
-
-        btn.addEventListener('mousedown', startHold);
-        btn.addEventListener('touchstart', startHold, { passive: false });
-
-        btn.addEventListener('mouseup', () => cancelHold(true));
-        btn.addEventListener('mouseleave', () => cancelHold(false));
-        btn.addEventListener('touchend', () => cancelHold(true));
-        btn.addEventListener('touchcancel', () => cancelHold(false));
+        });
     }
 
     /**
      * Thực thi lưu thay đổi cấu hình vào printers-manager.yaml trên server MES
      */
     async function executeSaveHold() {
+        if (isSavingChanges) return;
         if (!selectedFolder) {
             if (typeof Toast !== 'undefined' && Toast.warning) {
                 Toast.warning('Chưa chọn thư mục', 'Vui lòng chọn thư mục máy in trước khi lưu');
@@ -1421,18 +1391,9 @@
             return;
         }
 
-        const btnSave = document.getElementById('btnSaveHold');
         const btnUndo = document.getElementById('btnUndoChanges');
-        const saveBtnText = document.getElementById('saveBtnText');
-        const progressBar = document.getElementById('saveProgressBar');
-
-        if (btnSave) {
-            btnSave.disabled = true;
-            btnSave.classList.add('is-saving');
-        }
+        isSavingChanges = true;
         if (btnUndo) btnUndo.disabled = true;
-        if (saveBtnText) saveBtnText.textContent = 'Đang lưu...';
-        if (progressBar) progressBar.style.width = '0%';
 
         showStepBadge(`Đang lưu printers-manager.yaml (${selectedFolder})...`, 'sync', 'progress');
 
@@ -1460,7 +1421,6 @@
                 closeStationFloatingDropdown();
                 closePrinterFloatingDropdown();
                 renderTable(currentGroups);
-                checkDirtyAndUpdateFooter();
 
                 const cName = data.container_name || `mesage_kv2_${selectedFolder}`;
                 const cStat = data.container_status || 'Up';
@@ -1497,10 +1457,7 @@
             }
             showStepBadge(`Lỗi kết nối khi lưu (${selectedFolder})`, 'error', 'error');
         } finally {
-            if (btnSave) {
-                btnSave.classList.remove('is-saving');
-            }
-            if (saveBtnText) saveBtnText.textContent = 'Save';
+            isSavingChanges = false;
             checkDirtyAndUpdateFooter();
         }
     }
@@ -1568,7 +1525,10 @@
         badge.classList.add(`is-step-${type}`);
 
         if (iconEl && icon) {
-            iconEl.textContent = icon;
+            const safeIcon = (type === 'progress' && !['sync', 'progress_activity', 'refresh'].includes(icon))
+                ? 'sync'
+                : icon;
+            iconEl.textContent = safeIcon;
         }
 
         textEl.textContent = text;

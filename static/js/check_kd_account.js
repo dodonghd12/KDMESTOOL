@@ -39,13 +39,9 @@
     let currentFilteredRecords = [];
     let searchDebounceTimeout = null;
     let isFetchingAccounts = false;
+    let isSavingAccounts = false;
     let lastQueryTerm = '';
     let activeRoleDropdown = null;
-
-    // 3-Second Hold to Save State
-    let holdStartTime = null;
-    let holdAnimFrame = null;
-    const HOLD_DURATION_MS = 3000;
 
     // ── STANDBY PLACEHOLDER HELPERS ─────────────────────────────────────────
     function showStandbyPlaceholder() {
@@ -106,7 +102,6 @@
         }
 
         const accountInp = document.getElementById('accountIdInput');
-        const exportBtn = document.getElementById('exportExcelBtn');
 
         if (accountInp) {
             // Live debounced search when user types
@@ -142,14 +137,6 @@
             btnFetchAll.addEventListener('click', (e) => {
                 e.preventDefault();
                 fetchAllAccountRecords();
-            });
-        }
-
-        if (exportBtn) {
-            exportBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                exportAccountListToExcel();
             });
         }
 
@@ -508,8 +495,18 @@
 
         const btnSave = document.getElementById('btnSaveHold');
         const btnUndo = document.getElementById('btnUndoChanges');
-        if (btnSave) btnSave.style.display = hasAnyDirty ? 'inline-flex' : 'none';
-        if (btnUndo) btnUndo.style.display = hasAnyDirty ? 'inline-flex' : 'none';
+        const isHoldBusy = Boolean(btnSave && btnSave.dataset.holdBusy === 'true');
+        const disabled = !hasAnyDirty || isSavingAccounts || isHoldBusy;
+        if (btnSave) {
+            btnSave.style.display = 'inline-flex';
+            if (!isHoldBusy) {
+                btnSave.disabled = disabled;
+            }
+        }
+        if (btnUndo) {
+            btnUndo.style.display = 'inline-flex';
+            btnUndo.disabled = disabled;
+        }
     }
 
     // ── 7. RENDER TABLE ROWS ────────────────────────────────────────────────────
@@ -919,70 +916,35 @@
     // ── 9. 3-SECOND HOLD TO SAVE BUTTON CONTROLLER ──────────────────────────────
     function initSaveHoldButton() {
         const btn = document.getElementById('btnSaveHold');
-        const progressBar = document.getElementById('saveProgressBar');
-        const btnText = document.getElementById('saveBtnText');
-        if (!btn || !progressBar || !btnText) return;
+        if (!btn || !window.HoldButton) return;
 
-        function startHold(e) {
-            if (btn.disabled) return;
-            if (e.button !== 0 && e.type !== 'touchstart') return; // Only Left Mouse Button or Touch
-            e.preventDefault();
+        window.HoldButton.init(btn, {
+            idleLabel: 'Hold to save',
+            waitingLabel: 'Keep holding...',
+            confirmedLabel: 'Saved',
+            theme: 'emerald',
+            dialogTitle: 'Xác nhận lưu thay đổi tài khoản?',
+            dialogConfirmLabel: 'Save',
+            onSettled: () => checkAndUpdateDirtyState()
+        });
 
-            holdStartTime = performance.now();
-            if (btnText) btnText.textContent = 'On Hold to Save';
-
-            function updateProgress(now) {
-                const elapsed = now - holdStartTime;
-                const pct = Math.min(100, (elapsed / HOLD_DURATION_MS) * 100);
-                progressBar.style.width = `${pct}%`;
-
-                if (elapsed >= HOLD_DURATION_MS) {
-                    // Completed 3-second hold!
-                    cancelHold(false, true);
-                    executeSaveAccountChanges();
-                } else {
-                    holdAnimFrame = requestAnimationFrame(updateProgress);
-                }
+        btn.addEventListener('holdconfirm', (e) => {
+            if (isSavingAccounts) return;
+            const promise = executeSaveAccountChanges();
+            if (e.detail && typeof e.detail.waitUntil === 'function') {
+                e.detail.waitUntil(promise);
             }
-
-            holdAnimFrame = requestAnimationFrame(updateProgress);
-        }
-
-        function cancelHold(showShortToast = false, completed = false) {
-            const wasHolding = Boolean(holdStartTime);
-            if (holdAnimFrame) {
-                cancelAnimationFrame(holdAnimFrame);
-                holdAnimFrame = null;
-            }
-            holdStartTime = null;
-            if (progressBar) progressBar.style.width = '0%';
-            if (btnText && !completed && !btn.disabled) btnText.textContent = 'Save';
-            if (showShortToast && wasHolding && typeof Toast !== 'undefined') {
-                Toast.info('Chưa đủ 3 giây', 'Vui lòng nhấn và giữ nút đủ 3 giây để thực hiện.');
-            }
-        }
-
-        btn.addEventListener('mousedown', startHold);
-        btn.addEventListener('touchstart', startHold, { passive: false });
-
-        btn.addEventListener('mouseup', () => cancelHold(true));
-        btn.addEventListener('mouseleave', () => cancelHold(false));
-        btn.addEventListener('touchend', () => cancelHold(true));
-        btn.addEventListener('touchcancel', () => cancelHold(false));
+        });
     }
 
     async function executeSaveAccountChanges() {
+        if (isSavingAccounts) return;
         const dirtyAccounts = allAccountRecords.filter(acc => acc.isDirty);
         if (!dirtyAccounts.length) return;
 
-        const saveIndicator = document.getElementById('saveStatusIndicator');
-        const btnSave = document.getElementById('btnSaveHold');
         const btnUndo = document.getElementById('btnUndoChanges');
-        const btnText = document.getElementById('saveBtnText');
-
-        if (btnSave) btnSave.disabled = true;
+        isSavingAccounts = true;
         if (btnUndo) btnUndo.disabled = true;
-        if (btnText) btnText.textContent = 'Saving...';
 
         try {
             const payload = {
@@ -1016,21 +978,7 @@
                     acc.rolesModified = false;
                 });
 
-                checkAndUpdateDirtyState();
                 renderTableBody();
-
-                // Show "Saved changes" success indicator text
-                if (saveIndicator) {
-                    saveIndicator.style.display = 'inline-flex';
-                    saveIndicator.style.color = '#34d399';
-                    saveIndicator.innerHTML = `
-                        <span class="material-symbols-outlined" style="font-size: 16px;">check_circle</span>
-                        <span>Saved changes</span>
-                    `;
-                    setTimeout(() => {
-                        saveIndicator.style.display = 'none';
-                    }, 4500);
-                }
 
                 if (typeof Toast !== 'undefined' && Toast.success) {
                     Toast.success('Thành công', data.message || 'Đã lưu thay đổi tài khoản thành công!');
@@ -1040,24 +988,12 @@
             }
         } catch (err) {
             console.error('Lỗi khi lưu thay đổi:', err);
-            if (saveIndicator) {
-                saveIndicator.style.display = 'inline-flex';
-                saveIndicator.style.color = '#f87171';
-                saveIndicator.innerHTML = `
-                    <span class="material-symbols-outlined" style="font-size: 16px;">error</span>
-                    <span>Error</span>
-                `;
-                setTimeout(() => {
-                    saveIndicator.style.display = 'none';
-                }, 4500);
-            }
             if (typeof Toast !== 'undefined' && Toast.error) {
                 Toast.error('Lỗi lưu thay đổi', err.message || 'Không thể lưu thay đổi vào cơ sở dữ liệu');
             }
         } finally {
-            if (btnSave) btnSave.disabled = false;
-            if (btnUndo) btnUndo.disabled = false;
-            if (btnText) btnText.textContent = 'Save';
+            isSavingAccounts = false;
+            checkAndUpdateDirtyState();
         }
     }
 
@@ -1067,6 +1003,7 @@
         if (!btnUndo) return;
 
         btnUndo.addEventListener('click', () => {
+            if (btnUndo.disabled || isSavingAccounts) return;
             allAccountRecords.forEach(acc => {
                 acc.currentPassword = acc.originalPassword;
                 acc.currentRoles = [...acc.originalRoles];
@@ -1079,57 +1016,10 @@
             checkAndUpdateDirtyState();
             renderTableBody();
 
-            const saveIndicator = document.getElementById('saveStatusIndicator');
-            if (saveIndicator) saveIndicator.style.display = 'none';
-
             if (typeof Toast !== 'undefined' && Toast.info) {
                 Toast.info('Đã hoàn tác', 'Đã khôi phục lại tất cả các thay đổi chưa lưu');
             }
         });
-    }
-
-    // ── 11. EXPORT EXCEL ────────────────────────────────────────────────────────
-    async function exportAccountListToExcel() {
-        if (!currentFilteredRecords.length) {
-            Toast.warning('Cảnh báo', 'Không có dữ liệu tài khoản để xuất Excel');
-            return;
-        }
-
-        const totalCount = currentFilteredRecords.length;
-        const confirmed = (typeof showConfirm === 'function')
-            ? await showConfirm(`Bạn có chắc chắn muốn xuất file Excel cho toàn bộ ${totalCount.toLocaleString()} tài khoản?`)
-            : confirm(`Bạn có chắc chắn muốn xuất file Excel cho toàn bộ ${totalCount.toLocaleString()} tài khoản?`);
-        if (!confirmed) return;
-
-        try {
-            const XLSX = await window.ensureXlsxLoaded();
-            const wsData = [
-                ['Tài Khoản', 'Mật Khẩu', 'Mã Phân Quyền', 'Tên Phân Quyền', 'Bộ Phận']
-            ];
-
-            currentFilteredRecords.forEach((r) => {
-                const roleNamesStr = r.currentRoles.map(id => getRoleName(id)).join(', ');
-                const roleIdsStr = '{' + r.currentRoles.join(',') + '}';
-                wsData.push([
-                    r.id,
-                    r.currentPassword || '-',
-                    roleIdsStr,
-                    roleNamesStr || '-',
-                    r.department_id || '-'
-                ]);
-            });
-
-            const wb = XLSX.utils.book_new();
-            const ws = XLSX.utils.aoa_to_sheet(wsData);
-            XLSX.utils.book_append_sheet(wb, ws, 'TaiKhoanMES');
-
-            const dateStr = (typeof getVietnamTimestamp === 'function') ? getVietnamTimestamp() : new Date().toISOString().slice(0, 10);
-            XLSX.writeFile(wb, `danh_sach_tai_khoan_kdmes_${dateStr}.xlsx`);
-            Toast.success('Thành công', `Xuất file Excel thành công (${totalCount.toLocaleString()} tài khoản)!`);
-        } catch (err) {
-            console.error('Lỗi khi xuất Excel:', err);
-            Toast.error('Lỗi', 'Không thể tạo file Excel');
-        }
     }
 
     function escapeHtml(str) {
@@ -1143,5 +1033,4 @@
     }
 
     window.fetchAccountRecords = fetchAccountRecords;
-    window.exportAccountListToExcel = exportAccountListToExcel;
 })();

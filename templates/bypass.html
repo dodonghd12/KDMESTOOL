@@ -42,10 +42,7 @@
             </button>
 
             <!-- 3. Primary Toggle Button (Bấm và giữ 3s) -->
-            <button type="button" id="btnBypassToggle" class="btn-bypass-toggle is-inactive" title="Bấm và giữ chuột trong 3 giây để thực thi kích hoạt hoặc ngưng kích hoạt" aria-label="Bấm và giữ 3 giây để thực thi">
-                <div id="bypassHoldProgressBar" class="bypass-hold-progress-bar"></div>
-                <span id="bypassBtnText" style="position: relative; z-index: 2;">Execute</span>
-            </button>
+            <button type="button" id="btnBypassToggle" class="btn-bypass-toggle hold-btn hold-btn--danger is-inactive" data-hold-idle="Hold to Execute" data-hold-waiting="Keep holding..." data-hold-confirmed="Executed" data-hold-dialog-title="Xác nhận thực thi Bypass?" data-hold-dialog-confirm="Execute">Hold to Execute</button>
 
             <!-- 4. Status Pill -->
             <div class="bypass-status-pill status-inactive" id="bypassStatusPill">

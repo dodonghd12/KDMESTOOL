@@ -9864,3 +9864,471 @@ window.handleOcrFileSelected = handleOcrFileSelected;
 window.resetOcrDropzone = resetOcrDropzone;
 window.initOcrDropzone = initOcrDropzone;
 window.copyOcrResultToClipboard = copyOcrResultToClipboard;
+
+// ==============================================================================
+// ACCESSIBLE HOLD-TO-CONFIRM BUTTON CONTROLLER (3000ms)
+// ==============================================================================
+(function () {
+    const DEFAULT_HOLD_DURATION_MS = 3000;
+    const CANCEL_ANNOUNCE_THRESHOLD_MS = 300;
+    const MIN_CONFIRMED_DISPLAY_MS = 650;
+    let holdDescSeq = 0;
+    let sharedLiveRegion = null;
+    let sharedDialog = null;
+    let activeDialogRequest = null;
+
+    function getLiveRegion() {
+        if (sharedLiveRegion && document.body.contains(sharedLiveRegion)) {
+            return sharedLiveRegion;
+        }
+        let el = document.getElementById('holdButtonLiveRegion');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'holdButtonLiveRegion';
+            el.className = 'hold-sr-only';
+            el.setAttribute('aria-live', 'polite');
+            el.setAttribute('aria-atomic', 'true');
+            document.body.appendChild(el);
+        }
+        sharedLiveRegion = el;
+        return el;
+    }
+
+    function announceHoldStatus(message) {
+        const region = getLiveRegion();
+        region.textContent = '';
+        void region.offsetHeight;
+        region.textContent = message;
+    }
+
+    function getConfirmDialog() {
+        if (sharedDialog && document.body.contains(sharedDialog)) {
+            return sharedDialog;
+        }
+        let dialog = document.getElementById('holdConfirmDialog');
+        if (!dialog) {
+            dialog = document.createElement('dialog');
+            dialog.id = 'holdConfirmDialog';
+            dialog.className = 'hold-confirm-dialog';
+            dialog.setAttribute('aria-labelledby', 'holdConfirmDialogTitle');
+            dialog.setAttribute('aria-describedby', 'holdConfirmDialogDesc');
+            dialog.innerHTML = `
+                <div class="hold-confirm-dialog__body">
+                    <h1 id="holdConfirmDialogTitle" class="hold-confirm-dialog__title">Xác nhận thao tác</h1>
+                    <p id="holdConfirmDialogDesc" class="hold-confirm-dialog__desc">Bạn có chắc chắn muốn thực hiện thao tác này?</p>
+                    <form method="dialog" class="hold-confirm-dialog__actions">
+                        <button type="submit" value="cancel" class="hold-confirm-dialog__btn hold-confirm-dialog__btn--cancel" autofocus>Cancel</button>
+                        <button type="submit" value="confirm" class="hold-confirm-dialog__btn hold-confirm-dialog__btn--confirm">Confirm</button>
+                    </form>
+                </div>
+            `;
+            document.body.appendChild(dialog);
+            dialog.addEventListener('close', () => {
+                const rv = dialog.returnValue;
+                dialog.returnValue = '';
+                const req = activeDialogRequest;
+                activeDialogRequest = null;
+                if (req && rv === 'confirm') {
+                    req.onAccept();
+                }
+            });
+        }
+        sharedDialog = dialog;
+        return dialog;
+    }
+
+    function createLabelSet(idleLabel, waitingLabel, confirmedLabel) {
+        return `
+            <span class="hold-btn__label hold-btn__label--idle">${escapeHoldHtml(idleLabel)}</span>
+            <span class="hold-btn__label hold-btn__label--waiting">${escapeHoldHtml(waitingLabel)}</span>
+            <span class="hold-btn__label hold-btn__label--confirmed">
+                <svg class="hold-btn__check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polyline points="3.2 8.4 6.6 11.8 12.8 4.4"></polyline>
+                </svg>
+                <span>${escapeHoldHtml(confirmedLabel)}</span>
+            </span>
+        `;
+    }
+
+    function escapeHoldHtml(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    /**
+     * Initialize an accessible hold-to-confirm button with clip-path progress layer,
+     * pointer/keyboard guards, live region announcements, and native <dialog> fallback.
+     */
+    function initHoldButton(btn, options = {}) {
+        if (!btn) return null;
+        if (btn._holdButton) return btn._holdButton;
+
+        const durationMs = Number(options.durationMs || btn.dataset.holdDuration || DEFAULT_HOLD_DURATION_MS);
+        const idleLabel = options.idleLabel || btn.dataset.holdIdle || btn.textContent.trim() || 'Hold';
+        const waitingLabel = options.waitingLabel || btn.dataset.holdWaiting || 'Keep holding...';
+        const confirmedLabel = options.confirmedLabel || btn.dataset.holdConfirmed || 'Confirmed';
+        const theme = options.theme || btn.dataset.holdTheme || (btn.classList.contains('hold-btn--danger') ? 'danger' : 'emerald');
+        const dialogTitle = options.dialogTitle || btn.dataset.holdDialogTitle || `Xác nhận ${idleLabel}?`;
+        const dialogMessage = options.dialogMessage || btn.dataset.holdDialogMessage || 'Hành động này sẽ áp dụng thay đổi trực tiếp. Chọn xác nhận để tiếp tục hoặc Cancel để hủy.';
+        const dialogConfirmLabel = options.dialogConfirmLabel || btn.dataset.holdDialogConfirm || confirmedLabel;
+        const onSettled = typeof options.onSettled === 'function' ? options.onSettled : null;
+
+        btn.classList.add('hold-btn', theme === 'danger' ? 'hold-btn--danger' : 'hold-btn--emerald');
+        btn.style.setProperty('--hold-duration', `${durationMs}ms`);
+        btn.dataset.holdState = 'idle';
+        btn.dataset.holdModality = 'pointer';
+        btn.dataset.holdBusy = 'false';
+
+        // Keep accessible name fixed while visual labels swap
+        btn.setAttribute('aria-label', idleLabel);
+        const descId = `holdBtnDesc-${++holdDescSeq}`;
+        const descEl = document.createElement('span');
+        descEl.id = descId;
+        descEl.className = 'hold-sr-only';
+        const durationSec = Math.round((durationMs / 1000) * 10) / 10;
+        descEl.textContent = `Hold for ${durationSec} seconds to confirm. Releasing early cancels. Activating the button opens a confirmation dialog.`;
+        btn.insertAdjacentElement('afterend', descEl);
+        btn.setAttribute('aria-describedby', descId);
+
+        const labelMarkup = createLabelSet(idleLabel, waitingLabel, confirmedLabel);
+        btn.innerHTML = `
+            <span class="hold-btn__bg" aria-hidden="true"></span>
+            <span class="hold-btn__content" aria-hidden="true">${labelMarkup}</span>
+            <span class="hold-btn__progress" data-hold-progress aria-hidden="true">
+                <span class="hold-btn__fill-bg"></span>
+                <span class="hold-btn__content hold-btn__content--fill">${labelMarkup}</span>
+            </span>
+        `;
+
+        const progressEl = btn.querySelector('[data-hold-progress]');
+        getLiveRegion();
+
+        let holdTimer = null;
+        let holdStartedAt = 0;
+        let activePointerId = null;
+        let isInsideContact = false;
+        let pointerConfirmed = false;
+        let activeKey = null;
+        let isBusy = false;
+        let scrollListening = false;
+
+        function attachScrollListener() {
+            if (!scrollListening) {
+                document.addEventListener('scroll', handleDocumentScroll, true);
+                scrollListening = true;
+            }
+        }
+
+        function detachScrollListener() {
+            if (scrollListening) {
+                document.removeEventListener('scroll', handleDocumentScroll, true);
+                scrollListening = false;
+            }
+        }
+
+        function resetProgressImmediate() {
+            btn.dataset.holdState = 'idle';
+            if (progressEl) {
+                progressEl.style.transition = 'none';
+                progressEl.style.clipPath = 'inset(0 100% 0 0)';
+                void progressEl.offsetWidth;
+                progressEl.style.removeProperty('transition');
+                progressEl.style.removeProperty('clip-path');
+            }
+        }
+
+        function beginHold(modality) {
+            if (btn.disabled || isBusy) return;
+            if (holdTimer) {
+                clearTimeout(holdTimer);
+                holdTimer = null;
+            }
+            btn.dataset.holdModality = modality;
+            btn.classList.toggle('is-active-press', modality === 'pointer');
+            resetProgressImmediate();
+            btn.dataset.holdState = 'holding';
+            holdStartedAt = performance.now();
+            holdTimer = setTimeout(() => {
+                holdTimer = null;
+                completeHold({ fromDialog: false });
+            }, durationMs);
+        }
+
+        function abortHold({ announce = true } = {}) {
+            if (holdTimer) {
+                clearTimeout(holdTimer);
+                holdTimer = null;
+            }
+            const wasHolding = btn.dataset.holdState === 'holding';
+            const elapsed = holdStartedAt ? (performance.now() - holdStartedAt) : 0;
+            holdStartedAt = 0;
+            btn.classList.remove('is-active-press');
+            if (wasHolding) {
+                btn.dataset.holdState = 'idle';
+                if (announce && elapsed > CANCEL_ANNOUNCE_THRESHOLD_MS) {
+                    announceHoldStatus('Cancelled');
+                }
+            }
+        }
+
+        function completeHold({ fromDialog = false } = {}) {
+            if (isBusy || btn.disabled) return;
+            if (holdTimer) {
+                clearTimeout(holdTimer);
+                holdTimer = null;
+            }
+            holdStartedAt = 0;
+            btn.classList.remove('is-active-press');
+            if (activePointerId !== null) {
+                pointerConfirmed = true;
+            }
+            if (fromDialog) {
+                btn.dataset.holdModality = 'keyboard';
+            }
+            btn.dataset.holdState = 'confirmed';
+            isBusy = true;
+            btn.dataset.holdBusy = 'true';
+            announceHoldStatus('Confirmed');
+
+            const trackedPromises = [];
+            const confirmEvent = new CustomEvent('holdconfirm', {
+                bubbles: true,
+                detail: {
+                    fromDialog: Boolean(fromDialog),
+                    waitUntil(promise) {
+                        if (promise && typeof promise.then === 'function') {
+                            trackedPromises.push(promise);
+                        }
+                    }
+                }
+            });
+            btn.dispatchEvent(confirmEvent);
+
+            const minDelay = new Promise(resolve => setTimeout(resolve, MIN_CONFIRMED_DISPLAY_MS));
+            const actionWork = trackedPromises.length
+                ? Promise.allSettled(trackedPromises)
+                : Promise.resolve();
+
+            Promise.allSettled([actionWork, minDelay]).then(() => {
+                isBusy = false;
+                btn.dataset.holdBusy = 'false';
+                if (activePointerId === null && activeKey === null) {
+                    btn.dataset.holdState = 'idle';
+                } else {
+                    btn.dataset.holdState = 'idle';
+                }
+                if (onSettled) {
+                    try {
+                        onSettled();
+                    } catch (err) {
+                        console.error('[HoldButton] onSettled error:', err);
+                    }
+                }
+            });
+        }
+
+        function cancelActiveSession({ releasePointer = true, preventRearm = false, announce = true } = {}) {
+            activeKey = null;
+            const pid = activePointerId;
+            if (preventRearm && pid !== null) {
+                pointerConfirmed = true;
+            }
+            if (releasePointer) {
+                activePointerId = null;
+                isInsideContact = false;
+                detachScrollListener();
+                if (pid !== null) {
+                    try {
+                        if (btn.hasPointerCapture && btn.hasPointerCapture(pid)) {
+                            btn.releasePointerCapture(pid);
+                        }
+                    } catch (_) {
+                        /* Ignore if pointer capture was already released by the browser. */
+                    }
+                }
+            }
+            abortHold({ announce });
+        }
+
+        function handleDocumentScroll(e) {
+            if (activePointerId === null || btn.dataset.holdState !== 'holding') return;
+            const target = e.target;
+            const isAncestor = target === document
+                || target === document.documentElement
+                || target === document.body
+                || (target instanceof Node && target !== btn && target.contains(btn));
+            if (isAncestor) {
+                cancelActiveSession({ releasePointer: true, preventRearm: true, announce: true });
+            }
+        }
+
+        function isPointInContactArea(e) {
+            const rect = btn.getBoundingClientRect();
+            const halfW = (Number(e.width) || 0) / 2;
+            const halfH = (Number(e.height) || 0) / 2;
+            return (
+                e.clientX >= rect.left - halfW &&
+                e.clientX <= rect.right + halfW &&
+                e.clientY >= rect.top - halfH &&
+                e.clientY <= rect.bottom + halfH
+            );
+        }
+
+        btn.addEventListener('pointerdown', (e) => {
+            if (btn.disabled || isBusy) return;
+            if (e.button !== 0) return;
+            if (e.ctrlKey || e.metaKey || e.altKey) return;
+            if (activePointerId !== null || activeKey !== null) return;
+
+            activePointerId = e.pointerId;
+            pointerConfirmed = false;
+            isInsideContact = true;
+            try {
+                btn.setPointerCapture(e.pointerId);
+            } catch (_) {
+                /* Synthetic pointer events without an active pointer ID cannot be captured. */
+            }
+            attachScrollListener();
+            beginHold('pointer');
+        });
+
+        btn.addEventListener('pointermove', (e) => {
+            if (e.pointerId !== activePointerId || pointerConfirmed || isBusy || btn.disabled) return;
+            const inside = isPointInContactArea(e);
+            if (isInsideContact && !inside) {
+                isInsideContact = false;
+                btn.classList.remove('is-active-press');
+                abortHold({ announce: true });
+            } else if (!isInsideContact && inside) {
+                isInsideContact = true;
+                beginHold('pointer');
+            }
+        });
+
+        btn.addEventListener('lostpointercapture', (e) => {
+            if (e.pointerId !== activePointerId) return;
+            detachScrollListener();
+            const shouldAbort = btn.dataset.holdState === 'holding';
+            activePointerId = null;
+            isInsideContact = false;
+            pointerConfirmed = false;
+            btn.classList.remove('is-active-press');
+            if (shouldAbort) {
+                abortHold({ announce: true });
+            }
+        });
+
+        btn.addEventListener('keydown', (e) => {
+            if (e.ctrlKey || e.metaKey || e.altKey) return;
+            const isSpace = e.key === ' ' || e.code === 'Space';
+            const isEnter = e.key === 'Enter';
+            if (!isSpace && !isEnter) return;
+
+            e.preventDefault();
+            if (e.repeat) return;
+            if (btn.disabled || isBusy || activeKey !== null || activePointerId !== null) return;
+            if (btn.dataset.holdState === 'holding') return;
+
+            activeKey = isSpace ? ' ' : 'Enter';
+            beginHold('keyboard');
+        });
+
+        btn.addEventListener('keyup', (e) => {
+            const isSpace = e.key === ' ' || e.code === 'Space';
+            if (isSpace) {
+                e.preventDefault();
+            }
+            const releasedKey = isSpace ? ' ' : e.key;
+            if (activeKey !== null && releasedKey === activeKey) {
+                activeKey = null;
+                if (btn.dataset.holdState === 'holding') {
+                    abortHold({ announce: true });
+                }
+            }
+        });
+
+        btn.addEventListener('click', (e) => {
+            if (btn.disabled || isBusy) {
+                e.preventDefault();
+                return;
+            }
+            if (e.detail === 0) {
+                e.preventDefault();
+                const dialog = getConfirmDialog();
+                const titleEl = dialog.querySelector('#holdConfirmDialogTitle');
+                const descDialogEl = dialog.querySelector('#holdConfirmDialogDesc');
+                const cancelBtn = dialog.querySelector('button[value="cancel"]');
+                const confirmBtn = dialog.querySelector('button[value="confirm"]');
+                dialog.dataset.theme = theme;
+                dialog.returnValue = '';
+                if (titleEl) titleEl.textContent = dialogTitle;
+                if (descDialogEl) descDialogEl.textContent = dialogMessage;
+                if (confirmBtn) confirmBtn.textContent = dialogConfirmLabel;
+                activeDialogRequest = {
+                    onAccept: () => completeHold({ fromDialog: true })
+                };
+                if (!dialog.open) {
+                    dialog.showModal();
+                }
+                if (cancelBtn) {
+                    cancelBtn.focus();
+                }
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && btn.dataset.holdState === 'holding') {
+                e.preventDefault();
+                e.stopPropagation();
+                cancelActiveSession({ releasePointer: true, preventRearm: true, announce: true });
+            }
+        }, true);
+
+        btn.addEventListener('blur', () => {
+            if (btn.dataset.holdState === 'holding' || activePointerId !== null || activeKey !== null) {
+                cancelActiveSession({ releasePointer: true, preventRearm: true, announce: true });
+            }
+        });
+
+        window.addEventListener('blur', () => {
+            if (btn.dataset.holdState === 'holding' || activePointerId !== null || activeKey !== null) {
+                cancelActiveSession({ releasePointer: true, preventRearm: true, announce: true });
+            }
+        });
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && (btn.dataset.holdState === 'holding' || activePointerId !== null || activeKey !== null)) {
+                cancelActiveSession({ releasePointer: true, preventRearm: true, announce: true });
+            }
+        });
+
+        const controller = {
+            reset() {
+                cancelActiveSession({ releasePointer: true, preventRearm: false, announce: false });
+                if (!isBusy) {
+                    resetProgressImmediate();
+                }
+            },
+            isBusy() {
+                return isBusy;
+            }
+        };
+        btn._holdButton = controller;
+        return controller;
+    }
+
+    function initAllHoldButtons(root = document) {
+        const buttons = root.querySelectorAll('button.hold-btn');
+        buttons.forEach(btn => initHoldButton(btn));
+    }
+
+    window.HoldButton = {
+        DURATION_MS: DEFAULT_HOLD_DURATION_MS,
+        init: initHoldButton,
+        initAll: initAllHoldButtons
+    };
+})();

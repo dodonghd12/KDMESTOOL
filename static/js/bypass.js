@@ -7,9 +7,6 @@
 
 (function () {
     const PAGE_SIZE = 30;
-    const HOLD_DURATION_MS = 3000;
-    let holdStartTime = null;
-    let holdAnimFrame = null;
     let isBypassActive = false;
     let isLoading = false;
     let currentServer = (localStorage.getItem('bypass_selected_server') === '198.1.10.8') ? '198.1.10.8' : '198.1.10.85';
@@ -122,7 +119,7 @@
                 if (labelText.includes('198.1.10.85')) targetServer = '198.1.10.85';
                 else if (labelText.includes('198.1.10.8')) targetServer = '198.1.10.8';
 
-                showStepBadge(`Đang tải docker-compose.yml (${targetServer})...`, 'description', 'progress');
+                showStepBadge(`Đang tải docker-compose.yml (${targetServer})...`, 'sync', 'progress');
                 btnOpenComposeYaml.disabled = true;
 
                 try {
@@ -214,7 +211,7 @@
         if (showToast) {
             showStepBadge(`Đang làm mới dữ liệu (${currentServer})...`, 'sync', 'progress');
         } else if (isSwitchingServer) {
-            showStepBadge(`Đang kiểm tra root@${currentServer}...`, 'dns', 'progress');
+            showStepBadge(`Đang kiểm tra root@${currentServer}...`, 'sync', 'progress');
         }
 
         try {
@@ -293,20 +290,15 @@
 
     /**
      * Cập nhật giao diện Trạng thái & Button
-     * - Trạng thái: Strict Mode / Hắc ám (Button mặc định hiển thị "Execute")
      */
     function updateStatusUI(isActive) {
         const btn = document.getElementById('btnBypassToggle') || document.getElementById('btnDarkMagicToggle');
-        const btnText = document.getElementById('bypassBtnText') || document.getElementById('darkMagicBtnText');
         const statusPill = document.getElementById('bypassStatusPill') || document.getElementById('darkMagicStatusPill');
         const statusText = document.getElementById('statusText');
 
         if (btn) {
             btn.classList.remove('is-active', 'is-inactive', 'is-loading');
             btn.classList.add(isActive ? 'is-active' : 'is-inactive');
-            if (btnText && !holdStartTime && !isLoading) {
-                btnText.textContent = 'Execute';
-            }
         }
 
         if (statusPill && statusText) {
@@ -339,7 +331,10 @@
         badge.classList.add(`is-step-${type}`);
 
         if (iconEl && icon) {
-            iconEl.textContent = icon;
+            const safeIcon = (type === 'progress' && !['sync', 'progress_activity', 'refresh'].includes(icon))
+                ? 'sync'
+                : icon;
+            iconEl.textContent = safeIcon;
         }
 
         textEl.textContent = text;
@@ -373,61 +368,27 @@
 
     /**
      * Khởi tạo nút bấm giữ 3 giây (Hold 3s) để kích hoạt / ngưng kích hoạt
-     * Tương tự cơ chế của btnSaveHold, không hiển thị confirmation modal
      */
     function initBypassHoldButton() {
         const btn = document.getElementById('btnBypassToggle') || document.getElementById('btnDarkMagicToggle');
-        const progressBar = document.getElementById('bypassHoldProgressBar');
-        const btnText = document.getElementById('bypassBtnText') || document.getElementById('darkMagicBtnText');
-        if (!btn || !progressBar) return;
+        if (!btn || !window.HoldButton) return;
 
-        function startHold(e) {
-            if (e.button !== 0 && e.type !== 'touchstart') return; // Chỉ chuột trái hoặc cảm ứng
+        window.HoldButton.init(btn, {
+            idleLabel: 'Hold to Execute',
+            waitingLabel: 'Keep holding...',
+            confirmedLabel: 'Executed',
+            theme: 'danger',
+            dialogTitle: 'Xác nhận thực thi Bypass?',
+            dialogConfirmLabel: 'Execute'
+        });
+
+        btn.addEventListener('holdconfirm', (e) => {
             if (isLoading) return;
-            e.preventDefault();
-
-            holdStartTime = performance.now();
-            if (btnText) btnText.textContent = 'On Hold for Execution';
-
-            function updateProgress(now) {
-                const elapsed = now - holdStartTime;
-                const pct = Math.min(100, (elapsed / HOLD_DURATION_MS) * 100);
-                progressBar.style.width = `${pct}%`;
-
-                if (elapsed >= HOLD_DURATION_MS) {
-                    cancelHold(false, true);
-                    executeToggleBypass();
-                } else {
-                    holdAnimFrame = requestAnimationFrame(updateProgress);
-                }
+            const promise = executeToggleBypass();
+            if (e.detail && typeof e.detail.waitUntil === 'function') {
+                e.detail.waitUntil(promise);
             }
-
-            holdAnimFrame = requestAnimationFrame(updateProgress);
-        }
-
-        function cancelHold(showShortToast = false, completed = false) {
-            const wasHolding = Boolean(holdStartTime);
-            if (holdAnimFrame) {
-                cancelAnimationFrame(holdAnimFrame);
-                holdAnimFrame = null;
-            }
-            holdStartTime = null;
-            if (progressBar) progressBar.style.width = '0%';
-            if (btnText && !completed && !isLoading) {
-                btnText.textContent = 'Execute';
-            }
-            if (showShortToast && wasHolding && typeof Toast !== 'undefined') {
-                Toast.info('Chưa đủ 3 giây', 'Vui lòng nhấn và giữ nút đủ 3 giây để thực hiện.');
-            }
-        }
-
-        btn.addEventListener('mousedown', startHold);
-        btn.addEventListener('touchstart', startHold, { passive: false });
-
-        btn.addEventListener('mouseup', () => cancelHold(true));
-        btn.addEventListener('mouseleave', () => cancelHold(false));
-        btn.addEventListener('touchend', () => cancelHold(true));
-        btn.addEventListener('touchcancel', () => cancelHold(false));
+        });
     }
 
     /**
@@ -444,24 +405,24 @@
         clearStepTimers();
 
         // Bước 1: Kết nối tới root@<currentServer>
-        showStepBadge(`1. Kết nối root@${currentServer}...`, 'dns', 'progress');
+        showStepBadge(`1. Kết nối root@${currentServer}...`, 'sync', 'progress');
 
         // Lên lịch các bước chuyển tiếp trực quan trong khi API xử lý
         stepTimers.push(setTimeout(() => {
             if (isLoading) {
-                showStepBadge('2. Sửa file docker-compose.yml...', 'edit_document', 'progress');
+                showStepBadge('2. Sửa file docker-compose.yml...', 'sync', 'progress');
             }
         }, 1200));
 
         stepTimers.push(setTimeout(() => {
             if (isLoading) {
-                showStepBadge('3. Restart container MES...', 'restart_alt', 'progress');
+                showStepBadge('3. Restart container MES...', 'sync', 'progress');
             }
         }, 2800));
 
         stepTimers.push(setTimeout(() => {
             if (isLoading) {
-                showStepBadge('4. Kiểm tra Docker PS...', 'deployed_code', 'progress');
+                showStepBadge('4. Kiểm tra Docker PS...', 'sync', 'progress');
             }
         }, 8500));
 
@@ -533,34 +494,8 @@
         }
     }
 
-    /**
-     * Hiển thị trạng thái đang xử lý trên nút bấm
-     * - Bấm Kích hoạt -> Đang kích hoạt...
-     * - Bấm Ngưng kích hoạt -> Đang xử lý...
-     */
     function setLoadingState(loading, targetAction) {
         isLoading = loading;
-        const btn = document.getElementById('btnBypassToggle') || document.getElementById('btnDarkMagicToggle');
-        const btnText = document.getElementById('bypassBtnText') || document.getElementById('darkMagicBtnText');
-        const progressBar = document.getElementById('bypassHoldProgressBar');
-
-        if (progressBar) {
-            progressBar.style.width = '0%';
-        }
-
-        if (btn) {
-            if (loading) {
-                btn.classList.add('is-loading');
-                if (btnText) {
-                    btnText.textContent = 'Executing...';
-                }
-            } else {
-                btn.classList.remove('is-loading');
-                if (btnText) {
-                    btnText.textContent = 'Execute';
-                }
-            }
-        }
     }
 
     /**
