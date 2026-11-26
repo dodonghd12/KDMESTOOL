@@ -11566,6 +11566,7 @@ body.theme-light .material-transfer-retry-btn.is-success {
 
     .printer-setup-controls-row #btnRefreshLogs,
     .printer-setup-controls-row .btn-refresh-compact {
+        order: 0 !important;
         flex: 0 0 auto !important;
         width: auto !important;
         height: 38px !important;

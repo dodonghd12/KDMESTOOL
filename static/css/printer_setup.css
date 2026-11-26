@@ -546,8 +546,8 @@
 .static-server-badge {
     cursor: default !important;
     height: 44px;
-    min-width: 195px !important;
-    padding: 0 18px !important;
+    min-width: 205px !important;
+    padding: 0 16px !important;
     user-select: none;
 }
 

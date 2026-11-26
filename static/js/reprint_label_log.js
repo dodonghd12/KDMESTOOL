@@ -23,6 +23,7 @@
     let selectedToDate = '';
     let flatpickrInstance = null;
     let hasFetchedData = false;
+    let isFetching = false;
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initReprintLabelLog);
@@ -57,10 +58,10 @@
     }
 
     function initReprintLabelLog() {
-        ensureClientSearchAlwaysEnabled();
         initControls();
         initLocationDropdown();
         initFlatpickr();
+        setFiltersEnabled(false);
         setupExportHook();
         showStandbyPlaceholder();
     }
@@ -81,7 +82,7 @@
             dateFormat: 'Y-m-d',
             maxDate: 'today',
             allowInput: false,
-            clickOpens: true,
+            clickOpens: false,
             locale: {
                 rangeSeparator: '     ',
                 firstDayOfWeek: 1,
@@ -95,6 +96,7 @@
                 }
             },
             onClose(selectedDates) {
+                if (dateInput.disabled || !hasLoadedTableResults()) return;
                 if (selectedDates.length === 1) {
                     const dateStr = formatDateToStr(selectedDates[0]);
                     selectedFromDate = dateStr;
@@ -120,6 +122,7 @@
         });
 
         dateInput.addEventListener('click', function () {
+            if (dateInput.disabled) return;
             if (dateInput.value && flatpickrInstance) {
                 flatpickrInstance.clear();
                 selectedFromDate = '';
@@ -140,28 +143,47 @@
         return `${y}-${m}-${d}`;
     }
 
-    /**
-     * Đảm bảo ô ClientSearch KHÔNG BAO GIỜ bị disable dưới mọi tình huống
-     */
-    function ensureClientSearchAlwaysEnabled() {
-        const clientSearchInput = document.getElementById('clientSearch');
-        if (!clientSearchInput) return;
-
-        clientSearchInput.disabled = false;
-        clientSearchInput.removeAttribute('disabled');
-
-        try {
-            Object.defineProperty(clientSearchInput, 'disabled', {
-                get: () => false,
-                set: () => false,
-                configurable: true
-            });
-        } catch (e) {}
+    function hasLoadedTableResults() {
+        return !isFetching && hasFetchedData && allLogRecords.length > 0;
     }
 
-    // Ghi đè hàm updateClientSearchState của main.js cho trang Reprint Label Log để không bao giờ disable ô tìm kiếm
+    function setFiltersEnabled(enabled) {
+        const isEnabled = Boolean(enabled);
+        ['locationFilter', 'dateRange', 'clientSearch'].forEach((id) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.disabled = !isEnabled;
+            if (isEnabled) {
+                el.removeAttribute('disabled');
+            } else {
+                el.setAttribute('disabled', '');
+            }
+        });
+
+        const locationInput = document.getElementById('locationFilter');
+        if (locationInput) {
+            locationInput.style.cursor = isEnabled ? 'pointer' : 'not-allowed';
+        }
+
+        if (!isEnabled) {
+            const dropdown = document.getElementById('location-filter-dropdown');
+            if (dropdown) dropdown.classList.remove('show');
+            if (typeof updateClientSearchFocusRing === 'function') {
+                updateClientSearchFocusRing(false);
+            }
+            if (flatpickrInstance) {
+                flatpickrInstance.close();
+            }
+        }
+
+        if (flatpickrInstance) {
+            flatpickrInstance.set('clickOpens', isEnabled);
+        }
+    }
+
+    // Ghi đè hàm updateClientSearchState của main.js theo trạng thái dữ liệu đã tải
     window.updateClientSearchState = function () {
-        ensureClientSearchAlwaysEnabled();
+        setFiltersEnabled(hasLoadedTableResults());
     };
 
     function initControls() {
@@ -216,6 +238,7 @@
 
         input.addEventListener('click', (e) => {
             e.stopPropagation();
+            if (input.disabled) return;
             if (dropdown.classList.contains('show')) {
                 dropdown.classList.remove('show');
                 return;
@@ -267,6 +290,11 @@
         const loadIcon = document.getElementById('btnLoadIcon');
         const tableBody = document.getElementById('tableBody');
 
+        isFetching = true;
+        allLogRecords = [];
+        hasFetchedData = false;
+        setFiltersEnabled(false);
+
         if (btnLoad) btnLoad.disabled = true;
         if (loadIcon) loadIcon.classList.add('reprint-label-log-spin');
 
@@ -313,10 +341,11 @@
                 showToast('Lỗi kết nối máy chủ khi đọc nhật ký in tem', 'error');
             }
         } finally {
+            isFetching = false;
             if (btnLoad) btnLoad.disabled = false;
             if (loadIcon) loadIcon.classList.remove('reprint-label-log-spin');
-            ensureClientSearchAlwaysEnabled();
             applyFilters(false);
+            setFiltersEnabled(hasLoadedTableResults());
             document.body.classList.remove('app-loading-state');
         }
     }
@@ -378,7 +407,6 @@
         }
 
         renderCurrentPage();
-        ensureClientSearchAlwaysEnabled();
     }
 
     function renderCurrentPage() {
@@ -389,7 +417,6 @@
         if (!hasFetchedData || allLogRecords.length === 0) {
             if (rowCount) rowCount.textContent = '0';
             showStandbyPlaceholder();
-            ensureClientSearchAlwaysEnabled();
             return;
         }
 
@@ -413,7 +440,6 @@
                 displayTable([], tableColumns);
             }
             if (paginationNav) paginationNav.innerHTML = '';
-            ensureClientSearchAlwaysEnabled();
             return;
         }
 
@@ -446,8 +472,6 @@
                 renderSimplePagination(paginationNav);
             }
         }
-
-        ensureClientSearchAlwaysEnabled();
     }
 
     function renderSimplePagination(container) {

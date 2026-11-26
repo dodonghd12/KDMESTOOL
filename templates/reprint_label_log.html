@@ -30,21 +30,21 @@
 
                 <!-- 2. locationFilter (Dropdown KV1 / KV2) -->
                 <div class="input-box" style="min-width: 150px; max-width: 180px; width: 165px; flex-shrink: 0; position: relative;">
-                    <input placeholder=" " type="text" id="locationFilter" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="input" style="cursor: pointer;" readonly aria-label="Lọc theo Location">
+                    <input placeholder=" " type="text" id="locationFilter" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="input" style="cursor: not-allowed;" readonly disabled aria-label="Lọc theo Location">
                     <label class="user-label">Location</label>
                     <div id="location-filter-dropdown" class="dropdown-list"></div>
                 </div>
 
                 <!-- 3. dateRange (Sử dụng flatpickr) -->
                 <div class="input-box" style="min-width: 240px; max-width: 280px; width: 270px; flex-shrink: 0;">
-                    <input required type="text" id="dateRange" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="input" placeholder="Chọn ngày">
+                    <input required type="text" id="dateRange" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="input" placeholder="Chọn ngày" disabled>
                     <input type="hidden" id="fromDate">
                     <input type="hidden" id="toDate">
                 </div>
 
                 <!-- 3. clientSearch (Đồng bộ kích thước 185px với page Main) -->
                 <div class="input-wrapper" style="width: 185px; min-width: 130px; max-width: 185px; flex-shrink: 0;">
-                    <input placeholder="Tìm kiếm..." class="input" id="clientSearch" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text" aria-label="Tìm kiếm trong bảng">
+                    <input placeholder="Tìm kiếm..." class="input" id="clientSearch" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" type="text" aria-label="Tìm kiếm trong bảng" disabled>
                 </div>
             </div>
         </div>

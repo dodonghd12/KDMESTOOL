@@ -13,16 +13,16 @@
     let selectedFolder = '';
     let isLoading = false;
     let isSavingChanges = false;
+    let isOpeningYaml = false;
     let activeRefreshOps = 0;
     let hideBadgeTimeout = null;
 
     function setRefreshSpinning(active) {
         activeRefreshOps = Math.max(0, activeRefreshOps + (active ? 1 : -1));
-        const refreshBtn = document.getElementById('btnRefreshLogs');
         const refreshIcon = document.getElementById('btnRefreshLogsIcon');
         const spinning = activeRefreshOps > 0;
-        if (refreshBtn) refreshBtn.disabled = spinning;
         if (refreshIcon) refreshIcon.classList.toggle('btn-load-spin', spinning);
+        updateClientSearchState();
     }
 
     // Quản lý stations & floating dropdown
@@ -244,6 +244,7 @@
         const btnOpenPrintersYaml = document.getElementById('btnOpenPrintersYaml');
         if (btnOpenPrintersYaml) {
             btnOpenPrintersYaml.addEventListener('click', async () => {
+                if (!hasLoadedTableData() || isOpeningYaml) return;
                 const folder = selectedFolder || (folderSelect ? folderSelect.value : '');
                 if (!folder) {
                     Toast.warning('Cảnh báo', 'Vui lòng chọn một thư mục máy in (p5300_ic, p8300, p8400, p9100) để xem printers-manager.yaml');
@@ -252,7 +253,8 @@
                 }
 
                 showStepBadge(`Đang tải printers-manager.yaml (${folder})...`, 'sync', 'progress');
-                btnOpenPrintersYaml.disabled = true;
+                isOpeningYaml = true;
+                updateClientSearchState();
 
                 try {
                     const res = await apiFetch('/api/printer-setup/printers', {
@@ -282,7 +284,8 @@
                     Toast.error('Lỗi', `Lỗi kết nối tải printers-manager.yaml: ${err.message}`);
                     showStepBadge('Lỗi kết nối tải printers-manager.yaml', 'error', 'error');
                 } finally {
-                    btnOpenPrintersYaml.disabled = false;
+                    isOpeningYaml = false;
+                    updateClientSearchState();
                 }
             });
         }
@@ -383,7 +386,10 @@
     async function fetchPrintersConfig(folder, isRefresh = false) {
         if (!folder) return;
         isLoading = true;
+        currentGroups = [];
+        originalGroups = [];
         setRefreshSpinning(true);
+        updateClientSearchState();
 
         showStepBadge(`Đang đọc cấu hình (${folder})...`, 'sync', 'progress');
         showTableLoading(folder);
@@ -1550,17 +1556,34 @@
         }, delay);
     }
 
+    function hasLoadedTableData() {
+        return Boolean(!isLoading && selectedFolder && Array.isArray(currentGroups) && currentGroups.length > 0);
+    }
+
+    function syncDisabledControl(el, shouldDisable) {
+        if (!el) return;
+        el.disabled = shouldDisable;
+        if (shouldDisable) {
+            el.setAttribute('disabled', 'disabled');
+        } else {
+            el.removeAttribute('disabled');
+        }
+    }
+
     function updateClientSearchState() {
+        const canUseControls = hasLoadedTableData();
         const searchInput = document.getElementById('clientSearch');
+        const refreshBtn = document.getElementById('btnRefreshLogs');
+        const btnOpenYaml = document.getElementById('btnOpenPrintersYaml');
+
         if (searchInput) {
-            const canSearch = Boolean(selectedFolder && currentGroups && currentGroups.length > 0);
-            searchInput.disabled = !canSearch;
-            if (!canSearch) {
+            syncDisabledControl(searchInput, !canUseControls);
+            if (!canUseControls) {
                 searchInput.value = '';
-            } else {
-                searchInput.removeAttribute('disabled');
             }
         }
+        syncDisabledControl(refreshBtn, !canUseControls || activeRefreshOps > 0);
+        syncDisabledControl(btnOpenYaml, !canUseControls || isOpeningYaml);
     }
 
     function escapeHtml(str) {

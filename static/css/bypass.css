@@ -61,7 +61,7 @@
     transition: color 0.2s ease;
 }
 
-.btn-open-yaml-file:hover {
+.btn-open-yaml-file:hover:not(:disabled) {
     background: rgba(56, 189, 248, 0.14);
     border-color: #38bdf8;
     color: #ffffff;
@@ -69,11 +69,11 @@
     transform: translateY(-1px);
 }
 
-.btn-open-yaml-file:hover .material-symbols-outlined {
+.btn-open-yaml-file:hover:not(:disabled) .material-symbols-outlined {
     color: #38bdf8;
 }
 
-.btn-open-yaml-file:active {
+.btn-open-yaml-file:active:not(:disabled) {
     transform: translateY(1px) scale(0.98);
 }
 

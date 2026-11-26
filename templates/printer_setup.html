@@ -32,13 +32,7 @@
                 <span id="currentServerLabel">root@198.1.10.85</span>
             </div>
 
-            <!-- 2. Refresh Button -->
-            <button type="button" id="btnRefreshLogs" class="winx-btn winx-btn-primary btn-refresh" title="Tải lại trạng thái và cấu hình máy in" aria-label="Refresh">
-                <span class="material-symbols-outlined" id="btnRefreshLogsIcon" style="font-size: 20px !important;">sync</span>
-                <span>Refresh</span>
-            </button>
-
-            <!-- 3. Folder Input Dropdown (KV2) -->
+            <!-- 2. Folder Input Dropdown (KV2) -->
             <div class="folder-select-box" id="folderSelectBox">
                 <div class="folder-dropdown-wrapper" id="folderDropdownWrapper" tabindex="0" role="combobox" aria-expanded="false" aria-haspopup="listbox" title="Chọn thư mục máy in">
                     <span class="material-symbols-outlined folder-icon">folder_open</span>
@@ -79,9 +73,13 @@
                 <span id="containerStatusText">Kết nối root@198.1.10.85</span>
             </div>
 
-            <!-- 5. Hero Right (Nút Open yaml File bên trái và clientSearch bên phải, toàn bộ căn lề phải) -->
+            <!-- 5. Hero Right (Nút Refresh bên trái Open yaml File và clientSearch bên phải, toàn bộ căn lề phải) -->
             <div class="bypass-hero-right printer-setup-hero-right">
-                <button type="button" id="btnOpenPrintersYaml" class="winx-btn btn-open-yaml-file" title="Xem nội dung printers-manager.yaml" aria-label="Open yaml File">
+                <button type="button" id="btnRefreshLogs" class="winx-btn winx-btn-primary btn-refresh" title="Tải lại trạng thái và cấu hình máy in" aria-label="Refresh" disabled>
+                    <span class="material-symbols-outlined" id="btnRefreshLogsIcon" style="font-size: 20px !important;">sync</span>
+                    <span>Refresh</span>
+                </button>
+                <button type="button" id="btnOpenPrintersYaml" class="winx-btn btn-open-yaml-file" title="Xem nội dung printers-manager.yaml" aria-label="Open yaml File" disabled>
                     <span class="material-symbols-outlined">description</span>
                     <span>Open yaml File</span>
                 </button>
