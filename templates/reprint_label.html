@@ -228,9 +228,12 @@
             transition: all 0.2s ease;
         }
 
-        .barcode-input-field:focus {
-            border-color: #0d9488;
-            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
+        .barcode-input-field:focus,
+        .barcode-input-field:focus-visible {
+            border-color: #0d9488 !important;
+            outline: 2px solid #0d9488 !important;
+            outline-offset: -2px !important;
+            box-shadow: none !important;
         }
 
         .barcode-icon-prefix {
@@ -284,15 +287,20 @@
             transition: border-color 0.2s ease, box-shadow 0.2s ease;
         }
 
-        .printer-select:focus {
-            border-color: #0d9488;
-            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
+        .printer-select:focus,
+        .printer-select:focus-visible {
+            border-color: #0d9488 !important;
+            outline: 2px solid #0d9488 !important;
+            outline-offset: -2px !important;
+            box-shadow: none !important;
         }
 
         /* Red error border when printer is not selected */
         .printer-select.input-error {
             border-color: #ef4444 !important;
-            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25) !important;
+            outline: 2px solid #ef4444 !important;
+            outline-offset: -2px !important;
+            box-shadow: none !important;
             animation: shakeSelect 0.35s ease-in-out;
         }
 

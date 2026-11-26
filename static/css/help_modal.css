@@ -227,8 +227,8 @@ body.theme-light {
 #helpModal .help-nav-search-input:focus,
 #helpModal .help-nav-search-input:focus-visible {
     border-color: var(--help-accent) !important;
-    outline: none !important;
-    outline-offset: 0 !important;
+    outline: 2px solid var(--help-accent) !important;
+    outline-offset: -2px !important;
     box-shadow: none !important;
 }
 
