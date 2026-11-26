@@ -305,10 +305,10 @@
             statusPill.classList.remove('status-active', 'status-inactive');
             if (isActive) {
                 statusPill.classList.add('status-active');
-                statusText.textContent = 'Trạng thái: Hắc ám';
+                statusText.textContent = 'Bypass mode';
             } else {
                 statusPill.classList.add('status-inactive');
-                statusText.textContent = 'Trạng thái: Strict Mode';
+                statusText.textContent = 'Strict mode';
             }
         }
     }

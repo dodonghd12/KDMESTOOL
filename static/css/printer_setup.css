@@ -27,9 +27,9 @@
 }
 
 .printer-setup-search-wrapper {
-    width: 240px !important;
-    min-width: 220px !important;
-    max-width: 280px !important;
+    width: 185px !important;
+    min-width: 130px !important;
+    max-width: 185px !important;
     flex: 0 0 auto !important;
 }
 

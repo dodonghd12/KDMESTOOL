@@ -11489,6 +11489,8 @@ body.theme-light .material-transfer-retry-btn.is-success {
 
     /* Hàng 2 */
     .bypass-controls-row .bypass-meta-badge {
+        position: relative !important;
+        justify-content: center !important;
         order: 3 !important;
         flex: 1 1 0% !important;
         width: auto !important;
@@ -11499,6 +11501,7 @@ body.theme-light .material-transfer-retry-btn.is-success {
         min-width: 0 !important;
         border-radius: 8px !important;
         box-sizing: border-box !important;
+        margin-bottom: 6px !important;
     }
 
     .bypass-controls-row .bypass-meta-badge #currentServerLabel {
@@ -11509,11 +11512,13 @@ body.theme-light .material-transfer-retry-btn.is-success {
     }
 
     .bypass-controls-row .bypass-meta-badge #btnToggleServer {
-        height: 24px !important;
-        padding: 0 6px !important;
+        height: 20px !important;
+        line-height: 18px !important;
+        padding: 0 8px !important;
+        bottom: -10px !important;
         font-size: 11px !important;
         flex-shrink: 0 !important;
-        margin-left: auto !important;
+        margin-left: 0 !important;
     }
 
     .bypass-controls-row #btnRefreshLogs,
