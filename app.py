@@ -1068,7 +1068,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.4.68"
+APP_VERSION = "2.4.69"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -4182,6 +4182,45 @@ def get_station_list_by_department():
             'stations': []
         }), 500
 
+def _build_active_work_order_filter(station: str, department: str):
+    """Tạo điều kiện WHERE và tham số thống nhất cho danh sách đơn điều động đang hoạt động theo MESAGE."""
+    station_candidates = []
+    if station:
+        for cand in (
+            station,
+            f"KV-{station}" if not station.startswith('KV-') else None,
+            f"KV-{department}-{station}" if department and not station.startswith(f"KV-{department}-") else None,
+            f"{department}-{station}" if department and not station.startswith(f"{department}-") else None,
+        ):
+            if cand and cand not in station_candidates:
+                station_candidates.append(cand)
+        where_target = "wo.station = ANY(%s)"
+        params = [station_candidates]
+    else:
+        where_target = "(wo.department_id = %s OR wo.department_id ILIKE %s)"
+        params = [department, department]
+
+    where_sql = f"""
+        {where_target}
+          AND wo.reserved_date >= (((NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date - INTERVAL '9 days') AT TIME ZONE 'Asia/Ho_Chi_Minh')
+          AND wo.status IN (0, 1, 2, 5)
+    """
+    order_sql = """
+        ORDER BY
+            CASE wo.status
+                WHEN 1 THEN 1
+                WHEN 2 THEN 2
+                WHEN 0 THEN 3
+                WHEN 5 THEN 4
+                ELSE 5
+            END,
+            wo.recipe_id ASC,
+            wo.reserved_date,
+            wo.reserved_sequence
+    """
+    return station_candidates, where_sql, order_sql, tuple(params)
+
+
 @app.route('/api/work-orders/get-active-list', methods=['POST'])
 @login_required
 def get_active_work_order_list():
@@ -4192,17 +4231,9 @@ def get_active_work_order_list():
     if not station and not department:
         return jsonify({'columns': [], 'result': [], 'success': True})
     
-    # Build station candidate variations (e.g. KV-P8300-TREAD-2, P8300-TREAD-2, TREAD-2)
-    station_candidates = [station]
-    if not station.startswith('KV-'):
-        station_candidates.append(f"KV-{station}")
-    if department:
-        if not station.startswith(f"KV-{department}-"):
-            station_candidates.append(f"KV-{department}-{station}")
-        if not station.startswith(f"{department}-"):
-            station_candidates.append(f"{department}-{station}")
+    _, where_sql, order_sql, params = _build_active_work_order_filter(station, department)
 
-    query = """
+    query = f"""
         SELECT 
             TRIM(wo.id) AS id,
             wo.recipe_id,
@@ -4212,27 +4243,12 @@ def get_active_work_order_list():
             wo.status,
             wo.reserved_date::text AS reserved_date
         FROM kvmes.work_order wo
-        WHERE (wo.station = ANY(%s) OR wo.station ILIKE %s)
-          AND (%s = '' OR wo.department_id = %s OR wo.department_id ILIKE %s)
-          AND wo.reserved_date >= (CURRENT_DATE - INTERVAL '14 days')
-          AND wo.status IN (0, 1, 5)
-          AND COALESCE((wo.information->>'abnormality')::int, 0) = 0
-        ORDER BY 
-            CASE wo.status
-                WHEN 1 THEN 1
-                WHEN 0 THEN 2
-                WHEN 5 THEN 3
-                ELSE 4
-            END,
-            wo.recipe_id ASC,
-            wo.reserved_date,
-            wo.reserved_sequence;
+        WHERE {where_sql}
+        {order_sql};
     """
     
     try:
-        result, _ = execute_pg_select_query(
-            query, (station_candidates, f"%{station}%", department, department, department)
-        )
+        result, _ = execute_pg_select_query(query, params)
         
         wo_ids = [str(r[0]).strip() for r in result if r[0]]
         collected_map = {}
@@ -4273,17 +4289,10 @@ def get_active_work_order_list():
                 plan_qty, collected_qty, status_val, res_date
             ])
 
-        # Guaranteed Python sort: status 1 first, then 0, then 5, then others; sub-sort by recipe_id ASC
+        # Guaranteed Python sort: status 1, 2, 0, 5, others; sub-sort by recipe_id ASC
+        status_priority = {1: 1, 2: 2, 0: 3, 5: 4}
         def sort_key(row):
-            status = row[6]
-            if status == 1:
-                prio = 1
-            elif status == 0:
-                prio = 2
-            elif status == 5:
-                prio = 3
-            else:
-                prio = 4
+            prio = status_priority.get(row[6], 5)
             recipe_id = str(row[1] or '').strip().upper()
             reserved_date = str(row[7] or '').strip()
             return (prio, recipe_id, reserved_date)
@@ -4318,17 +4327,9 @@ def check_work_orders_errors():
             'details': []
         })
 
-    # Build station candidate variations (e.g. KV-P8300-TREAD-2, P8300-TREAD-2, TREAD-2)
-    station_candidates = [station]
-    if not station.startswith('KV-'):
-        station_candidates.append(f"KV-{station}")
-    if department:
-        if not station.startswith(f"KV-{department}-"):
-            station_candidates.append(f"KV-{department}-{station}")
-        if not station.startswith(f"{department}-"):
-            station_candidates.append(f"{department}-{station}")
+    station_candidates, where_sql, order_sql, params = _build_active_work_order_filter(station, department)
 
-    query = """
+    query = f"""
         SELECT 
             TRIM(wo.id) AS id,
             wo.recipe_id,
@@ -4341,26 +4342,12 @@ def check_work_orders_errors():
             COALESCE(wo.department_id, '') AS department_id
         FROM kvmes.work_order wo
         LEFT JOIN kvmes.recipe_process_definition rpd ON rpd.recipe_id = wo.recipe_id
-        WHERE (wo.station = ANY(%s) OR wo.station ILIKE %s)
-          AND (%s = '' OR wo.department_id = %s OR wo.department_id ILIKE %s)
-          AND wo.reserved_date >= (CURRENT_DATE - INTERVAL '14 days')
-          AND wo.status IN (0, 1, 5)
-        ORDER BY 
-            CASE wo.status
-                WHEN 1 THEN 1
-                WHEN 0 THEN 2
-                WHEN 5 THEN 3
-                ELSE 4
-            END,
-            wo.recipe_id ASC,
-            wo.reserved_date,
-            wo.reserved_sequence;
+        WHERE {where_sql}
+        {order_sql};
     """
 
     try:
-        rows, _ = execute_pg_select_query(
-            query, (station_candidates, f"%{station}%", department, department, department)
-        )
+        rows, _ = execute_pg_select_query(query, params)
 
         errors_by_wo = {}
         error_wo_ids = []
