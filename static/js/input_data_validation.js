@@ -569,23 +569,19 @@ async function searchWorkOrders(station, department = null) {
 
         const deptVal = department || document.getElementById('department')?.value?.trim() || '';
 
-        // Concurrently run active list and error check
-        const [data, errorData] = await Promise.all([
-            apiFetch('/api/work-orders/get-active-list', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({station, department: deptVal})
-            }),
-            apiFetch('/api/work-orders/check-errors', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({station, department: deptVal})
-            }).catch(err => {
-                console.warn('Error checking work order errors:', err);
-                return { success: false, has_error: false, error_work_order_ids: [], errors_by_work_order: {} };
-            })
-        ]);
+        // Fetch active list + inline work order error check in a single backend round-trip
+        const data = await apiFetch('/api/work-orders/get-active-list', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({station, department: deptVal, include_errors: true})
+        });
 
+        const errorData = (data && data.error_check) ? data.error_check : {
+            success: false,
+            has_error: false,
+            error_work_order_ids: [],
+            errors_by_work_order: {}
+        };
         currentWorkOrderErrors = errorData;
 
         if (!data || !data.result || data.result.length === 0) {

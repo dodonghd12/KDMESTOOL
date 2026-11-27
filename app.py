@@ -1068,7 +1068,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.4.69"
+APP_VERSION = "2.4.70"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -1177,6 +1177,8 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'kdmes-production-secret-key-salt-9810-v2-secure')
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['SESSION_FILE_DIR'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'flask_session')
+app.config['SESSION_FILE_THRESHOLD'] = 2000
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=2)
 Session(app)
 
 def extract_request_payload():
@@ -4202,7 +4204,7 @@ def _build_active_work_order_filter(station: str, department: str):
 
     where_sql = f"""
         {where_target}
-          AND wo.reserved_date >= (((NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date - INTERVAL '9 days') AT TIME ZONE 'Asia/Ho_Chi_Minh')
+          AND wo.reserved_date >= ((NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date - 9)
           AND wo.status IN (0, 1, 2, 5)
     """
     order_sql = """
@@ -4221,17 +4223,131 @@ def _build_active_work_order_filter(station: str, department: str):
     return station_candidates, where_sql, order_sql, tuple(params)
 
 
+def _validate_recipe_config_entries(recipe_id, rpd_oid, rpd_configs_str, station, station_candidates):
+    """Kiểm tra cấu hình công thức một lần cho mỗi recipe_id và trả về lỗi chung cùng lỗi trạm."""
+    base_errors = []
+    station_error = None
+    if not rpd_oid or not rpd_configs_str:
+        base_errors.append(f"Không tìm thấy cấu hình Recipe '{recipe_id}' trong recipe_process_definition")
+        return base_errors, station_error
+
+    try:
+        configs = json.loads(rpd_configs_str)
+        if not isinstance(configs, list) or len(configs) == 0:
+            base_errors.append("Cấu hình configs của Recipe bị rỗng")
+            return base_errors, station_error
+
+        cfg0 = configs[0]
+        cfg_stations = cfg0.get('stations', [])
+        if cfg_stations and not any(cand in cfg_stations for cand in station_candidates):
+            if not any(station in s or s in station for s in cfg_stations):
+                station_error = f"Máy {station} không thuộc trạm hợp lệ của Recipe ({', '.join(cfg_stations)})"
+
+        for step in cfg0.get('steps', []):
+            for mat in step.get('materials', []):
+                val = mat.get('value')
+                if isinstance(val, dict) and val.get('mid') == "":
+                    mat_name = mat.get('name', 'N/A')
+                    mat_site = mat.get('site', '')
+                    base_errors.append(f"Vật liệu {mat_name} ({mat_site}): Định lượng 'mid' bị rỗng (\"\") gây lỗi crash MES decimal")
+    except Exception as parse_err:
+        base_errors.append(f"Lỗi cú pháp JSON configs: {str(parse_err)}")
+
+    return base_errors, station_error
+
+
+def _evaluate_work_order_errors(wo_rows, station, department, station_candidates, cursor):
+    """Kiểm tra lỗi cho danh sách work order đã tải, truy vấn và parse recipe_process_definition theo distinct recipe_id."""
+    recipe_ids = list(dict.fromkeys(str(r[1] or '').strip() for r in wo_rows if r[1]))
+    recipe_cache = {}
+    if recipe_ids:
+        cursor.execute("""
+            SELECT DISTINCT ON (recipe_id)
+                recipe_id,
+                oid::text AS rpd_oid,
+                configs::text AS rpd_configs
+            FROM kvmes.recipe_process_definition
+            WHERE recipe_id = ANY(%s)
+            ORDER BY recipe_id, oid;
+        """, (recipe_ids,))
+        for r_id, rpd_oid, rpd_configs_str in cursor.fetchall():
+            r_key = str(r_id or '').strip()
+            recipe_cache[r_key] = _validate_recipe_config_entries(
+                r_key, rpd_oid, rpd_configs_str, station, station_candidates
+            )
+
+    errors_by_wo = {}
+    error_wo_ids = []
+    details = []
+    station_upper = station.upper()
+    dept_is_p9100 = (department == 'P9100' or 'P9100' in station_upper or station_upper.startswith('KV-P9100-'))
+
+    for r in wo_rows:
+        wo_id = str(r[0]).strip()
+        recipe_id = str(r[1] or '').strip()
+        status_val = r[2]
+        abnormality = r[5]
+        wo_dept = str(r[6] or '').strip()
+
+        errs = []
+        if abnormality != 0:
+            errs.append(f"Đơn điều động bị đánh dấu bất thường (abnormality={abnormality})")
+
+        if recipe_id in recipe_cache:
+            base_errors, station_error = recipe_cache[recipe_id]
+        else:
+            base_errors = [f"Không tìm thấy cấu hình Recipe '{recipe_id}' trong recipe_process_definition"]
+            station_error = None
+
+        if station_error and not (dept_is_p9100 or wo_dept == 'P9100'):
+            errs.append(station_error)
+        errs.extend(base_errors)
+
+        if errs:
+            errors_by_wo[wo_id] = errs
+            if wo_id not in error_wo_ids:
+                error_wo_ids.append(wo_id)
+            details.append({
+                'work_order_id': wo_id,
+                'recipe_id': recipe_id,
+                'status': status_val,
+                'errors': errs
+            })
+
+    return {
+        'success': True,
+        'station': station,
+        'has_error': len(error_wo_ids) > 0,
+        'error_count': len(error_wo_ids),
+        'error_work_order_ids': error_wo_ids,
+        'errors_by_work_order': errors_by_wo,
+        'details': details
+    }
+
+
 @app.route('/api/work-orders/get-active-list', methods=['POST'])
 @login_required
 def get_active_work_order_list():
     data = request.get_json(silent=True) or {}
     station = data.get('station', '').strip()
     department = data.get('department', '').strip()
+    include_errors = bool(data.get('include_errors'))
     
     if not station and not department:
-        return jsonify({'columns': [], 'result': [], 'success': True})
+        empty_resp = {'columns': [], 'result': [], 'success': True}
+        if include_errors:
+            empty_resp['error_check'] = {
+                'success': True,
+                'station': station,
+                'has_error': False,
+                'error_count': 0,
+                'error_work_order_ids': [],
+                'errors_by_work_order': {},
+                'details': []
+            }
+        return jsonify(empty_resp)
     
-    _, where_sql, order_sql, params = _build_active_work_order_filter(station, department)
+    station_candidates, where_sql, order_sql, params = _build_active_work_order_filter(station, department)
 
     query = f"""
         SELECT 
@@ -4241,32 +4357,45 @@ def get_active_work_order_list():
             COALESCE(wo.information->>'product_type', '') AS product_type,
             COALESCE(wo.information->'plan_quantity'->>'plan_quantity', '0') AS plan_quantity,
             wo.status,
-            wo.reserved_date::text AS reserved_date
+            wo.reserved_date::text AS reserved_date,
+            COALESCE((wo.information->>'abnormality')::int, 0) AS abnormality,
+            COALESCE(wo.department_id, '') AS department_id
         FROM kvmes.work_order wo
         WHERE {where_sql}
         {order_sql};
     """
     
     try:
-        result, _ = execute_pg_select_query(query, params)
-        
-        wo_ids = [str(r[0]).strip() for r in result if r[0]]
         collected_map = {}
-        if wo_ids:
-            try:
-                cr_query = """
-                    SELECT btrim(work_order), COALESCE(sum(COALESCE((detail->>'quantity')::numeric, 1)), 0)
-                    FROM kvmes.collect_record
-                    WHERE btrim(work_order) = ANY(%s)
-                    GROUP BY btrim(work_order);
-                """
-                cr_rows, _ = execute_pg_select_query(cr_query, (wo_ids,))
-                for cr in cr_rows:
-                    wo_key = str(cr[0]).strip()
-                    qty_val = cr[1]
-                    collected_map[wo_key] = str(int(qty_val)) if float(qty_val).is_integer() else f"{qty_val:.2f}".rstrip('0').rstrip('.')
-            except Exception as cr_err:
-                logger.warning(f"Error fetching collect quantities: {cr_err}")
+        error_check = None
+        with get_pg_connection() as conn:
+            cur = conn.cursor()
+            cur.execute(query, params)
+            result = cur.fetchall()
+
+            wo_ids = [str(r[0]).strip() for r in result if r[0]]
+            if wo_ids:
+                try:
+                    cr_query = """
+                        SELECT btrim(work_order), COALESCE(sum(COALESCE((detail->>'quantity')::numeric, 1)), 0)
+                        FROM kvmes.collect_record
+                        WHERE btrim(work_order) = ANY(%s)
+                        GROUP BY btrim(work_order);
+                    """
+                    cur.execute(cr_query, (wo_ids,))
+                    for cr in cur.fetchall():
+                        wo_key = str(cr[0]).strip()
+                        qty_val = cr[1]
+                        collected_map[wo_key] = str(int(qty_val)) if float(qty_val).is_integer() else f"{qty_val:.2f}".rstrip('0').rstrip('.')
+                except Exception as cr_err:
+                    logger.warning(f"Error fetching collect quantities: {cr_err}")
+
+            if include_errors:
+                wo_rows_for_err = [(r[0], r[1], r[5], r[2], r[3], r[7], r[8]) for r in result]
+                error_check = _evaluate_work_order_errors(
+                    wo_rows_for_err, station, department, station_candidates, cur
+                )
+            cur.close()
 
         columns = [
             'id', 'recipe_id', 'product_id', 'product_type',
@@ -4299,11 +4428,14 @@ def get_active_work_order_list():
 
         result_rows.sort(key=sort_key)
 
-        return jsonify({
+        resp_payload = {
             'columns': columns,
             'result': result_rows,
             'success': True
-        })
+        }
+        if include_errors:
+            resp_payload['error_check'] = error_check
+        return jsonify(resp_payload)
     except Exception as e:
         logger.error(f"Error getting active work orders: {e}")
         return jsonify({'columns': [], 'result': [], 'success': False, 'error': str(e)})
@@ -4337,85 +4469,20 @@ def check_work_orders_errors():
             COALESCE(wo.information->>'product_id', '') AS product_id,
             COALESCE(wo.information->>'product_type', '') AS product_type,
             COALESCE((wo.information->>'abnormality')::int, 0) AS abnormality,
-            rpd.oid::text AS rpd_oid,
-            rpd.configs::text AS rpd_configs,
             COALESCE(wo.department_id, '') AS department_id
         FROM kvmes.work_order wo
-        LEFT JOIN kvmes.recipe_process_definition rpd ON rpd.recipe_id = wo.recipe_id
         WHERE {where_sql}
         {order_sql};
     """
 
     try:
-        rows, _ = execute_pg_select_query(query, params)
-
-        errors_by_wo = {}
-        error_wo_ids = []
-        details = []
-
-        for r in rows:
-            wo_id = str(r[0]).strip()
-            recipe_id = str(r[1] or '').strip()
-            status_val = r[2]
-            product_id = str(r[3] or '').strip()
-            product_type = str(r[4] or '').strip()
-            abnormality = r[5]
-            rpd_oid = r[6]
-            rpd_configs_str = r[7]
-            wo_dept = str(r[8] or '').strip() if len(r) > 8 else ''
-
-            errs = []
-            if abnormality != 0:
-                errs.append(f"Đơn điều động bị đánh dấu bất thường (abnormality={abnormality})")
-
-            if not rpd_oid or not rpd_configs_str:
-                errs.append(f"Không tìm thấy cấu hình Recipe '{recipe_id}' trong recipe_process_definition")
-            else:
-                try:
-                    configs = json.loads(rpd_configs_str)
-                    if not isinstance(configs, list) or len(configs) == 0:
-                        errs.append("Cấu hình configs của Recipe bị rỗng")
-                    else:
-                        cfg0 = configs[0]
-                        cfg_stations = cfg0.get('stations', [])
-                        # Riêng các station thuộc department P9100 không cần check lỗi trạm hợp lệ
-                        is_p9100 = (department == 'P9100' or wo_dept == 'P9100' or 'P9100' in station.upper() or station.upper().startswith('KV-P9100-'))
-                        if not is_p9100 and cfg_stations and not any(cand in cfg_stations for cand in station_candidates):
-                            if not any(station in s or s in station for s in cfg_stations):
-                                errs.append(f"Máy {station} không thuộc trạm hợp lệ của Recipe ({', '.join(cfg_stations)})")
-
-                        for step in cfg0.get('steps', []):
-                            for mat in step.get('materials', []):
-                                val = mat.get('value')
-                                mat_name = mat.get('name', 'N/A')
-                                mat_site = mat.get('site', '')
-                                if isinstance(val, dict):
-                                    mid = val.get('mid')
-                                    if mid == "":
-                                        errs.append(f"Vật liệu {mat_name} ({mat_site}): Định lượng 'mid' bị rỗng (\"\") gây lỗi crash MES decimal")
-                except Exception as parse_err:
-                    errs.append(f"Lỗi cú pháp JSON configs: {str(parse_err)}")
-
-            if errs:
-                errors_by_wo[wo_id] = errs
-                if wo_id not in error_wo_ids:
-                    error_wo_ids.append(wo_id)
-                details.append({
-                    'work_order_id': wo_id,
-                    'recipe_id': recipe_id,
-                    'status': status_val,
-                    'errors': errs
-                })
-
-        return jsonify({
-            'success': True,
-            'station': station,
-            'has_error': len(error_wo_ids) > 0,
-            'error_count': len(error_wo_ids),
-            'error_work_order_ids': error_wo_ids,
-            'errors_by_work_order': errors_by_wo,
-            'details': details
-        })
+        with get_pg_connection() as conn:
+            cur = conn.cursor()
+            cur.execute(query, params)
+            rows = cur.fetchall()
+            payload = _evaluate_work_order_errors(rows, station, department, station_candidates, cur)
+            cur.close()
+        return jsonify(payload)
     except Exception as e:
         logger.error(f"Error checking work order errors: {e}")
         return jsonify({
@@ -9073,8 +9140,7 @@ def _warmup_rapid_ocr():
     except Exception as _w_err:
         print(f"[WARN] RapidOCR background warmup: {_w_err}")
 
-# Launch background warmup immediately on module load so first request is instant
-threading.Thread(target=_warmup_rapid_ocr, daemon=True, name="OCR-Warmup").start()
+# OCR Engine được làm ấm qua /api/ocr/warmup (IIS applicationInitialization) hoặc lazy-load khi OCR được gọi
 
 def strip_accents(text):
     if not text:

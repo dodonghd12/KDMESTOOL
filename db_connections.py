@@ -97,7 +97,7 @@ class PgConnectionPool:
             try:
                 raw_conn, last_used = self._pool.get_nowait()
                 now = time.time()
-                if (now - last_used) > self.max_idle_time or not self._is_conn_alive(raw_conn):
+                if (now - last_used) > self.max_idle_time or ((now - last_used) > 30 and not self._is_conn_alive(raw_conn)):
                     try:
                         raw_conn.close()
                     except Exception:
@@ -134,7 +134,7 @@ class PgConnectionPool:
             try:
                 raw_conn, last_used = self._pool.get(timeout=min(remaining, 1.0))
                 now = time.time()
-                if (now - last_used) > self.max_idle_time or not self._is_conn_alive(raw_conn):
+                if (now - last_used) > self.max_idle_time or ((now - last_used) > 30 and not self._is_conn_alive(raw_conn)):
                     try:
                         raw_conn.close()
                     except Exception:
@@ -159,8 +159,7 @@ class PgConnectionPool:
             return
 
         try:
-            if getattr(raw_conn, 'in_transaction', False):
-                raw_conn.rollback()
+            raw_conn.rollback()
             self._pool.put_nowait((raw_conn, time.time()))
         except Exception:
             try:
