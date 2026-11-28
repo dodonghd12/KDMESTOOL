@@ -387,7 +387,7 @@ body.theme-light {
 }
 
 .quick-action-btn:active {
-    transform: scale(0.92);
+    transform: none;
 }
 
 .quick-action-btn:focus-visible {
@@ -553,7 +553,7 @@ html, body {
 }
 
 .btn:active:not(:disabled) {
-    transform: translateY(1px) scale(0.975);
+    transform: translateY(1px);
     filter: brightness(0.93);
     box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.25);
 }
@@ -571,7 +571,7 @@ html, body {
 }
 
 .btn-primary:active:not(:disabled) {
-    transform: translateY(1px) scale(0.975);
+    transform: translateY(1px);
     filter: brightness(0.92);
     box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
 }
@@ -1359,6 +1359,13 @@ body.theme-light .flatpickr-day.today.inRange {
     transform: translateY(-50%) scale(1.1);
 }
 
+.input-box .clear-btn:active,
+.input-wrapper .clear-btn:active,
+.winx-search-bar .clear-btn:active,
+.winx-input-row .clear-btn:active {
+    transform: translateY(-50%);
+}
+
 .input-box.has-value .clear-btn,
 .input-wrapper.has-value .clear-btn,
 .winx-search-bar.has-value .clear-btn,
@@ -1501,7 +1508,7 @@ body.theme-light .flatpickr-day.today.inRange {
 }
 
 .input-mode-toggle-btn:active {
-    transform: translateX(-50%) translateY(0) scale(0.95);
+    transform: translateX(-50%) translateY(0);
 }
 
 .input-mode-toggle-btn .toggle-icon {
@@ -2303,7 +2310,7 @@ td {
 }
 
 .btn-export-excel:active {
-    transform: translateY(1px) scale(0.975);
+    transform: translateY(1px);
     filter: brightness(0.93);
     box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3), 0 2px 6px var(--color-feedback-success-glow);
 }
@@ -2384,7 +2391,7 @@ td {
 }
 
 .btn-insert-query:active {
-    transform: translateY(1px) scale(0.975);
+    transform: translateY(1px);
     filter: brightness(0.93);
     box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3), 0 2px 6px rgba(2, 132, 199, 0.3);
 }
@@ -3154,7 +3161,7 @@ body.theme-light .empty-state-icon-wrapper::after {
 }
 
 .details-modal-copy:active {
-    transform: translateY(1px) scale(0.975);
+    transform: translateY(1px);
     filter: brightness(0.92);
 }
 
@@ -3219,7 +3226,7 @@ body.theme-light .empty-state-icon-wrapper::after {
 }
 
 .details-modal-close:active {
-    transform: scale(0.92);
+    transform: none;
 }
 
 /* ── BODY & CODE CONTAINER ── */
@@ -3648,7 +3655,7 @@ body.theme-light .empty-state-icon-wrapper::after {
 }
 
 .output-header .close-btn:active {
-    transform: scale(0.92) rotate(90deg);
+    transform: rotate(90deg);
     filter: brightness(0.9);
 }
 
@@ -4327,7 +4334,7 @@ tbody tr:has(.table-empty-state):hover td {
 }
 
 .btn-yaml-fallback-search:active {
-    transform: translateY(0) scale(0.99);
+    transform: translateY(0);
 }
 
 .btn-yaml-fallback-search .material-symbols-outlined {
@@ -5665,7 +5672,7 @@ body.theme-light .comparison-table th {
 }
 
 .comparison-close-btn:active {
-    transform: scale(0.92);
+    transform: none;
 }
 
 .comparison-modal-body {
@@ -5880,7 +5887,7 @@ body.theme-light .comparison-table th {
 }
 
 .comparison-copy-btn:active {
-    transform: scale(0.96);
+    transform: none;
 }
 
 .comparison-copy-btn.copied {
@@ -6757,7 +6764,7 @@ body.theme-light .dropzone-progress-track {
 }
 
 .dropzone-remove-btn:active {
-    transform: scale(0.92);
+    transform: none;
     filter: brightness(0.9);
 }
 
@@ -6805,7 +6812,7 @@ body.theme-light .dropzone-success-tag {
 }
 
 .dropzone-check-btn:active:not(:disabled) {
-    transform: translateY(1px) scale(0.98);
+    transform: translateY(1px);
     filter: brightness(0.93);
     box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.25);
 }
@@ -7070,7 +7077,7 @@ body.theme-light .winx-btn-primary:hover:not(:disabled) {
 }
 
 .winx-btn:active:not(:disabled) {
-    transform: translateY(1px) scale(0.98);
+    transform: translateY(1px);
     filter: brightness(0.93);
     box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.25);
 }
@@ -7465,7 +7472,7 @@ body.theme-light .winx-btn-primary:hover:not(:disabled) {
 }
 
 .winx-lot-btn:active {
-    transform: translateY(1px) scale(0.96);
+    transform: translateY(1px);
     filter: brightness(0.93);
 }
 
@@ -8978,6 +8985,10 @@ body.theme-light .ocr-dropzone {
     transform: scale(1.08);
 }
 
+.ocr-remove-btn:active {
+    transform: none;
+}
+
 /* State Visibility Selectors */
 .ocr-dropzone:not(.is-loading):not(.is-preview) .ocr-state-idle {
     display: flex !important;
@@ -10162,6 +10173,10 @@ body.theme-light .ocr-dropzone {
     transform: scale(1.1);
 }
 
+.security-gate-close-btn:active {
+    transform: none;
+}
+
 .security-gate-close-btn .material-symbols-outlined {
     font-size: 18px;
     line-height: 1;
@@ -10943,7 +10958,7 @@ body.theme-light .material-transfer-barcode-code {
 }
 
 .material-transfer-retry-btn:active:not(:disabled) {
-    transform: scale(0.92);
+    transform: none;
 }
 
 .material-transfer-retry-btn .material-symbols-outlined {
@@ -11284,7 +11299,7 @@ body.theme-light .material-transfer-retry-btn.is-success {
     }
 
     .ocr-dropzone:active {
-        transform: scale(0.98);
+        transform: none;
     }
 
     .ocr-state-idle {
@@ -13972,7 +13987,7 @@ body.is-spa-frame .kd-fab-container {
 }
 
 .kd-speed-dial-action:active {
-    transform: scale(0.92);
+    transform: none;
 }
 
 .kd-speed-dial-action .material-symbols-outlined {
@@ -14007,7 +14022,7 @@ body.is-spa-frame .kd-fab-container {
 }
 
 .kd-fab-main:active {
-    transform: scale(0.96);
+    transform: none;
 }
 
 /* White plus icon turning 45 degrees into a close mark while menu is open */
@@ -14066,7 +14081,7 @@ body.is-spa-frame .kd-fab-container {
 }
 
 .kd-fab-container.in-sidebar .kd-fab-main:active {
-    transform: scale(0.92);
+    transform: none;
 }
 
 .kd-fab-container.in-sidebar .kd-fab-icon {
@@ -14134,7 +14149,7 @@ body.is-spa-frame .kd-fab-container {
 }
 
 .kd-fab-container.in-sidebar .kd-speed-dial-action:active {
-    transform: scale(0.94) !important;
+    transform: none !important;
 }
 
 .kd-fab-container.in-sidebar .kd-speed-dial-action .material-symbols-outlined {
@@ -14703,6 +14718,10 @@ body.is-spa-frame .kd-fab-container {
     transform: translateY(-50%) scale(1.1) !important;
 }
 
+.kd-input-box-wrap .clear-btn:active {
+    transform: translateY(-50%) !important;
+}
+
 .kd-input-box-wrap.has-value .clear-btn {
     display: inline-flex !important;
 }
@@ -14986,6 +15005,10 @@ body.is-spa-frame .kd-fab-container {
 .kd-picker-input-wrap .kd-picker-icon:hover {
     color: #6ee7b7 !important;
     transform: translateY(-50%) scale(1.1) !important;
+}
+
+.kd-picker-input-wrap .kd-picker-icon:active {
+    transform: translateY(-50%) !important;
 }
 
 .kd-convert-input::-webkit-calendar-picker-indicator {
@@ -15612,7 +15635,7 @@ button.hold-btn[data-hold-state="confirmed"] .hold-btn__bg {
 /* Scale ONLY background layers in active pointer state so labels never shift */
 button.hold-btn.is-active-press:not([data-hold-modality="keyboard"]) .hold-btn__bg,
 button.hold-btn.is-active-press:not([data-hold-modality="keyboard"]) .hold-btn__fill-bg {
-    transform: scale(0.98);
+    transform: scale(0.97);
 }
 
 .hold-btn__content {
@@ -15881,6 +15904,34 @@ body.theme-light .hold-confirm-dialog__btn--cancel {
     background: #f1f5f9;
     border-color: #cbd5e1;
     color: #0f172a;
+}
+
+/* ==========================================================================
+   GLOBAL BUTTON PRESS SCALE (0.97)
+   ========================================================================== */
+:where(
+    button,
+    input[type="button"],
+    input[type="submit"],
+    input[type="reset"],
+    [role="button"]
+):not(:disabled):not([aria-disabled="true"]):not(.hold-btn):active {
+    scale: 0.97;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :where(
+        button,
+        input[type="button"],
+        input[type="submit"],
+        input[type="reset"],
+        [role="button"]
+    ):active,
+    button.hold-btn.is-active-press .hold-btn__bg,
+    button.hold-btn.is-active-press .hold-btn__fill-bg {
+        scale: none !important;
+        transform: none !important;
+    }
 }
 
 

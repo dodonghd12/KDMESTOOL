@@ -74,7 +74,7 @@
 }
 
 .btn-open-yaml-file:active:not(:disabled) {
-    transform: translateY(1px) scale(0.98);
+    transform: translateY(1px);
 }
 
 .btn-open-yaml-file:disabled {
@@ -345,7 +345,7 @@
 }
 
 .btn-refresh-compact:active {
-    transform: translateY(1px) scale(0.96);
+    transform: translateY(1px);
 }
 
 /* ── SERVER SWITCH TOGGLE BUTTON (Kiểu dáng .input-mode-toggle-btn từ page main) ── */
@@ -392,7 +392,7 @@
 
 .bypass-meta-badge .input-mode-toggle-btn:active,
 .btn-server-switch:active {
-    transform: translateX(-50%) translateY(0) scale(0.95) !important;
+    transform: translateX(-50%) translateY(0) !important;
 }
 
 .bypass-meta-badge .input-mode-toggle-btn .toggle-icon,

@@ -412,7 +412,7 @@ body {
 }
 
 .quick-action-btn:active {
-    transform: scale(0.92);
+    transform: none;
 }
 
 .quick-action-btn:focus-visible {
@@ -461,7 +461,7 @@ body {
 }
 
 .theme-toggle-btn-4:active {
-    transform: scale(0.92);
+    transform: none;
 }
 
 .theme-toggle-btn-4 .bulb-svg {
@@ -729,7 +729,7 @@ main p {
 }
 
 .db-env-btn:active {
-    transform: scale(0.96);
+    transform: none;
 }
 
 body.theme-light .db-env-segmented-control {
@@ -1319,7 +1319,7 @@ body.theme-light .quick-action-btn:hover {
 
     .mobile-menu-btn:active,
     .mobile-action-btn:active {
-        transform: scale(0.92);
+        transform: none;
         background: var(--hover-clr, rgba(22, 160, 133, 0.25));
     }
 

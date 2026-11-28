@@ -463,7 +463,7 @@
 }
 
 .btn-return-default-printer:active {
-    transform: rotate(-35deg) scale(0.92);
+    transform: rotate(-35deg);
 }
 
 .btn-return-default-printer .material-symbols-outlined {
@@ -501,7 +501,7 @@
 }
 
 .btn-change-printer:active {
-    transform: scale(0.92);
+    transform: none;
 }
 
 .btn-change-printer .material-symbols-outlined {
@@ -684,7 +684,7 @@ body.theme-light .station-count-badge {
 }
 
 .btn-add-station:active {
-    transform: scale(0.92);
+    transform: none;
 }
 
 .btn-add-station .material-symbols-outlined {
@@ -745,7 +745,7 @@ body.theme-light .station-count-badge {
 }
 
 .btn-remove-station:active {
-    transform: scale(0.9);
+    transform: none;
 }
 
 .btn-remove-station .material-symbols-outlined {
