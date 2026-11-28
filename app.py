@@ -952,55 +952,6 @@ def get_client_ip():
     
     return request.remote_addr
 
-BLOCKED_IPS = frozenset(
-    ip.strip()
-    for ip in os.environ.get('BLOCKED_IPS', '198.1.10.234').split(',')
-    if ip.strip()
-)
-BLOCKED_404_STATIC_ALLOW = (
-    '/static/css/404.css',
-    '/static/img/favicon.svg',
-    '/static/img/kd_favicon.png',
-    '/static/vendor/google-fonts/',
-)
-
-def _normalize_ip_token(raw_ip):
-    """Chuẩn hóa chuỗi IP từ REMOTE_ADDR hoặc proxy headers."""
-    ip = (raw_ip or '').strip().strip('"').strip("'")
-    if not ip:
-        return ''
-    if ip.startswith('['):
-        bracket_end = ip.find(']')
-        if bracket_end != -1:
-            ip = ip[1:bracket_end]
-    elif ip.count(':') == 1 and '.' in ip:
-        ip = ip.split(':', 1)[0]
-    if ip.lower().startswith('::ffff:'):
-        ip = ip[7:]
-    return ip.strip()
-
-def _collect_request_ips():
-    """Thu thập toàn bộ IP client từ socket và headers để chống giả mạo header."""
-    candidates = []
-    for raw in (
-        request.remote_addr,
-        request.environ.get('REMOTE_ADDR'),
-        request.headers.get('X-Real-IP'),
-        request.headers.get('X-Client-IP'),
-        request.headers.get('CF-Connecting-IP'),
-        request.headers.get('True-Client-IP'),
-    ):
-        if raw:
-            candidates.append(raw)
-    for hdr in (request.headers.get('X-Forwarded-For'), request.environ.get('HTTP_X_FORWARDED_FOR')):
-        if hdr:
-            candidates.extend(hdr.split(','))
-    return [norm for norm in (_normalize_ip_token(c) for c in candidates) if norm]
-
-def is_blocked_client_ip():
-    """Kiểm tra request có xuất phát hoặc đi qua IP bị chặn hay không."""
-    return any(ip in BLOCKED_IPS for ip in _collect_request_ips())
-
 DEFAULT_MES_USER = os.environ.get('DEFAULT_MES_USER', 'thsang')
 DEFAULT_MES_PASS = os.environ.get('DEFAULT_MES_PASS', 'thsang')
 
@@ -1068,7 +1019,7 @@ def fetch_mes_api_with_retry(method, url, **kwargs):
 
 
 # --- Core Application Constants & Helpers ---
-APP_VERSION = "2.4.71"
+APP_VERSION = "2.4.72"
 _SERVER_BOOT_TIME = int(time.time())
 
 def get_asset_version():
@@ -1198,31 +1149,6 @@ def extract_request_payload():
     except Exception:
         return {}
 
-@app.route('/404')
-def not_found_page():
-    """Trang 404 dùng riêng cho truy cập bị chặn hoặc điều hướng trực tiếp."""
-    response = make_response(render_template('404.html'), 404)
-    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
-    response.headers['X-Robots-Tag'] = 'noindex, nofollow, noarchive'
-    return response
-
-@app.before_request
-def block_restricted_ips():
-    """Chặn IP hạn chế trên mọi route, API và file tĩnh JS/CSS."""
-    if not is_blocked_client_ip():
-        return None
-    session.clear()
-    path = request.path or '/'
-    if path == '/api' or path.startswith('/api/') or (path == '/login' and request.method != 'GET'):
-        return jsonify({'success': False, 'error': True, 'message': 'Internal Server Error'}), 500
-    if path == '/404':
-        return not_found_page()
-    if path.startswith('/static/'):
-        if any(path == p or (p.endswith('/') and path.startswith(p)) for p in BLOCKED_404_STATIC_ALLOW):
-            return None
-        return not_found_page()
-    return redirect('/404', code=302)
-
 @app.before_request
 def log_api_requests():
     if request.path.startswith('/api/'):
@@ -1235,11 +1161,6 @@ def log_api_requests():
 def suppress_browser_auth_popup(response):
     response.headers.pop('WWW-Authenticate', None)
     response.headers.pop('www-authenticate', None)
-
-    if is_blocked_client_ip():
-        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
-        response.headers['X-Robots-Tag'] = 'noindex, nofollow, noarchive'
-        return response
 
     if request.path.startswith(('/static/vendor/', '/static/fonts/', '/static/img/', '/static/video/')):
         response.headers['Cache-Control'] = 'public, max-age=2592000, immutable'
